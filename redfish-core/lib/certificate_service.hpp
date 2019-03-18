@@ -234,6 +234,7 @@ class CertificateActionGenerateCSR : public Node
     void doPost(crow::Response &res, const crow::Request &req,
                 const std::vector<std::string> &params) override
     {
+        static const int KEY_BIT_LENGTH = 2048;
         auto asyncResp = std::make_shared<AsyncResp>(res);
         // Required parameters
         std::optional<std::string> city;
@@ -252,9 +253,9 @@ class CertificateActionGenerateCSR : public Node
         std::optional<std::string> optEmail = "";
         std::optional<std::string> optGivenName = "";
         std::optional<std::string> optInitials = "";
-        std::optional<int64_t> optKeyBitLength = 2048;
-        std::optional<std::string> optKeyCurveId = "";
-        std::optional<std::string> optKeyPairAlgorithm = "RSA";
+        std::optional<int64_t> optKeyBitLength = KEY_BIT_LENGTH;
+        std::optional<std::string> optKeyCurveId = "secp224r1";
+        std::optional<std::string> optKeyPairAlgorithm = "EC";
         std::optional<std::vector<std::string>> optKeyUsage =
             std::vector<std::string>();
         std::optional<std::string> optSurname = "";
@@ -312,6 +313,17 @@ class CertificateActionGenerateCSR : public Node
                                              "State");
             return;
         }
+
+        // bmcweb has no way to store or decode a private key challenge
+        // password, which will likely cause bmcweb to crash on startup if this
+        // is not set on a post so not allowing the user to set value
+        if (*optChallengePassword != "")
+        {
+            messages::actionParameterNotSupported(asyncResp->res, "GenerateCSR",
+                                                  "ChallengePassword");
+            return;
+        }
+
         if (!certificateCollection)
         {
             messages::actionParameterMissing(asyncResp->res, "GenerateCSR",
@@ -326,7 +338,7 @@ class CertificateActionGenerateCSR : public Node
                                              "CertificateCollection");
             return;
         }
-        BMCWEB_LOG_DEBUG << "Certificate URI value received is" << certURI;
+
         std::string objectPath;
         std::string service;
         if (certURI ==
@@ -335,11 +347,6 @@ class CertificateActionGenerateCSR : public Node
             objectPath = certs::httpsObjectPath;
             service = certs::httpsServiceName;
         }
-        else if (certURI == "/redfish/v1/AccountService/LDAP/Certificates/")
-        {
-            objectPath = certs::ldapObjectPath;
-            service = certs::ldapServiceName;
-        }
         else
         {
             messages::actionParameterValueFormatError(asyncResp->res, certURI,
@@ -347,15 +354,36 @@ class CertificateActionGenerateCSR : public Node
                                                       "GenerateCSR");
             return;
         }
-        // if not default value validate the input value
-        if (*optKeyPairAlgorithm != "")
+
+        // If key pair algorithm optional argument is not set, set it to EC
+        if (*optKeyPairAlgorithm == "")
         {
-            if (*optKeyPairAlgorithm != "RSA" && *optKeyPairAlgorithm != "EC")
-            {
-                messages::actionParameterNotSupported(
-                    asyncResp->res, "KeyPairAlgorithm", "GenerateCSR");
-                return;
-            }
+            *optKeyPairAlgorithm = "EC";
+        }
+
+        // supporting only EC and RSA algorithm
+        if (*optKeyPairAlgorithm != "EC" && *optKeyPairAlgorithm != "RSA")
+        {
+            messages::actionParameterNotSupported(
+                asyncResp->res, "KeyPairAlgorithm", "GenerateCSR");
+            return;
+        }
+
+        // if key bit length optional argument is not set, set it to default
+        // value
+        if (*optKeyBitLength == 0)
+        {
+            *optKeyBitLength = KEY_BIT_LENGTH;
+        }
+
+        // supporting only 2048 key bit length for RSA algorithm due to time
+        // consumed in generating private key
+        if (*optKeyPairAlgorithm == "RSA" && *optKeyBitLength != KEY_BIT_LENGTH)
+        {
+            messages::actionParameterValueFormatError(
+                asyncResp->res, std::to_string(*optKeyBitLength),
+                "KeyBitLength", "GenerateCSR");
+            return;
         }
 
         // validate KeyUsage
@@ -370,17 +398,19 @@ class CertificateActionGenerateCSR : public Node
         }
 
         // Only allow one CSR matcher at a time so setting retry time-out and
-        // timer expiry to 60 seconds for now. D-Bus time-out is 60 seconds.
+        // timer expiry to 10 seconds for now. HTTPS time-out is 10 seconds.
+        static const int TIME_OUT = 10;
         if (csrMatcher)
         {
-            res.addHeader("Retry-After", "60");
-            messages::serviceTemporarilyUnavailable(asyncResp->res, "60");
+            res.addHeader("Retry-After", std::to_string(TIME_OUT));
+            messages::serviceTemporarilyUnavailable(asyncResp->res,
+                                                    std::to_string(TIME_OUT));
             return;
         }
 
         // Make this static so it survives outside this method
         static boost::asio::steady_timer timeout(*req.ioService);
-        timeout.expires_after(std::chrono::seconds(60));
+        timeout.expires_after(std::chrono::seconds(TIME_OUT));
         timeout.async_wait([asyncResp](const boost::system::error_code &ec) {
             csrMatcher = nullptr;
             if (ec)
@@ -465,25 +495,16 @@ class CertificateActionGenerateCSR : public Node
      */
     bool isKeyUsageFound(const std::string &str)
     {
-        std::array<const char *, 15> usageList = {
+        const static std::array<const char *, 15> usageList = {
             "DigitalSignature",     "NonRepudiation",       "KeyEncipherment",
             "DataEncipherment",     "KeyAgreement",         "KeyCertSign",
             "CRLSigning",           "EncipherOnly",         "DecipherOnly",
             "ServerAuthentication", "ClientAuthentication", "CodeSigning",
             "EmailProtection",      "Timestamping",         "OCSPSigning"};
-        auto it = std::find_if(usageList.begin(), usageList.end(),
-                               [&str](const char *s) {
-                                   if (strcmp(s, str.c_str()) == 0)
-                                   {
-                                       return true;
-                                   }
-                                   return false;
-                               });
-        if (it != usageList.end())
-        {
-            return true;
-        }
-        return false;
+        auto it = std::find_if(
+            usageList.begin(), usageList.end(),
+            [&str](const char *s) { return (strcmp(s, str.c_str()) == 0); });
+        return (it != usageList.end());
     }
 }; // CertificateActionGenerateCSR
 
