@@ -28,6 +28,106 @@ namespace redfish
 {
 
 /**
+ * @brief Updates the Functional State of DIMMs
+ *
+ * @param[in] aResp Shared pointer for completing asynchronous calls
+ * @param[in] dimmState Dimm's Functional state, true/false
+ *
+ * @return None.
+ */
+void updateDimmProperties(std::shared_ptr<AsyncResp> aResp,
+                          const std::variant<bool> &dimmState)
+{
+    const bool *isDimmFunctional = std::get_if<bool>(&dimmState);
+    if (isDimmFunctional == nullptr)
+    {
+        messages::internalError(aResp->res);
+        return;
+    }
+    BMCWEB_LOG_DEBUG << "Dimm Functional:" << *isDimmFunctional;
+
+    // Set it as Enabled if atleast one DIMM is functional
+    // Update STATE only if previous State was DISABLED and current Dimm is
+    // ENABLED.
+    nlohmann::json &prevMemSummary =
+        aResp->res.jsonValue["MemorySummary"]["Status"]["State"];
+    if (prevMemSummary == "Disabled")
+    {
+        if (*isDimmFunctional == true)
+        {
+            aResp->res.jsonValue["MemorySummary"]["Status"]["State"] =
+                "Enabled";
+        }
+    }
+}
+
+/*
+ * @brief Update "ProcessorSummary" "Count" based on Cpu PresenceState
+ *
+ * @param[in] aResp Shared pointer for completing asynchronous calls
+ * @param[in] cpuPresenceState CPU present or not
+ *
+ * @return None.
+ */
+void modifyCpuPresenceState(std::shared_ptr<AsyncResp> aResp,
+                            const std::variant<bool> &cpuPresenceState)
+{
+    const bool *isCpuPresent = std::get_if<bool>(&cpuPresenceState);
+
+    if (isCpuPresent == nullptr)
+    {
+        messages::internalError(aResp->res);
+        return;
+    }
+    BMCWEB_LOG_DEBUG << "Cpu Present:" << *isCpuPresent;
+
+    nlohmann::json &procCount =
+        aResp->res.jsonValue["ProcessorSummary"]["Count"];
+    if (*isCpuPresent == true)
+    {
+        procCount = procCount.get<int>() + 1;
+    }
+    aResp->res.jsonValue["ProcessorSummary"]["Count"] = procCount;
+}
+
+/*
+ * @brief Update "ProcessorSummary" "Status" "State" based on
+ *        CPU Functional State
+ *
+ * @param[in] aResp Shared pointer for completing asynchronous calls
+ * @param[in] cpuFunctionalState is CPU functional true/false
+ *
+ * @return None.
+ */
+void modifyCpuFunctionalState(std::shared_ptr<AsyncResp> aResp,
+                              const std::variant<bool> &cpuFunctionalState)
+{
+    const bool *isCpuFunctional = std::get_if<bool>(&cpuFunctionalState);
+
+    if (isCpuFunctional == nullptr)
+    {
+        messages::internalError(aResp->res);
+        return;
+    }
+    BMCWEB_LOG_DEBUG << "Cpu Functional:" << *isCpuFunctional;
+
+    nlohmann::json &prevProcState =
+        aResp->res.jsonValue["ProcessorSummary"]["Status"]["State"];
+
+    // Set it as Enabled if atleast one CPU is functional
+    // Update STATE only if previous State was Non_Functional and current CPU is
+    // Functional.
+    if (prevProcState == "Disabled")
+    {
+        if (*isCpuFunctional == true)
+        {
+            aResp->res.jsonValue["ProcessorSummary"]["Status"]["State"] =
+                "Enabled";
+        }
+    }
+}
+
+/*
  * @brief Retrieves computer system properties over dbus
  *
  * @param[in] aResp Shared pointer for completing asynchronous calls
@@ -38,6 +138,7 @@ namespace redfish
 void getComputerSystem(std::shared_ptr<AsyncResp> aResp)
 {
     BMCWEB_LOG_DEBUG << "Get available system components.";
+
     crow::connections::systemBus->async_method_call(
         [aResp](
             const boost::system::error_code ec,
@@ -78,11 +179,14 @@ void getComputerSystem(std::shared_ptr<AsyncResp> aResp)
                         {
                             BMCWEB_LOG_DEBUG
                                 << "Found Dimm, now get its properties.";
+
                             crow::connections::systemBus->async_method_call(
-                                [aResp](const boost::system::error_code ec,
-                                        const std::vector<
-                                            std::pair<std::string, VariantType>>
-                                            &properties) {
+                                [aResp, service{connection.first},
+                                 path(std::move(path))](
+                                    const boost::system::error_code ec,
+                                    const std::vector<
+                                        std::pair<std::string, VariantType>>
+                                        &properties) {
                                     if (ec)
                                     {
                                         BMCWEB_LOG_ERROR
@@ -93,29 +197,64 @@ void getComputerSystem(std::shared_ptr<AsyncResp> aResp)
                                     BMCWEB_LOG_DEBUG << "Got "
                                                      << properties.size()
                                                      << "Dimm properties.";
-                                    for (const std::pair<std::string,
-                                                         VariantType>
-                                             &property : properties)
+
+                                    if (properties.size() > 0)
                                     {
-                                        if (property.first == "MemorySizeInKb")
+                                        for (const std::pair<std::string,
+                                                             VariantType>
+                                                 &property : properties)
                                         {
-                                            const uint64_t *value =
-                                                sdbusplus::message::variant_ns::
-                                                    get_if<uint64_t>(
-                                                        &property.second);
-                                            if (value != nullptr)
+                                            if (property.first ==
+                                                "MemorySizeInKb")
                                             {
-                                                aResp->res.jsonValue
-                                                    ["TotalSystemMemoryGi"
-                                                     "B"] +=
-                                                    *value / (1024 * 1024);
-                                                aResp->res
-                                                    .jsonValue["MemorySummary"]
-                                                              ["Status"]
-                                                              ["State"] =
-                                                    "Enabled";
+                                                const uint64_t *value =
+                                                    sdbusplus::message::
+                                                        variant_ns::get_if<
+                                                            uint64_t>(
+                                                            &property.second);
+                                                if (value != nullptr)
+                                                {
+                                                    aResp->res.jsonValue
+                                                        ["TotalSystemMemoryGi"
+                                                         "B"] +=
+                                                        *value / (1024 * 1024);
+                                                    aResp->res.jsonValue
+                                                        ["MemorySummary"]
+                                                        ["Status"]["State"] =
+                                                        "Enabled";
+                                                }
                                             }
                                         }
+                                    }
+                                    else
+                                    {
+                                        auto getDimmProperties =
+                                            [aResp](
+                                                const boost::system::error_code
+                                                    ec,
+                                                const std::variant<bool>
+                                                    &dimmState) {
+                                                if (ec)
+                                                {
+                                                    BMCWEB_LOG_ERROR
+                                                        << "DBUS response "
+                                                           "error "
+                                                        << ec;
+                                                    return;
+                                                }
+                                                updateDimmProperties(aResp,
+                                                                     dimmState);
+                                            };
+                                        crow::connections::systemBus
+                                            ->async_method_call(
+                                                std::move(getDimmProperties),
+                                                service, path,
+                                                "org.freedesktop.DBus."
+                                                "Properties",
+                                                "Get",
+                                                "xyz.openbmc_project.State."
+                                                "Decorator.OperationalStatus",
+                                                "Functional");
                                     }
                                 },
                                 connection.first, path,
