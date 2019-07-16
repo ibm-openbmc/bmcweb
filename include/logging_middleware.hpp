@@ -4,7 +4,10 @@
 #include <crow/http_request.h>
 #include <crow/http_response.h>
 
+#include <../redfish-core/include/utils/systemd_utils.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#define SD_JOURNAL_SUPPRESS_LOCATION
+#include <systemd/sd-journal.h>
 
 namespace crow
 {
@@ -21,34 +24,8 @@ class Middleware
     {
     };
 
-    Middleware() : loggingEnabled(false)
+    Middleware()
     {
-        BMCWEB_LOG_DEBUG << "Logging middleware c'tor";
-        auto method = crow::connections::systemBus->new_method_call(
-            "xyz.openbmc_project.Settings",
-            "/xyz/openbmc_project/logging/rest_api_logs",
-            "org.freedesktop.DBus.Properties", "Get");
-
-        method.append("xyz.openbmc_project.Object.Enable", "Enabled");
-
-        auto reply = crow::connections::systemBus->call(method);
-
-        std::variant<bool> enabled;
-        reply.read(enabled);
-
-        bool* enabledPtr = std::get_if<bool>(&enabled);
-
-        if (!enabledPtr)
-        {
-            BMCWEB_LOG_ERROR << "Failed to read logging enabled setting";
-        }
-        else
-        {
-            loggingEnabled = *enabledPtr;
-            BMCWEB_LOG_DEBUG << "REST/Redfish logging enabled status: "
-                             << loggingEnabled;
-        }
-
         // Register for property changed event on logging enabled DBus object
         busMatcher = std::make_unique<sdbusplus::bus::match_t>(
             *crow::connections::systemBus,
@@ -57,7 +34,7 @@ class Middleware
                 "xyz.openbmc_project.Object.Enable"),
             [this](sdbusplus::message::message& msg) {
                 std::string interface;
-                std::map<std::string, std::variant<bool>> props;
+                std::vector<std::pair<std::string, std::variant<bool>>> props;
 
                 msg.read(interface, props);
 
@@ -81,28 +58,56 @@ class Middleware
     ~Middleware() = default;
 
     void log(const crow::Request& req, crow::Response& res,
-             const std::string_view username, bool skipBody)
+             const std::string_view& username, bool skipBody)
     {
-        if (!loggingEnabled)
+        if (loggingEnabled && !*loggingEnabled)
         {
             return;
         }
-        std::cout << req.remoteIp << " "
-                  << "user:" << username << " " << req.methodString() << " "
-                  << req.url << " json:" << (skipBody ? "None" : req.body)
-                  << " " << res.resultInt() << " "
-                  << boost::beast::http::obsolete_reason(res.result())
-                  << std::endl;
+        sd_journal_print(
+            LOG_INFO, "%s: user: %s %s %s json: %s %d %s",
+            redfish::systemd_utils::getUuid().c_str(),
+            std::string(username).c_str(),
+            std::string(req.methodString()).c_str(),
+            std::string(req.url).c_str(),
+            (skipBody ? "None" : req.body.c_str()), res.resultInt(),
+            std::string(boost::beast::http::obsolete_reason(res.result()))
+                .c_str());
     }
 
     void beforeHandle(crow::Request& /*req*/, Response& /*res*/,
                       Context& /*ctx*/)
     {
+        if (!loggingEnabled)
+        {
+            crow::connections::systemBus->async_method_call(
+                [this](const boost::system::error_code ec,
+                       std::variant<bool> enabled) {
+                    if (ec)
+                    {
+                        BMCWEB_LOG_DEBUG << "Failed call to get logging status "
+                                            "DBUS response error "
+                                         << ec;
+                        return;
+                    }
+                    bool* enabledPtr = std::get_if<bool>(&enabled);
+                    if (enabledPtr)
+                    {
+                        BMCWEB_LOG_DEBUG << "Logging enabled set to: "
+                                         << *enabledPtr;
+                        this->loggingEnabled = *enabledPtr;
+                    }
+                },
+                "xyz.openbmc_project.Settings",
+                "/xyz/openbmc_project/logging/rest_api_logs",
+                "org.freedesktop.DBus.Properties", "Get",
+                "xyz.openbmc_project.Object.Enable", "Enabled");
+        }
     }
 
     void afterHandle(Request& req, Response& res, Context& /*ctx*/)
     {
-        if (!loggingEnabled)
+        if (loggingEnabled && !*loggingEnabled)
         {
             return;
         }
@@ -119,8 +124,11 @@ class Middleware
             // requests that contain passwords.
             if ((req.url ==
                  "/xyz/openbmc_project/user/ldap/action/CreateConfig") ||
-                (boost::algorithm::starts_with(req.url,
-                                               "/redfish/v1/AccountService/")))
+                (boost::algorithm::starts_with(
+                    req.url, "/redfish/v1/AccountService/")) ||
+                (req.method() == "POST"_method &&
+                 ((req.url == "/redfish/v1/UpdateService") ||
+                  (req.url == "/redfish/v1/UpdateService/"))))
             {
                 skipBody = true;
             }
@@ -132,7 +140,7 @@ class Middleware
     }
 
   private:
-    bool loggingEnabled;
+    std::optional<bool> loggingEnabled;
     std::unique_ptr<sdbusplus::bus::match_t> busMatcher;
 };
 
