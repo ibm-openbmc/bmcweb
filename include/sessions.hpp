@@ -320,6 +320,10 @@ struct UserSession
             {
                 userSession->username = *thisValue;
             }
+            else if (element.key() == "user_role")
+            {
+                userSession->userRole = *thisValue;
+            }
             else
             {
                 BMCWEB_LOG_ERROR
@@ -530,7 +534,8 @@ struct adl_serializer<std::shared_ptr<crow::persistent_data::UserSession>>
             j = nlohmann::json{{"unique_id", p->uniqueId},
                                {"session_token", p->sessionToken},
                                {"username", p->username},
-                               {"csrf_token", p->csrfToken}};
+                               {"csrf_token", p->csrfToken},
+                               {"user_role", p->userRole}};
         }
     }
 };
