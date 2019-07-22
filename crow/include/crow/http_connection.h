@@ -340,14 +340,23 @@ class Connection
                                          boost::beast::ssl_stream<
                                              boost::asio::ip::tcp::socket>>)
             {
-                req->remoteIp = adaptor.next_layer()
-                                    .remote_endpoint()
-                                    .address()
-                                    .to_string();
+                boost::system::error_code ec;
+
+                auto remoteEnd = adaptor.next_layer().remote_endpoint(ec);
+                if (!ec)
+                {
+                    req->remoteIp = remoteEnd.address().to_string();
+                }
             }
             else
             {
-                req->remoteIp = adaptor.remote_endpoint().address().to_string();
+                boost::system::error_code ec;
+
+                auto remoteEnd = adaptor.remote_endpoint(ec);
+                if (!ec)
+                {
+                    req->remoteIp = remoteEnd.address().to_string();
+                }
             }
 
             res.completeRequestHandler = [] {};
