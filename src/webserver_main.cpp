@@ -59,6 +59,8 @@ int main(int argc, char** argv)
     crow::logger::setLogLevel(crow::LogLevel::DEBUG);
 
     auto io = std::make_shared<boost::asio::io_context>();
+    crow::connections::systemBus =
+        std::make_shared<sdbusplus::asio::connection>(*io);
     CrowApp app(io);
 
     // Static assets need to be initialized before Authorization, because auth
@@ -95,9 +97,11 @@ int main(int argc, char** argv)
     BMCWEB_LOG_INFO << "bmcweb (" << __DATE__ << ": " << __TIME__ << ')';
     setupSocket(app);
 
-    crow::connections::systemBus =
-        std::make_shared<sdbusplus::asio::connection>(*io);
     redfish::RedfishService redfish(app);
+
+    // Keep the user role map hot in memory and
+    // track the changes using match object
+    crow::persistent_data::UserRoleMap::getInstance();
 
     app.run();
     io->run();

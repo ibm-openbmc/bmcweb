@@ -136,8 +136,6 @@ class RedfishService
         nodes.emplace_back(
             std::make_unique<TrustStoreCertificateCollection>(app));
         nodes.emplace_back(std::make_unique<TrustStoreCertificate>(app));
-        nodes.emplace_back(std::make_unique<SystemPCIeFunction>(app));
-        nodes.emplace_back(std::make_unique<SystemPCIeDevice>(app));
         for (const auto& node : nodes)
         {
             node->initPrivileges();

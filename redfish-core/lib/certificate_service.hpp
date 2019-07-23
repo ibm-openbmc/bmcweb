@@ -338,7 +338,6 @@ class CertificateActionGenerateCSR : public Node
                                              "CertificateCollection");
             return;
         }
-
         std::string objectPath;
         std::string service;
         if (certURI ==
