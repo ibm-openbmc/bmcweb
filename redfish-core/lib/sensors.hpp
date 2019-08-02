@@ -57,7 +57,7 @@ class SensorsAsyncResp
     }
 
     SensorsAsyncResp(crow::Response& response, const std::string& chassisId) :
-        res(response), chassisId(chassisId)
+        res(response), chassisId(chassisId), types(), chassisSubNode()
     {
     }
 
@@ -128,12 +128,12 @@ class SensorCollection : public Node
         const std::vector<std::string> excludeSensors = {
             "/xyz/openbmc_project/sensors/temperature/",
             "/xyz/openbmc_project/sensors/voltage/",
-            "/xyz/openbmc_project/sensors/fan_tach/"};
+            "/xyz/openbmc_project/sensors/fan_tach/",
+            "/xyz/openbmc_project/sensors/fan_pwm/"};
 
         const std::array<const char*, 3> interfaces = {
             "xyz.openbmc_project.Inventory.Item.Board",
-            "xyz.openbmc_project.Inventory.Item.Chassis",
-            "xyz.openbmc_project.Inventory.Item.PowerSupply"};
+            "xyz.openbmc_project.Inventory.Item.Chassis"};
 
         crow::connections::systemBus->async_method_call(
             [asyncResp,
@@ -154,7 +154,7 @@ class SensorCollection : public Node
                 {
                     std::size_t lastPos = chassis.rfind("/");
                     if (lastPos == std::string::npos ||
-                        lastPos + 1 > chassis.size())
+                        lastPos + 1 >= chassis.size())
                     {
                         BMCWEB_LOG_ERROR << "Invalid chassis path: " << chassis;
                         continue;
@@ -182,11 +182,14 @@ class SensorCollection : public Node
                             variantEndpoints) {
                         if (ec)
                         {
-                            BMCWEB_LOG_ERROR
-                                << "SensorCollection get chassis sensors "
-                                << "DBUS error: " << ec;
-                            messages::internalError(asyncResp->res);
-                            return;
+                            if (ec.value() != EBADR)
+                            {
+                                BMCWEB_LOG_ERROR
+                                    << "SensorCollection get chassis sensors "
+                                    << "DBUS error: " << ec;
+                                messages::internalError(asyncResp->res);
+                                return;
+                            }
                         }
                         const std::vector<std::string>* nodeSensorList =
                             std::get_if<std::vector<std::string>>(
@@ -225,7 +228,7 @@ class SensorCollection : public Node
 
                             std::size_t lastPos = sensor.rfind("/");
                             if (lastPos == std::string::npos ||
-                                lastPos + 1 > sensor.size())
+                                lastPos + 1 >= sensor.size())
                             {
                                 BMCWEB_LOG_ERROR << "Invalid sensor path: "
                                                  << sensor;
@@ -317,7 +320,7 @@ class Sensor : public Node
                         const std::string& sensor = object.first;
                         std::size_t lastPos = sensor.rfind("/");
                         if (lastPos == std::string::npos ||
-                            lastPos + 1 > sensor.size())
+                            lastPos + 1 >= sensor.size())
                         {
                             BMCWEB_LOG_ERROR << "Invalid sensor path: "
                                              << sensor;
