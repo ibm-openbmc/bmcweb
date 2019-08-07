@@ -437,6 +437,16 @@ class Sensor : public Node
                             }
                         }
 
+                        int64_t scale_multiplier = 0;
+                        if (scale == nullptr)
+                        {
+                            messages::propertyMissing(asyncResp->res, "Scale");
+                        }
+                        else
+                        {
+                            scale_multiplier = *scale;
+                        }
+
                         // Properties from Sensor.Value are required
                         if (value == nullptr)
                         {
@@ -444,16 +454,8 @@ class Sensor : public Node
                         }
                         else
                         {
-                            if (scale == nullptr)
-                            {
-                                messages::propertyMissing(asyncResp->res,
-                                                          "Scale");
-                            }
-                            else
-                            {
-                                asyncResp->res.jsonValue["Reading"] =
-                                    *value * std::pow(10, *scale);
-                            }
+                            asyncResp->res.jsonValue["Reading"] =
+                                *value * std::pow(10, scale_multiplier);
                         }
                         if (max == nullptr)
                         {
@@ -462,7 +464,8 @@ class Sensor : public Node
                         }
                         else
                         {
-                            asyncResp->res.jsonValue["ReadingRangeMax"] = *max;
+                            asyncResp->res.jsonValue["ReadingRangeMax"] =
+                                *max * std::pow(10, scale_multiplier);
                         }
                         if (min == nullptr)
                         {
@@ -471,7 +474,8 @@ class Sensor : public Node
                         }
                         else
                         {
-                            asyncResp->res.jsonValue["ReadingRangeMin"] = *min;
+                            asyncResp->res.jsonValue["ReadingRangeMin"] =
+                                *min * std::pow(10, scale_multiplier);
                         }
                         if (unit == nullptr)
                         {
@@ -487,25 +491,29 @@ class Sensor : public Node
                         {
                             asyncResp->res
                                 .jsonValue["Thresholds"]["UpperCritical"]
-                                          ["Reading"] = *critHigh;
+                                          ["Reading"] =
+                                *critHigh * std::pow(10, scale_multiplier);
                         }
                         if (critLow != nullptr)
                         {
                             asyncResp->res
                                 .jsonValue["Thresholds"]["LowerCritical"]
-                                          ["Reading"] = *critLow;
+                                          ["Reading"] =
+                                *critLow * std::pow(10, scale_multiplier);
                         }
                         if (warnHigh != nullptr)
                         {
                             asyncResp->res
                                 .jsonValue["Thresholds"]["UpperCaution"]
-                                          ["Reading"] = *warnHigh;
+                                          ["Reading"] =
+                                *warnHigh * std::pow(10, scale_multiplier);
                         }
                         if (warnLow != nullptr)
                         {
                             asyncResp->res
                                 .jsonValue["Thresholds"]["LowerCaution"]
-                                          ["Reading"] = *warnLow;
+                                          ["Reading"] =
+                                *warnLow * std::pow(10, scale_multiplier);
                         }
                     },
                     service, sensorPath, "org.freedesktop.DBus.Properties",
