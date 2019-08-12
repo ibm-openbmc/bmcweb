@@ -132,7 +132,7 @@ class SensorCollection : public Node
             "/xyz/openbmc_project/sensors/fan_tach/",
             "/xyz/openbmc_project/sensors/fan_pwm/"};
 
-        const std::array<const char*, 3> interfaces = {
+        const std::array<const char*, 2> interfaces = {
             "xyz.openbmc_project.Inventory.Item.Board",
             "xyz.openbmc_project.Inventory.Item.Chassis"};
 
