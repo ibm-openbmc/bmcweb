@@ -1155,6 +1155,7 @@ class LDAPCertificate : public Node
                                  id, certURL, "LDAP Certificate");
     }
 }; // LDAPCertificate
+
 /**
  * Collection of TrustStoreCertificate certificates
  */

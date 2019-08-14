@@ -182,10 +182,9 @@ class ChassisCollection : public Node
             "/redfish/v1/$metadata#ChassisCollection.ChassisCollection";
         res.jsonValue["Name"] = "Chassis Collection";
 
-        const std::array<const char *, 3> interfaces = {
+        const std::array<const char *, 2> interfaces = {
             "xyz.openbmc_project.Inventory.Item.Board",
-            "xyz.openbmc_project.Inventory.Item.Chassis",
-            "xyz.openbmc_project.Inventory.Item.PowerSupply"};
+            "xyz.openbmc_project.Inventory.Item.Chassis"};
 
         auto asyncResp = std::make_shared<AsyncResp>(res);
         crow::connections::systemBus->async_method_call(
@@ -247,10 +246,9 @@ class Chassis : public Node
     void doGet(crow::Response &res, const crow::Request &req,
                const std::vector<std::string> &params) override
     {
-        const std::array<const char *, 3> interfaces = {
+        const std::array<const char *, 2> interfaces = {
             "xyz.openbmc_project.Inventory.Item.Board",
-            "xyz.openbmc_project.Inventory.Item.Chassis",
-            "xyz.openbmc_project.Inventory.Item.PowerSupply"};
+            "xyz.openbmc_project.Inventory.Item.Chassis"};
 
         // Check if there is required param, truly entering this shall be
         // impossible.
@@ -325,7 +323,7 @@ class Chassis : public Node
                     }
 
                     asyncResp->res.jsonValue["@odata.type"] =
-                        "#Chassis.v1_4_0.Chassis";
+                        "#Chassis.v1_9_0.Chassis";
                     asyncResp->res.jsonValue["@odata.id"] =
                         "/redfish/v1/Chassis/" + chassisId;
                     asyncResp->res.jsonValue["@odata.context"] =
@@ -371,6 +369,10 @@ class Chassis : public Node
                             asyncResp->res.jsonValue["Power"] = {
                                 {"@odata.id", "/redfish/v1/Chassis/" +
                                                   chassisId + "/Power"}};
+                            // SensorCollection
+                            asyncResp->res.jsonValue["Sensors"] = {
+                                {"@odata.id", "/redfish/v1/Chassis/" +
+                                                  chassisId + "/Sensors"}};
                             asyncResp->res.jsonValue["Status"] = {
                                 {"State", "Enabled"},
                             };
@@ -390,7 +392,7 @@ class Chassis : public Node
 
                 // Couldn't find an object with that name.  return an error
                 messages::resourceNotFound(
-                    asyncResp->res, "#Chassis.v1_4_0.Chassis", chassisId);
+                    asyncResp->res, "#Chassis.v1_9_0.Chassis", chassisId);
             },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
