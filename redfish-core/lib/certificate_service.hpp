@@ -310,9 +310,8 @@ class CertificateActionGenerateCSR : public Node
         }
         else
         {
-            messages::actionParameterValueFormatError(asyncResp->res, certURI,
-                                                      "CertificateCollection",
-                                                      "GenerateCSR");
+            messages::actionParameterNotSupported(
+                asyncResp->res, "CertificateCollection", "GenerateCSR");
             return;
         }
 
