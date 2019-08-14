@@ -137,6 +137,7 @@ class RedfishService
         nodes.emplace_back(
             std::make_unique<TrustStoreCertificateCollection>(app));
         nodes.emplace_back(std::make_unique<TrustStoreCertificate>(app));
+
         nodes.emplace_back(std::make_unique<SensorCollection>(app));
         nodes.emplace_back(std::make_unique<Sensor>(app));
         for (const auto& node : nodes)
