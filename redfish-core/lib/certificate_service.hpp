@@ -256,7 +256,7 @@ class CertificateActionGenerateCSR : public Node
         std::optional<int64_t> optKeyBitLength = RSA_KEY_BIT_LENGTH;
         std::optional<std::string> optKeyCurveId = "prime256v1";
         std::optional<std::string> optKeyPairAlgorithm = "EC";
-        std::optional<std::vector<std::string>> optKeyUsage =
+        std::optional<std::vector<std::string>> optKeyUsage =https://github.com/ibm-openbmc/bmcweb/pull/32/conflict?name=redfish-core%252Flib%252Fcertificate_service.hpp&ancestor_oid=4a077c880b4c6a9eac185d41191b4cdaf3e2d492&base_oid=25daaa25c2204b46b1349665cd872123cc95e1be&head_oid=c3905f46bac5c485740738010bf0f7a674c8fdfa
             std::vector<std::string>();
         std::optional<std::string> optSurname = "";
         std::optional<std::string> optUnstructuredName = "";
@@ -310,9 +310,8 @@ class CertificateActionGenerateCSR : public Node
         }
         else
         {
-            messages::actionParameterValueFormatError(asyncResp->res, certURI,
-                                                      "CertificateCollection",
-                                                      "GenerateCSR");
+            messages::actionParameterNotSupported(asyncResp->res, "GenerateCSR",
+                                                  "CertificateCollection");
             return;
         }
 

@@ -27,6 +27,7 @@
 #include "../lib/power.hpp"
 #include "../lib/redfish_sessions.hpp"
 #include "../lib/roles.hpp"
+#include "../lib/sensors.hpp"
 #include "../lib/service_root.hpp"
 #include "../lib/systems.hpp"
 #include "../lib/thermal.hpp"
