@@ -234,16 +234,16 @@ class CertificateActionGenerateCSR : public Node
     void doPost(crow::Response &res, const crow::Request &req,
                 const std::vector<std::string> &params) override
     {
-        static const int KEY_BIT_LENGTH = 2048;
+        static const int RSA_KEY_BIT_LENGTH = 2048;
         auto asyncResp = std::make_shared<AsyncResp>(res);
         // Required parameters
-        std::optional<std::string> city;
-        std::optional<std::string> commonName;
-        std::optional<std::string> country;
-        std::optional<std::string> organization;
-        std::optional<std::string> organizationalUnit;
-        std::optional<std::string> state;
-        std::optional<nlohmann::json> certificateCollection;
+        std::string city;
+        std::string commonName;
+        std::string country;
+        std::string organization;
+        std::string organizationalUnit;
+        std::string state;
+        nlohmann::json certificateCollection;
 
         // Optional parameters
         std::optional<std::vector<std::string>> optAlternativeNames =
@@ -253,15 +253,15 @@ class CertificateActionGenerateCSR : public Node
         std::optional<std::string> optEmail = "";
         std::optional<std::string> optGivenName = "";
         std::optional<std::string> optInitials = "";
-        std::optional<int64_t> optKeyBitLength = KEY_BIT_LENGTH;
-        std::optional<std::string> optKeyCurveId = "secp224r1";
+        std::optional<int64_t> optKeyBitLength = RSA_KEY_BIT_LENGTH;
+        std::optional<std::string> optKeyCurveId = "prime256v1";
         std::optional<std::string> optKeyPairAlgorithm = "EC";
         std::optional<std::vector<std::string>> optKeyUsage =
             std::vector<std::string>();
         std::optional<std::string> optSurname = "";
         std::optional<std::string> optUnstructuredName = "";
         if (!json_util::readJson(
-                req, res, "City", city, "CommonName", commonName,
+                req, asyncResp->res, "City", city, "CommonName", commonName,
                 "ContactPerson", optContactPerson, "Country", country,
                 "Organization", organization, "OrganizationalUnit",
                 organizationalUnit, "State", state, "CertificateCollection",
@@ -273,44 +273,6 @@ class CertificateActionGenerateCSR : public Node
                 optKeyUsage, "Surname", optSurname, "UnstructuredName",
                 optUnstructuredName))
         {
-            BMCWEB_LOG_ERROR << "Failure to read required parameters";
-            messages::internalError(asyncResp->res);
-            return;
-        }
-        if (!city)
-        {
-            messages::actionParameterMissing(asyncResp->res, "GenerateCSR",
-                                             "City");
-            return;
-        }
-        if (!commonName)
-        {
-            messages::actionParameterMissing(asyncResp->res, "GenerateCSR",
-                                             "CommonName");
-            return;
-        }
-        if (!country)
-        {
-            messages::actionParameterMissing(asyncResp->res, "GenerateCSR",
-                                             "Country");
-            return;
-        }
-        if (!organization)
-        {
-            messages::actionParameterMissing(asyncResp->res, "GenerateCSR",
-                                             "Organization");
-            return;
-        }
-        if (!organizationalUnit)
-        {
-            messages::actionParameterMissing(asyncResp->res, "GenerateCSR",
-                                             "OrganizationalUnit");
-            return;
-        }
-        if (!state)
-        {
-            messages::actionParameterMissing(asyncResp->res, "GenerateCSR",
-                                             "State");
             return;
         }
 
@@ -324,46 +286,33 @@ class CertificateActionGenerateCSR : public Node
             return;
         }
 
-        if (!certificateCollection)
-        {
-            messages::actionParameterMissing(asyncResp->res, "GenerateCSR",
-                                             "CertificateCollection");
-            return;
-        }
         std::string certURI;
-        if (!redfish::json_util::readJson(*certificateCollection, res,
+        if (!redfish::json_util::readJson(certificateCollection, asyncResp->res,
                                           "@odata.id", certURI))
         {
-            messages::actionParameterMissing(asyncResp->res, "GenerateCSR",
-                                             "CertificateCollection");
             return;
         }
 
         std::string objectPath;
         std::string service;
-        if (certURI ==
-            "/redfish/v1/Managers/bmc/NetworkProtocol/HTTPS/Certificates/")
+        if (boost::starts_with(
+                certURI,
+                "/redfish/v1/Managers/bmc/NetworkProtocol/HTTPS/Certificates"))
         {
             objectPath = certs::httpsObjectPath;
             service = certs::httpsServiceName;
         }
-        else if (certURI == "/redfish/v1/AccountService/LDAP/Certificates/")
+        else if (boost::starts_with(
+                     certURI, "/redfish/v1/AccountService/LDAP/Certificates"))
         {
             objectPath = certs::ldapObjectPath;
             service = certs::ldapServiceName;
         }
         else
         {
-            messages::actionParameterValueFormatError(asyncResp->res, certURI,
-                                                      "CertificateCollection",
-                                                      "GenerateCSR");
+            messages::actionParameterNotSupported(
+                asyncResp->res, "CertificateCollection", "GenerateCSR");
             return;
-        }
-
-        // If key pair algorithm optional argument is not set, set it to EC
-        if (*optKeyPairAlgorithm == "")
-        {
-            *optKeyPairAlgorithm = "EC";
         }
 
         // supporting only EC and RSA algorithm
@@ -374,36 +323,68 @@ class CertificateActionGenerateCSR : public Node
             return;
         }
 
-        // if key bit length optional argument is not set, set it to default
-        // value
-        if (*optKeyBitLength == 0)
-        {
-            *optKeyBitLength = KEY_BIT_LENGTH;
-        }
-
         // supporting only 2048 key bit length for RSA algorithm due to time
         // consumed in generating private key
-        if (*optKeyPairAlgorithm == "RSA" && *optKeyBitLength != KEY_BIT_LENGTH)
+        if (*optKeyPairAlgorithm == "RSA" &&
+            *optKeyBitLength != RSA_KEY_BIT_LENGTH)
         {
-            messages::actionParameterValueFormatError(
-                asyncResp->res, std::to_string(*optKeyBitLength),
-                "KeyBitLength", "GenerateCSR");
+            messages::propertyValueNotInList(asyncResp->res,
+                                             std::to_string(*optKeyBitLength),
+                                             "KeyBitLength");
             return;
         }
 
-        // validate KeyUsage
-        for (const std::string &usage : *optKeyUsage)
+        // validate KeyUsage supporting only 1 type based on URL
+        if (boost::starts_with(
+                certURI,
+                "/redfish/v1/Managers/bmc/NetworkProtocol/HTTPS/Certificates"))
         {
-            if (!isKeyUsageFound(usage))
+            if (optKeyUsage->size() == 0)
             {
-                messages::actionParameterValueFormatError(
-                    asyncResp->res, usage, "KeyUsage", "GenerateCSR");
+                optKeyUsage->push_back("ServerAuthentication");
+            }
+            else if (optKeyUsage->size() == 1)
+            {
+                if ((*optKeyUsage)[0] != "ServerAuthentication")
+                {
+                    messages::propertyValueNotInList(
+                        asyncResp->res, (*optKeyUsage)[0], "KeyUsage");
+                    return;
+                }
+            }
+            else
+            {
+                messages::actionParameterNotSupported(
+                    asyncResp->res, "KeyUsage", "GenerateCSR");
+                return;
+            }
+        }
+        else if (boost::starts_with(
+                     certURI, "/redfish/v1/AccountService/LDAP/Certificates"))
+        {
+            if (optKeyUsage->size() == 0)
+            {
+                optKeyUsage->push_back("ClientAuthentication");
+            }
+            else if (optKeyUsage->size() == 1)
+            {
+                if ((*optKeyUsage)[0] != "ClientAuthentication")
+                {
+                    messages::propertyValueNotInList(
+                        asyncResp->res, (*optKeyUsage)[0], "KeyUsage");
+                    return;
+                }
+            }
+            else
+            {
+                messages::actionParameterNotSupported(
+                    asyncResp->res, "KeyUsage", "GenerateCSR");
                 return;
             }
         }
 
         // Only allow one CSR matcher at a time so setting retry time-out and
-        // timer expiry to 10 seconds for now. HTTPS time-out is 10 seconds.
+        // timer expiry to 10 seconds for now.
         static const int TIME_OUT = 10;
         if (csrMatcher)
         {
@@ -449,10 +430,11 @@ class CertificateActionGenerateCSR : public Node
                 if (ec)
                 {
                     BMCWEB_LOG_ERROR << "error canceling timer " << ec;
+                    csrMatcher = nullptr;
                 }
                 if (m.is_method_error())
                 {
-                    BMCWEB_LOG_DEBUG << "Dbus method error!!!";
+                    BMCWEB_LOG_ERROR << "Dbus method error!!!";
                     messages::internalError(asyncResp->res);
                     return;
                 }
@@ -484,32 +466,11 @@ class CertificateActionGenerateCSR : public Node
                 }
             },
             service, objectPath, "xyz.openbmc_project.Certs.CSR.Create",
-            "GenerateCSR", *optAlternativeNames, *optChallengePassword, *city,
-            *commonName, *optContactPerson, *country, *optEmail, *optGivenName,
+            "GenerateCSR", *optAlternativeNames, *optChallengePassword, city,
+            commonName, *optContactPerson, country, *optEmail, *optGivenName,
             *optInitials, *optKeyBitLength, *optKeyCurveId,
-            *optKeyPairAlgorithm, *optKeyUsage, *organization,
-            *organizationalUnit, *state, *optSurname, *optUnstructuredName);
-    }
-
-    /**
-     * @brief Check if keyusage retrieved from Certificate is of redfish
-     * supported type
-     *
-     * @param[in] str keyusage value retrieved from certificate
-     * @return true if it is of redfish type else false
-     */
-    bool isKeyUsageFound(const std::string &str)
-    {
-        const static std::array<const char *, 15> usageList = {
-            "DigitalSignature",     "NonRepudiation",       "KeyEncipherment",
-            "DataEncipherment",     "KeyAgreement",         "KeyCertSign",
-            "CRLSigning",           "EncipherOnly",         "DecipherOnly",
-            "ServerAuthentication", "ClientAuthentication", "CodeSigning",
-            "EmailProtection",      "Timestamping",         "OCSPSigning"};
-        auto it = std::find_if(
-            usageList.begin(), usageList.end(),
-            [&str](const char *s) { return (strcmp(s, str.c_str()) == 0); });
-        return (it != usageList.end());
+            *optKeyPairAlgorithm, *optKeyUsage, organization,
+            organizationalUnit, state, *optSurname, *optUnstructuredName);
     }
 }; // CertificateActionGenerateCSR
 
