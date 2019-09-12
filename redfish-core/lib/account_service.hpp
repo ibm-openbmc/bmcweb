@@ -1390,7 +1390,8 @@ class ManagerAccount : public Node
             {boost::beast::http::verb::get,
              {{"ConfigureUsers"}, {"ConfigureManager"}, {"ConfigureSelf"}}},
             {boost::beast::http::verb::head, {{"Login"}}},
-            {boost::beast::http::verb::patch, {{"ConfigureUsers"}}},
+            {boost::beast::http::verb::patch,
+             {{"ConfigureUsers"}, {"ConfigureSelf"}}},
             {boost::beast::http::verb::put, {{"ConfigureUsers"}}},
             {boost::beast::http::verb::delete_, {{"ConfigureUsers"}}},
             {boost::beast::http::verb::post, {{"ConfigureUsers"}}}};
@@ -1415,6 +1416,21 @@ class ManagerAccount : public Node
         {
             messages::internalError(asyncResp->res);
             return;
+        }
+
+        // Perform a tighter authority check for the ConfigureSelf
+        // privilege.  If the user is operating on an account not
+        // their own, then their ConfigureSelf privilege does not
+        // apply, so remove the user's ConfigureSelf privilege and
+        // perform the authority check again.
+        if (req.session->username != params[0])
+        {
+            if (!isAllowedWithoutConfigureSelf(req))
+            {
+                BMCWEB_LOG_DEBUG << "GET Account denied access";
+                messages::accessDenied(asyncResp->res, std::string(req.url));
+                return;
+            }
         }
 
         crow::connections::systemBus->async_method_call(
@@ -1544,6 +1560,29 @@ class ManagerAccount : public Node
         }
 
         const std::string& username = params[0];
+
+        // Perform a tighter authority check for how the ConfigureSelf
+        // privilege interacts with the Redfish Password property
+        // override.  (Meaning: the ConfigureSelf privilege only
+        // applies when PATCHing the Password property.)  If the user
+        // is PATCHing a resource other than Password, then the
+        // Password property override does not apply, so the user's
+        // ConfigureSelf privilege does not apply.  If the user is
+        // operating on an account not their own, then their
+        // ConfigureSelf privilege does not apply.  In either case,
+        // remove the user's ConfigureSelf privilege and perform the
+        // authority check again.
+        if ((username != req.session->username) or
+            (newUserName or enabled or roleId or locked))
+        {
+            if (!isAllowedWithoutConfigureSelf(req))
+            {
+                BMCWEB_LOG_WARNING << "PATCH Password denied access";
+                asyncResp->res.clear();
+                messages::accessDenied(asyncResp->res, std::string(req.url));
+                return;
+            }
+        }
 
         if (!newUserName)
         {
