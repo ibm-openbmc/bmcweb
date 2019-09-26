@@ -124,6 +124,8 @@ class Middleware
             // requests that contain passwords.
             if ((req.url ==
                  "/xyz/openbmc_project/user/ldap/action/CreateConfig") ||
+                (req.url ==
+                 "/xyz/openbmc_project/user/root/action/SetPassword") ||
                 (boost::algorithm::starts_with(
                     req.url, "/redfish/v1/AccountService/")) ||
                 (req.method() == "POST"_method &&
