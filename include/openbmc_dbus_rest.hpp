@@ -662,16 +662,28 @@ int convertJsonToDbus(sd_bus_message *m, const std::string &arg_type,
         }
         else if (argCode == "y")
         {
+            uint8_t y = 0;
             if (uintValue == nullptr)
             {
-                return -1;
+                // Check if a boolean value was passed
+                if (b != nullptr)
+                {
+                    y = *b ? 1 : 0;
+                }
+                else
+                {
+                    return -1;
+                }
             }
-            if ((*uintValue < std::numeric_limits<uint8_t>::lowest()) ||
-                (*uintValue > std::numeric_limits<uint8_t>::max()))
+            else
             {
-                return -ERANGE;
+                if ((*uintValue < std::numeric_limits<uint8_t>::lowest()) ||
+                    (*uintValue > std::numeric_limits<uint8_t>::max()))
+                {
+                    return -ERANGE;
+                }
+                y = static_cast<uint8_t>(*uintValue);
             }
-            uint8_t y = static_cast<uint8_t>(*uintValue);
             r = sd_bus_message_append_basic(m, argCode[0], &y);
         }
         else if (argCode == "q")
