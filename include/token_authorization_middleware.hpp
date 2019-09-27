@@ -209,6 +209,26 @@ class Middleware
         if (req.method() != "GET"_method)
         {
             std::string_view csrf = req.getHeaderValue("X-XSRF-TOKEN");
+
+            // If XSRF TOKEN was not passed in the header, look in the cookie
+            // for the XSRF TOKEN. Required for backwards compatibility.
+            if (csrf.empty())
+            {
+                auto startIndexXsrf = cookieValue.find("XSRF-TOKEN");
+                if (startIndexXsrf == std::string::npos)
+                {
+                    return nullptr;
+                }
+                startIndexXsrf += sizeof("XSRF-TOKEN=") - 1;
+                auto endIndexXsrf = cookieValue.find(";", startIndexXsrf);
+                if (endIndexXsrf == std::string::npos)
+                {
+                    endIndexXsrf = cookieValue.size();
+                }
+
+                csrf = cookieValue.substr(startIndexXsrf,
+                                          endIndexXsrf - startIndexXsrf);
+            }
             // Make sure both tokens are filled
             if (csrf.empty() || session->csrfToken.empty())
             {
