@@ -1534,9 +1534,9 @@ void handleAction(const crow::Request &req, crow::Response &res,
             if (ec || interfaceNames.size() <= 0)
             {
                 BMCWEB_LOG_ERROR << "Can't find object";
-                setErrorResponse(transaction->res,
-                                 boost::beast::http::status::not_found,
-                                 notFoundDesc, notFoundMsg);
+                setErrorResponse(
+                    transaction->res, boost::beast::http::status::not_found,
+                    notFoundDesc + ": " + transaction->path, notFoundMsg);
                 return;
             }
 
