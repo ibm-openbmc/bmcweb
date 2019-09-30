@@ -2024,6 +2024,18 @@ inline void handleDBusUrl(const crow::Request &req, crow::Response &res,
                 objectPath.substr((actionPosition + strlen(actionSeperator)),
                                   objectPath.length());
             objectPath = objectPath.substr(0, actionPosition);
+
+            // This is a hack to support backwards compatibility in XCAT for
+            // OP940. XCAT makes a call to delete all error logs as
+            // /xyz/openbmc_project/logging/action/deleteAll
+            // This worked before OP940 because the phosphor-rest-server was
+            // case insensitive for method names. bmcweb is case sensitive so
+            // requires DeleteAll.
+            if (postProperty.compare("deleteAll") == 0)
+            {
+                postProperty = "DeleteAll";
+            }
+
             handleAction(req, res, objectPath, postProperty);
             return;
         }
