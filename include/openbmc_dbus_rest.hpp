@@ -1490,6 +1490,31 @@ void findActionOnInterface(std::shared_ptr<InProgressActionData> transaction,
         "org.freedesktop.DBus.Introspectable", "Introspect");
 }
 
+void handleActionSetPassword(std::shared_ptr<InProgressActionData> transaction)
+{
+    nlohmann::json::const_iterator setPasswdIt = transaction->arguments.begin();
+    std::string pwd = std::move(*setPasswdIt);
+
+    if (pwd.empty())
+    {
+        BMCWEB_LOG_ERROR << "Password Empty";
+        transaction->setErrorStatus("Password Empty");
+        transaction->outputFailed = true;
+        return;
+    }
+
+    if (!pamUpdatePassword("root", pwd))
+    {
+        BMCWEB_LOG_ERROR << "pamUpdatePassword Failed";
+        transaction->setErrorStatus("Password Not Modified");
+        transaction->outputFailed = true;
+        return;
+    }
+
+    BMCWEB_LOG_DEBUG << "pamUpdatePassword Successful";
+    return;
+}
+
 void handleAction(const crow::Request &req, crow::Response &res,
                   const std::string &objectPath, const std::string &methodName)
 {
@@ -1526,6 +1551,17 @@ void handleAction(const crow::Request &req, crow::Response &res,
     transaction->path = objectPath;
     transaction->methodName = methodName;
     transaction->arguments = std::move(*data);
+
+    // Special handling of Set Password as the password
+    // interface is not availble now.
+    if (methodName == "SetPassword")
+    {
+        transaction->methodPassed = true; // we know that password interface is
+                                          // not there so making it true
+        handleActionSetPassword(std::move(transaction));
+        return;
+    }
+
     crow::connections::systemBus->async_method_call(
         [transaction](
             const boost::system::error_code ec,
