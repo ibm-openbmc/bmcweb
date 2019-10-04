@@ -94,7 +94,6 @@ struct EthernetInterfaceData
     uint32_t speed;
     bool auto_neg;
     bool DHCPEnabled;
-    std::string linkLocal;
     std::string hostname;
     std::string default_gateway;
     std::string ipv6_default_gateway;
@@ -150,54 +149,6 @@ inline std::string
     {
         return "SLAAC";
     }
-    return "";
-}
-
-inline std::string
-    translateLinkLocalDbusToRedfish(const std::string &inputLinkLocal)
-{
-    if (inputLinkLocal ==
-        "xyz.openbmc_project.Network.EthernetInterface.LinkLocalConf.fallback")
-    {
-        return "AutoConfig";
-    }
-
-    if (inputLinkLocal ==
-        "xyz.openbmc_project.Network.EthernetInterface.LinkLocalConf.none")
-    {
-        return "None";
-    }
-
-    if (inputLinkLocal ==
-        "xyz.openbmc_project.Network.EthernetInterface.LinkLocalConf.both")
-    {
-        return "Static";
-    }
-
-    return "None";
-}
-
-inline std::string
-    translateLinkLocalRedfishToDbus(const std::string &inputLinkLocal)
-{
-    if (inputLinkLocal == "AutoConfig")
-    {
-        return "xyz.openbmc_project.Network.EthernetInterface.LinkLocalConf."
-               "fallback";
-    }
-
-    if (inputLinkLocal == "None")
-    {
-        return "xyz.openbmc_project.Network.EthernetInterface.LinkLocalConf."
-               "none";
-    }
-
-    if (inputLinkLocal == "Static")
-    {
-        return "xyz.openbmc_project.Network.EthernetInterface.LinkLocalConf."
-               "both";
-    }
-
     return "";
 }
 
@@ -295,17 +246,6 @@ inline bool extractEthernetInterfaceData(const std::string &ethiface_id,
                             if (domainNames != nullptr)
                             {
                                 ethData.domainnames = std::move(*domainNames);
-                            }
-                        }
-                        else if (propertyPair.first == "LinkLocalAutoConf")
-                        {
-                            const std::string *linkLocalConf =
-                                std::get_if<std::string>(&propertyPair.second);
-                            if (linkLocalConf != nullptr)
-                            {
-                                ethData.linkLocal =
-                                    translateLinkLocalDbusToRedfish(
-                                        *linkLocalConf);
                             }
                         }
                     }
@@ -1139,26 +1079,6 @@ class EthernetInterface : public Node
             std::variant<bool>{value});
     }
 
-    void setDHCPFallback(const std::string &ifaceId, const std::string &value,
-                         const std::shared_ptr<AsyncResp> asyncResp)
-    {
-        std::string linkLocalConf = translateLinkLocalRedfishToDbus(value);
-        crow::connections::systemBus->async_method_call(
-            [asyncResp](const boost::system::error_code ec) {
-                if (ec)
-                {
-                    BMCWEB_LOG_ERROR << "D-Bus responses error: " << ec;
-                    messages::internalError(asyncResp->res);
-                    return;
-                }
-            },
-            "xyz.openbmc_project.Network",
-            "/xyz/openbmc_project/network/" + ifaceId,
-            "org.freedesktop.DBus.Properties", "Set",
-            "xyz.openbmc_project.Network.EthernetInterface",
-            "LinkLocalAutoConf", std::variant<std::string>(linkLocalConf));
-    }
-
     void setDHCPv4Config(const std::string &propertyName, const bool &value,
                          const std::shared_ptr<AsyncResp> asyncResp)
     {
@@ -1186,13 +1106,11 @@ class EthernetInterface : public Node
         std::optional<bool> useDNSServers;
         std::optional<bool> useDomainName;
         std::optional<bool> useNTPServers;
-        std::optional<std::string> fallbackAddress;
 
         if (!json_util::readJson(input, asyncResp->res, "DHCPEnabled",
                                  dhcpEnabled, "UseDNSServers", useDNSServers,
                                  "UseDomainName", useDomainName,
-                                 "UseNTPServers", useNTPServers,
-                                 "FallbackAddress", fallbackAddress))
+                                 "UseNTPServers", useNTPServers))
         {
             return;
         }
@@ -1219,12 +1137,6 @@ class EthernetInterface : public Node
         {
             BMCWEB_LOG_DEBUG << "set NTPEnabled...";
             setDHCPv4Config("NTPEnabled", *useNTPServers, asyncResp);
-        }
-
-        if (fallbackAddress)
-        {
-            BMCWEB_LOG_DEBUG << "set FallbackAddress...";
-            setDHCPFallback(ifaceId, *fallbackAddress, asyncResp);
         }
     }
     void handleIPv4StaticPatch(
@@ -1612,7 +1524,6 @@ class EthernetInterface : public Node
         json_response["SpeedMbps"] = ethData.speed;
         json_response["MACAddress"] = ethData.mac_address;
         json_response["DHCPv4"]["DHCPEnabled"] = ethData.DHCPEnabled;
-        json_response["DHCPv4"]["FallbackAddress"] = ethData.linkLocal;
 
         if (!ethData.hostname.empty())
         {
@@ -1726,7 +1637,7 @@ class EthernetInterface : public Node
                 getDHCPConfigData(asyncResp);
 
                 asyncResp->res.jsonValue["@odata.type"] =
-                    "#EthernetInterface.v1_5_1.EthernetInterface";
+                    "#EthernetInterface.v1_4_1.EthernetInterface";
                 asyncResp->res.jsonValue["@odata.context"] =
                     "/redfish/v1/$metadata#EthernetInterface.EthernetInterface";
                 asyncResp->res.jsonValue["Name"] = "Manager Ethernet Interface";
