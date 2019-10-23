@@ -185,11 +185,18 @@ class Node
      */
     inline bool isAllowedWithoutConfigureSelf(const crow::Request& req)
     {
-        const std::string& userRole =
-            crow::persistent_data::UserRoleMap::getInstance().getUserRole(
-                req.session->username);
-        Privileges effectiveUserPrivileges =
-            redfish::getUserPrivileges(userRole);
+        Privileges effectiveUserPrivileges;
+        if ((req.session != nullptr) && (!req.session->isConfigureSelfOnly))
+        {
+            const std::string& userRole =
+                crow::persistent_data::UserRoleMap::getInstance().getUserRole(
+                    req.session->username);
+            effectiveUserPrivileges = redfish::getUserPrivileges(userRole);
+        }
+        else
+        {
+            effectiveUserPrivileges = {"ConfigureSelf"};
+        }
         effectiveUserPrivileges.resetSinglePrivilege("ConfigureSelf");
         const auto& requiredPrivilegesIt = entityPrivileges.find(req.method());
         return (requiredPrivilegesIt != entityPrivileges.end()) and

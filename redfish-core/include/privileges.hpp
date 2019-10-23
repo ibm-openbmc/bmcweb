@@ -210,6 +210,7 @@ class Privileges
     std::bitset<maxPrivilegeCount> privilegeBitset = 0;
 };
 
+// The caller must handle the PasswordChangeRequired condition.
 inline const Privileges& getUserPrivileges(const std::string& userRole)
 {
     // Redfish privilege : Administrator
@@ -224,12 +225,6 @@ inline const Privileges& getUserPrivileges(const std::string& userRole)
         // Redfish privilege : Operator
         static Privileges op{"Login", "ConfigureSelf", "ConfigureComponents"};
         return op;
-    }
-    else if (userRole == "special-priv-configure-self")
-    {
-        // Redfish privilege : N/A - internal within BMCWeb
-        static Privileges configSelf{"ConfigureSelf"};
-        return configSelf;
     }
     else
     {

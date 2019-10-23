@@ -2165,11 +2165,53 @@ template <typename... Middlewares> void requestRoutes(Crow<Middlewares...> &app)
         });
 
     BMCWEB_ROUTE(app, "/xyz/<path>")
-        .requires({"ConfigureComponents", "ConfigureManager"})
+        .requires({{"ConfigureComponents", "ConfigureManager"},
+                   {"ConfigureSelf"}})
         .methods("PUT"_method, "POST"_method, "DELETE"_method)(
             [](const crow::Request &req, crow::Response &res,
                const std::string &path) {
                 std::string objectPath = "/xyz/" + path;
+                // This is too permissive.  The ConfigureSelf privilege
+                // applies only to the root user POSTing a new password.
+                if ((req.method() != "POST"_method) ||
+                    (objectPath !=
+                         "/xyz/openbmc_project/user/root/action/SetPassword") ||
+                    (req.session->username != "root"))
+                {
+                    // Check privileges again without ConfigureSelf.
+                    // Hack alert!  This duplicates code from
+                    // isAllowedWithoutConfigureSelf which is not yet included.
+                    redfish::Privileges effectiveUserPrivileges;
+                    if ((req.session != nullptr) &&
+                        (!req.session->isConfigureSelfOnly))
+                    {
+                        const std::string& userRole =
+                            crow::persistent_data::UserRoleMap::getInstance().
+                                getUserRole(req.session->username);
+                        effectiveUserPrivileges =
+                            redfish::getUserPrivileges(userRole);
+                        effectiveUserPrivileges.
+                            resetSinglePrivilege("ConfigureSelf");
+                    }
+                    redfish::Privileges requiredPrivileges =
+                        {"ConfigureComponents", "ConfigureManager"};
+                    if (!effectiveUserPrivileges.
+                        isSupersetOf(requiredPrivileges))
+                    {
+                        std::string desc = crow::msg::forbiddenURIDesc;
+                        desc.append(req.url);
+                        crow::setErrorResponse(
+                            res, boost::beast::http::status::forbidden,
+                            crow::msg::forbiddenMsg, desc);
+                        if ((req.session != nullptr) &&
+                            (req.session->isConfigureSelfOnly))
+                        {
+                            crow::setPasswordChangeRequired(res, "root");
+                        }
+                        res.end();
+                        return;
+                    }
+                }
                 handleDBusUrl(req, res, objectPath);
             });
 
