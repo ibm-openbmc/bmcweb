@@ -1428,7 +1428,13 @@ class ManagerAccount : public Node
             if (!isAllowedWithoutConfigureSelf(req))
             {
                 BMCWEB_LOG_DEBUG << "GET Account denied access";
-                messages::accessDenied(asyncResp->res, std::string(req.url));
+                redfish::messages::insufficientPrivilege(asyncResp->res);
+                if (req.session->isConfigureSelfOnly)
+                {
+                    redfish::messages::passwordChangeRequired(
+                        asyncResp->res, "/redfish/v1/AccountService/Accounts/" +
+                        req.session->username);
+                }
                 return;
             }
         }
@@ -1579,7 +1585,13 @@ class ManagerAccount : public Node
             {
                 BMCWEB_LOG_WARNING << "PATCH Password denied access";
                 asyncResp->res.clear();
-                messages::accessDenied(asyncResp->res, std::string(req.url));
+                messages::insufficientPrivilege(asyncResp->res);
+                if (req.session->isConfigureSelfOnly)
+                {
+                    redfish::messages::passwordChangeRequired(
+                        asyncResp->res, "/redfish/v1/AccountService/Accounts/" +
+                        req.session->username);
+                }
                 return;
             }
         }

@@ -113,7 +113,13 @@ class Sessions : public Node
             if (!isAllowedWithoutConfigureSelf(req))
             {
                 BMCWEB_LOG_WARNING << "DELETE Session denied access";
-                messages::accessDenied(res, std::string(req.url));
+                messages::insufficientPrivilege(res);
+                if (req.session->isConfigureSelfOnly)
+                {
+                    redfish::messages::passwordChangeRequired(
+                        res, "/redfish/v1/AccountService/Accounts/" +
+                        req.session->username);
+                }
                 res.end();
                 return;
             }

@@ -42,10 +42,9 @@ inline void setPasswordChangeRequired(crow::Response &res,
                                       const std::string &username)
 {
     res.jsonValue["extendedMessage"] =
-        "The password for this account must be changed.  PATCH the 'Password' "
-        "property for the account under URI: "
-        "/redfish/v1/AccountService/Accounts/" +
-        username;
+        "The password for this account must be changed.  POST the new password "
+        "as JSON data {\"data\":[\"NEWPASSWORD\"]} to URI "
+        "/xyz/openbmc_project/user/root/action/SetPassword.";
 }
 
 } // namespace crow
