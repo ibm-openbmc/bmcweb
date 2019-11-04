@@ -131,8 +131,7 @@ class Middleware
         BMCWEB_LOG_DEBUG << "[AuthMiddleware] Authenticating user: " << user;
 
         bool passwordChangeRequired = false;
-        if (!pamAuthenticateUser(user, pass, passwordChangeRequired) ||
-            passwordChangeRequired)
+        if (!pamAuthenticateUser(user, pass, passwordChangeRequired))
         {
             return nullptr;
         }
@@ -144,7 +143,7 @@ class Middleware
         // This whole flow needs to be revisited anyway, as we can't be
         // calling directly into pam for every request
         return persistent_data::SessionStore::getInstance().generateUserSession(
-            user, false,
+            user, passwordChangeRequired,
             crow::persistent_data::PersistenceType::SINGLE_REQUEST);
     }
 
