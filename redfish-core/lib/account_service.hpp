@@ -1345,7 +1345,8 @@ class AccountsCollection : public Node
                     return;
                 }
 
-                if (!pamUpdatePassword(username, password))
+                bool gotPamAuthtokError = false;
+                if (!pamUpdatePassword(username, password, gotPamAuthtokError))
                 {
                     // At this point we have a user that's been created, but
                     // the password set failed.  Something is wrong, so
@@ -1638,10 +1639,22 @@ class ManagerAccount : public Node
     {
         if (password)
         {
-            if (!pamUpdatePassword(username, *password))
+            bool gotPamAuthtokError = false;
+            if (!pamUpdatePassword(username, *password, gotPamAuthtokError))
             {
                 BMCWEB_LOG_ERROR << "pamUpdatePassword Failed";
-                messages::internalError(asyncResp->res);
+                if (gotPamAuthtokError)
+                {
+                    messages::accountNotModified(asyncResp->res);
+                    // See https://redfishforum.com/thread/246/message-send-patch-password-failure
+                    asyncResp->res.jsonValue["error"]["Oem"]["IBM"] = "The "
+                        "new password was not accepted.  A possible cause is "
+                        "the password value failed PAM validation checks.";
+                }
+                else
+                {
+                    messages::internalError(asyncResp->res);
+                }
                 return;
             }
         }
