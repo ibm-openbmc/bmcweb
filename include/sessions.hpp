@@ -362,6 +362,10 @@ struct UserSession
             {
                 userSession->userRole = *thisValue;
             }
+            else if (element.key() == "is_configure_self_only")
+            {
+                userSession->isConfigureSelfOnly = (*thisValue == "true");
+            }
             else
             {
                 BMCWEB_LOG_ERROR
@@ -379,7 +383,6 @@ struct UserSession
         // this is done temporarily
         userSession->lastUpdated = std::chrono::steady_clock::now();
         userSession->persistence = PersistenceType::TIMEOUT;
-        userSession->isConfigureSelfOnly = false;
 
         return userSession;
     }
@@ -435,7 +438,7 @@ class SessionStore
         BMCWEB_LOG_DEBUG << "user name=\"" << username << "\" role = " << role;
         auto session = std::make_shared<UserSession>(UserSession{
             uniqueId, sessionToken, std::string(username), role, csrfToken,
-            std::chrono::steady_clock::now(), persistence});
+                std::chrono::steady_clock::now(), persistence, configureSelfOnly});
         session->isConfigureSelfOnly = configureSelfOnly;
         auto it = authTokens.emplace(std::make_pair(sessionToken, session));
         // Only need to write to disk if session isn't about to be destroyed.
@@ -575,7 +578,8 @@ struct adl_serializer<std::shared_ptr<crow::persistent_data::UserSession>>
                                {"session_token", p->sessionToken},
                                {"username", p->username},
                                {"csrf_token", p->csrfToken},
-                               {"user_role", p->userRole}};
+                               {"user_role", p->userRole},
+                               {"is_configure_self_only", (p->isConfigureSelfOnly ? "true" : "false")}};
         }
     }
 };
