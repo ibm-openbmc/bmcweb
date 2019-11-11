@@ -94,9 +94,21 @@ inline bool pamAuthenticateUser(const std::string_view username,
     return true;
 }
 
+
+/**
+ * @brief Change the user's password
+ *
+ * @param[in] username Name of user account to change
+ * @param[in] password The new password
+ * @param[out] gotPamAuthtokError true, if pam_chauthtok returned PAM_AUTHTOK_ERR
+ *             which usually means the password was rejected
+ *
+ * @returns true, if the password updated successfully */
 inline bool pamUpdatePassword(const std::string& username,
-                              const std::string& password)
+                              const std::string& password,
+                              bool& gotPamAuthtokError)
 {
+    gotPamAuthtokError = false;
     const struct pam_conv localConversation = {
         pamFunctionConversation, const_cast<char*>(password.c_str())};
     pam_handle_t* localAuthHandle = NULL; // this gets set by pam_start
@@ -110,6 +122,7 @@ inline bool pamUpdatePassword(const std::string& username,
 
     if (retval != PAM_SUCCESS)
     {
+        gotPamAuthtokError = (retval == PAM_AUTHTOK_ERR);
         pam_end(localAuthHandle, PAM_SUCCESS);
         return false;
     }
