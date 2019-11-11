@@ -117,7 +117,8 @@ class Middleware
                             BMCWEB_LOG_DEBUG
                                 << "Restored session: " << newSession->csrfToken
                                 << " " << newSession->uniqueId << " "
-                                << newSession->sessionToken;
+                                << newSession->sessionToken << " "
+                                << newSession->isConfigureSelfOnly;
                             SessionStore::getInstance().authTokens.emplace(
                                 newSession->sessionToken, newSession);
                         }
