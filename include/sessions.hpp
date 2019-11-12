@@ -332,6 +332,7 @@ struct UserSession
     {
         std::shared_ptr<UserSession> userSession =
             std::make_shared<UserSession>();
+        userSession->isConfigureSelfOnly = false;
         for (const auto& element : j.items())
         {
             const std::string* thisValue =
