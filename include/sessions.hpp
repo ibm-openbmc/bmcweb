@@ -13,6 +13,9 @@
 
 #include "logging.h"
 #include "utility.h"
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+#include <ibm/locks.hpp>
+#endif
 
 namespace crow
 {
@@ -230,6 +233,9 @@ class SessionStore
 
     void removeSession(std::shared_ptr<UserSession> session)
     {
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+        crow::ibm_mc_lock::lock::getInstance().releaselock(session->uniqueId);
+#endif
         authTokens.erase(session->sessionToken);
         needWrite = true;
     }
@@ -308,7 +314,12 @@ class SessionStore
                 if (timeNow - authTokensIt->second->lastUpdated >=
                     timeoutInMinutes)
                 {
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+                    crow::ibm_mc_lock::lock::getInstance().releaselock(
+                        authTokensIt->second->uniqueId);
+#endif
                     authTokensIt = authTokens.erase(authTokensIt);
+
                     needWrite = true;
                 }
                 else
