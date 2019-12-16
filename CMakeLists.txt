@@ -88,6 +88,12 @@ option (
     The BMCWEB_INSECURE_DISABLE_SSL must be OFF for this option to take effect."
     OFF
 )
+option (
+    BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+    "Enable the IBMs management console specific functionalities"
+    OFF
+)
+
 
 # Insecure options.  Every option that starts with a BMCWEB_INSECURE flag should
 # not be enabled by default for any platform, unless the author fully
@@ -316,6 +322,7 @@ if (${BMCWEB_BUILD_UT})
          src/kvm_websocket_test.cpp src/msan_test.cpp
          src/ast_video_puller_test.cpp src/openbmc_jtag_rest_test.cpp
          redfish-core/ut/privileges_test.cpp
+	 redfish-core/ut/lock_test.cpp
          ${CMAKE_BINARY_DIR}/include/bmcweb/blns.hpp) # big list of naughty
                                                       # strings
     add_custom_command (OUTPUT ${CMAKE_BINARY_DIR}/include/bmcweb/blns.hpp
@@ -388,6 +395,8 @@ target_compile_definitions (
     -DBMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE>
     $<$<BOOL:${BMCWEB_ENABLE_REDFISH_PROVISIONING_FEATURE}>:
     -DBMCWEB_ENABLE_REDFISH_PROVISIONING_FEATURE>
+    $<$<BOOL:${BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE}>:
+    -DBMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE>
 )
 
 # configure and install systemd unit files
