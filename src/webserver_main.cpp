@@ -10,7 +10,7 @@
 #include <obmc_console.hpp>
 #include <openbmc_dbus_rest.hpp>
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
-#include <openbmc_ibm_mc_rest.hpp>
+#include <IBM/mc_rest.hpp>
 #endif
 #include <persistent_data_middleware.hpp>
 #include <redfish.hpp>
