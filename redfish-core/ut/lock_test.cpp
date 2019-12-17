@@ -1,5 +1,5 @@
+#include "IBM/mc_rest.hpp"
 #include "nlohmann/json.hpp"
-#include "openbmc_ibm_mc_rest.hpp"
 
 #include <string>
 
