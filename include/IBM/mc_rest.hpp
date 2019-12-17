@@ -9,7 +9,6 @@
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include <persistent_ibm_mc_locks.hpp>
 #include <regex>
 #include <sdbusplus/message/types.hpp>
 #include <utils/json_utils.hpp>
@@ -293,7 +292,7 @@ template <typename... Middlewares> void requestRoutes(Crow<Middlewares...> &app)
             res.jsonValue["ConfigFiles"] = {
                 {"@odata.id", "/ibm/v1/Host/ConfigFiles"}};
             res.jsonValue["LockService"] = {
-                {"@odata.id", "/redfish/v1/HMC/LockService"}};
+                {"@odata.id", "/ibm/v1/HMC/LockService"}};
             res.end();
         });
 
