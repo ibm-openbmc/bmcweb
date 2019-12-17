@@ -197,26 +197,32 @@ class lock
 
     void releaselock(const std::string &sessionID)
     {
+        bool isErased = false;
         if (!locktable.empty())
         {
-            for (auto &lockRecord : locktable)
+            auto it = locktable.begin();
+            while (it != locktable.end())
             {
                 // Check if session id of this entry matches with session id
                 // given
-                if (std::get<0>(lockRecord.second[0]) == sessionID)
+                if (std::get<0>(it->second[0]) == sessionID)
                 {
                     BMCWEB_LOG_DEBUG << "Remove the lock from the locktable "
                                         "having sessionID="
                                      << sessionID;
-                    locktable.erase(lockRecord.first);
+                    BMCWEB_LOG_DEBUG << "TransactionID =" << it->first;
+                    it = locktable.erase(it);
+                    isErased = true;
                     // save the lock in the persistent file
-                    bool isSaved = saveLocks();
-                    if (!isSaved)
-                    {
-                        BMCWEB_LOG_DEBUG
-                            << "Error saving the locks in persistent";
-                    }
                 }
+                else
+                {
+                    it++;
+                }
+            }
+            if (isErased)
+            {
+                saveLocks();
             }
         }
     }
