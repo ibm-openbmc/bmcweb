@@ -1484,7 +1484,9 @@ void handleActionSetPassword(std::shared_ptr<InProgressActionData> transaction)
     if (!pamUpdatePassword("root", pwd, gotPamAuthtokError))
     {
         BMCWEB_LOG_ERROR << "pamUpdatePassword Failed";
-        transaction->setErrorStatus("Password Not Modified");
+        transaction->setErrorStatus(
+            "Password Not Modified.  The new password was not accepted.  A "
+            "possible cause is the password value failed validation checks.");
         transaction->outputFailed = true;
         return;
     }
