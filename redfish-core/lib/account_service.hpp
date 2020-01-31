@@ -1360,6 +1360,9 @@ class AccountsCollection : public Node
                             }
 
                             messages::invalidObject(asyncResp->res, "Password");
+                            asyncResp->res.jsonValue["error"]["Oem"]["IBM"] = "The "
+                              "new password was not accepted.  A possible cause is "
+                              "the password value failed PAM validation checks.";
                         },
                         "xyz.openbmc_project.User.Manager",
                         "/xyz/openbmc_project/user/" + username,
