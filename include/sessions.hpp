@@ -316,6 +316,7 @@ struct UserSession
     std::string csrfToken;
     std::chrono::time_point<std::chrono::steady_clock> lastUpdated;
     PersistenceType persistence;
+    bool isConfigureSelfOnly;
 
     /**
      * @brief Fills object with data from UserSession's JSON representation
@@ -331,6 +332,7 @@ struct UserSession
     {
         std::shared_ptr<UserSession> userSession =
             std::make_shared<UserSession>();
+        userSession->isConfigureSelfOnly = false;
         for (const auto& element : j.items())
         {
             const std::string* thisValue =
@@ -361,6 +363,10 @@ struct UserSession
             {
                 userSession->userRole = *thisValue;
             }
+            else if (element.key() == "is_configure_self_only")
+            {
+                userSession->isConfigureSelfOnly = (*thisValue == "true");
+            }
             else
             {
                 BMCWEB_LOG_ERROR
@@ -389,7 +395,7 @@ class SessionStore
 {
   public:
     std::shared_ptr<UserSession> generateUserSession(
-        const std::string_view username,
+        const std::string_view username, bool configureSelfOnly,
         PersistenceType persistence = PersistenceType::TIMEOUT)
     {
         // TODO(ed) find a secure way to not generate session identifiers if
@@ -433,7 +439,8 @@ class SessionStore
         BMCWEB_LOG_DEBUG << "user name=\"" << username << "\" role = " << role;
         auto session = std::make_shared<UserSession>(UserSession{
             uniqueId, sessionToken, std::string(username), role, csrfToken,
-            std::chrono::steady_clock::now(), persistence});
+                std::chrono::steady_clock::now(), persistence, configureSelfOnly});
+        session->isConfigureSelfOnly = configureSelfOnly;
         auto it = authTokens.emplace(std::make_pair(sessionToken, session));
         // Only need to write to disk if session isn't about to be destroyed.
         needWrite = persistence == PersistenceType::TIMEOUT;
@@ -572,7 +579,8 @@ struct adl_serializer<std::shared_ptr<crow::persistent_data::UserSession>>
                                {"session_token", p->sessionToken},
                                {"username", p->username},
                                {"csrf_token", p->csrfToken},
-                               {"user_role", p->userRole}};
+                               {"user_role", p->userRole},
+                               {"is_configure_self_only", (p->isConfigureSelfOnly ? "true" : "false")}};
         }
     }
 };

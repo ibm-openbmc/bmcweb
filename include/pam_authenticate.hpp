@@ -48,10 +48,12 @@ inline int pamFunctionConversation(int numMsg, const struct pam_message** msg,
 }
 
 inline bool pamAuthenticateUser(const std::string_view username,
-                                const std::string_view password)
+                                const std::string_view password,
+                                bool& passwordChangeRequired)
 {
     std::string userStr(username);
     std::string passStr(password);
+    passwordChangeRequired = false;
     const struct pam_conv localConversation = {
         pamFunctionConversation, const_cast<char*>(passStr.c_str())};
     pam_handle_t* localAuthHandle = NULL; // this gets set by pam_start
@@ -70,12 +72,18 @@ inline bool pamAuthenticateUser(const std::string_view username,
         return false;
     }
 
-    /* check that the account is healthy */
-    if (pam_acct_mgmt(localAuthHandle, PAM_DISALLOW_NULL_AUTHTOK) !=
-        PAM_SUCCESS)
+    /* check if the account is healthy */
+    switch (pam_acct_mgmt(localAuthHandle, PAM_DISALLOW_NULL_AUTHTOK))
     {
-        pam_end(localAuthHandle, PAM_SUCCESS);
-        return false;
+        case PAM_SUCCESS:
+            break;
+        case PAM_NEW_AUTHTOK_REQD:
+            passwordChangeRequired = true;
+            break;
+        default:
+            pam_end(localAuthHandle, PAM_SUCCESS);
+            return false;
+            break;
     }
 
     if (pam_end(localAuthHandle, PAM_SUCCESS) != PAM_SUCCESS)
@@ -86,9 +94,21 @@ inline bool pamAuthenticateUser(const std::string_view username,
     return true;
 }
 
+
+/**
+ * @brief Change the user's password
+ *
+ * @param[in] username Name of user account to change
+ * @param[in] password The new password
+ * @param[out] gotPamAuthtokError true, if pam_chauthtok returned PAM_AUTHTOK_ERR
+ *             which usually means the password was rejected
+ *
+ * @returns true, if the password updated successfully */
 inline bool pamUpdatePassword(const std::string& username,
-                              const std::string& password)
+                              const std::string& password,
+                              bool& gotPamAuthtokError)
 {
+    gotPamAuthtokError = false;
     const struct pam_conv localConversation = {
         pamFunctionConversation, const_cast<char*>(password.c_str())};
     pam_handle_t* localAuthHandle = NULL; // this gets set by pam_start
@@ -102,6 +122,7 @@ inline bool pamUpdatePassword(const std::string& username,
 
     if (retval != PAM_SUCCESS)
     {
+        gotPamAuthtokError = (retval == PAM_AUTHTOK_ERR);
         pam_end(localAuthHandle, PAM_SUCCESS);
         return false;
     }

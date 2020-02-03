@@ -23,42 +23,17 @@
 #include <dbus_utility.hpp>
 #include <filesystem>
 #include <fstream>
+#include <json_msg_utility.hpp>
+#include <regex>
 #include <sdbusplus/message/types.hpp>
 
 namespace crow
 {
 namespace openbmc_mapper
 {
-
 using GetSubTreeType = std::vector<
     std::pair<std::string,
               std::vector<std::pair<std::string, std::vector<std::string>>>>>;
-
-const std::string notFoundMsg = "404 Not Found";
-const std::string badReqMsg = "400 Bad Request";
-const std::string methodNotAllowedMsg = "405 Method Not Allowed";
-const std::string forbiddenMsg = "403 Forbidden";
-const std::string methodFailedMsg = "500 Method Call Failed";
-const std::string methodOutputFailedMsg = "500 Method Output Error";
-
-const std::string notFoundDesc =
-    "org.freedesktop.DBus.Error.FileNotFound: path or object not found";
-const std::string propNotFoundDesc = "The specified property cannot be found";
-const std::string noJsonDesc = "No JSON object could be decoded";
-const std::string methodNotFoundDesc = "The specified method cannot be found";
-const std::string methodNotAllowedDesc = "Method not allowed";
-const std::string forbiddenPropDesc =
-    "The specified property cannot be created";
-const std::string forbiddenResDesc = "The specified resource cannot be created";
-
-void setErrorResponse(crow::Response &res, boost::beast::http::status result,
-                      const std::string &desc, const std::string &msg)
-{
-    res.result(result);
-    res.jsonValue = {{"data", {{"description", desc}}},
-                     {"message", msg},
-                     {"status", "error"}};
-}
 
 void introspectObjects(const std::string &processName,
                        const std::string &objectPath,
@@ -417,17 +392,19 @@ struct InProgressActionData
             {
                 if (!methodFailed)
                 {
-                    setErrorResponse(res, boost::beast::http::status::not_found,
-                                     methodNotFoundDesc, notFoundMsg);
+                    crow::setErrorResponse(
+                        res, boost::beast::http::status::not_found,
+                        crow::msg::methodNotFoundDesc, crow::msg::notFoundMsg);
                 }
             }
             else
             {
                 if (outputFailed)
                 {
-                    setErrorResponse(
+                    crow::setErrorResponse(
                         res, boost::beast::http::status::internal_server_error,
-                        "Method output failure", methodOutputFailedMsg);
+                        "Method output failure",
+                        crow::msg::methodOutputFailedMsg);
                 }
                 else
                 {
@@ -443,8 +420,8 @@ struct InProgressActionData
 
     void setErrorStatus(const std::string &desc)
     {
-        setErrorResponse(res, boost::beast::http::status::bad_request, desc,
-                         badReqMsg);
+        crow::setErrorResponse(res, boost::beast::http::status::bad_request,
+                               desc, crow::msg::badReqMsg);
     }
     crow::Response &res;
     std::string path;
@@ -1453,7 +1430,7 @@ void findActionOnInterface(std::shared_ptr<InProgressActionData> transaction,
 
                                         if (e)
                                         {
-                                            setErrorResponse(
+                                            crow::setErrorResponse(
                                                 transaction->res,
                                                 boost::beast::http::status::
                                                     bad_request,
@@ -1461,12 +1438,12 @@ void findActionOnInterface(std::shared_ptr<InProgressActionData> transaction,
                                         }
                                         else
                                         {
-                                            setErrorResponse(
+                                            crow::setErrorResponse(
                                                 transaction->res,
                                                 boost::beast::http::status::
                                                     bad_request,
                                                 "Method call failed",
-                                                methodFailedMsg);
+                                                crow::msg::methodFailedMsg);
                                         }
                                         return;
                                     }
@@ -1503,10 +1480,13 @@ void handleActionSetPassword(std::shared_ptr<InProgressActionData> transaction)
         return;
     }
 
-    if (!pamUpdatePassword("root", pwd))
+    bool gotPamAuthtokError = false;
+    if (!pamUpdatePassword("root", pwd, gotPamAuthtokError))
     {
         BMCWEB_LOG_ERROR << "pamUpdatePassword Failed";
-        transaction->setErrorStatus("Password Not Modified");
+        transaction->setErrorStatus(
+            "Password Not Modified.  The new password was not accepted.  A "
+            "possible cause is the password value failed validation checks.");
         transaction->outputFailed = true;
         return;
     }
@@ -1525,24 +1505,24 @@ void handleAction(const crow::Request &req, crow::Response &res,
 
     if (requestDbusData.is_discarded())
     {
-        setErrorResponse(res, boost::beast::http::status::bad_request,
-                         noJsonDesc, badReqMsg);
+        crow::setErrorResponse(res, boost::beast::http::status::bad_request,
+                               crow::msg::noJsonDesc, crow::msg::badReqMsg);
         res.end();
         return;
     }
     nlohmann::json::iterator data = requestDbusData.find("data");
     if (data == requestDbusData.end())
     {
-        setErrorResponse(res, boost::beast::http::status::bad_request,
-                         noJsonDesc, badReqMsg);
+        crow::setErrorResponse(res, boost::beast::http::status::bad_request,
+                               crow::msg::noJsonDesc, crow::msg::badReqMsg);
         res.end();
         return;
     }
 
     if (!data->is_array())
     {
-        setErrorResponse(res, boost::beast::http::status::bad_request,
-                         noJsonDesc, badReqMsg);
+        crow::setErrorResponse(res, boost::beast::http::status::bad_request,
+                               crow::msg::noJsonDesc, crow::msg::badReqMsg);
         res.end();
         return;
     }
@@ -1570,9 +1550,10 @@ void handleAction(const crow::Request &req, crow::Response &res,
             if (ec || interfaceNames.size() <= 0)
             {
                 BMCWEB_LOG_ERROR << "Can't find object";
-                setErrorResponse(
+                crow::setErrorResponse(
                     transaction->res, boost::beast::http::status::not_found,
-                    notFoundDesc + ": " + transaction->path, notFoundMsg);
+                    crow::msg::notFoundDesc + ": " + transaction->path,
+                    crow::msg::notFoundMsg);
                 return;
             }
 
@@ -1604,9 +1585,10 @@ void handleDelete(const crow::Request &req, crow::Response &res,
             if (ec || interfaceNames.size() <= 0)
             {
                 BMCWEB_LOG_ERROR << "Can't find object";
-                setErrorResponse(res,
-                                 boost::beast::http::status::method_not_allowed,
-                                 methodNotAllowedDesc, methodNotAllowedMsg);
+                crow::setErrorResponse(
+                    res, boost::beast::http::status::method_not_allowed,
+                    crow::msg::methodNotAllowedDesc,
+                    crow::msg::methodNotAllowedMsg);
                 res.end();
                 return;
             }
@@ -1636,8 +1618,9 @@ void handleList(crow::Response &res, const std::string &objectPath,
                std::vector<std::string> &objectPaths) {
             if (ec)
             {
-                setErrorResponse(res, boost::beast::http::status::not_found,
-                                 notFoundDesc, notFoundMsg);
+                crow::setErrorResponse(
+                    res, boost::beast::http::status::not_found,
+                    crow::msg::notFoundDesc, crow::msg::notFoundMsg);
             }
             else
             {
@@ -1675,9 +1658,10 @@ void handleEnumerate(crow::Response &res, const std::string &objectPath)
             {
                 BMCWEB_LOG_ERROR << "GetSubTree failed on "
                                  << transaction->objectPath;
-                setErrorResponse(transaction->asyncResp->res,
-                                 boost::beast::http::status::not_found,
-                                 notFoundDesc, notFoundMsg);
+                crow::setErrorResponse(transaction->asyncResp->res,
+                                       boost::beast::http::status::not_found,
+                                       crow::msg::notFoundDesc,
+                                       crow::msg::notFoundMsg);
                 return;
             }
 
@@ -1708,8 +1692,9 @@ void handleGet(crow::Response &res, std::string &objectPath,
                                    const GetObjectType &object_names) {
             if (ec || object_names.size() <= 0)
             {
-                setErrorResponse(res, boost::beast::http::status::not_found,
-                                 notFoundDesc, notFoundMsg);
+                crow::setErrorResponse(
+                    res, boost::beast::http::status::not_found,
+                    crow::msg::notFoundDesc, crow::msg::notFoundMsg);
                 res.end();
                 return;
             }
@@ -1725,8 +1710,9 @@ void handleGet(crow::Response &res, std::string &objectPath,
 
                 if (interfaceNames.size() <= 0)
                 {
-                    setErrorResponse(res, boost::beast::http::status::not_found,
-                                     notFoundDesc, notFoundMsg);
+                    crow::setErrorResponse(
+                        res, boost::beast::http::status::not_found,
+                        crow::msg::notFoundDesc, crow::msg::notFoundMsg);
                     res.end();
                     return;
                 }
@@ -1781,10 +1767,11 @@ void handleGet(crow::Response &res, std::string &objectPath,
                             {
                                 if (!propertyName->empty() && response->empty())
                                 {
-                                    setErrorResponse(
+                                    crow::setErrorResponse(
                                         res,
                                         boost::beast::http::status::not_found,
-                                        propNotFoundDesc, notFoundMsg);
+                                        crow::msg::propNotFoundDesc,
+                                        crow::msg::notFoundMsg);
                                 }
                                 else
                                 {
@@ -1813,8 +1800,9 @@ struct AsyncPutRequest
     {
         if (res.jsonValue.empty())
         {
-            setErrorResponse(res, boost::beast::http::status::forbidden,
-                             forbiddenMsg, forbiddenPropDesc);
+            crow::setErrorResponse(res, boost::beast::http::status::forbidden,
+                                   crow::msg::forbiddenMsg,
+                                   crow::msg::forbiddenPropDesc);
         }
 
         res.end();
@@ -1822,8 +1810,9 @@ struct AsyncPutRequest
 
     void setErrorStatus(const std::string &desc)
     {
-        setErrorResponse(res, boost::beast::http::status::internal_server_error,
-                         desc, badReqMsg);
+        crow::setErrorResponse(
+            res, boost::beast::http::status::internal_server_error, desc,
+            crow::msg::badReqMsg);
     }
 
     crow::Response &res;
@@ -1837,8 +1826,9 @@ void handlePut(const crow::Request &req, crow::Response &res,
 {
     if (destProperty.empty())
     {
-        setErrorResponse(res, boost::beast::http::status::forbidden,
-                         forbiddenResDesc, forbiddenMsg);
+        crow::setErrorResponse(res, boost::beast::http::status::forbidden,
+                               crow::msg::forbiddenResDesc,
+                               crow::msg::forbiddenMsg);
         res.end();
         return;
     }
@@ -1848,8 +1838,8 @@ void handlePut(const crow::Request &req, crow::Response &res,
 
     if (requestDbusData.is_discarded())
     {
-        setErrorResponse(res, boost::beast::http::status::bad_request,
-                         noJsonDesc, badReqMsg);
+        crow::setErrorResponse(res, boost::beast::http::status::bad_request,
+                               crow::msg::noJsonDesc, crow::msg::badReqMsg);
         res.end();
         return;
     }
@@ -1857,8 +1847,8 @@ void handlePut(const crow::Request &req, crow::Response &res,
     nlohmann::json::const_iterator propertyIt = requestDbusData.find("data");
     if (propertyIt == requestDbusData.end())
     {
-        setErrorResponse(res, boost::beast::http::status::bad_request,
-                         noJsonDesc, badReqMsg);
+        crow::setErrorResponse(res, boost::beast::http::status::bad_request,
+                               crow::msg::noJsonDesc, crow::msg::badReqMsg);
         res.end();
         return;
     }
@@ -1876,9 +1866,9 @@ void handlePut(const crow::Request &req, crow::Response &res,
                       const GetObjectType &object_names) {
             if (!ec && object_names.size() <= 0)
             {
-                setErrorResponse(transaction->res,
-                                 boost::beast::http::status::not_found,
-                                 propNotFoundDesc, notFoundMsg);
+                crow::setErrorResponse(
+                    transaction->res, boost::beast::http::status::not_found,
+                    crow::msg::propNotFoundDesc, crow::msg::notFoundMsg);
                 return;
             }
 
@@ -1994,7 +1984,7 @@ void handlePut(const crow::Request &req, crow::Response &res,
                                                     {
                                                         const sd_bus_error *e =
                                                             m.get_error();
-                                                        setErrorResponse(
+                                                        crow::setErrorResponse(
                                                             transaction->res,
                                                             boost::beast::http::
                                                                 status::
@@ -2116,8 +2106,9 @@ inline void handleDBusUrl(const crow::Request &req, crow::Response &res,
         return;
     }
 
-    setErrorResponse(res, boost::beast::http::status::method_not_allowed,
-                     methodNotAllowedDesc, methodNotAllowedMsg);
+    crow::setErrorResponse(res, boost::beast::http::status::method_not_allowed,
+                           crow::msg::methodNotAllowedDesc,
+                           crow::msg::methodNotAllowedMsg);
     res.end();
 }
 
@@ -2177,55 +2168,55 @@ template <typename... Middlewares> void requestRoutes(Crow<Middlewares...> &app)
         });
 
     BMCWEB_ROUTE(app, "/xyz/<path>")
-        .requires({"ConfigureComponents", "ConfigureManager"})
+        .requires({{"ConfigureComponents", "ConfigureManager"},
+                   {"ConfigureSelf"}})
         .methods("PUT"_method, "POST"_method, "DELETE"_method)(
             [](const crow::Request &req, crow::Response &res,
                const std::string &path) {
                 std::string objectPath = "/xyz/" + path;
+                // This is too permissive.  The ConfigureSelf privilege
+                // applies only to the root user POSTing a new password.
+                if ((req.method() != "POST"_method) ||
+                    (objectPath !=
+                         "/xyz/openbmc_project/user/root/action/SetPassword") ||
+                    (req.session->username != "root"))
+                {
+                    // Check privileges again without ConfigureSelf.
+                    // Hack alert!  This duplicates code from
+                    // isAllowedWithoutConfigureSelf which is not yet included.
+                    redfish::Privileges effectiveUserPrivileges;
+                    if ((req.session != nullptr) &&
+                        (!req.session->isConfigureSelfOnly))
+                    {
+                        const std::string& userRole =
+                            crow::persistent_data::UserRoleMap::getInstance().
+                                getUserRole(req.session->username);
+                        effectiveUserPrivileges =
+                            redfish::getUserPrivileges(userRole);
+                        effectiveUserPrivileges.
+                            resetSinglePrivilege("ConfigureSelf");
+                    }
+                    redfish::Privileges requiredPrivileges =
+                        {"ConfigureComponents", "ConfigureManager"};
+                    if (!effectiveUserPrivileges.
+                        isSupersetOf(requiredPrivileges))
+                    {
+                        std::string desc = crow::msg::forbiddenURIDesc;
+                        desc.append(req.url);
+                        crow::setErrorResponse(
+                            res, boost::beast::http::status::forbidden,
+                            crow::msg::forbiddenMsg, desc);
+                        if ((req.session != nullptr) &&
+                            (req.session->isConfigureSelfOnly))
+                        {
+                            crow::setPasswordChangeRequired(res, "root");
+                        }
+                        res.end();
+                        return;
+                    }
+                }
                 handleDBusUrl(req, res, objectPath);
             });
-
-    BMCWEB_ROUTE(app, "/xyz/openbmc_project/user/root/action/SetPassword")
-        .requires({"ConfigureComponents", "ConfigureManager"})
-        .methods(
-            "PATCH"_method)([](const crow::Request &req, crow::Response &res) {
-            nlohmann::json data = nlohmann::json::parse(std::move(req.body));
-            const std::string *pwd;
-            for (const auto &item : data.items())
-            {
-                if (item.key() == "Password")
-                {
-                    pwd = item.value().get_ptr<const std::string *>();
-                }
-            }
-
-            if (!pwd || pwd->empty())
-            {
-                BMCWEB_LOG_ERROR << "Password Empty!";
-                res.jsonValue = {{"message", "400 Bad Request"},
-                                 {"status", "Error"},
-                                 {"data", "Password Not Updated"}};
-                res.end();
-                return;
-            }
-
-            if (!pamUpdatePassword("root", *pwd))
-            {
-                BMCWEB_LOG_ERROR << "pamUpdatePassword Failed";
-                res.jsonValue = {{"message", "500 Internal Server Error"},
-                                 {"status", "Error"},
-                                 {"data", "Password Not Updated"}};
-                res.end();
-                return;
-            }
-
-            BMCWEB_LOG_DEBUG << "pamUpdatePassword Successful";
-            res.jsonValue = {{"message", "204 Resource Updated Successfully"},
-                             {"status", "ok"},
-                             {"data", "Password Updated"}};
-            res.end();
-            return;
-        });
 
     BMCWEB_ROUTE(app, "/org/<path>")
         .requires({"Login"})
