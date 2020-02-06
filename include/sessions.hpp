@@ -14,7 +14,7 @@
 #include "logging.h"
 #include "utility.h"
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
-#include <IBM/locks.hpp>
+#include <ibm/locks.hpp>
 #endif
 
 namespace crow
