@@ -10,7 +10,7 @@
 #include <obmc_console.hpp>
 #include <openbmc_dbus_rest.hpp>
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
-#include <IBM/mc_rest.hpp>
+#include <ibm/management_console_rest.hpp>
 #endif
 #include <persistent_data_middleware.hpp>
 #include <redfish.hpp>
@@ -98,8 +98,8 @@ int main(int argc, char** argv)
 #endif
 
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+    crow::ibm_mc::requestRoutes(app);
     crow::ibm_mc_lock::lock::getInstance();
-    crow::openbmc_ibm_mc::requestRoutes(app);
 #endif
 
     crow::token_authorization::requestRoutes(app);
