@@ -1568,39 +1568,125 @@ class SystemDumpEntryCollection : public Node
 
         crow::connections::systemBus->async_method_call(
             [asyncResp](const boost::system::error_code ec,
-                        const crow::openbmc_mapper::GetSubTreeType &resp) {
+                        GetManagedObjectsType &resp) {
                 if (ec)
                 {
-                    BMCWEB_LOG_ERROR << " resp_handler got error " << ec;
+                    BMCWEB_LOG_ERROR
+                        << "SystemDumpEntry resp_handler got error " << ec;
                     messages::internalError(asyncResp->res);
                     return;
                 }
 
-                nlohmann::json &logArray = asyncResp->res.jsonValue["Members"];
-                logArray = nlohmann::json::array();
+                nlohmann::json &entriesArray =
+                    asyncResp->res.jsonValue["Members"];
+                entriesArray = nlohmann::json::array();
+
                 for (auto &object : resp)
                 {
+
+                    bool foundSystemDumpEntry = false;
+                    for (auto &interfaceMap : object.second)
+                    {
+                        if (interfaceMap.first ==
+                            "xyz.openbmc_project.Dump.Entry.System")
+                        {
+                            foundSystemDumpEntry = true;
+                            break;
+                        }
+                    }
+
+                    if (foundSystemDumpEntry == false)
+                    {
+                        continue;
+                    }
+                    std::time_t timestamp{};
+                    uint64_t *size = nullptr;
+                    entriesArray.push_back({});
+                    nlohmann::json &thisEntry = entriesArray.back();
                     const std::string &path =
                         static_cast<const std::string &>(object.first);
+                    std::size_t lastPos = path.rfind("/");
+                    if (lastPos == std::string::npos)
+                    {
+                        continue;
+                    }
+                    std::string entryID = path.substr(lastPos + 1);
 
-                    std::size_t pos = path.rfind("/");
+                    for (auto &interfaceMap : object.second)
+                    {
+                        if (interfaceMap.first ==
+                            "xyz.openbmc_project.Dump.Entry")
+                        {
+                            for (auto &propertyMap : interfaceMap.second)
+                            {
+                                if (propertyMap.first == "Size")
+                                {
+                                    size = std::get_if<uint64_t>(
+                                        &propertyMap.second);
+                                    if (size == nullptr)
+                                    {
+                                        messages::propertyMissing(
+                                            asyncResp->res, "Size");
+                                    }
+                                }
+                            }
+                        }
+                        else if (interfaceMap.first ==
+                                 "xyz.openbmc_project.Time.EpochTime")
+                        {
 
-                    std::string logID;
-                    logID = path.substr(pos + 1);
-                    logArray.push_back(
-                        {{"@odata.id", "/redfish/v1/Systems/system/LogServices/"
-                                       "SystemDump/Entries/" +
-                                           logID}});
+                            for (auto &propertyMap : interfaceMap.second)
+                            {
+                                if (propertyMap.first == "Elapsed")
+                                {
+                                    const uint64_t *secsTimeStamp =
+                                        std::get_if<uint64_t>(
+                                            &propertyMap.second);
+                                    if (secsTimeStamp == nullptr)
+                                    {
+                                        messages::propertyMissing(
+                                            asyncResp->res, "Elapsed");
+                                        continue;
+                                    }
+                                    std::chrono::seconds chronoTimeStamp(
+                                        *secsTimeStamp);
+                                    timestamp = std::chrono::duration_cast<
+                                                    std::chrono::duration<int>>(
+                                                    chronoTimeStamp)
+                                                    .count();
+                                }
+                            }
+                        }
+                    }
+                    thisEntry = {
+                        {"@odata.type", "#LogEntry.v1_5_1.LogEntry"},
+                        {"@odata.id",
+                         "/redfish/v1/Systems/system/LogServices/SystemDump/"
+                         "Entries/" +
+                             entryID},
+                        {"Name", "System Dump Entry"},
+                        {"Id", entryID},
+                        {"EntryType", "Oem"},
+                        {"Created", crow::utility::getDateTime(timestamp)}};
+
+                    thisEntry["Oem"]["OpenBmc"]["@odata.type"] =
+                        "#OemLogEntry.v1_0_0.OpenBmc";
+                    thisEntry["Oem"]["OpenBmc"]["SizeInB"] = *size;
+                    thisEntry["Oem"]["OpenBmc"]["Actions"] = {
+                        {"Oem",
+                         {"OpenBmc",
+                          {{"#LogEntry.DownloadLog",
+                            {{"target", "/redfish/v1/Systems/system/"
+                                        "LogServices/SystemDump/Entries/" +
+                                            entryID +
+                                            "/Actions/Oem/OpenBmc/"
+                                            "LogEntry.DownloadLog"}}}}}}};
                 }
                 asyncResp->res.jsonValue["Members@odata.count"] =
-                    logArray.size();
+                    entriesArray.size();
             },
-            "xyz.openbmc_project.ObjectMapper",
-            "/xyz/openbmc_project/object_mapper",
-            "xyz.openbmc_project.ObjectMapper", "GetSubTree",
-            "/xyz/openbmc_project/dump", 0,
-            std::array<const char *, 1>{
-                "xyz.openbmc_project.Dump.Entry.System"});
+            "xyz.openbmc_project.Dump.Manager", "/xyz/openbmc_project/dump",
+            "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
     }
 };
 
