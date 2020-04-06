@@ -71,6 +71,12 @@ option (
     OFF
 )
 option (
+    BMCWEB_ENABLE_REDFISH_SYSTEMDUMP_LOG
+    "Enable System dump log service transactions through Redfish.  Paths are under
+    '/redfish/v1/Systems/system/LogServices/SystemDump'."
+    OFF
+)
+option (
     BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
     "Enable DBUS log service transactions through Redfish. Paths are under
     '/redfish/v1/Systems/system/LogServices/EventLog/Entries'."
@@ -88,6 +94,13 @@ option (
     The BMCWEB_INSECURE_DISABLE_SSL must be OFF for this option to take effect."
     ON
 )
+option (
+    BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+    "Enable the IBM management console specific functionality. Paths are under
+    '/ibm/v1/'."
+    OFF
+)
+
 
 # Insecure options.  Every option that starts with a BMCWEB_INSECURE flag should
 # not be enabled by default for any platform, unless the author fully
@@ -331,6 +344,7 @@ if (${BMCWEB_BUILD_UT})
          src/kvm_websocket_test.cpp src/msan_test.cpp
          src/ast_video_puller_test.cpp src/openbmc_jtag_rest_test.cpp
          redfish-core/ut/privileges_test.cpp
+	 redfish-core/ut/lock_test.cpp
          ${CMAKE_BINARY_DIR}/include/bmcweb/blns.hpp) # big list of naughty
                                                       # strings
     add_custom_command (OUTPUT ${CMAKE_BINARY_DIR}/include/bmcweb/blns.hpp
@@ -395,6 +409,8 @@ target_compile_definitions (
     -DBMCWEB_ENABLE_REDFISH_RAW_PECI>
     $<$<BOOL:${BMCWEB_ENABLE_REDFISH_CPU_LOG}>:
     -DBMCWEB_ENABLE_REDFISH_CPU_LOG>
+    $<$<BOOL:${BMCWEB_ENABLE_REDFISH_SYSTEMDUMP_LOG}>:
+    -DBMCWEB_ENABLE_REDFISH_SYSTEMDUMP_LOG>
     $<$<BOOL:${BMCWEB_ENABLE_REDFISH_BMC_JOURNAL}>:
     -DBMCWEB_ENABLE_REDFISH_BMC_JOURNAL>
     $<$<BOOL:${BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES}>:
@@ -407,6 +423,8 @@ target_compile_definitions (
     -DBMCWEB_ENABLE_VALIDATION_UNSECURE_FEATURE>
     $<$<BOOL:${BMCWEB_INSECURE_UNRESTRICTED_SENSOR_OVERRIDE}>:
     -DBMCWEB_INSECURE_UNRESTRICTED_SENSOR_OVERRIDE>
+    $<$<BOOL:${BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE}>:
+    -DBMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE>
 )
 
 # configure and install systemd unit files
