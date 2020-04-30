@@ -2,6 +2,7 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/container/flat_map.hpp>
+#include <boost/endian/conversion.hpp>
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -535,9 +536,19 @@ class lock
                 {
                     // if the segment data is different , then the locks is on a
                     // different resource So no conflict between the lock
-                    // records
-                    if (!(checkbyte(std::get<3>(reflockrecord1),
-                                    std::get<3>(reflockrecord2), i)))
+                    // records.
+
+                    // BMC is little endian , but the resourceID is formed by
+                    // the Managament Console in such a way that, the first byte
+                    // from the MSB Position corresponds to the First Segment
+                    // data. Therefore we need to convert the in-comming
+                    // resourceID into Big Endian before processing further.
+
+                    if (!(checkByte(boost::endian::endian_reverse(
+                                        std::get<3>(refLockRecord1)),
+                                    boost::endian::endian_reverse(
+                                        std::get<3>(refLockRecord2)),
+                                    i)))
                     {
                         return false;
                     }
