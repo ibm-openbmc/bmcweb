@@ -544,10 +544,10 @@ class lock
                     // data. Therefore we need to convert the in-comming
                     // resourceID into Big Endian before processing further.
 
-                    if (!(checkByte(boost::endian::endian_reverse(
-                                        std::get<3>(refLockRecord1)),
+                    if (!(checkbyte(boost::endian::endian_reverse(
+                                        std::get<3>(reflockrecord1)),
                                     boost::endian::endian_reverse(
-                                        std::get<3>(refLockRecord2)),
+                                        std::get<3>(reflockrecord2)),
                                     i)))
                     {
                         return false;
