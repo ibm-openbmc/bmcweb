@@ -43,7 +43,6 @@ enum class ConnState
     suspended,
     terminated,
     abortConnection,
-    closed,
     retry
 };
 
@@ -88,6 +87,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                     self->handleConnState();
                     return;
                 }
+                BMCWEB_LOG_DEBUG << "Resolved";
                 self->endpoint = ep;
                 self->state = ConnState::resolved;
                 self->handleConnState();
@@ -227,6 +227,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                 self->handleConnState();
                 return;
             }
+            // Wait for the next event with idle state
+            self->handleConnState();
         };
 
         conn.expires_after(std::chrono::seconds(30));
@@ -287,7 +289,6 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
             }
         }
         conn.close();
-        state = ConnState::closed;
     }
 
     void checkQueueAndRetry()
@@ -357,11 +358,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
         switch (state)
         {
             case ConnState::initialized:
-            case ConnState::closed:
             {
                 // Initial state of connection
-                // If the state here is 'closed' it means that the keep alive
-                // was not set at the server and the connection was closed
                 doResolve();
                 break;
             }
