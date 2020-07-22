@@ -140,6 +140,11 @@ int main(int /*argc*/, char** /*argv*/)
     crow::obmc_dump::requestRoutes(app);
 #endif
 
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+    // Start BMC and Host state change dbus monitor
+    crow::dbus_monitor::registerStateChangeSignal();
+#endif
+
     app.run();
     io->run();
 
