@@ -570,14 +570,14 @@ mctp_eid_t readEID()
     return mctpEid;
 }
 
-void sendPLDMRequest(const std::shared_ptr<bmcweb::AsyncResp> &asyncResp,
-                     const uint32_t &csrLength)
+void sendPLDMRequest(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                     const uint32_t& csrLength)
 {
     uint8_t mctpEid = readEID();
 
     crow::connections::systemBus->async_method_call(
         [asyncResp, csrLength, mctpEid](const boost::system::error_code ec,
-                                        const uint8_t &instanceId) {
+                                        const uint8_t& instanceId) {
             if (ec)
             {
                 BMCWEB_LOG_ERROR << "GetInstanceId failed. ec : " << ec;
@@ -607,7 +607,7 @@ void sendPLDMRequest(const std::shared_ptr<bmcweb::AsyncResp> &asyncResp,
                                     sizeof(fileHandle) + sizeof(uint64_t)>
                 requestMsg;
 
-            auto request = reinterpret_cast<pldm_msg *>(requestMsg.data());
+            auto request = reinterpret_cast<pldm_msg*>(requestMsg.data());
 
             auto rc = encode_new_file_req(instanceId, fileType, fileHandle,
                                           csrLength, request);
@@ -622,7 +622,7 @@ void sendPLDMRequest(const std::shared_ptr<bmcweb::AsyncResp> &asyncResp,
                 return;
             }
 
-            uint8_t *responseMsg = nullptr;
+            uint8_t* responseMsg = nullptr;
             size_t responseMsgSize{};
 
             ResponseStatus status = ResponseStatus::success;
@@ -644,7 +644,7 @@ void sendPLDMRequest(const std::shared_ptr<bmcweb::AsyncResp> &asyncResp,
             if (status == ResponseStatus::success)
             {
                 uint8_t completionCode = 0;
-                auto response = reinterpret_cast<pldm_msg *>(responseMsg);
+                auto response = reinterpret_cast<pldm_msg*>(responseMsg);
 
                 auto decodeRC = decode_new_file_resp(
                     response, PLDM_NEW_FILE_RESP_BYTES, &completionCode);
@@ -768,15 +768,15 @@ void sendPLDMRequest(const std::shared_ptr<bmcweb::AsyncResp> &asyncResp,
         "xyz.openbmc_project.PLDM.Requester", "GetInstanceId", mctpEid);
 }
 
-void handleCsrRequest(const crow::Request &req, crow::Response &res,
-                      const std::string &csrString)
+void handleCsrRequest(const crow::Request& req, crow::Response& res,
+                      const std::string& csrString)
 {
     std::shared_ptr<bmcweb::AsyncResp> asyncResp =
         std::make_shared<bmcweb::AsyncResp>(res);
 
     crow::connections::systemBus->async_method_call(
         [asyncResp, req, csrString](const boost::system::error_code errorCode,
-                                    const std::variant<std::string> &value) {
+                                    const std::variant<std::string>& value) {
             if (errorCode)
             {
                 BMCWEB_LOG_ERROR
@@ -788,7 +788,7 @@ void handleCsrRequest(const crow::Request &req, crow::Response &res,
                 CSRHandlerRunning = false;
                 return;
             }
-            const std::string *status = std::get_if<std::string>(&value);
+            const std::string* status = std::get_if<std::string>(&value);
             if ((*status != "xyz.openbmc_project.State.OperatingSystem.Status."
                             "OSStatus.BootComplete") &&
                 (*status != "xyz.openbmc_project.State.OperatingSystem.Status."
@@ -887,7 +887,8 @@ void createRootCertFile()
     }
 }
 
-template <typename... Middlewares> void requestRoutes(Crow<Middlewares...> &app)
+template <typename... Middlewares>
+void requestRoutes(Crow<Middlewares...>& app)
 {
     // allowed only for admin
     BMCWEB_ROUTE(app, "/ibm/v1/")
@@ -932,8 +933,8 @@ template <typename... Middlewares> void requestRoutes(Crow<Middlewares...> &app)
 
     BMCWEB_ROUTE(app, "/ibm/v1/Host/Certificate")
         .requires({"ConfigureComponents", "ConfigureManager"})
-        .methods(
-            "GET"_method)([](const crow::Request &req, crow::Response &res) {
+        .methods(boost::beast::http::verb::get)([](const crow::Request& req,
+                                                   crow::Response& res) {
             res.jsonValue["@odata.type"] = "#Certificate.v1_0_0.Certificate";
             res.jsonValue["@odata.id"] = "/ibm/v1/Host/Certificate";
             res.jsonValue["Id"] = "Certificate";
@@ -946,8 +947,8 @@ template <typename... Middlewares> void requestRoutes(Crow<Middlewares...> &app)
 
     BMCWEB_ROUTE(app, "/ibm/v1/Host/Certificate/root")
         .requires({"ConfigureComponents", "ConfigureManager"})
-        .methods(
-            "GET"_method)([](const crow::Request &req, crow::Response &res) {
+        .methods(boost::beast::http::verb::get)([](const crow::Request& req,
+                                                   crow::Response& res) {
             std::filesystem::path rootCert = ROOT_CERT_PATH;
             if (!std::filesystem::exists(rootCert))
             {
@@ -977,8 +978,8 @@ template <typename... Middlewares> void requestRoutes(Crow<Middlewares...> &app)
 
     BMCWEB_ROUTE(app, "/ibm/v1/Host/Actions/SignCSR")
         .requires({"ConfigureComponents", "ConfigureManager"})
-        .methods(
-            "POST"_method)([](const crow::Request &req, crow::Response &res) {
+        .methods(boost::beast::http::verb::post)([](const crow::Request& req,
+                                                    crow::Response& res) {
             std::string csrString;
             if (!redfish::json_util::readJson(req, res, "CsrString", csrString))
             {
