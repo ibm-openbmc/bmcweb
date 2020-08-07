@@ -102,9 +102,11 @@ inline bool validateCertificate(const std::string &filePath,
         unsigned int retErrCode = X509_STORE_CTX_get_error(storeCtx);
         X509_STORE_CTX_free(storeCtx);
         X509_LOOKUP_free(x509Lookup);
-        if (isTrustChainError(retErrCode))
+        if (isTrustChainError(retErrCode) ||
+           (retErrCode == X509_V_ERR_CERT_NOT_YET_VALID))
         {
-            BMCWEB_LOG_DEBUG << "Ignoring Trust Chain error";
+            BMCWEB_LOG_DEBUG << "Ignoring certificate verification error: "
+                             << X509_verify_cert_error_string(retErrCode);
             return true;
         }
         else
