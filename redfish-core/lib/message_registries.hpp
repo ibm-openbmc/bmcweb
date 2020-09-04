@@ -17,6 +17,7 @@
 
 #include "registries.hpp"
 #include "registries/base_message_registry.hpp"
+#include "registries/bios_registry.hpp"
 #include "registries/openbmc_message_registry.hpp"
 #include "registries/resource_event_message_registry.hpp"
 #include "registries/task_event_message_registry.hpp"
@@ -39,9 +40,10 @@ inline void handleMessageRegistryFileCollectionGet(
         {"@odata.id", "/redfish/v1/Registries"},
         {"Name", "MessageRegistryFile Collection"},
         {"Description", "Collection of MessageRegistryFiles"},
-        {"Members@odata.count", 4},
+        {"Members@odata.count", 5},
         {"Members",
          {{{"@odata.id", "/redfish/v1/Registries/Base"}},
+          {{"@odata.id", "/redfish/v1/Registries/BiosAttributeRegistry"}},
           {{"@odata.id", "/redfish/v1/Registries/TaskEvent"}},
           {{"@odata.id", "/redfish/v1/Registries/ResourceEvent"}},
           {{"@odata.id", "/redfish/v1/Registries/OpenBMC"}}}}};
@@ -70,6 +72,11 @@ inline void handleMessageRoutesMessageRegistryFileGet(
     {
         header = &message_registries::base::header;
         url = message_registries::base::url;
+    }
+    else if (registry == "BiosAttributeRegistry")
+    {
+            header = &message_registries::bios::header;
+            dmtf.clear();
     }
     else if (registry == "TaskEvent")
     {
@@ -125,7 +132,6 @@ inline void requestRoutesMessageRegistryFile(App& app)
 inline void handleMessageRegistryGet(
     const crow::Request&, const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& registry, const std::string& registryMatch)
-
 {
     const message_registries::Header* header;
     std::vector<const message_registries::MessageEntry*> registryEntries;
