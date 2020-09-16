@@ -27,6 +27,7 @@
 #include <boost/beast/core/span.hpp>
 #include <boost/container/flat_map.hpp>
 #include <boost/system/linux_error.hpp>
+#include <dump_offload.hpp>
 #include <error_messages.hpp>
 
 #include <filesystem>
@@ -2219,6 +2220,36 @@ class BMCDumpClear : public Node
     }
 };
 
+class BMCDumpEntryDownload : public Node
+{
+  public:
+    BMCDumpEntryDownload(App& app) :
+        Node(app, "/redfish/v1/Managers/bmc/LogServices/Dump/attachment/<str>/",
+             std::string())
+    {
+        entityPrivileges = {
+            {boost::beast::http::verb::get, {{"Login"}}},
+            {boost::beast::http::verb::head, {{"Login"}}},
+            {boost::beast::http::verb::patch, {{"ConfigureManager"}}},
+            {boost::beast::http::verb::put, {{"ConfigureManager"}}},
+            {boost::beast::http::verb::delete_, {{"ConfigureManager"}}},
+            {boost::beast::http::verb::post, {{"ConfigureManager"}}}};
+    }
+
+  private:
+    void doGet(crow::Response& res, const crow::Request& req,
+               const std::vector<std::string>& params) override
+    {
+        if (params.size() != 1)
+        {
+            messages::internalError(res);
+            return;
+        }
+        const std::string& entryID = params[0];
+        crow::obmc_dump::handleDumpOffloadUrl(req, res, entryID, "bmc");
+    }
+};
+
 class SystemDumpService : public Node
 {
   public:
@@ -2386,6 +2417,37 @@ class SystemDumpClear : public Node
                 const std::vector<std::string>&) override
     {
         clearDump(res, "System");
+    }
+};
+
+class SystemDumpEntryDownload : public Node
+{
+  public:
+    SystemDumpEntryDownload(App& app) :
+        Node(app,
+             "/redfish/v1/Systems/system/LogServices/Dump/attachment/<str>/",
+             std::string())
+    {
+        entityPrivileges = {
+            {boost::beast::http::verb::get, {{"Login"}}},
+            {boost::beast::http::verb::head, {{"Login"}}},
+            {boost::beast::http::verb::patch, {{"ConfigureManager"}}},
+            {boost::beast::http::verb::put, {{"ConfigureManager"}}},
+            {boost::beast::http::verb::delete_, {{"ConfigureManager"}}},
+            {boost::beast::http::verb::post, {{"ConfigureManager"}}}};
+    }
+
+  private:
+    void doGet(crow::Response& res, const crow::Request& req,
+               const std::vector<std::string>& params) override
+    {
+        if (params.size() != 1)
+        {
+            messages::internalError(res);
+            return;
+        }
+        const std::string& entryID = params[0];
+        crow::obmc_dump::handleDumpOffloadUrl(req, res, entryID, "system");
     }
 };
 
