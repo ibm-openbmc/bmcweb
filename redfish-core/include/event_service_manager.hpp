@@ -386,7 +386,7 @@ class Subscription
     {
         conn = std::make_shared<crow::HttpClient>(
             crow::connections::systemBus->get_io_context(), id, host, port,
-            path);
+            path, uriProto);
     }
 
     Subscription(const std::shared_ptr<crow::Request::Adaptor>& adaptor) :
@@ -1088,21 +1088,6 @@ class EventServiceManager
             }
         }
     }
-#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
-    void sendBroadcastMsg(const std::string& broadcastMsg)
-    {
-        for (const auto& it : this->subscriptionsMap)
-        {
-            std::shared_ptr<Subscription> entry = it.second;
-            nlohmann::json msgJson = {
-                {"Timestamp", crow::utility::dateTimeNow()},
-                {"OriginOfCondition", "/ibm/v1/HMC/BroadcastService"},
-                {"Name", "Broadcast Message"},
-                {"Message", broadcastMsg}};
-            entry->sendEvent(msgJson.dump());
-        }
-    }
-#endif
 
 #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
     void cacheLastEventTimestamp()

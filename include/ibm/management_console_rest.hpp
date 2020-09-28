@@ -219,6 +219,10 @@ void deleteConfigFiles(crow::Response& res)
                                 "config files directory. ec : "
                              << ec;
         }
+        // DeleteAll is successful. Send event
+        std::string origin = "/ibm/v1/Host/ConfigFiles";
+        redfish::EventServiceManager::getInstance().sendEvent(
+            redfish::messages::ResourceChanged(), origin, "IBMConfigFile");
     }
     res.end();
 }
@@ -282,6 +286,9 @@ void handleFileDelete(crow::Response& res, const std::string& fileID)
         {
             BMCWEB_LOG_DEBUG << "File removed!\n";
             res.jsonValue["Description"] = "File Deleted";
+            std::string origin = "/ibm/v1/Host/ConfigFiles/" + fileID;
+            redfish::EventServiceManager::getInstance().sendEvent(
+                redfish::messages::ResourceRemoved(), origin, "IBMConfigFile");
         }
         else
         {
@@ -315,7 +322,12 @@ inline void handleBroadcastService(const crow::Request& req,
         res.result(boost::beast::http::status::bad_request);
         return;
     }
-    redfish::EventServiceManager::getInstance().sendBroadcastMsg(broadcastMsg);
+    // Set the origin as Broadcast
+    std::string origin = "/ibm/v1/HMC/BroadcastService";
+    nlohmann::json msgJson = {{"Message", broadcastMsg}};
+
+    redfish::EventServiceManager::getInstance().sendEvent(msgJson, origin,
+                                                          "BroadcastService");
     res.end();
     return;
 }
