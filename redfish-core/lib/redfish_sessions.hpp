@@ -60,15 +60,15 @@ class Sessions : public Node
         res.jsonValue["UserName"] = session->username;
         res.jsonValue["@odata.id"] =
             "/redfish/v1/SessionService/Sessions/" + session->uniqueId;
-        res.jsonValue["@odata.type"] = "#Session.v1_0_2.Session";
+        res.jsonValue["@odata.type"] = "#Session.v1_3_0.Session";
         res.jsonValue["Name"] = "User Session";
         res.jsonValue["Description"] = "Manager User Session";
+        res.jsonValue["ClientOriginIPAddress"] = session->clientIp;
         res.jsonValue["Oem"]["OpenBMC"]["@odata.type"] =
             "#OemSession.v1_0_0.Session";
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
         res.jsonValue["Oem"]["OpenBMC"]["ClientID"] = session->clientId;
 #endif
-        res.jsonValue["Oem"]["OpenBMC"]["ClientOriginIP"] = session->clientIp;
         res.end();
     }
 
