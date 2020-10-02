@@ -237,21 +237,37 @@ inline bool extractHypervisorInterfaceData(
                             &(std::get<5>(key.second)));
                         if (origin != nullptr)
                         {
-                            if (*origin == "xyz.openbmc_project.Network."
-                                           "EthernetInterface.DHCPConf.none")
+                            if (*origin == "IPv4Static")
                             {
                                 ipv4Address.origin = "Static";
-                                ethData.DHCPEnabled = *origin;
+                                ethData.DHCPEnabled =
+                                    "xyz.openbmc_project.Network."
+                                    "EthernetInterface.DHCPConf.none";
                                 BMCWEB_LOG_DEBUG << key.first
                                                  << ipv4Address.origin;
                             }
-                            if (*origin == "xyz.openbmc_project.Network."
-                                           "EthernetInterface.DHCPConf.v4")
+                            else if (*origin == "IPv4DHCP")
                             {
                                 ipv4Address.origin = "DHCP";
-                                ethData.DHCPEnabled = *origin;
+                                ethData.DHCPEnabled =
+                                    "xyz.openbmc_project.Network."
+                                    "EthernetInterface.DHCPConf.v4";
                                 BMCWEB_LOG_DEBUG << key.first
                                                  << ipv4Address.origin;
+                            }
+                            else
+                            {
+                                // hypervisor did not set the Origin so setting
+                                // it as static by default, as an enum value
+                                // cannot but NULL
+                                ipv4Address.origin = "Static";
+                                ethData.DHCPEnabled =
+                                    "xyz.openbmc_project.Network."
+                                    "EthernetInterface.DHCPConf.none";
+                                BMCWEB_LOG_DEBUG
+                                    << "Setting the Origin as Static as "
+                                       "hypervisor gateway attribute is not "
+                                       "set";
                             }
                         }
                     }
@@ -452,11 +468,11 @@ inline void createHypervisorIPv4(const std::string& ifaceId,
     std::string origin;
     if (dhcpEnabled == false)
     {
-        origin = "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.none";
+        origin = "IPv4Static";
     }
     else
     {
-        origin = "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v4";
+        origin = "IPv4DHCP";
     }
     pendingAttributes.emplace(
         "vmi-" + getIfAttributeName(ifaceId) + "-ipv4-method",
@@ -505,11 +521,11 @@ inline void deleteHypervisorIPv4(const std::string& ifaceId,
     std::string origin;
     if (dhcpEnabled == false)
     {
-        origin = "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.none";
+        origin = "IPv4Static";
     }
     else
     {
-        origin = "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v4";
+        origin = "IPv4DHCP";
     }
     pendingAttributes.emplace(
         "vmi-" + getIfAttributeName(ifaceId) + "-ipv4-method",
@@ -784,8 +800,7 @@ class HypervisorInterface : public Node
                 "vmi-" + getIfAttributeName(ifaceId) + "-ipv4-method",
                 std::make_tuple("xyz.openbmc_project.BIOSConfig.Manager."
                                 "AttributeType.String",
-                                "xyz.openbmc_project.Network.EthernetInterface."
-                                "DHCPConf.none"));
+                                "IPv4Static"));
             setVmiBiosEthernetInterfaceAttribute(pendingAttributes, asyncResp);
         }
     }
