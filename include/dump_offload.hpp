@@ -16,7 +16,8 @@ namespace obmc_dump
 {
 
 inline void handleDumpOffloadUrl(const crow::Request& req, crow::Response& res,
-                                 const std::string& entryId);
+                                 const std::string& entryId,
+                                 const std::string& dumpEntryType);
 inline void resetHandler();
 
 // The max network block device buffer size is 128kb plus 16bytes
@@ -32,10 +33,10 @@ class Handler : public std::enable_shared_from_this<Handler>
 {
   public:
     Handler(const std::string& mediaIn, boost::asio::io_context& ios,
-            const std::string& entryIDIn) :
+            const std::string& entryIDIn, const std::string& dumpTypeIn) :
         pipeOut(ios),
-        pipeIn(ios), media(mediaIn), entryID(entryIDIn), doingWrite(false),
-        negotiationDone(false), writeonnbd(false),
+        pipeIn(ios), media(mediaIn), entryID(entryIDIn), dumpType(dumpTypeIn),
+        doingWrite(false), negotiationDone(false), writeonnbd(false),
         outputBuffer(std::make_unique<
                      boost::beast::flat_static_buffer<nbdBufferSize>>()),
         inputBuffer(
@@ -65,7 +66,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                 }
             },
             "xyz.openbmc_project.Dump.Manager",
-            "/xyz/openbmc_project/dump/entry/" + entryID,
+            "/xyz/openbmc_project/dump/" + dumpType + "/entry/" + entryID,
             "xyz.openbmc_project.Dump.Entry", "InitiateOffload", "/dev/nbd1");
     }
 
@@ -256,6 +257,7 @@ class Handler : public std::enable_shared_from_this<Handler>
     boost::process::child proxy;
     std::string media;
     std::string entryID;
+    std::string dumpType;
     bool doingWrite;
     bool negotiationDone;
     bool writeonnbd;
@@ -273,7 +275,8 @@ inline void resetHandler()
     handler.reset();
 }
 inline void handleDumpOffloadUrl(const crow::Request& req, crow::Response& res,
-                                 const std::string& entryId)
+                                 const std::string& entryId,
+                                 const std::string& dumpEntryType)
 {
 
     // Run only one instance of Handler, one dump offload can happen at a time
@@ -289,7 +292,7 @@ inline void handleDumpOffloadUrl(const crow::Request& req, crow::Response& res,
     const char* media = "1";
     boost::asio::io_context* io_con = req.ioService;
 
-    handler = std::make_shared<Handler>(media, *io_con, entryId);
+    handler = std::make_shared<Handler>(media, *io_con, entryId, dumpEntryType);
     handler->stream =
         std::make_shared<crow::Request::Adaptor>(std::move(req.socket()));
     handler->connect();

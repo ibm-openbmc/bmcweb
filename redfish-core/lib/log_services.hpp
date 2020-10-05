@@ -2182,7 +2182,7 @@ class BMCDumpEntryDownload : public Node
             return;
         }
         const std::string& entryID = params[0];
-        crow::obmc_dump::handleDumpOffloadUrl(req, res, entryID);
+        crow::obmc_dump::handleDumpOffloadUrl(req, res, entryID, "bmc");
     }
 };
 
@@ -2383,7 +2383,7 @@ class SystemDumpEntryDownload : public Node
             return;
         }
         const std::string& entryID = params[0];
-        crow::obmc_dump::handleDumpOffloadUrl(req, res, entryID);
+        crow::obmc_dump::handleDumpOffloadUrl(req, res, entryID, "system");
     }
 };
 
