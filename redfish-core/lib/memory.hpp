@@ -839,16 +839,16 @@ inline void afterGetDimmData(
                 }
             }
 
-            /* If a Dimm has an Association check if it has a LED */
-            if (associationInterface && dimmInterface)
-            {
-                getLocationIndicatorActive(asyncResp, objectPath);
-            }
-
             if (dimmInterface && objectEnable)
             {
                 getObjectEnable(asyncResp, serviceName, objectPath);
             }
+        }
+
+        /* If a Dimm has an Association check if it has a LED */
+        if (associationInterface && dimmInterface)
+        {
+            getLocationIndicatorActive(asyncResp, objectPath);
         }
     }
 
@@ -912,37 +912,23 @@ inline void patchMemberEnabled(
 
 inline void handleSetDimmData(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    bool locationIndicatorActive, const std::string& dimmPath,
-    const dbus::utility::MapperServiceMap& serviceMap)
+    bool locationIndicatorActive, const std::string& dimmPath)
 {
-    for (const auto& [serviceName, interfaceList] : serviceMap)
-    {
-        for (const auto& interface : interfaceList)
-        {
-            if (interface == "xyz.openbmc_project.Association.Definitions")
-            {
-                setLocationIndicatorActive(asyncResp, dimmPath,
-                                           locationIndicatorActive);
-                return;
-            }
-        }
-    }
-    messages::propertyUnknown(asyncResp->res, "LocationIndicatorActive");
+    setLocationIndicatorActive(asyncResp, dimmPath, locationIndicatorActive);
 }
 
 inline void afterGetValidDimmPath(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& dimmId, const boost::system::error_code& ec,
-    const dbus::utility::MapperGetSubTreeResponse& subtree,
-    const std::function<
-        void(const std::string& dimmPath,
-             const dbus::utility::MapperServiceMap& serviceMap)>& callback)
+    const dbus::utility::MapperGetSubTreePathsResponse& subtree,
+    const std::function<void(const std::string& dimmPath)>& callback)
 {
     if (ec)
     {
         if (ec.value() == EBADR)
         {
             /* Need to report error for PATCH */
+            BMCWEB_LOG_WARNING("Dimm not found in inventory");
             messages::resourceNotFound(asyncResp->res, "Memory", dimmId);
         }
         else
@@ -953,13 +939,13 @@ inline void afterGetValidDimmPath(
         return;
     }
 
-    for (const auto& [objectPath, serviceMap] : subtree)
+    for (const auto& objectPath : subtree)
     {
         // Ignore any objects which don't end with our desired dimm name
         sdbusplus::message::object_path path(objectPath);
         if (path.filename() == dimmId)
         {
-            callback(path, serviceMap);
+            callback(path);
             return;
         }
     }
@@ -971,19 +957,17 @@ inline void afterGetValidDimmPath(
 inline void getValidDimmPath(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& dimmId,
-    std::function<void(const std::string& dimmPath,
-                       const dbus::utility::MapperServiceMap& serviceMap)>&&
-        callback)
+    std::function<void(const std::string& dimmPath)>&& callback)
 {
     BMCWEB_LOG_DEBUG("Get dimm path for {}", dimmId);
     constexpr std::array<std::string_view, 1> interfaces = {
         "xyz.openbmc_project.Inventory.Item.Dimm"};
 
-    dbus::utility::getSubTree(
+    dbus::utility::getSubTreePaths(
         "/xyz/openbmc_project/inventory", 0, interfaces,
         [asyncResp, dimmId, callback{std::move(callback)}](
             const boost::system::error_code& ec,
-            const dbus::utility::MapperGetSubTreeResponse& subtree) {
+            const dbus::utility::MapperGetSubTreePathsResponse& subtree) {
             afterGetValidDimmPath(asyncResp, dimmId, ec, subtree, callback);
         });
 }
