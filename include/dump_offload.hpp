@@ -33,7 +33,7 @@ class Handler : public std::enable_shared_from_this<Handler>
 {
   public:
     Handler(const std::string& mediaIn, boost::asio::io_context& ios,
-            const std::string& entryIDIn) :
+            const std::string& entryIDIn, const std::string& dumpTypeIn) :
         pipeOut(ios),
         pipeIn(ios), media(mediaIn), entryID(entryIDIn), dumpType(dumpTypeIn),
         doingWrite(false), negotiationDone(false), writeonnbd(false),
