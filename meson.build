@@ -284,8 +284,13 @@ if get_option('rest').enabled()
 endif
 
 systemd = dependency('systemd')
+
+if get_option('ibm-management-console').enabled()
+  pldm =  cxx.find_library('pldm', required: true)
+endif
+
 zlib = dependency('zlib')
-bmcweb_dependencies += [systemd, zlib]
+bmcweb_dependencies += [systemd, pldm, zlib]
 
 if cxx.has_header('nlohmann/json.hpp')
     nlohmann_json = declare_dependency()
@@ -299,6 +304,7 @@ else
     )
 endif
 bmcweb_dependencies += nlohmann_json
+
 
 boost = dependency('boost',version : '>=1.73.0', required : false)
 if not boost.found()

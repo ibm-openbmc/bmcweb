@@ -101,7 +101,7 @@ inline void BMCStatePropertyChange(sdbusplus::message::message& msg)
         // Push an event
         std::string origin = "/redfish/v1/Managers/bmc";
         redfish::EventServiceManager::getInstance().sendEvent(
-            redfish::messages::ResourceChanged(), origin, "Manager");
+            redfish::messages::resourceChanged(), origin, "Manager");
     }
     registerBMCStateChangeSignal();
 }
@@ -133,7 +133,7 @@ inline void HostStatePropertyChange(sdbusplus::message::message& msg)
         // Push an event
         std::string origin = "/redfish/v1/Systems/system";
         redfish::EventServiceManager::getInstance().sendEvent(
-            redfish::messages::ResourceChanged(), origin, "ComputerSystem");
+            redfish::messages::resourceChanged(), origin, "ComputerSystem");
     }
     registerHostStateChangeSignal();
 }
