@@ -275,6 +275,11 @@ if get_option('rest').enabled()
 endif
 
 systemd = dependency('systemd')
+
+if get_option('ibm-management-console').enabled()
+  pldm =  cxx.find_library('pldm', required: true)
+endif
+
 zlib = dependency('zlib')
 
 if cxx.has_header('nlohmann/json.hpp')
@@ -288,6 +293,7 @@ else
         ]
     )
 endif
+
 
 boost = dependency('boost',version : '>=1.73.0', required : false)
 if not boost.found()
@@ -371,7 +377,7 @@ executable('bmcweb',srcfiles_bmcweb,
             include_directories : incdir,
             dependencies: [
                               boost, boost_url, pam, atomic, sdbusplus, openssl,
-                              tinyxml, systemd, zlib, nlohmann_json
+                              tinyxml, systemd, pldm, zlib, nlohmann_json
                           ],
             install: true,
             install_dir:bindir)
