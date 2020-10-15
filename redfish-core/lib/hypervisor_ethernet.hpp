@@ -129,7 +129,7 @@ class HypervisorInterfaceCollection : public Node
                         ifaceArray.push_back(
                             {{"@odata.id", "/redfish/v1/Systems/hypervisor/"
                                            "EthernetInterfaces/" +
-                                               iface.substr(last_pos + 1)}});
+                                               iface.substr(lastPos + 1)}});
                     }
                 }
                 asyncResp->res.jsonValue["Members@odata.count"] =
