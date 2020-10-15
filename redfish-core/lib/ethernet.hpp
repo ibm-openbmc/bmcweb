@@ -528,15 +528,6 @@ inline void
                                 ipv4Address.address = *address;
                             }
                         }
-                        else if (property.first == "Gateway")
-                        {
-                            const std::string* gateway =
-                                std::get_if<std::string>(&property.second);
-                            if (gateway != nullptr)
-                            {
-                                ipv4Address.gateway = *gateway;
-                            }
-                        }
                         else if (property.first == "Origin")
                         {
                             const std::string* origin =
@@ -711,6 +702,21 @@ inline void deleteIPv4(const std::string& ifaceId, const std::string& ipHash,
         "xyz.openbmc_project.Object.Delete", "Delete");
 }
 
+inline void updateIPv4DefaultGateway(const std::string& gateway,
+                                     const std::shared_ptr<AsyncResp> asyncResp)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code ec) {
+            if (ec)
+            {
+                messages::internalError(asyncResp->res);
+            }
+        },
+        "xyz.openbmc_project.Network", "/xyz/openbmc_project/network/config",
+        "org.freedesktop.DBus.Properties", "Set",
+        "xyz.openbmc_project.Network.SystemConfiguration", "DefaultGateway",
+        std::variant<std::string>(gateway));
+}
 /**
  * @brief Creates a static IPv4 entry
  *
@@ -726,14 +732,17 @@ inline void createIPv4(const std::string& ifaceId, uint8_t prefixLength,
                        const std::string& gateway, const std::string& address,
                        std::shared_ptr<AsyncResp> asyncResp)
 {
+    auto createIpHandler = [asyncResp,
+                            gateway](const boost::system::error_code ec) {
+        if (ec)
+        {
+            messages::internalError(asyncResp->res);
+        }
+        updateIPv4DefaultGateway(gateway, asyncResp);
+    };
+
     crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
-            if (ec)
-            {
-                messages::internalError(asyncResp->res);
-            }
-        },
-        "xyz.openbmc_project.Network",
+        std::move(createIpHandler), "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ifaceId,
         "xyz.openbmc_project.Network.IP.Create", "IP",
         "xyz.openbmc_project.Network.IP.Protocol.IPv4", address, prefixLength,
@@ -766,12 +775,14 @@ inline void deleteAndCreateIPv4(const std::string& ifaceId,
             {
                 messages::internalError(asyncResp->res);
             }
+
             crow::connections::systemBus->async_method_call(
-                [asyncResp](const boost::system::error_code ec2) {
+                [asyncResp, gateway](const boost::system::error_code ec2) {
                     if (ec2)
                     {
                         messages::internalError(asyncResp->res);
                     }
+                    updateIPv4DefaultGateway(gateway, asyncResp);
                 },
                 "xyz.openbmc_project.Network",
                 "/xyz/openbmc_project/network/" + ifaceId,
@@ -920,7 +931,7 @@ void getEthernetIfaceData(const std::string& ethiface_id,
             {
                 if (((ipv4.linktype == LinkType::Global) &&
                      (ipv4.gateway == "0.0.0.0")) ||
-                    (ipv4.origin == "DHCP"))
+                    (ipv4.origin == "DHCP") || (ipv4.origin == "Static"))
                 {
                     ipv4.gateway = ethData.default_gateway;
                 }

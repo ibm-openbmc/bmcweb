@@ -330,6 +330,10 @@ class Connection :
 
         if (!isInvalidRequest)
         {
+            req->socket = [self = shared_from_this()]() -> Adaptor& {
+                return self->socket();
+            };
+
             res.completeRequestHandler = [] {};
             res.isAliveHelper = [this]() -> bool { return isAlive(); };
 
