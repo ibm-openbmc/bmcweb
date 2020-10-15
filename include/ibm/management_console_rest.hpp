@@ -1,5 +1,4 @@
 #pragma once
-#include <app.h>
 #include <libpldm/base.h>
 #include <libpldm/file_io.h>
 #include <libpldm/pldm.h>
