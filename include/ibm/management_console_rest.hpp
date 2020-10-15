@@ -216,7 +216,7 @@ inline void deleteConfigFiles(crow::Response& res)
         // DeleteAll is successful. Send event
         std::string origin = "/ibm/v1/Host/ConfigFiles";
         redfish::EventServiceManager::getInstance().sendEvent(
-            redfish::messages::ResourceChanged(), origin, "IBMConfigFile");
+            redfish::messages::resourceChanged(), origin, "IBMConfigFile");
     }
     res.end();
 }
@@ -283,7 +283,7 @@ inline void handleFileDelete(crow::Response& res, const std::string& fileID)
             res.jsonValue["Description"] = "File Deleted";
             std::string origin = "/ibm/v1/Host/ConfigFiles/" + fileID;
             redfish::EventServiceManager::getInstance().sendEvent(
-                redfish::messages::ResourceRemoved(), origin, "IBMConfigFile");
+                redfish::messages::resourceRemoved(), origin, "IBMConfigFile");
         }
         else
         {

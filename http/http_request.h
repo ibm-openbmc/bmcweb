@@ -10,12 +10,19 @@
 #include <boost/beast/http/string_body.hpp>
 #include <boost/beast/websocket.hpp>
 #include <boost/url/url_view.hpp>
+#include <boost/beast/ssl/ssl_stream.hpp>
 
 namespace crow
 {
 
 struct Request
 {
+#ifdef BMCWEB_ENABLE_SSL
+    using Adaptor = boost::beast::ssl_stream<boost::asio::ip::tcp::socket>;
+#else
+    using Adaptor = boost::asio::ip::tcp::socket;
+#endif
+
     boost::beast::http::request<boost::beast::http::string_body>& req;
     boost::beast::http::fields& fields;
     std::string_view url{};
@@ -29,7 +36,7 @@ struct Request
     boost::asio::ip::address ipAddress;
 
     std::shared_ptr<persistent_data::UserSession> session;
-
+    std::function<Adaptor&()> socket;
     std::string userRole{};
     Request(
         boost::beast::http::request<boost::beast::http::string_body>& reqIn) :
