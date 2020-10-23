@@ -323,10 +323,22 @@ class Connection :
             }
         }
 
+        // Copy the client's IP address
+        if constexpr (std::is_same_v<Adaptor,
+                                     boost::beast::ssl_stream<
+                                         boost::asio::ip::tcp::socket>>)
+        {
+            req->ipAddress = adaptor.next_layer().remote_endpoint().address();
+        }
+        else
+        {
+            req->ipAddress = socket().remote_endpoint().address();
+        }
+
         BMCWEB_LOG_INFO << "Request: "
                         << " " << this << " HTTP/" << req->version() / 10 << "."
                         << req->version() % 10 << ' ' << req->methodString()
-                        << " " << req->target() << " " << req->ipAddress;
+                        << " " << req->target() << "" << req->ipAddress;
 
         needToCallAfterHandlers = false;
 
