@@ -357,10 +357,6 @@ class Connection :
 
         if (!isInvalidRequest)
         {
-            req->socket = [self = shared_from_this()]() -> Adaptor& {
-                return self->socket();
-            };
-
             res.completeRequestHandler = [] {};
             res.isAliveHelper = [this]() -> bool { return isAlive(); };
 
@@ -385,6 +381,19 @@ class Connection :
                     res.completeRequestHandler = nullptr;
                     return;
                 }
+                if (boost::iequals(req->getHeaderValue(
+                                       boost::beast::http::field::content_type),
+                                   "application/octet-stream"))
+                {
+                    BMCWEB_LOG_DEBUG << "upgrade stream connection";
+                    handler->handleUpgrade(*req, res, std::move(adaptor));
+                    // delete lambda with self shared_ptr
+                    // to enable connection destruction
+                    res.completeRequestHandler = nullptr;
+
+                    return;
+                }
+
                 handler->handle(*req, res);
             }
             else
