@@ -6,6 +6,7 @@
 #include <cors_preflight.hpp>
 #include <dbus_monitor.hpp>
 #include <dbus_singleton.hpp>
+#include <dump_offload.hpp>
 #include <hostname_monitor.hpp>
 #include <ibm/management_console_rest.hpp>
 #include <image_upload.hpp>
