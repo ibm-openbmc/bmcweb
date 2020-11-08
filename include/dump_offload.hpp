@@ -15,8 +15,6 @@ namespace crow
 namespace obmc_dump
 {
 
-using boost::asio::local::stream_protocol;
-
 std::string unixSocketPathDir = "/var/lib/bmcweb/";
 
 inline void handleDumpOffloadUrl(const crow::Request& req, crow::Response& res,
@@ -222,7 +220,7 @@ class Handler : public std::enable_shared_from_this<Handler>
     std::string dumpType;
     boost::beast::flat_static_buffer<socketBufferSize> outputBuffer;
     std::filesystem::path unixSocketPath;
-    stream_protocol::socket unixSocket;
+    boost::asio::local::stream_protocol::socket unixSocket;
     uint64_t dumpSize;
     boost::asio::steady_timer waitTimer;
     crow::streaming_response::Connection* connection = nullptr;
@@ -236,7 +234,7 @@ static boost::container::flat_map<crow::streaming_response::Connection*,
 inline void requestRoutes(App& app)
 {
     BMCWEB_ROUTE(app,
-                 "/redfish/v1/Managers/bmc/LogServices/Dump/attachment/<str>")
+                 "/redfish/v1/Managers/bmc/LogServices/Dump/attachment/<str>/")
         .privileges({"ConfigureComponents", "ConfigureManager"})
         .streamingResponse()
         .onopen([](crow::streaming_response::Connection& conn) {
@@ -270,8 +268,8 @@ inline void requestRoutes(App& app)
             handlers.erase(handler);
         });
 
-    BMCWEB_ROUTE(app,
-                 "/redfish/v1/Systems/system/LogServices/Dump/attachment/<str>")
+    BMCWEB_ROUTE(
+        app, "/redfish/v1/Systems/system/LogServices/Dump/attachment/<str>/")
         .privileges({"ConfigureComponents", "ConfigureManager"})
         .streamingResponse()
         .onopen([](crow::streaming_response::Connection& conn) {
