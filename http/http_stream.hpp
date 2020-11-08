@@ -37,18 +37,18 @@ class ConnectionImpl : public Connection
 {
   public:
     ConnectionImpl(const crow::Request& reqIn, Adaptor&& adaptorIn,
-                   std::function<void(Connection&)> open_handler,
+                   std::function<void(Connection&)> openHandler,
                    std::function<void(Connection&, const std::string&, bool)>
-                       message_handler,
-                   std::function<void(Connection&)> close_handler,
-                   std::function<void(Connection&)> error_handler) :
+                       messageHandler,
+                   std::function<void(Connection&)> closeHandler,
+                   std::function<void(Connection&)> errorHandler) :
 
         Connection(reqIn),
         adaptor(std::move(adaptorIn)), waitTimer(*reqIn.ioService),
-        openHandler(std::move(open_handler)),
-        messageHandler(std::move(message_handler)),
-        closeHandler(std::move(close_handler)),
-        errorHandler(std::move(error_handler)), req(reqIn)
+        openHandler(std::move(openHandler)),
+        messageHandler(std::move(messageHandler)),
+        closeHandler(std::move(closeHandler)),
+        errorHandler(std::move(errorHandler)), req(reqIn)
     {}
 
     boost::asio::io_context* getIoContext() override
