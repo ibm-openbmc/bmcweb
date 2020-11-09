@@ -540,7 +540,8 @@ inline void getComputerSystem(std::shared_ptr<AsyncResp> aResp,
                                         if ((propertyName == "PartNumber") ||
                                             (propertyName == "SerialNumber") ||
                                             (propertyName == "Manufacturer") ||
-                                            (propertyName == "Model"))
+                                            (propertyName == "Model") ||
+                                            (propertyName == "SubModel"))
                                         {
                                             const std::string* value =
                                                 std::get_if<std::string>(
