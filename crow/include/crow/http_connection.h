@@ -241,8 +241,8 @@ typename std::enable_if<(N > 0)>::type
 static std::atomic<int> connectionCount;
 #endif
 
-// request body limit size: 30M
-constexpr unsigned int httpReqBodyLimit = 1024 * 1024 * 30;
+// request body limit size: 35M
+constexpr unsigned int httpReqBodyLimit = 1024 * 1024 * 35;
 
 template <typename Adaptor, typename Handler, typename... Middlewares>
 class Connection
