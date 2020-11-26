@@ -18,6 +18,7 @@
 
 #include <app.hpp>
 #include <registries/privilege_registry.hpp>
+#include <charconv>
 
 #include <charconv>
 
