@@ -989,10 +989,12 @@ void handleCsrRequest(crow::Response& res, const std::string& csrString)
                 return;
             }
             const std::string* status = std::get_if<std::string>(&value);
-            if ((*status != "xyz.openbmc_project.State.OperatingSystem.Status."
-                            "OSStatus.BootComplete") &&
-                (*status != "xyz.openbmc_project.State.OperatingSystem.Status."
-                            "OSStatus.Standby"))
+            if ((*status != "xyz.openbmc_project.State.Boot.Progress."
+                            "ProgressStages.SystemInitComplete") &&
+                (*status != "xyz.openbmc_project.State.Boot.Progress."
+                            "ProgressStages.OSStart") &&
+                (*status != "xyz.openbmc_project.State.Boot.Progress."
+                            "ProgressStages.OSRunning"))
             {
                 asyncResp->res.result(
                     boost::beast::http::status::internal_server_error);
@@ -1053,8 +1055,7 @@ void handleCsrRequest(crow::Response& res, const std::string& csrString)
         },
         "xyz.openbmc_project.State.Host", "/xyz/openbmc_project/state/host0",
         "org.freedesktop.DBus.Properties", "Get",
-        "xyz.openbmc_project.State.OperatingSystem.Status",
-        "OperatingSystemState");
+        "xyz.openbmc_project.State.Boot.Progress", "BootProgress");
 }
 
 void createRootCertFile()
