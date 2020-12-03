@@ -209,11 +209,11 @@ inline void dumpCreatedSignal(sdbusplus::message::message& msg)
 
     if ((objPath.str).find("/bmc/") != std::string::npos)
     {
-        eventOrigin = "/redfish/v1/Managers/bmc/LogServices/Dump/";
+        eventOrigin = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
     }
     else if ((objPath.str).find("/system/") != std::string::npos)
     {
-        eventOrigin = "/redfish/v1/Systems/system/LogServices/Dump/";
+        eventOrigin = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
     }
 
     redfish::EventServiceManager::getInstance().sendEvent(
@@ -242,11 +242,11 @@ inline void dumpDeletedSignal(sdbusplus::message::message& msg)
 
     if ((objPath.str).find("/bmc/") != std::string::npos)
     {
-        eventOrigin = "/redfish/v1/Managers/bmc/LogServices/Dump/";
+        eventOrigin = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
     }
     else if ((objPath.str).find("/system/") != std::string::npos)
     {
-        eventOrigin = "/redfish/v1/Systems/system/LogServices/Dump/";
+        eventOrigin = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
     }
 
     redfish::EventServiceManager::getInstance().sendEvent(
