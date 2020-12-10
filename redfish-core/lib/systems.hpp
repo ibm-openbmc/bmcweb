@@ -2643,7 +2643,6 @@ inline void requestRoutesSystems(App& app)
                     setPowerRestorePolicy(asyncResp, *powerRestorePolicy);
                 }
 
-
                 if (powerMode)
                 {
                     setPowerMode(asyncResp, *powerMode);
