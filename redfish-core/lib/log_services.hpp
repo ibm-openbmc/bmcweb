@@ -717,25 +717,18 @@ inline void deleteDumpEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 }
 
 inline bool getDumpCompletionStatus(
-    std::vector<std::pair<std::string, std::variant<std::string>>> values)
+    std::vector<std::pair<std::string, std::variant<std::string>>>& values)
 {
-    auto stateFound =
-        std::find_if(values.begin(), values.end(),
-                     [](const std::pair<std::string, std::variant<std::string>>&
-                            statusProp) {
-                         if (statusProp.first == "Status")
-                         {
-                             return true;
-                         }
-                         return false;
-                     });
-
-    if ((stateFound == std::end(values)) ||
-        (std::get<std::string>(stateFound->second) !=
-         "xyz.openbmc_project.Common.Progress.OperationStatus."
-         "Completed"))
+    for (const std::pair<std::string, std::variant<std::string>>& statusProp :
+         values)
     {
-        return false;
+        if (statusProp.first == "Status")
+        {
+            const std::string& value = std::get<std::string>(statusProp.second);
+            return value !=
+                   "xyz.openbmc_project.Common.Progress.OperationStatus."
+                   "Completed";
+        }
     }
     return true;
 }
@@ -762,18 +755,7 @@ inline void createDumpTaskCallback(
     }
     else if (dumpPath == "/xyz/openbmc_project/dump/system/entry")
     {
-        dumpEntryPath =
-            "/redfish/v1/Systems/system/LogServices/Dump/Entries/System_";
-    }
-    else if (dumpPath == "/xyz/openbmc_project/dump/resource/entry")
-    {
-        dumpEntryPath =
-            "/redfish/v1/Systems/system/LogServices/Dump/Entries/Resource_";
-    }
-    else if (dumpPath == "/xyz/openbmc_project/dump/hostboot/entry")
-    {
-        dumpEntryPath =
-            "/redfish/v1/Systems/system/LogServices/Dump/Entries/Hostboot_";
+        dumpEntryPath = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
     }
     else
     {
@@ -799,7 +781,7 @@ inline void createDumpTaskCallback(
             std::string prop;
             m.read(prop, values);
 
-            if (!getDumpCompletionStatus(values))
+            if (getDumpCompletionStatus(values))
             {
                 BMCWEB_LOG_ERROR << createdObjPath.str
                                  << ": Dump creation task not completed";
@@ -928,7 +910,7 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     }
 
     std::vector<std::pair<std::string, std::variant<std::string, uint64_t>>>
-        createDumpParamVec(createDumpParams);
+        createDumpParamVec;
 
     crow::connections::systemBus->async_method_call(
         [asyncResp, req](const boost::system::error_code ec,
@@ -942,7 +924,9 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             BMCWEB_LOG_DEBUG << "Dump Created. Path: " << objPath.str;
             createDumpTaskCallback(req, asyncResp, objPath);
         },
-        "xyz.openbmc_project.Dump.Manager", dumpPath,
+        "xyz.openbmc_project.Dump.Manager",
+        "/xyz/openbmc_project/dump/" +
+            std::string(boost::algorithm::to_lower_copy(dumpType)),
         "xyz.openbmc_project.Dump.Create", "CreateDump", createDumpParamVec);
 }
 
