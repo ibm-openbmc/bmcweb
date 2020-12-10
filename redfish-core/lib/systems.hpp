@@ -19,7 +19,9 @@
 #include "led.hpp"
 #include "pcie.hpp"
 #include "redfish_util.hpp"
-
+#ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
+#include "oem/ibm/lamp_test.hpp"
+#endif
 #include <app.hpp>
 #include <boost/container/flat_map.hpp>
 #include <registries/privilege_registry.hpp>
@@ -2831,6 +2833,9 @@ inline void requestRoutesSystems(App& app)
             getPowerRestorePolicy(asyncResp);
             getAutomaticRetry(asyncResp);
             getLastResetTime(asyncResp);
+#ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
+            getLampTestState(asyncResp);
+#endif
 #ifdef BMCWEB_ENABLE_REDFISH_PROVISIONING_FEATURE
             getProvisioningStatus(asyncResp);
 #endif
@@ -2850,12 +2855,14 @@ inline void requestRoutesSystems(App& app)
                 std::optional<std::string> powerRestorePolicy;
                 std::optional<std::string> powerMode;
                 std::optional<bool> trustedModuleRequiredToBoot;
+                std::optional<nlohmann::json> oem;
+
                 if (!json_util::readJson(
                         req, asyncResp->res, "IndicatorLED", indicatorLed,
                         "LocationIndicatorActive", locationIndicatorActive,
                         "Boot", bootProps, "WatchdogTimer", wdtTimerProps,
                         "PowerRestorePolicy", powerRestorePolicy, "AssetTag",
-                        assetTag, "PowerMode", powerMode,
+                        assetTag, "PowerMode", powerMode, "Oem", oem,
                         "TrustedModuleRequiredToBoot",
                         trustedModuleRequiredToBoot))
                 {
@@ -2933,6 +2940,7 @@ inline void requestRoutesSystems(App& app)
                     setPowerRestorePolicy(asyncResp, *powerRestorePolicy);
                 }
 
+
                 if (powerMode)
                 {
                     setPowerMode(asyncResp, *powerMode);
@@ -2942,6 +2950,33 @@ inline void requestRoutesSystems(App& app)
                 {
                     setTrustedModuleRequiredToBoot(
                         asyncResp, *trustedModuleRequiredToBoot);
+                }
+
+                if (oem)
+                {
+                    std::optional<nlohmann::json> ibmOem;
+                    if (!redfish::json_util::readJson(*oem, asyncResp->res,
+                                                      "IBM", ibmOem))
+                    {
+                        return;
+                    }
+
+                    if (ibmOem)
+                    {
+                        std::optional<bool> lampTest;
+                        if (!json_util::readJson(*ibmOem, asyncResp->res,
+                                                 "LampTest", lampTest))
+                        {
+                            return;
+                        }
+
+                        if (lampTest)
+                        {
+#ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
+                            setLampTestState(asyncResp, *lampTest);
+#endif
+                        }
+                    }
                 }
             });
 }
