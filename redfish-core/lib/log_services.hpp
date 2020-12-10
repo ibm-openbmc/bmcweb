@@ -686,36 +686,27 @@ inline void deleteDumpEntry(const std::shared_ptr<AsyncResp>& asyncResp,
         "xyz.openbmc_project.Object.Delete", "Delete");
 }
 
-inline void createDumpTaskCallback(const crow::Request& req,
-                                   const std::shared_ptr<AsyncResp>& asyncResp,
-                                   const std::string& createdObjPath)
+inline void createDumpTaskCallback(
+    const crow::Request& req, const std::shared_ptr<AsyncResp>& asyncResp,
+    const sdbusplus::message::object_path& createdObjPath)
 {
-    std::size_t found = createdObjPath.find_last_of('/');
-    if ((found == std::string::npos) ||
-        ((found + 1) >= createdObjPath.length()))
-    {
-        BMCWEB_LOG_ERROR << "Invalid objPath received";
-        messages::internalError(asyncResp->res);
-        return;
-    }
+    std::string dumpPath = createdObjPath.parent_path().str;
+    std::string dumpId = createdObjPath.filename();
 
-    std::string dumpId = createdObjPath.substr(found + 1);
-    if (dumpId.empty())
+    if (dumpPath.empty() || dumpId.empty())
     {
-        BMCWEB_LOG_ERROR << "Invalid ID in objPath";
+        BMCWEB_LOG_ERROR << "Invalid path/Id received";
         messages::internalError(asyncResp->res);
         return;
     }
 
     std::string dumpEntryPath;
-    if (createdObjPath.substr(0, createdObjPath.find_last_of('/')) ==
-        "/xyz/openbmc_project/dump/bmc/entry")
+    if (dumpPath == "/xyz/openbmc_project/dump/bmc/entry")
     {
         dumpEntryPath =
             "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/" + dumpId;
     }
-    else if (createdObjPath.substr(0, createdObjPath.find_last_of('/')) ==
-             "/xyz/openbmc_project/dump/system/entry")
+    else if (dumpPath == "/xyz/openbmc_project/dump/system/entry")
     {
         dumpEntryPath =
             "/redfish/v1/Systems/system/LogServices/Dump/Entries/" + dumpId;
@@ -743,36 +734,38 @@ inline void createDumpTaskCallback(const crow::Request& req,
             std::string iface;
             m.read(iface, values);
 
-            if (iface == "xyz.openbmc_project.Common.Progress")
+            auto findStatus = values.find("Status");
+            if (findStatus == values.end())
             {
-                auto findStatus = values.find("Status");
-                if (findStatus == values.end())
-                {
-                    return !task::completed;
-                }
-                const std::string* status =
-                    std::get_if<std::string>(&(findStatus->second));
-
-                if ((status == nullptr) || (*status == "Completed"))
-                {
-                    return !task::completed;
-                }
-                nlohmann::json retMessage = messages::success();
-                taskData->messages.emplace_back(retMessage);
-
-                std::string headerLoc = "Location: " + dumpEntryPath;
-                taskData->payload->httpHeaders.emplace_back(
-                    std::move(headerLoc));
-
-                taskData->state = "Completed";
-                return task::completed;
+                return !task::completed;
+            }
+            const std::string* status =
+                std::get_if<std::string>(&(findStatus->second));
+            if (status == nullptr)
+            {
+                return !task::completed;
             }
 
+            const std::string state = (*status).substr(
+                (*status).find_last_of('.') + 1, (*status).length());
+            if (state != "Completed")
+            {
+                return !task::completed;
+            }
+
+            nlohmann::json retMessage = messages::success();
+            taskData->messages.emplace_back(retMessage);
+
+            std::string headerLoc = "Location: " + dumpEntryPath;
+            taskData->payload->httpHeaders.emplace_back(std::move(headerLoc));
+
+            taskData->state = "Completed";
             return task::completed;
         },
         "type='signal',interface='org.freedesktop.DBus.Properties',"
         "member='PropertiesChanged',path='" +
-            createdObjPath + "',arg0='xyz.openbmc_project.Common.Progress'");
+            createdObjPath.str +
+            "',arg0='xyz.openbmc_project.Common.Progress'");
 
     task->startTimer(std::chrono::minutes(3));
     task->populateResp(asyncResp->res);
@@ -837,7 +830,7 @@ inline void createDump(crow::Response& res, const crow::Request& req,
 
     crow::connections::systemBus->async_method_call(
         [asyncResp, req](const boost::system::error_code ec,
-                         sdbusplus::message::object_path& objPath) {
+                         const sdbusplus::message::object_path& objPath) {
             if (ec)
             {
                 BMCWEB_LOG_ERROR << "CreateDump resp_handler got error " << ec;
