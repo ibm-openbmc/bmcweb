@@ -4,6 +4,7 @@
 #include <boost/asio/io_context.hpp>
 #include <dbus_monitor.hpp>
 #include <dbus_singleton.hpp>
+#include <dump_offload.hpp>
 #include <ibm/management_console_rest.hpp>
 #include <image_upload.hpp>
 #include <kvm_websocket.hpp>
@@ -133,6 +134,10 @@ int main(int /*argc*/, char** /*argv*/)
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
     // Start BMC and Host state change dbus monitor
     crow::dbus_monitor::registerStateChangeSignal();
+#endif
+
+#ifdef BMCWEB_ENABLE_REDFISH_DUMP_LOG
+    crow::obmc_dump::requestRoutes(app);
 #endif
 
     app.run();
