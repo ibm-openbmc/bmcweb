@@ -1054,6 +1054,7 @@ class EventServiceManager
             eventMessage[it.key()] = it.value();
         }
         eventRecord.push_back(eventMessage);
+        BMCWEB_LOG_INFO << "Sending event for: " << origin;
 
         for (const auto& it : this->subscriptionsMap)
         {
