@@ -74,9 +74,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
     {
         BMCWEB_LOG_DEBUG << "Trying to resolve: " << host << ":" << port;
 
-        // TODO: Use async_resolve once the boost crash is resolved
-        endpoint = resolver.resolve(host, port);
-#if 0
+        conn.expires_after(std::chrono::seconds(30));
         auto respHandler =
             [self(shared_from_this())](const boost::beast::error_code ec,
                                        const boost::asio::ip::tcp::resolver::results_type ep) {
@@ -94,9 +92,6 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
             };
 
         resolver.async_resolve(host.c_str(), port.c_str(), std::move(respHandler));
-#endif
-        state = ConnState::resolved;
-        handleConnState();
     }
 
     void doConnect()
@@ -127,7 +122,6 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                 }
             };
 
-        conn.expires_after(std::chrono::seconds(30));
         conn.async_connect(endpoint, std::move(respHandler));
     }
 
@@ -346,8 +340,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                     // sending the event as per the retry policy
                 }
                 self->runningTimer = false;
-                // Set the state to resolved to start reconnecting
-                self->state = ConnState::resolved;
+                // Set the state to initialized to start reconnecting
+                self->state = ConnState::initialized;
                 self->handleConnState();
             });
         return;
