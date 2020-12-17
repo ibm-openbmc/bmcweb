@@ -43,7 +43,6 @@ enum class ConnState
     suspended,
     terminated,
     abortConnection,
-    closed,
     retry
 };
 
@@ -75,9 +74,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
     {
         BMCWEB_LOG_DEBUG << "Trying to resolve: " << host << ":" << port;
 
-        // TODO: Use async_resolve once the boost crash is resolved
-        endpoint = resolver.resolve(host, port);
-#if 0
+        conn.expires_after(std::chrono::seconds(30));
         auto respHandler =
             [self(shared_from_this())](const boost::beast::error_code ec,
                                        const boost::asio::ip::tcp::resolver::results_type ep) {
@@ -88,15 +85,13 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                     self->handleConnState();
                     return;
                 }
+                BMCWEB_LOG_DEBUG << "Resolved";
                 self->endpoint = ep;
                 self->state = ConnState::resolved;
                 self->handleConnState();
             };
 
         resolver.async_resolve(host.c_str(), port.c_str(), std::move(respHandler));
-#endif
-        state = ConnState::resolved;
-        handleConnState();
     }
 
     void doConnect()
@@ -127,7 +122,6 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                 }
             };
 
-        conn.expires_after(std::chrono::seconds(30));
         conn.async_connect(endpoint, std::move(respHandler));
     }
 
@@ -227,6 +221,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                 self->handleConnState();
                 return;
             }
+            // Wait for the next event with idle state
+            self->handleConnState();
         };
 
         conn.expires_after(std::chrono::seconds(30));
@@ -287,7 +283,6 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
             }
         }
         conn.close();
-        state = ConnState::closed;
     }
 
     void checkQueueAndRetry()
@@ -345,8 +340,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                     // sending the event as per the retry policy
                 }
                 self->runningTimer = false;
-                // Set the state to resolved to start reconnecting
-                self->state = ConnState::resolved;
+                // Set the state to initialized to start reconnecting
+                self->state = ConnState::initialized;
                 self->handleConnState();
             });
         return;
@@ -357,11 +352,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
         switch (state)
         {
             case ConnState::initialized:
-            case ConnState::closed:
             {
                 // Initial state of connection
-                // If the state here is 'closed' it means that the keep alive
-                // was not set at the server and the connection was closed
                 doResolve();
                 break;
             }
