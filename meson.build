@@ -236,7 +236,6 @@ endif
 add_project_arguments(
 cxx.get_supported_arguments([
 '-DBOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT',
-'-DBOOST_ASIO_DISABLE_THREADS',
 '-DBOOST_BEAST_USE_STD_STRING_VIEW',
 '-DBOOST_ERROR_CODE_HEADER_ONLY',
 '-DBOOST_SYSTEM_NO_DEPRECATED',
@@ -258,7 +257,8 @@ bmcweb_dependencies = []
 pam = cxx.find_library('pam', required: get_option('pam'))
 atomic =  cxx.find_library('atomic', required: true)
 openssl = dependency('openssl', required : true)
-bmcweb_dependencies += [pam, atomic, openssl]
+pthreads = dependency('threads', required : true)
+bmcweb_dependencies += [pam, atomic, openssl, pthreads]
 
 sdbusplus = dependency('sdbusplus',required : false)
 if not sdbusplus.found()
