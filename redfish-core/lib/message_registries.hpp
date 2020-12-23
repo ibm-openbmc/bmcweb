@@ -50,7 +50,8 @@ inline void requestRoutesMessageRegistryFileCollection(App& app)
                     {"Members@odata.count", 4},
                     {"Members",
                      {{{"@odata.id", "/redfish/v1/Registries/Base"}},
-                      {{"@odata.id", "/redfish/v1/Registries/BiosAttributeRegistry"}},
+                      {{"@odata.id",
+                        "/redfish/v1/Registries/BiosAttributeRegistry"}},
                       {{"@odata.id", "/redfish/v1/Registries/TaskEvent"}},
                       {{"@odata.id", "/redfish/v1/Registries/ResourceEvent"}},
                       {{"@odata.id", "/redfish/v1/Registries/OpenBMC"}}}}};
