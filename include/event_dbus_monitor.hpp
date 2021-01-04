@@ -13,12 +13,14 @@ static std::shared_ptr<sdbusplus::bus::match::match> matchBMCStateChange;
 static std::shared_ptr<sdbusplus::bus::match::match> matchVMIIPStateChange;
 static std::shared_ptr<sdbusplus::bus::match::match> matchDumpCreatedSignal;
 static std::shared_ptr<sdbusplus::bus::match::match> matchDumpDeletedSignal;
+static std::shared_ptr<sdbusplus::bus::match::match> matchBIOSAttrUpdate;
 
 void registerHostStateChangeSignal();
 void registerBMCStateChangeSignal();
 void registerVMIIPChangeSignal();
 void registerDumpCreatedSignal();
 void registerDumpDeletedSignal();
+void registerBIOSAttrUpdateSignal();
 
 inline void VMIIPChange(sdbusplus::message::message& msg)
 {
@@ -281,6 +283,51 @@ void registerDumpUpdateSignal()
 {
     registerDumpCreatedSignal();
     registerDumpDeletedSignal();
+}
+
+inline void BIOSAttrUpdate(sdbusplus::message::message& msg)
+{
+    BMCWEB_LOG_DEBUG << "BIOS attribute change match fired";
+
+    if (msg.is_method_error())
+    {
+        BMCWEB_LOG_ERROR << "BIOS attribute changed Signal error";
+        return;
+    }
+    std::string iface;
+    boost::container::flat_map<std::string, std::variant<std::string, uint8_t>>
+        values;
+    std::string objName;
+    msg.read(objName, values);
+
+    auto find = values.find("PendingAttributes");
+    if (find == values.end())
+    {
+        registerBIOSAttrUpdateSignal();
+        return;
+    }
+    std::string* type = std::get_if<std::string>(&(find->second));
+    if (type != nullptr)
+    {
+        BMCWEB_LOG_DEBUG << "Sending event\n";
+        // Push an event
+        std::string origin = "/redfish/v1/Systems/system/Bios/Settings";
+        redfish::EventServiceManager::getInstance().sendEvent(
+            redfish::messages::resourceChanged(), origin, "Bios");
+    }
+    registerBIOSAttrUpdateSignal();
+}
+
+void registerBIOSAttrUpdateSignal()
+{
+    BMCWEB_LOG_DEBUG << "BIOS Attribute update signal match - Registered";
+
+    matchBIOSAttrUpdate = std::make_unique<sdbusplus::bus::match::match>(
+        *crow::connections::systemBus,
+        "type='signal',member='PropertiesChanged',interface='org.freedesktop."
+        "DBus.Properties',arg0namespace='xyz.openbmc_project.BIOSConfig."
+        "Manager'",
+        BIOSAttrUpdate);
 }
 
 } // namespace dbus_monitor
