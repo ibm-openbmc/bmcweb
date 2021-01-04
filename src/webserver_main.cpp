@@ -151,6 +151,8 @@ int main(int /*argc*/, char** /*argv*/)
     crow::dbus_monitor::registerStateChangeSignal();
     // Start Dump created signal monitor for BMC and System Dump
     crow::dbus_monitor::registerDumpUpdateSignal();
+    // Start BIOS Attr change dbus monitor
+    crow::dbus_monitor::registerBIOSAttrUpdateSignal();
 #endif
 
     app.run();
