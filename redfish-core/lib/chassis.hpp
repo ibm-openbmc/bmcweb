@@ -407,6 +407,9 @@ inline void
                     crow::utility::urlFromPieces("redfish", "v1", "Chassis",
                                                  chassisId, "PowerSubsystem");
 #endif
+                asyncResp->res.jsonValue["Assembly"]["@odata.id"] =
+                    crow::utility::urlFromPieces("redfish", "v1", "Chassis",
+                                                 chassisId, "Assembly");
                 // SensorCollection
                 asyncResp->res.jsonValue["Sensors"]["@odata.id"] =
                     "/redfish/v1/Chassis/" + chassisId + "/Sensors";
