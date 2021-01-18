@@ -217,7 +217,7 @@ inline void requestRoutesBiosService(App& app)
                                         std::get<biosBaseAttrType>(item.second);
                                     std::string attrType =
                                         mapAttrTypeToRedfish(itemType);
-                                    if (attrType == "String")
+                                    if (attrType == "String" || attrType == "Enumeration")
                                     {
                                         const std::string* currValue =
                                             std::get_if<std::string>(
@@ -328,7 +328,7 @@ inline void requestRoutesBiosSettings(App& app)
                                         std::get<pendingAttrType>(item.second);
                                     std::string attrType =
                                         mapAttrTypeToRedfish(itemType);
-                                    if (attrType == "String")
+                                    if (attrType == "String" || attrType == "Enumeration")
                                     {
                                         const std::string* currValue =
                                             std::get_if<std::string>(
@@ -467,7 +467,7 @@ inline void requestRoutesBiosAttributeRegistry(App& app)
                                         std::get<biosBaseMenuPath>(item.second);
                                 }
 
-                                if (attrType == "String")
+                                if (attrType == "String" || attrType == "Enumeration")
                                 {
                                     const std::string* currValue =
                                         std::get_if<std::string>(
