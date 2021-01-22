@@ -340,8 +340,8 @@ inline bool extractHypervisorInterfaceData(
 
                 for (const auto& key : *basebiosTable)
                 {
-                    if (key.first == "vmi-" + getIfAttributeName(ethIfaceId) +
-                                         "-ipv4-ipaddr")
+                    if (key.first == "vmi_" + getIfAttributeName(ethIfaceId) +
+                                         "_ipv4_ipaddr")
                     {
                         const std::string* address = std::get_if<std::string>(
                             &(std::get<5>(key.second)));
@@ -352,8 +352,8 @@ inline bool extractHypervisorInterfaceData(
                                              << ipv4Address.address;
                         }
                     }
-                    if (key.first == "vmi-" + getIfAttributeName(ethIfaceId) +
-                                         "-ipv4-prefix-length")
+                    if (key.first == "vmi_" + getIfAttributeName(ethIfaceId) +
+                                         "_ipv4_prefix_length")
                     {
                         // Attibutes values can only be int64_t or string as per
                         // the bios-settings-mgr dbus interfaces.
@@ -383,8 +383,8 @@ inline bool extractHypervisorInterfaceData(
                         }
                     }
 
-                    if (key.first == "vmi-" + getIfAttributeName(ethIfaceId) +
-                                         "-ipv4-method")
+                    if (key.first == "vmi_" + getIfAttributeName(ethIfaceId) +
+                                         "_ipv4_method")
                     {
                         const std::string* origin = std::get_if<std::string>(
                             &(std::get<5>(key.second)));
@@ -424,7 +424,7 @@ inline bool extractHypervisorInterfaceData(
                             }
                         }
                     }
-                    if (key.first == "vmi-hostname")
+                    if (key.first == "vmi_hostname")
                     {
                         const std::string* hostName = std::get_if<std::string>(
                             &(std::get<5>(key.second)));
@@ -593,7 +593,7 @@ inline void createHypervisorIPv4(const std::string& ifaceId,
                  std::tuple<std::string, std::variant<int64_t, std::string>>>;
     pendingAttributes_t pendingAttributes;
     pendingAttributes.emplace(
-        "vmi-" + getIfAttributeName(ifaceId) + "-ipv4-ipaddr",
+        "vmi_" + getIfAttributeName(ifaceId) + "_ipv4_ipaddr",
         std::make_tuple(
             "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.String",
             address));
@@ -603,7 +603,7 @@ inline void createHypervisorIPv4(const std::string& ifaceId,
             "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.String",
             gateway));
     pendingAttributes.emplace(
-        "vmi-" + getIfAttributeName(ifaceId) + "-ipv4-prefix-length",
+        "vmi_" + getIfAttributeName(ifaceId) + "_ipv4_prefix_length",
         std::make_tuple(
             "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.Integer",
             prefixLength));
@@ -617,7 +617,7 @@ inline void createHypervisorIPv4(const std::string& ifaceId,
         origin = "IPv4DHCP";
     }
     pendingAttributes.emplace(
-        "vmi-" + getIfAttributeName(ifaceId) + "-ipv4-method",
+        "vmi_" + getIfAttributeName(ifaceId) + "_ipv4_method",
         std::make_tuple(
             "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.String",
             origin));
@@ -646,7 +646,7 @@ inline void deleteHypervisorIPv4(const std::string& ifaceId,
                  std::tuple<std::string, std::variant<int64_t, std::string>>>;
     pendingAttributes_t pendingAttributes;
     pendingAttributes.emplace(
-        "vmi-" + getIfAttributeName(ifaceId) + "-ipv4-ipaddr",
+        "vmi_" + getIfAttributeName(ifaceId) + "_ipv4_ipaddr",
         std::make_tuple(
             "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.String",
             address));
@@ -656,7 +656,7 @@ inline void deleteHypervisorIPv4(const std::string& ifaceId,
             "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.String",
             gateway));
     pendingAttributes.emplace(
-        "vmi-" + getIfAttributeName(ifaceId) + "-ipv4-prefix-length",
+        "vmi_" + getIfAttributeName(ifaceId) + "_ipv4_prefix_length",
         std::make_tuple(
             "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.Integer",
             prefixLength));
@@ -670,7 +670,7 @@ inline void deleteHypervisorIPv4(const std::string& ifaceId,
         origin = "IPv4DHCP";
     }
     pendingAttributes.emplace(
-        "vmi-" + getIfAttributeName(ifaceId) + "-ipv4-method",
+        "vmi_" + getIfAttributeName(ifaceId) + "_ipv4_method",
         std::make_tuple(
             "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.String",
             origin));
@@ -941,7 +941,7 @@ class HypervisorInterface : public Node
         else
         {
             pendingAttributes.emplace(
-                "vmi-" + getIfAttributeName(ifaceId) + "-ipv4-method",
+                "vmi_" + getIfAttributeName(ifaceId) + "_ipv4_method",
                 std::make_tuple("xyz.openbmc_project.BIOSConfig.Manager."
                                 "AttributeType.String",
                                 "IPv4Static"));
@@ -1074,7 +1074,7 @@ class HypervisorInterface : public Node
                                    std::variant<int64_t, std::string>>>;
                     pendingAttributes_t pendingAttributes;
                     pendingAttributes.emplace(
-                        "vmi-hostname",
+                        "vmi_hostname",
                         std::make_tuple("xyz.openbmc_project.BIOSConfig."
                                         "Manager.AttributeType.String",
                                         *hostName));
