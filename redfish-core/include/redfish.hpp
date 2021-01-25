@@ -30,6 +30,7 @@
 #include "../lib/network_protocol.hpp"
 #include "../lib/pcie.hpp"
 #include "../lib/port.hpp"
+#include "../lib/pcie_slots.hpp"
 #include "../lib/power.hpp"
 #include "../lib/processor.hpp"
 #include "../lib/redfish_sessions.hpp"
@@ -84,6 +85,7 @@ class RedfishService
         nodes.emplace_back(std::make_unique<ManagerResetActionInfo>(app));
         nodes.emplace_back(std::make_unique<ManagerResetToDefaultsAction>(app));
         nodes.emplace_back(std::make_unique<Power>(app));
+        nodes.emplace_back(std::make_unique<PCIeSlots>(app));
         nodes.emplace_back(std::make_unique<ChassisCollection>(app));
         nodes.emplace_back(std::make_unique<Chassis>(app));
         nodes.emplace_back(std::make_unique<ChassisResetAction>(app));
