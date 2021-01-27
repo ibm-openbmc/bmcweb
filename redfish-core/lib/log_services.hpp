@@ -850,7 +850,8 @@ inline void createDump(crow::Response& res, const crow::Request& req,
         "xyz.openbmc_project.Dump.Manager",
         "/xyz/openbmc_project/dump/" +
             std::string(boost::algorithm::to_lower_copy(dumpType)),
-        "xyz.openbmc_project.Dump.Create", "CreateDump");
+        "xyz.openbmc_project.Dump.Create", "CreateDump",
+        std::vector<std::pair<std::string, std::string>>());
 }
 
 inline void clearDump(crow::Response& res, const std::string& dumpType)
