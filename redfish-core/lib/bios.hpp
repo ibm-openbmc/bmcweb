@@ -377,6 +377,15 @@ class BiosSettings : public Node
             return;
         }
 
+        if (attrsJson.is_array())
+        {
+            BMCWEB_LOG_ERROR
+                << "The value for 'Attributes' is in a different format";
+            messages::propertyValueFormatError(asyncResp->res, attrsJson.dump(),
+                                               "Attributes");
+            return;
+        }
+
         crow::connections::systemBus->async_method_call(
             [asyncResp,
              attrsJson](const boost::system::error_code ec,
