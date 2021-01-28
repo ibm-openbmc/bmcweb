@@ -76,8 +76,9 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
 
         conn.expires_after(std::chrono::seconds(30));
         auto respHandler =
-            [self(shared_from_this())](const boost::beast::error_code ec,
-                                       const boost::asio::ip::tcp::resolver::results_type ep) {
+            [self(shared_from_this())](
+                const boost::beast::error_code ec,
+                const boost::asio::ip::tcp::resolver::results_type ep) {
                 if (ec)
                 {
                     BMCWEB_LOG_ERROR << "Resolve failed: " << ec.message();
@@ -91,7 +92,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                 self->handleConnState();
             };
 
-        resolver.async_resolve(host.c_str(), port.c_str(), std::move(respHandler));
+        resolver.async_resolve(host.c_str(), port.c_str(),
+                               std::move(respHandler));
     }
 
     void doConnect()
@@ -204,7 +206,10 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
 
             // Send is successful, Lets remove data from queue
             // check for next request data in queue.
-            self->requestDataQueue.pop_front();
+            if (!self->requestDataQueue.empty())
+            {
+                self->requestDataQueue.pop_front();
+            }
             self->state = ConnState::idle;
 
             // Set the retry count to zero
