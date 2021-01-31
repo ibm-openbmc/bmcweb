@@ -72,6 +72,8 @@ include_list = [
     'PCIeFunctionCollection',
     'PCIeSlots',
     'Power',
+    'Port',
+    'PortCollection',
     'Processor',
     'ProcessorCollection',
     'RedfishError',
