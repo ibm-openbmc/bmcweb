@@ -33,6 +33,7 @@
 #include "../lib/network_protocol.hpp"
 #include "../lib/pcie.hpp"
 #include "../lib/pcie_slots.hpp"
+#include "../lib/port.hpp"
 #include "../lib/power.hpp"
 #include "../lib/processor.hpp"
 #include "../lib/redfish_sessions.hpp"
@@ -92,6 +93,8 @@ class RedfishService
         requestRoutesAssembly(app);
         requestRoutesFabricAdapters(app);
         requestRoutesFabricAdapterCollection(app);
+        requestRoutesPort(app);
+        requestRoutesPortCollection(app);
 #ifdef BMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE
         requestRoutesUpdateServiceActionsSimpleUpdate(app);
 #endif
