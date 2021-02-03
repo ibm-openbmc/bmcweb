@@ -480,7 +480,7 @@ inline void createHypervisorIPv4(const std::string& ifaceId,
     pendingAttributes.emplace(
         "vmi_" + getIfAttributeName(ifaceId) + "_ipv4_method",
         std::make_tuple(
-            "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.String",
+            "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.Enumeration",
             origin));
     setVmiBiosEthernetInterfaceAttribute(pendingAttributes, asyncResp);
 }
@@ -533,7 +533,7 @@ inline void deleteHypervisorIPv4(const std::string& ifaceId,
     pendingAttributes.emplace(
         "vmi_" + getIfAttributeName(ifaceId) + "_ipv4_method",
         std::make_tuple(
-            "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.String",
+            "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.Enumeration",
             origin));
     setVmiBiosEthernetInterfaceAttribute(pendingAttributes, asyncResp);
 }
@@ -801,7 +801,7 @@ class HypervisorInterface : public Node
             pendingAttributes.emplace(
                 "vmi_" + getIfAttributeName(ifaceId) + "_ipv4_method",
                 std::make_tuple("xyz.openbmc_project.BIOSConfig.Manager."
-                                "AttributeType.String",
+                                "AttributeType.Enumeration",
                                 "IPv4Static"));
             setVmiBiosEthernetInterfaceAttribute(pendingAttributes, asyncResp);
         }
