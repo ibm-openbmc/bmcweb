@@ -473,10 +473,12 @@ inline void requestRoutesChassis(App& app)
                                                       chassisId +
                                                       "/ThermalSubsystem"}};
 
+#ifdef BMCWEB_NEW_POWERSUBSYSTEM_THERMALSUBSYSTEM
                                 asyncResp->res.jsonValue["PowerSubsystem"] = {
                                     {"@odata.id", "/redfish/v1/Chassis/" +
                                                       chassisId +
                                                       "/PowerSubsystem"}};
+#endif
 
                                 // SensorCollection
                                 asyncResp->res.jsonValue["Sensors"] = {

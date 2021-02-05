@@ -19,6 +19,10 @@ inline void
                         propertiesList) {
             if (ec)
             {
+                if (ec.value() == EBADR)
+                {
+                    return;
+                }
                 BMCWEB_LOG_ERROR << "Can't get PowerSupply asset!";
                 messages::internalError(asyncResp->res);
                 return;
@@ -61,6 +65,10 @@ inline void
                         propertiesList) {
             if (ec)
             {
+                if (ec.value() == EBADR)
+                {
+                    return;
+                }
                 BMCWEB_LOG_ERROR << "Can't get PowerSupply location!";
                 messages::internalError(asyncResp->res);
                 return;
@@ -103,6 +111,10 @@ inline void
                     const std::variant<bool> state) {
             if (ec)
             {
+                if (ec.value() == EBADR)
+                {
+                    return;
+                }
                 BMCWEB_LOG_ERROR << "Can't get PowerSupply state!";
                 messages::internalError(asyncResp->res);
                 return;
@@ -136,6 +148,10 @@ inline void
                     const std::variant<bool> health) {
             if (ec)
             {
+                if (ec.value() == EBADR)
+                {
+                    return;
+                }
                 BMCWEB_LOG_ERROR << "Can't get PowerSupply health!";
                 messages::internalError(asyncResp->res);
                 return;
@@ -171,6 +187,10 @@ inline void
                 subtree) {
             if (ec)
             {
+                if (ec.value() == EBADR)
+                {
+                    return;
+                }
                 BMCWEB_LOG_ERROR
                     << "Get PowerSupply attributes respHandler DBus error "
                     << ec;
