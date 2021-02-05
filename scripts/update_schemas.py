@@ -72,8 +72,14 @@ include_list = [
     'PCIeFunctionCollection',
     'PCIeSlots',
     'Power',
+<<<<<<< HEAD
     'Port',
     'PortCollection',
+=======
+    'PowerSubsystem',
+    'PowerSupplyCollection',
+    'PowerSupply',
+>>>>>>> ce2de11... Implements PowerSubsystem and PowerSupply schema
     'Privileges', #Used in Role
     'Processor',
     'ProcessorCollection',
