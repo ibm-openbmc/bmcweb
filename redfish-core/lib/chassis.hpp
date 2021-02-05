@@ -397,6 +397,12 @@ class Chassis : public Node
                             asyncResp->res.jsonValue["Power"] = {
                                 {"@odata.id", "/redfish/v1/Chassis/" +
                                                   chassisId + "/Power"}};
+
+                            asyncResp->res.jsonValue["PowerSubsystem"] = {
+                                {"@odata.id", "/redfish/v1/Chassis/" +
+                                                  chassisId +
+                                                  "/PowerSubsystem"}};
+
                             // SensorCollection
                             asyncResp->res.jsonValue["Sensors"] = {
                                 {"@odata.id", "/redfish/v1/Chassis/" +
