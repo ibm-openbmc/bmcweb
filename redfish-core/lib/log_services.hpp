@@ -766,14 +766,9 @@ inline void createDumpTaskCallback(
             }
             const std::string* status =
                 std::get_if<std::string>(&(findStatus->second));
-            if (status == nullptr)
-            {
-                return !task::completed;
-            }
-
-            const std::string state = (*status).substr(
-                (*status).find_last_of('.') + 1, (*status).length());
-            if (state != "Completed")
+            if ((status == nullptr) ||
+                (*status != "xyz.openbmc_project.Common.Progress."
+                            "OperationStatus.Completed"))
             {
                 return !task::completed;
             }
@@ -792,7 +787,7 @@ inline void createDumpTaskCallback(
             createdObjPath.str +
             "',arg0='xyz.openbmc_project.Common.Progress'");
 
-    task->startTimer(std::chrono::minutes(3));
+    task->startTimer(std::chrono::minutes(5));
     task->populateResp(asyncResp->res);
     task->payload.emplace(req);
 }
