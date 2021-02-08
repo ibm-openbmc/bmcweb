@@ -99,7 +99,6 @@ inline void BMCStatePropertyChange(sdbusplus::message::message& msg)
     auto find = values.find("CurrentBMCState");
     if (find == values.end())
     {
-        registerBMCStateChangeSignal();
         return;
     }
     std::string* type = std::get_if<std::string>(&(find->second));
@@ -111,7 +110,6 @@ inline void BMCStatePropertyChange(sdbusplus::message::message& msg)
         redfish::EventServiceManager::getInstance().sendEvent(
             redfish::messages::resourceChanged(), origin, "Manager");
     }
-    registerBMCStateChangeSignal();
 }
 
 inline void HostStatePropertyChange(sdbusplus::message::message& msg)
@@ -131,7 +129,6 @@ inline void HostStatePropertyChange(sdbusplus::message::message& msg)
     auto find = values.find("CurrentHostState");
     if (find == values.end())
     {
-        registerHostStateChangeSignal();
         return;
     }
     std::string* type = std::get_if<std::string>(&(find->second));
@@ -143,7 +140,6 @@ inline void HostStatePropertyChange(sdbusplus::message::message& msg)
         redfish::EventServiceManager::getInstance().sendEvent(
             redfish::messages::resourceChanged(), origin, "ComputerSystem");
     }
-    registerHostStateChangeSignal();
 }
 
 inline void BootProgressPropertyChange(sdbusplus::message::message& msg)
@@ -243,30 +239,60 @@ inline void dumpCreatedSignal(sdbusplus::message::message& msg)
         return;
     }
 
-    std::vector<std::pair<
-        std::string,
-        std::vector<std::pair<std::string, std::variant<std::string>>>>>
-        interfacesList;
+    std::string dumpType;
+    std::string dumpId;
 
-    sdbusplus::message::object_path objPath;
+    dbus::utility::getNthStringFromPath(msg.get_path(), 3, dumpType);
+    dbus::utility::getNthStringFromPath(msg.get_path(), 5, dumpId);
 
-    msg.read(objPath, interfacesList);
+    boost::container::flat_map<std::string, std::variant<std::string, uint8_t>>
+        values;
+    std::string objName;
+    msg.read(objName, values);
 
-    std::string eventOrigin;
-
-    if ((objPath.str).find("/bmc/") != std::string::npos)
+    auto find = values.find("Status");
+    if (find == values.end())
     {
-        eventOrigin = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
+        BMCWEB_LOG_DEBUG
+            << "Status property not found. Continuing to listen...";
+        return;
     }
-    else if ((objPath.str).find("/system/") != std::string::npos)
+    std::string* propValue = std::get_if<std::string>(&(find->second));
+
+    if (propValue != nullptr &&
+        *propValue ==
+            "xyz.openbmc_project.Common.Progress.OperationStatus.Completed")
     {
-        eventOrigin = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
+        BMCWEB_LOG_DEBUG << "*****Sending event\n";
+
+        std::string eventOrigin;
+        // Push an event
+        if (dumpType == "bmc")
+        {
+            eventOrigin =
+                "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/" + dumpId;
+        }
+        else if (dumpType == "system")
+        {
+            eventOrigin =
+                "/redfish/v1/Systems/system/LogServices/Dump/Entries/System_" +
+                dumpId;
+        }
+        else if (dumpType == "resource")
+        {
+            eventOrigin = "/redfish/v1/Systems/system/LogServices/Dump/Entries/"
+                          "Resource_" +
+                          dumpId;
+        }
+        else
+        {
+            BMCWEB_LOG_ERROR << "Invalid dump type received when listening for "
+                                "dump created signal";
+            return;
+        }
+        redfish::EventServiceManager::getInstance().sendEvent(
+            redfish::messages::resourceCreated(), eventOrigin, "LogEntry");
     }
-
-    redfish::EventServiceManager::getInstance().sendEvent(
-        redfish::messages::resourceCreated(), eventOrigin, "LogEntry");
-
-    registerDumpCreatedSignal();
 }
 
 inline void dumpDeletedSignal(sdbusplus::message::message& msg)
@@ -280,26 +306,44 @@ inline void dumpDeletedSignal(sdbusplus::message::message& msg)
     }
 
     std::vector<std::string> interfacesList;
-
     sdbusplus::message::object_path objPath;
 
     msg.read(objPath, interfacesList);
 
+    std::string dumpType;
+    std::string dumpId;
+
+    dbus::utility::getNthStringFromPath(objPath, 3, dumpType);
+    dbus::utility::getNthStringFromPath(objPath, 5, dumpId);
+
     std::string eventOrigin;
 
-    if ((objPath.str).find("/bmc/") != std::string::npos)
+    if (dumpType == "bmc")
     {
-        eventOrigin = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
+        eventOrigin =
+            "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/" + dumpId;
     }
-    else if ((objPath.str).find("/system/") != std::string::npos)
+    else if (dumpType == "system")
     {
-        eventOrigin = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
+        eventOrigin =
+            "/redfish/v1/Systems/system/LogServices/Dump/Entries/System_" +
+            dumpId;
+    }
+    else if (dumpType == "resource")
+    {
+        eventOrigin =
+            "/redfish/v1/Systems/system/LogServices/Dump/Entries/Resource_" +
+            dumpId;
+    }
+    else
+    {
+        BMCWEB_LOG_ERROR << "Invalid dump type received when listening for "
+                            "dump deleted signal";
+        return;
     }
 
     redfish::EventServiceManager::getInstance().sendEvent(
         redfish::messages::resourceRemoved(), eventOrigin, "LogEntry");
-
-    registerDumpDeletedSignal();
 }
 
 void registerDumpCreatedSignal()
@@ -308,8 +352,8 @@ void registerDumpCreatedSignal()
 
     matchDumpCreatedSignal = std::make_unique<sdbusplus::bus::match::match>(
         *crow::connections::systemBus,
-        "type='signal',member='InterfacesAdded',interface='org.freedesktop."
-        "DBus.ObjectManager',path='/xyz/openbmc_project/dump',",
+        "type='signal',member='PropertiesChanged',interface='org.freedesktop."
+        "DBus.Properties',arg0namespace='xyz.openbmc_project.Common.Progress',",
         dumpCreatedSignal);
 }
 
@@ -339,16 +383,21 @@ inline void BIOSAttrUpdate(sdbusplus::message::message& msg)
         BMCWEB_LOG_ERROR << "BIOS attribute changed Signal error";
         return;
     }
-    std::string iface;
+
+    std::string dumpType;
+    dbus::utility::getNthStringFromPath(msg.get_path(), 3, dumpType);
+    BMCWEB_LOG_DEBUG << dumpType;
+
     boost::container::flat_map<std::string, std::variant<std::string, uint8_t>>
         values;
     std::string objName;
     msg.read(objName, values);
 
-    auto find = values.find("PendingAttributes");
+    auto find = values.find("BaseBIOSTable");
     if (find == values.end())
     {
-        registerBIOSAttrUpdateSignal();
+        BMCWEB_LOG_DEBUG
+            << "BaseBIOSTable property not found. Continuing to listen...";
         return;
     }
     std::string* type = std::get_if<std::string>(&(find->second));
@@ -360,7 +409,6 @@ inline void BIOSAttrUpdate(sdbusplus::message::message& msg)
         redfish::EventServiceManager::getInstance().sendEvent(
             redfish::messages::resourceChanged(), origin, "Bios");
     }
-    registerBIOSAttrUpdateSignal();
 }
 
 void registerBIOSAttrUpdateSignal()

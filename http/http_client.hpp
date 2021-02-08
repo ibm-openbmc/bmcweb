@@ -41,6 +41,7 @@ enum class ConnState
     connected,
     idle,
     suspended,
+    sending,
     terminated,
     abortConnection,
     retry
@@ -69,6 +70,52 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
     std::string retryPolicyAction;
     bool runningTimer;
     ConnState state;
+
+    void init()
+    {
+        if (sslConn)
+        {
+            sslConn->async_shutdown([self = shared_from_this()](
+                                        const boost::system::error_code ec) {
+                if (ec)
+                {
+                    // Many https server closes connection abruptly
+                    // i.e witnout close_notify. More details are at
+                    // https://github.com/boostorg/beast/issues/824
+                    if (ec == boost::asio::ssl::error::stream_truncated)
+                    {
+                        BMCWEB_LOG_INFO
+                            << "init: Close the existing connection";
+                    }
+                    else
+                    {
+                        BMCWEB_LOG_ERROR << "init: failed: " << ec.message();
+                    }
+                }
+                else
+                {
+                    BMCWEB_LOG_DEBUG << "init: Connection closed gracefully...";
+                }
+                self->sslConn.emplace(self->conn, self->ctx);
+                self->doResolve();
+            });
+        }
+        else
+        {
+            boost::beast::error_code ec;
+            conn.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_both,
+                                   ec);
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "init failed: " << ec.message();
+            }
+            else
+            {
+                BMCWEB_LOG_DEBUG << "init: Connection closed gracefully...";
+            }
+            doResolve();
+        }
+    }
 
     void doResolve()
     {
@@ -160,13 +207,21 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
             if (ec)
             {
                 BMCWEB_LOG_ERROR << "sendMessage() failed: " << ec.message();
-                self->state = ConnState::retry;
+                self->state = ConnState::initialized;
                 self->handleConnState();
                 return;
             }
-            BMCWEB_LOG_DEBUG << "sendMessage() bytes transferred: "
-                             << bytesTransferred;
+            self->retryCount = 0;
+            BMCWEB_LOG_DEBUG << "sendMessage() to host: " << self->host
+                             << "; bytes transferred: " << bytesTransferred;
             boost::ignore_unused(bytesTransferred);
+
+            // Send is successful, Lets remove data from queue
+            // check for next request data in queue.
+            if (!self->requestDataQueue.empty())
+            {
+                self->requestDataQueue.pop_front();
+            }
 
             self->recvMessage();
         };
@@ -181,6 +236,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
         {
             boost::beast::http::async_write(conn, req, std::move(respHandler));
         }
+        state = ConnState::sending;
     }
 
     void recvMessage()
@@ -191,29 +247,17 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
             if (ec)
             {
                 BMCWEB_LOG_ERROR << "recvMessage() failed: " << ec.message();
-                self->state = ConnState::retry;
-                // The receive failed. Close the connection and
-                // retry sending as per the retry policy
-                self->handleConnState();
-                return;
+                self->state = ConnState::initialized;
             }
-
-            BMCWEB_LOG_DEBUG << "recvMessage() bytes transferred: "
-                             << bytesTransferred;
-            boost::ignore_unused(bytesTransferred);
-
-            BMCWEB_LOG_DEBUG << "recvMessage() data: " << self->res;
-
-            // Send is successful, Lets remove data from queue
-            // check for next request data in queue.
-            if (!self->requestDataQueue.empty())
+            else
             {
-                self->requestDataQueue.pop_front();
-            }
-            self->state = ConnState::idle;
+                BMCWEB_LOG_DEBUG << "recvMessage() bytes receieved: "
+                                 << bytesTransferred;
+                boost::ignore_unused(bytesTransferred);
 
-            // Set the retry count to zero
-            self->retryCount = 0;
+                BMCWEB_LOG_DEBUG << "recvMessage() data: " << self->res;
+                self->state = ConnState::idle;
+            }
 
             // Keep the connection alive if server supports it
             // Else close the connection
@@ -327,10 +371,6 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
         }
         runningTimer = true;
 
-        // Close the existing connection to re-establish the new connection
-        // fot this retry attempt
-        doClose();
-
         retryCount++;
 
         BMCWEB_LOG_DEBUG << "Attempt retry after " << retryIntervalSecs
@@ -359,7 +399,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
             case ConnState::initialized:
             {
                 // Initial state of connection
-                doResolve();
+                init();
                 break;
             }
             case ConnState::suspended:
@@ -401,6 +441,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                 doClose();
                 break;
             }
+            case ConnState::sending:
             default:
                 break;
         }
