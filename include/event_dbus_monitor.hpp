@@ -32,50 +32,54 @@ inline void VMIIPChange(sdbusplus::message::message& msg)
         return;
     }
 
-    BMCWEB_LOG_DEBUG << msg.get_path();
+    std::string objPath = msg.get_path();
 
-    std::string infname;
-    dbus::utility::getNthStringFromPath(msg.get_path(), 4, infname);
-    BMCWEB_LOG_DEBUG << infname;
+    std::string infName;
+    dbus::utility::getNthStringFromPath(msg.get_path(), 4, infName);
 
-    boost::container::flat_map<std::string,
-                               std::variant<std::string, uint8_t, bool>>
-        values;
-    std::string objName;
-    msg.read(objName, values);
-    BMCWEB_LOG_DEBUG << objName;
-
-    auto find = values.find("Enabled");
-    if (find == values.end())
+    if ((objPath ==
+         "/xyz/openbmc_project/network/hypervisor/eth0/ipv4/addr0") ||
+        (objPath == "/xyz/openbmc_project/network/hypervisor/eth1/ipv4/addr0"))
     {
-        BMCWEB_LOG_ERROR << "Enabled property not Found";
-        return;
-    }
-    BMCWEB_LOG_DEBUG << "Enabled property found";
-    BMCWEB_LOG_DEBUG << find->first;
+        boost::container::flat_map<std::string,
+                                   std::variant<std::string, uint8_t, bool>>
+            values;
+        std::string objName;
+        msg.read(objName, values);
+        BMCWEB_LOG_DEBUG << objName;
 
-    const bool* propValue = std::get_if<bool>(&(find->second));
-    if (propValue != nullptr)
-    {
-        BMCWEB_LOG_DEBUG << *propValue;
-
-        if (*propValue)
+        auto find = values.find("Enabled");
+        if (find == values.end())
         {
-            // pldm recieves a sensor event from the hypervisor when the vmi is
-            // completely configured with an IP Address, post reciveing the
-            // sensor event, pldm will sent the Enable property to True.
-            //
-            // HMC is only interested in false -> true transition of Enabled
-            // property as that is when vmi is configured.
-            //
-            // Push an event
-            std::string origin =
-                "/redfish/v1/Systems/hypervisor/EthernetInterfaces/" + infname;
-            BMCWEB_LOG_DEBUG << "Pushing the VMI IP change Event with origin : "
-                             << origin;
-            redfish::EventServiceManager::getInstance().sendEvent(
-                redfish::messages::resourceChanged(), origin,
-                "EthernetInterface");
+            BMCWEB_LOG_ERROR << "Enabled property not Found";
+            return;
+        }
+
+        const bool* propValue = std::get_if<bool>(&(find->second));
+        if (propValue != nullptr)
+        {
+            BMCWEB_LOG_DEBUG << *propValue;
+
+            if (*propValue)
+            {
+                // pldm recieves a sensor event from the hypervisor when the vmi
+                // is completely configured with an IP Address, post reciveing
+                // the sensor event, pldm will sent the Enable property to True.
+                //
+                // HMC is only interested in false -> true transition of Enabled
+                // property as that is when vmi is configured.
+                //
+                // Push an event
+                std::string origin =
+                    "/redfish/v1/Systems/hypervisor/EthernetInterfaces/" +
+                    infName;
+                BMCWEB_LOG_DEBUG
+                    << "Pushing the VMI IP change Event with origin : "
+                    << origin;
+                redfish::EventServiceManager::getInstance().sendEvent(
+                    redfish::messages::resourceChanged(), origin,
+                    "EthernetInterface");
+            }
         }
     }
 }
@@ -218,7 +222,7 @@ inline void dumpCreatedSignal(sdbusplus::message::message& msg)
         *propValue ==
             "xyz.openbmc_project.Common.Progress.OperationStatus.Completed")
     {
-        BMCWEB_LOG_DEBUG << "*****Sending event\n";
+        BMCWEB_LOG_DEBUG << "Sending event\n";
 
         std::string eventOrigin;
         // Push an event
@@ -338,10 +342,6 @@ inline void BIOSAttrUpdate(sdbusplus::message::message& msg)
         BMCWEB_LOG_ERROR << "BIOS attribute changed Signal error";
         return;
     }
-
-    std::string dumpType;
-    dbus::utility::getNthStringFromPath(msg.get_path(), 3, dumpType);
-    BMCWEB_LOG_DEBUG << dumpType;
 
     boost::container::flat_map<std::string, std::variant<std::string, uint8_t>>
         values;
