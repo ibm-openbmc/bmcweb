@@ -419,7 +419,6 @@ class BiosSettings : public Node
                 for (auto& attrItr : attrsJson.items())
                 {
                     std::string attrName = attrItr.key();
-                    std::string attrValue = attrItr.value();
 
                     if (attrName == "")
                     {
@@ -444,8 +443,70 @@ class BiosSettings : public Node
                         return;
                     }
 
-                    pendingAttributes.emplace_back(std::make_pair(
-                        attrName, std::make_tuple(biosAttrType, attrValue)));
+                    std::string biosRedfishAttrType =
+                        mapAttrTypeToRedfish(biosAttrType);
+                    if (biosRedfishAttrType == "Integer")
+                    {
+                        try
+                        {
+                            int64_t attrValue = attrItr.value();
+                            pendingAttributes.emplace_back(std::make_pair(
+                                attrName,
+                                std::make_tuple(biosAttrType, attrValue)));
+                        }
+                        catch (nlohmann::detail::type_error& e)
+                        {
+                            BMCWEB_LOG_ERROR << "The value must be of type int";
+                            messages::propertyValueTypeError(
+                                asyncResp->res, attrItr.value(), attrName);
+                            return;
+                        }
+                    }
+                    else if (biosRedfishAttrType == "String" ||
+                             biosRedfishAttrType == "Enumeration" ||
+                             biosRedfishAttrType == "Password")
+                    {
+                        try
+                        {
+                            std::string attrValue = attrItr.value();
+                            pendingAttributes.emplace_back(std::make_pair(
+                                attrName,
+                                std::make_tuple(biosAttrType, attrValue)));
+                        }
+                        catch (nlohmann::detail::type_error& e)
+                        {
+                            BMCWEB_LOG_ERROR
+                                << "The value must be of type string";
+                            messages::propertyValueTypeError(asyncResp->res, "",
+                                                             attrName);
+                            return;
+                        }
+                    }
+                    else if (biosRedfishAttrType == "Boolean")
+                    {
+                        try
+                        {
+                            bool attrValue = attrItr.value();
+                            pendingAttributes.emplace_back(std::make_pair(
+                                attrName,
+                                std::make_tuple(biosAttrType, attrValue)));
+                        }
+                        catch (nlohmann::detail::type_error& e)
+                        {
+                            BMCWEB_LOG_ERROR
+                                << "The value must be of type bool";
+                            messages::propertyValueTypeError(asyncResp->res, "",
+                                                             attrName);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        BMCWEB_LOG_ERROR
+                            << "Attribute Type in BiosTable is Unknown";
+                        messages::internalError(asyncResp->res);
+                        return;
+                    }
                 }
 
                 crow::connections::systemBus->async_method_call(
