@@ -410,10 +410,11 @@ class StreamingResponseRule : public BaseRule
     void validate() override
     {}
 
-    void handle(const Request&, Response& res, const RoutingParams&) override
+    void handle(const Request&,
+                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                const RoutingParams&) override
     {
-        res.result(boost::beast::http::status::not_found);
-        res.end();
+        asyncResp->res.result(boost::beast::http::status::not_found);
     }
 
     void handleUpgrade(const Request& req, Response&,
