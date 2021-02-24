@@ -14,6 +14,7 @@ static std::shared_ptr<sdbusplus::bus::match::match> matchVMIIPStateChange;
 static std::shared_ptr<sdbusplus::bus::match::match> matchDumpCreatedSignal;
 static std::shared_ptr<sdbusplus::bus::match::match> matchDumpDeletedSignal;
 static std::shared_ptr<sdbusplus::bus::match::match> matchBIOSAttrUpdate;
+static std::shared_ptr<sdbusplus::bus::match::match> matchBootProgressChange;
 
 void registerHostStateChangeSignal();
 void registerBMCStateChangeSignal();
@@ -21,6 +22,7 @@ void registerVMIIPChangeSignal();
 void registerDumpCreatedSignal();
 void registerDumpDeletedSignal();
 void registerBIOSAttrUpdateSignal();
+void registerBootProgressChangeSignal();
 
 inline void VMIIPChange(sdbusplus::message::message& msg)
 {
@@ -144,6 +146,36 @@ inline void HostStatePropertyChange(sdbusplus::message::message& msg)
     }
 }
 
+inline void BootProgressPropertyChange(sdbusplus::message::message& msg)
+{
+    BMCWEB_LOG_DEBUG << "BootProgress change match fired";
+
+    if (msg.is_method_error())
+    {
+        BMCWEB_LOG_ERROR << "HBootProgress property changed Signal error";
+        return;
+    }
+    std::string iface;
+    boost::container::flat_map<std::string, std::variant<std::string, uint8_t>>
+        values;
+    std::string objName;
+    msg.read(objName, values);
+    auto find = values.find("BootProgress");
+    if (find == values.end())
+    {
+        return;
+    }
+    std::string* type = std::get_if<std::string>(&(find->second));
+    if (type != nullptr)
+    {
+        BMCWEB_LOG_DEBUG << *type;
+        // Push an event
+        std::string origin = "/redfish/v1/Systems/system/BootProgress";
+        redfish::EventServiceManager::getInstance().sendEvent(
+            redfish::messages::resourceChanged(), origin, "ComputerSystem");
+    }
+}
+
 void registerHostStateChangeSignal()
 {
     BMCWEB_LOG_DEBUG << "Host state change signal - Register";
@@ -181,11 +213,24 @@ void registerVMIIPChangeSignal()
         VMIIPChange);
 }
 
+void registerBootProgressChangeSignal()
+{
+    BMCWEB_LOG_DEBUG << "BootProgress change signal - Register";
+
+    matchHostStateChange = std::make_unique<sdbusplus::bus::match::match>(
+        *crow::connections::systemBus,
+        "type='signal',member='PropertiesChanged',interface='org.freedesktop."
+        "DBus.Properties',path='/xyz/openbmc_project/state/host0',"
+        "arg0='xyz.openbmc_project.State.Boot.Progress'",
+        BootProgressPropertyChange);
+}
+
 void registerStateChangeSignal()
 {
     registerHostStateChangeSignal();
     registerBMCStateChangeSignal();
     registerVMIIPChangeSignal();
+    registerHostStateChangeSignal();
 }
 
 inline void dumpCreatedSignal(sdbusplus::message::message& msg)
