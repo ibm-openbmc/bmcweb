@@ -430,6 +430,10 @@ inline void getDumpEntryCollection(std::shared_ptr<AsyncResp>& asyncResp,
             }
 
             nlohmann::json& entriesArray = asyncResp->res.jsonValue["Members"];
+            if (!entriesArray.size())
+            {
+                entriesArray = nlohmann::json::array();
+            }
             std::string dumpEntryPath =
                 "/xyz/openbmc_project/dump/" +
                 std::string(boost::algorithm::to_lower_copy(dumpType)) +
