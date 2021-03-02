@@ -217,7 +217,7 @@ void registerBootProgressChangeSignal()
 {
     BMCWEB_LOG_DEBUG << "BootProgress change signal - Register";
 
-    matchHostStateChange = std::make_unique<sdbusplus::bus::match::match>(
+    matchBootProgressChange = std::make_unique<sdbusplus::bus::match::match>(
         *crow::connections::systemBus,
         "type='signal',member='PropertiesChanged',interface='org.freedesktop."
         "DBus.Properties',path='/xyz/openbmc_project/state/host0',"
@@ -230,7 +230,7 @@ void registerStateChangeSignal()
     registerHostStateChangeSignal();
     registerBMCStateChangeSignal();
     registerVMIIPChangeSignal();
-    registerHostStateChangeSignal();
+    registerBootProgressChangeSignal();
 }
 
 inline void dumpCreatedSignal(sdbusplus::message::message& msg)
