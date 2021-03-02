@@ -4,7 +4,11 @@
   "@odata.type": "#JsonSchemaFileCollection.JsonSchemaFileCollection",
   "Name": "JsonSchemaFile Collection",
   "Description": "Collection of JsonSchemaFiles",
+<<<<<<< HEAD
   "Members@odata.count": 60,
+=======
+  "Members@odata.count": 58,
+>>>>>>> f92b386... Add Redfish ThermalSubsystem schema in bmcweb
   "Members": [
     {
       "@odata.id": "/redfish/v1/JsonSchemas/AccountService"
@@ -164,6 +168,9 @@
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/Thermal"
+    },
+    {
+      "@odata.id": "/redfish/v1/JsonSchemas/ThermalSubsystem"
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/UpdateService"
