@@ -152,7 +152,7 @@ inline void BootProgressPropertyChange(sdbusplus::message::message& msg)
 
     if (msg.is_method_error())
     {
-        BMCWEB_LOG_ERROR << "HBootProgress property changed Signal error";
+        BMCWEB_LOG_ERROR << "BootProgress property changed Signal error";
         return;
     }
     std::string iface;
