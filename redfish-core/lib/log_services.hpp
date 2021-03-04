@@ -2854,7 +2854,7 @@ static void fillPostCodeEntry(
 {
     // Get the Message from the MessageRegistry
     const message_registries::Message* message =
-        message_registries::getMessage("OpenBMC.0.2.BIOSPOSTCode");
+        message_registries::getMessage("OpenBMC.0.2.BIOSPOSTCodeASCII");
 
     uint64_t currentCodeIndex = 0;
     nlohmann::json& logEntryArray = aResp->res.jsonValue["Members"];
@@ -2910,6 +2910,8 @@ static void fillPostCodeEntry(
         std::ostringstream hexCode;
         hexCode << "0x" << std::setfill('0') << std::setw(2) << std::hex
                 << std::get<0>(code.second);
+        std::string stringCode =
+            crow::utility::convertToAscii(std::get<uint64_t>(code.second));
         std::ostringstream timeOffsetStr;
         // Set Fixed -Point Notation
         timeOffsetStr << std::fixed;
@@ -2917,8 +2919,9 @@ static void fillPostCodeEntry(
         timeOffsetStr << std::setprecision(4);
         // Add double to stream
         timeOffsetStr << static_cast<double>(usTimeOffset) / 1000 / 1000;
-        std::vector<std::string> messageArgs = {
-            std::to_string(bootIndex), timeOffsetStr.str(), hexCode.str()};
+        std::vector<std::string> messageArgs = {std::to_string(bootIndex),
+                                                timeOffsetStr.str(),
+                                                hexCode.str(), stringCode};
 
         // Get MessageArgs template from message registry
         std::string msg;
@@ -2956,7 +2959,7 @@ static void fillPostCodeEntry(
                        {"Name", "POST Code Log Entry"},
                        {"Id", postcodeEntryID},
                        {"Message", std::move(msg)},
-                       {"MessageId", "OpenBMC.0.2.BIOSPOSTCode"},
+                       {"MessageId", "OpenBMC.0.2.BIOSPOSTCodeASCII"},
                        {"MessageArgs", std::move(messageArgs)},
                        {"EntryType", "Event"},
                        {"Severity", std::move(severity)},
