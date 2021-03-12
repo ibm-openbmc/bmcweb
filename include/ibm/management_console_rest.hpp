@@ -120,7 +120,6 @@ inline void handleFilePut(const crow::Request& req,
     std::ofstream file;
     std::filesystem::path loc(
         "/var/lib/bmcweb/ibm-management-console/configfiles");
-    loc /= fileID;
 
     // Get the current size of the savearea directory
     std::filesystem::recursive_directory_iterator iter(loc, ec);
