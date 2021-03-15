@@ -940,7 +940,9 @@ inline void clearDump(crow::Response& res, const std::string& dumpType)
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
         "/xyz/openbmc_project/dump/" + dumpTypeLowerCopy, 0,
-        std::array<std::string, 1>{"xyz.openbmc_project.Dump.Entry"});
+        std::array<std::string, 1>{"xyz.openbmc_project.Dump.Entry." +
+                                   dumpType});
+
 }
 
 static void parseCrashdumpParameters(
