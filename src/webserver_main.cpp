@@ -87,9 +87,6 @@ int main(int /*argc*/, char** /*argv*/)
 #ifdef BMCWEB_ENABLE_REDFISH
     redfish::requestRoutes(app);
     redfish::RedfishService redfish(app);
-
-    // Create EventServiceManager instance and initialize Config
-    redfish::EventServiceManager::getInstance();
 #endif
 
 #ifdef BMCWEB_ENABLE_DBUS_REST
@@ -145,7 +142,6 @@ int main(int /*argc*/, char** /*argv*/)
     // Start BMC and Host state change dbus monitor
     crow::dbus_monitor::registerStateChangeSignal();
 #endif
-
 #ifdef BMCWEB_ENABLE_REDFISH_DUMP_LOG
     crow::obmc_dump::requestRoutes(app);
 #endif
