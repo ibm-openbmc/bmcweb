@@ -117,12 +117,12 @@ static std::string mapBoundTypeToRedfish(const std::string_view typeDbus)
     else if (typeDbus ==
              "xyz.openbmc_project.BIOSConfig.Manager.BoundType.MinStringLength")
     {
-        ret = "MinStringLength";
+        ret = "MinLength";
     }
     else if (typeDbus ==
              "xyz.openbmc_project.BIOSConfig.Manager.BoundType.MaxStringLength")
     {
-        ret = "MaxStringLength";
+        ret = "MaxLength";
     }
     else if (typeDbus ==
              "xyz.openbmc_project.BIOSConfig.Manager.BoundType.OneOf")
@@ -595,7 +595,6 @@ class BiosAttributeRegistry : public Node
                         nlohmann::json& attributeArray =
                             asyncResp->res
                                 .jsonValue["RegistryEntries"]["Attributes"];
-                        nlohmann::json optionsArray = nlohmann::json::array();
                         if (baseBiosTable == nullptr)
                         {
                             BMCWEB_LOG_ERROR << "baseBiosTable == nullptr ";
@@ -604,6 +603,8 @@ class BiosAttributeRegistry : public Node
                         }
                         for (const BiosBaseTableItemType& item : *baseBiosTable)
                         {
+                            nlohmann::json optionsArray =
+                                nlohmann::json::array();
                             const std::string& itemType =
                                 std::get<biosBaseAttrType>(item.second);
                             std::string attrType =
@@ -623,8 +624,11 @@ class BiosAttributeRegistry : public Node
                                 std::get<biosBaseDisplayName>(item.second);
                             attributeItem["HelpText"] =
                                 std::get<biosBaseDescription>(item.second);
-                            attributeItem["MenuPath"] =
-                                std::get<biosBaseMenuPath>(item.second);
+                            if ((std::get<biosBaseMenuPath>(item.second)) != "")
+                            {
+                                attributeItem["MenuPath"] =
+                                    std::get<biosBaseMenuPath>(item.second);
+                            }
 
                             if (attrType == "String" ||
                                 attrType == "Enumeration")
@@ -637,10 +641,14 @@ class BiosAttributeRegistry : public Node
                                     std::get_if<std::string>(
                                         &std::get<biosBaseDefaultValue>(
                                             item.second));
-                                attributeItem["CurrentValue"] =
-                                    currValue != nullptr ? *currValue : "";
-                                attributeItem["DefaultValue"] =
-                                    defValue != nullptr ? *defValue : "";
+                                if (currValue && *currValue != "")
+                                {
+                                    attributeItem["CurrentValue"] = *currValue;
+                                }
+                                if (defValue && *defValue != "")
+                                {
+                                    attributeItem["DefaultValue"] = *defValue;
+                                }
                             }
                             else if (attrType == "Integer")
                             {
@@ -683,22 +691,29 @@ class BiosAttributeRegistry : public Node
                                     const std::string* currValue =
                                         std::get_if<std::string>(
                                             &std::get<optItemValue>(optItem));
-                                    optItemJson[optItemTypeRedfish] =
-                                        currValue != nullptr ? *currValue : "";
+                                    if (currValue != nullptr)
+                                    {
+                                        optItemJson["ValueName"] = *currValue;
+                                        optionsArray.push_back(optItemJson);
+                                    }
                                 }
                                 else
                                 {
                                     const int64_t* currValue =
                                         std::get_if<int64_t>(
                                             &std::get<optItemValue>(optItem));
-                                    optItemJson[optItemTypeRedfish] =
-                                        currValue != nullptr ? *currValue : 0;
+                                    if (currValue != nullptr)
+                                    {
+                                        attributeItem[optItemTypeRedfish] =
+                                            *currValue;
+                                    }
                                 }
-
-                                optionsArray.push_back(optItemJson);
                             }
 
-                            attributeItem["Value"] = optionsArray;
+                            if (optionsArray.size() > 0)
+                            {
+                                attributeItem["Value"] = optionsArray;
+                            }
                             attributeArray.push_back(attributeItem);
                         }
                     },
