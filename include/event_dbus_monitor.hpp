@@ -15,6 +15,7 @@ static std::shared_ptr<sdbusplus::bus::match::match> matchDumpCreatedSignal;
 static std::shared_ptr<sdbusplus::bus::match::match> matchDumpDeletedSignal;
 static std::shared_ptr<sdbusplus::bus::match::match> matchBIOSAttrUpdate;
 static std::shared_ptr<sdbusplus::bus::match::match> matchBootProgressChange;
+static std::shared_ptr<sdbusplus::bus::match::match> matchEventLogCreated;
 
 void registerHostStateChangeSignal();
 void registerBMCStateChangeSignal();
@@ -23,6 +24,7 @@ void registerDumpCreatedSignal();
 void registerDumpDeletedSignal();
 void registerBIOSAttrUpdateSignal();
 void registerBootProgressChangeSignal();
+void registerEventLogCreatedSignal();
 
 inline void VMIIPChange(sdbusplus::message::message& msg)
 {
@@ -223,6 +225,49 @@ void registerBootProgressChangeSignal()
         "DBus.Properties',path='/xyz/openbmc_project/state/host0',"
         "arg0='xyz.openbmc_project.State.Boot.Progress'",
         BootProgressPropertyChange);
+}
+
+void eventLogCreatedSignal(sdbusplus::message::message& msg)
+{
+    BMCWEB_LOG_DEBUG << "Event Log Created - match fired";
+
+    if (msg.is_method_error())
+    {
+        BMCWEB_LOG_ERROR << "Event Log Created signal error";
+        return;
+    }
+
+    sdbusplus::message::object_path objPath;
+    std::map<std::string, std::map<std::string, std::variant<std::string>>>
+        interfaces;
+
+    msg.read(objPath, interfaces);
+
+    if (interfaces.find("xyz.openbmc_project.Logging.Entry") ==
+        interfaces.end())
+    {
+        return;
+    }
+
+    std::string logID;
+    dbus::utility::getNthStringFromPath(objPath, 4, logID);
+
+    std::string eventOrigin{
+        "/redfish/v1/Systems/system/LogServices/EventLog/Entries/" + logID};
+
+    BMCWEB_LOG_DEBUG << "Sending event for log ID " << logID;
+
+    redfish::EventServiceManager::getInstance().sendEvent(
+        redfish::messages::resourceCreated(), eventOrigin, "LogEntry");
+}
+
+void registerEventLogCreatedSignal()
+{
+    matchEventLogCreated = std::make_unique<sdbusplus::bus::match::match>(
+        *crow::connections::systemBus,
+        "type='signal',member='InterfacesAdded',interface='org.freedesktop."
+        "DBus.ObjectManager',path='/xyz/openbmc_project/logging',",
+        eventLogCreatedSignal);
 }
 
 void registerStateChangeSignal()
