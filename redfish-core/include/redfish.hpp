@@ -29,6 +29,7 @@
 #include "../lib/metric_report_definition.hpp"
 #include "../lib/network_protocol.hpp"
 #include "../lib/pcie.hpp"
+#include "../lib/pcie_slots.hpp"
 #include "../lib/port.hpp"
 #include "../lib/power.hpp"
 #include "../lib/processor.hpp"
@@ -92,6 +93,7 @@ class RedfishService
         nodes.emplace_back(std::make_unique<StorageCollection>(app));
         nodes.emplace_back(std::make_unique<Storage>(app));
         nodes.emplace_back(std::make_unique<Drive>(app));
+        nodes.emplace_back(std::make_unique<PCIeSlots>(app));
         nodes.emplace_back(std::make_unique<FabricAdapters>(app));
         nodes.emplace_back(std::make_unique<FabricAdapterCollection>(app));
         nodes.emplace_back(std::make_unique<Port>(app));

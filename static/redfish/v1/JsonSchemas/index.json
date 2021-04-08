@@ -106,6 +106,9 @@
       "@odata.id": "/redfish/v1/JsonSchemas/PCIeFunction"
     },
     {
+      "@odata.id": "/redfish/v1/JsonSchemas/PCIeSlots"
+    },
+    {
       "@odata.id": "/redfish/v1/JsonSchemas/Power"
     },
     {
