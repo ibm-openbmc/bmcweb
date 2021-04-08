@@ -37,6 +37,8 @@ include_list = [
     'EventDestination',
     'EventDestinationCollection',
     'EventService',
+    'FabricAdapter',
+    'FabricAdapterCollection',
     'IPAddresses',
     'JsonSchemaFile',
     'JsonSchemaFileCollection', #redfish/v1/JsonSchemas
@@ -69,6 +71,8 @@ include_list = [
     'PCIeFunction',
     'PCIeFunctionCollection',
     'Power',
+    'Port',
+    'PortCollection',
     'Processor',
     'ProcessorCollection',
     'RedfishError',
