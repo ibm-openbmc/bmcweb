@@ -1,10 +1,9 @@
 #pragma once
 
+#include "generated/enums/metric_report_definition.hpp"
 #include "sensors.hpp"
 #include "utils/telemetry_utils.hpp"
 #include "utils/time_utils.hpp"
-#include "generated/enums/metric_report_definition.hpp"
-
 
 #include <app.hpp>
 #include <boost/container/flat_map.hpp>
@@ -681,14 +680,8 @@ class AddReport
             }
             if (ec == boost::system::errc::argument_list_too_long)
             {
-                nlohmann::json metricProperties = nlohmann::json::array();
-                for (const auto& [uri, _] : uriToDbus)
-                {
-                    metricProperties.emplace_back(uri);
-                }
-                messages::propertyValueIncorrect(asyncResp->res,
-                                                 metricProperties.dump(),
-                                                 "MetricProperties");
+                messages::propertyValueIncorrect(
+                    asyncResp->res, "MetricProperties", "MetricProperties");
                 return;
             }
             if (ec)
