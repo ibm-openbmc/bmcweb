@@ -158,13 +158,14 @@ inline void
 }
 
 inline void getLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-                        const std::string& ledGroup)
+                        const std::string& ledGroup, nlohmann::json& jsonInput)
 {
     std::array<const char*, 1> interfaces = {"xyz.openbmc_project.Led.Group"};
     dbus::utility::getDbusObject(
         ledGroup, interfaces,
-        [aResp, ledGroup](const boost::system::error_code& ec,
-                          const dbus::utility::MapperGetObject& object) {
+        [aResp, ledGroup,
+         &jsonInput](const boost::system::error_code& ec,
+                     const dbus::utility::MapperGetObject& object) {
         if (ec || object.empty())
         {
             BMCWEB_LOG_ERROR << "DBUS response error " << ec.message();
@@ -175,7 +176,8 @@ inline void getLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         sdbusplus::asio::getProperty<bool>(
             *crow::connections::systemBus, object.begin()->first, ledGroup,
             "xyz.openbmc_project.Led.Group", "Asserted",
-            [aResp](const boost::system::error_code& ec1, bool assert) {
+            [aResp, &jsonInput](const boost::system::error_code& ec1,
+                                bool assert) {
             if (ec1)
             {
                 if (ec1.value() != EBADR)
@@ -185,7 +187,7 @@ inline void getLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 return;
             }
 
-            aResp->res.jsonValue["LocationIndicatorActive"] = assert;
+            jsonInput = assert;
             });
         });
 }
@@ -232,14 +234,16 @@ inline void setLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
  */
 inline void
     getLocationIndicatorActive(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-                               const std::string& objPath)
+                               const std::string& objPath,
+                               nlohmann::json& jsonInput)
 {
     BMCWEB_LOG_DEBUG << "Get LocationIndicatorActive";
 
+    nlohmann::json& jsonIn = jsonInput["LocationIndicatorActive"];
     dbus::utility::getAssociationEndPoints(
-        objPath + "/identifying",
-        [aResp](const boost::system::error_code& ec,
-                const dbus::utility::MapperEndPoints& endpoints) {
+        objPath + "/identify_led_group",
+        [aResp, &jsonIn](const boost::system::error_code& ec,
+                         const dbus::utility::MapperEndPoints& endpoints) {
         if (ec)
         {
             if (ec.value() != EBADR)
@@ -251,9 +255,16 @@ inline void
 
         for (const auto& endpoint : endpoints)
         {
-            getLedAsset(aResp, endpoint);
+            getLedAsset(aResp, endpoint, jsonIn);
         }
         });
+}
+
+inline void
+    getLocationIndicatorActive(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                               const std::string& objPath)
+{
+    getLocationIndicatorActive(aResp, objPath, aResp->res.jsonValue);
 }
 
 /**
@@ -272,7 +283,7 @@ inline void
     BMCWEB_LOG_DEBUG << "Set LocationIndicatorActive";
 
     dbus::utility::getAssociationEndPoints(
-        objPath + "/identifying",
+        objPath + "/identify_led_group",
         [aResp, ledState](const boost::system::error_code& ec,
                           const dbus::utility::MapperEndPoints& endpoints) {
         if (ec)
