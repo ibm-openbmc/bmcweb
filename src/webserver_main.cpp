@@ -153,6 +153,8 @@ int main(int /*argc*/, char** /*argv*/)
     crow::dbus_monitor::registerDumpUpdateSignal();
     // Start BIOS Attr change dbus monitor
     crow::dbus_monitor::registerBIOSAttrUpdateSignal();
+    // Start event log entry created monitor
+    crow::dbus_monitor::registerEventLogCreatedSignal();
 #endif
 
     app.run();
