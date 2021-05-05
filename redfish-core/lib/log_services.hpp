@@ -409,7 +409,7 @@ inline void
     {
         dumpPath = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
     }
-    else if (dumpType == "System" || dumpType == "Resource")
+    else if (dumpType == "System" || dumpType == "Resource" || dumpType == "Hostboot")
     {
         dumpPath = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
     }
@@ -518,7 +518,7 @@ inline void
                         "attachment/" +
                         entryID;
                 }
-                else if (dumpType == "System" || dumpType == "Resource")
+                else if (dumpType == "System" || dumpType == "Resource" || dumpType == "Hostboot")
                 {
                     std::string dumpEntryId(dumpType + "_");
                     dumpEntryId.append(entryID);
@@ -545,13 +545,24 @@ inline void
                      const std::string& entryID, const std::string& dumpType)
 {
     std::string dumpPath;
+    std::string dumpId;
     if (dumpType == "BMC")
     {
         dumpPath = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
+        dumpId = entryID;
     }
-    else if (dumpType == "System" || dumpType == "Resource")
+    else if (dumpType == "System" || dumpType == "Resource" || dumpType == "Hostboot")
     {
         dumpPath = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
+
+        std::size_t pos = entryID.find_first_of('_');
+        if (pos == std::string::npos || (pos + 1) >= entryID.length())
+        {
+            // Requested ID is invalid
+            messages::invalidObject(asyncResp->res, "Dump Id");
+            return;
+        }
+        dumpId = entryID.substr(pos + 1);
     }
     else
     {
@@ -559,16 +570,6 @@ inline void
         messages::internalError(asyncResp->res);
         return;
     }
-
-    std::size_t pos = entryID.find_first_of('_');
-    if (pos == std::string::npos || (pos + 1) >= entryID.length())
-    {
-        // Requested ID is invalid
-        messages::invalidObject(asyncResp->res, "Dump Id");
-        return;
-    }
-
-    const std::string& dumpId = entryID.substr(pos + 1);
 
     crow::connections::systemBus->async_method_call(
         [asyncResp, entryID, dumpPath, dumpType, dumpId](
@@ -657,7 +658,7 @@ inline void
                         "attachment/" +
                         entryID;
                 }
-                else if (dumpType == "System" || dumpType == "Resource")
+                else if (dumpType == "System" || dumpType == "Resource" || dumpType == "Hostboot")
                 {
                     asyncResp->res.jsonValue["Name"] = "System Dump Entry";
                     asyncResp->res.jsonValue["DiagnosticDataType"] = "OEM";
@@ -921,6 +922,16 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 inline void clearDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                       const std::string& dumpType)
 {
+    std::string dumpInterface;
+    if (dumpType == "Hostboot")
+    {
+        dumpInterface = "xyz.openbmc_project.Dump.Entry";
+    }
+    else
+    {
+        dumpInterface = "xyz.openbmc_project.Dump.Entry." + dumpType;
+    }
+
     std::string dumpTypeLowerCopy =
         std::string(boost::algorithm::to_lower_copy(dumpType));
 
@@ -949,7 +960,7 @@ inline void clearDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
         "/xyz/openbmc_project/dump/" + dumpTypeLowerCopy, 0,
-        std::array<std::string, 1>{"xyz.openbmc_project.Dump.Entry"});
+        std::array<std::string, 1>{dumpInterface});
 }
 
 static void parseCrashdumpParameters(
@@ -2545,6 +2556,7 @@ class SystemDumpEntryCollection : public Node
 
         getDumpEntryCollection(asyncResp, "System");
         getDumpEntryCollection(asyncResp, "Resource");
+        getDumpEntryCollection(asyncResp, "Hostboot");
     }
 };
 
@@ -2584,6 +2596,10 @@ class SystemDumpEntry : public Node
         {
             getDumpEntryById(asyncResp, params[0], "Resource");
         }
+        else if (boost::starts_with(params[0], "Hostboot"))
+        {
+            getDumpEntryById(asyncResp, params[0], "Hostboot");
+        }
         else
         {
             messages::invalidObject(asyncResp->res, "Dump Id");
@@ -2619,6 +2635,10 @@ class SystemDumpEntry : public Node
         else if (boost::starts_with(params[0], "Resource"))
         {
             deleteDumpEntry(asyncResp, dumpId, "resource");
+        }
+        else if (boost::starts_with(params[0], "Hostboot"))
+        {
+            deleteDumpEntry(asyncResp, dumpId, "hostboot");
         }
         else
         {
@@ -2675,8 +2695,9 @@ class SystemDumpClear : public Node
     void doPost(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 const crow::Request&, const std::vector<std::string>&) override
     {
-        clearDump(res, "System");
-        clearDump(res, "Resource");
+        clearDump(asyncResp, "System");
+        clearDump(asyncResp, "Resource");
+        clearDump(asyncResp, "Hostboot");
     }
 };
 
