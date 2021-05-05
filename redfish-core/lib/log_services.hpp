@@ -409,7 +409,8 @@ inline void getDumpEntryCollection(std::shared_ptr<AsyncResp>& asyncResp,
     {
         dumpPath = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
     }
-    else if (dumpType == "System" || dumpType == "Resource")
+    else if (dumpType == "System" || dumpType == "Resource" ||
+             dumpType == "Hostboot")
     {
         dumpPath = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
     }
@@ -518,7 +519,8 @@ inline void getDumpEntryCollection(std::shared_ptr<AsyncResp>& asyncResp,
                         "attachment/" +
                         entryID;
                 }
-                else if (dumpType == "System" || dumpType == "Resource")
+                else if (dumpType == "System" || dumpType == "Resource" ||
+                         dumpType == "Hostboot")
                 {
                     std::string dumpEntryId(dumpType + "_");
                     dumpEntryId.append(entryID);
@@ -529,16 +531,8 @@ inline void getDumpEntryCollection(std::shared_ptr<AsyncResp>& asyncResp,
                         "/redfish/v1/Systems/system/LogServices/Dump/"
                         "attachment/" +
                         dumpEntryId;
-                    if (dumpType == "System")
-                    {
-                        thisEntry["Name"] = "System Dump Entry";
-                        thisEntry["OEMDiagnosticDataType"] = "System";
-                    }
-                    else if (dumpType == "Resource")
-                    {
-                        thisEntry["Name"] = "Resource Dump Entry";
-                        thisEntry["OEMDiagnosticDataType"] = "Resource";
-                    }
+                    thisEntry["Name"] = dumpType + " Dump Entry";
+                    thisEntry["OEMDiagnosticDataType"] = dumpType;
                 }
             }
             asyncResp->res.jsonValue["Members@odata.count"] =
@@ -557,7 +551,8 @@ inline void getDumpEntryById(std::shared_ptr<AsyncResp>& asyncResp,
     {
         dumpPath = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
     }
-    else if (dumpType == "System" || dumpType == "Resource")
+    else if (dumpType == "System" || dumpType == "Resource" ||
+             dumpType == "Hostboot")
     {
         dumpPath = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
     }
@@ -658,29 +653,17 @@ inline void getDumpEntryById(std::shared_ptr<AsyncResp>& asyncResp,
                         "attachment/" +
                         entryID;
                 }
-                else
+                else if (dumpType == "System" || dumpType == "Resource" ||
+                         dumpType == "Hostboot")
                 {
                     asyncResp->res.jsonValue["Name"] = "System Dump Entry";
-                    if (dumpType == "System")
-                    {
-                        asyncResp->res.jsonValue["DiagnosticDataType"] = "OEM";
-                        asyncResp->res.jsonValue["OEMDiagnosticDataType"] =
-                            "System";
-                        asyncResp->res.jsonValue["AdditionalDataURI"] =
-                            "/redfish/v1/Systems/system/LogServices/Dump/"
-                            "attachment/" +
-                            entryID;
-                    }
-                    else if (dumpType == "Resource")
-                    {
-                        asyncResp->res.jsonValue["DiagnosticDataType"] = "OEM";
-                        asyncResp->res.jsonValue["OEMDiagnosticDataType"] =
-                            "Resource";
-                        asyncResp->res.jsonValue["AdditionalDataURI"] =
-                            "/redfish/v1/Systems/system/LogServices/Dump/"
-                            "attachment/" +
-                            entryID;
-                    }
+                    asyncResp->res.jsonValue["DiagnosticDataType"] = "OEM";
+                    asyncResp->res.jsonValue["OEMDiagnosticDataType"] =
+                        dumpType;
+                    asyncResp->res.jsonValue["AdditionalDataURI"] =
+                        "/redfish/v1/Systems/system/LogServices/Dump/"
+                        "attachment/" +
+                        entryID;
                 }
             }
             if (foundDumpEntry == false)
@@ -922,6 +905,16 @@ inline void createDump(crow::Response& res, const crow::Request& req,
 
 inline void clearDump(crow::Response& res, const std::string& dumpType)
 {
+    std::string dumpInterface;
+    if (dumpType == "Resource" || dumpType == "Hostboot")
+    {
+        dumpInterface = "com.ibm.Dump.Entry." + dumpType;
+    }
+    else
+    {
+        dumpInterface = "xyz.openbmc_project.Dump.Entry." + dumpType;
+    }
+
     std::string dumpTypeLowerCopy =
         std::string(boost::algorithm::to_lower_copy(dumpType));
     std::shared_ptr<AsyncResp> asyncResp = std::make_shared<AsyncResp>(res);
@@ -950,8 +943,7 @@ inline void clearDump(crow::Response& res, const std::string& dumpType)
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
         "/xyz/openbmc_project/dump/" + dumpTypeLowerCopy, 0,
-        std::array<std::string, 1>{"xyz.openbmc_project.Dump.Entry." +
-                                   dumpType});
+        std::array<std::string, 1>{dumpInterface});
 }
 
 static void parseCrashdumpParameters(
@@ -2549,6 +2541,7 @@ class SystemDumpEntryCollection : public Node
 
         getDumpEntryCollection(asyncResp, "System");
         getDumpEntryCollection(asyncResp, "Resource");
+        getDumpEntryCollection(asyncResp, "Hostboot");
     }
 };
 
@@ -2587,6 +2580,10 @@ class SystemDumpEntry : public Node
         {
             getDumpEntryById(asyncResp, params[0], "Resource");
         }
+        else if (boost::starts_with(params[0], "Hostboot"))
+        {
+            getDumpEntryById(asyncResp, params[0], "Hostboot");
+        }
         else
         {
             messages::invalidObject(asyncResp->res, "Dump Id");
@@ -2614,6 +2611,10 @@ class SystemDumpEntry : public Node
         else if (boost::starts_with(params[0], "Resource"))
         {
             deleteDumpEntry(asyncResp, dumpId, "resource");
+        }
+        else if (boost::starts_with(params[0], "Hostboot"))
+        {
+            deleteDumpEntry(asyncResp, dumpId, "hostboot");
         }
         else
         {
@@ -2671,6 +2672,7 @@ class SystemDumpClear : public Node
     {
         clearDump(res, "System");
         clearDump(res, "Resource");
+        clearDump(res, "Hostboot");
     }
 };
 

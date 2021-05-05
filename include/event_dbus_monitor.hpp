@@ -333,6 +333,12 @@ inline void dumpCreatedSignal(sdbusplus::message::message& msg)
                           "Resource_" +
                           dumpId;
         }
+        else if (dumpType == "hostboot")
+        {
+            eventOrigin = "/redfish/v1/Systems/system/LogServices/Dump/Entries/"
+                          "Hostboot_" +
+                          dumpId;
+        }
         else
         {
             BMCWEB_LOG_ERROR << "Invalid dump type received when listening for "
@@ -382,6 +388,12 @@ inline void dumpDeletedSignal(sdbusplus::message::message& msg)
     {
         eventOrigin =
             "/redfish/v1/Systems/system/LogServices/Dump/Entries/Resource_" +
+            dumpId;
+    }
+    else if (dumpType == "hostboot")
+    {
+        eventOrigin =
+            "/redfish/v1/Systems/system/LogServices/Dump/Entries/Hostboot_" +
             dumpId;
     }
     else
