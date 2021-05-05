@@ -5,6 +5,7 @@
 #include <cors_preflight.hpp>
 #include <dbus_monitor.hpp>
 #include <dbus_singleton.hpp>
+#include <dump_offload.hpp>
 #include <hostname_monitor.hpp>
 #include <ibm/management_console_rest.hpp>
 #include <image_upload.hpp>
@@ -12,6 +13,12 @@
 #include <login_routes.hpp>
 #include <obmc_console.hpp>
 #include <openbmc_dbus_rest.hpp>
+
+#include <memory>
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+#include <event_dbus_monitor.hpp>
+#include <ibm/management_console_rest.hpp>
+#endif
 #include <redfish.hpp>
 #include <redfish_v1.hpp>
 #include <sdbusplus/asio/connection.hpp>
@@ -83,9 +90,6 @@ int main(int /*argc*/, char** /*argv*/)
 #ifdef BMCWEB_ENABLE_REDFISH
     redfish::requestRoutes(app);
     redfish::RedfishService redfish(app);
-
-    // Create EventServiceManager instance and initialize Config
-    redfish::EventServiceManager::getInstance();
 #endif
 
 #ifdef BMCWEB_ENABLE_DBUS_REST
@@ -132,6 +136,22 @@ int main(int /*argc*/, char** /*argv*/)
 #ifdef BMCWEB_ENABLE_SSL
     BMCWEB_LOG_INFO << "Start Hostname Monitor Service...";
     crow::hostname_monitor::registerHostnameSignal();
+#endif
+
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+    // Start BMC and Host state change dbus monitor
+    crow::dbus_monitor::registerStateChangeSignal();
+    // Start Dump created signal monitor for BMC and System Dump
+    crow::dbus_monitor::registerDumpUpdateSignal();
+    // Start BIOS Attr change dbus monitor
+    crow::dbus_monitor::registerBIOSAttrUpdateSignal();
+    // Start event log entry created monitor
+    crow::dbus_monitor::registerEventLogCreatedSignal();
+
+#endif
+
+#ifdef BMCWEB_ENABLE_REDFISH_DUMP_LOG
+    crow::obmc_dump::requestRoutes(app);
 #endif
 
     app.run();
