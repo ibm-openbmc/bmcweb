@@ -90,9 +90,6 @@ int main(int /*argc*/, char** /*argv*/)
 #ifdef BMCWEB_ENABLE_REDFISH
     redfish::requestRoutes(app);
     redfish::RedfishService redfish(app);
-
-    // Create EventServiceManager instance and initialize Config
-    redfish::EventServiceManager::getInstance();
 #endif
 
 #ifdef BMCWEB_ENABLE_DBUS_REST
