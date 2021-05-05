@@ -526,9 +526,9 @@ inline void
                     thisEntry["Id"] = dumpEntryId;
                     thisEntry["DiagnosticDataType"] = "OEM";
                     thisEntry["AdditionalDataURI"] =
-                        "/redfish/v1/Systems/system/LogServices/Dump/Entries" +
-                        dumpEntryId + "attachment/";
-                    thisEntry["Name"] = "System Dump Entry";
+                        "/redfish/v1/Systems/system/LogServices/Dump/Entries/" +
+                        dumpEntryId + "/attachment";
+                    thisEntry["Name"] = dumpType + " Dump Entry";
                     thisEntry["OEMDiagnosticDataType"] = dumpType;
                 }
             }
@@ -920,9 +920,9 @@ inline void clearDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                       const std::string& dumpType)
 {
     std::string dumpInterface;
-    if (dumpType == "Hostboot")
+    if (dumpType == "Resource" || dumpType == "Hostboot")
     {
-        dumpInterface = "xyz.openbmc_project.Dump.Entry";
+        dumpInterface = "com.ibm.Dump.Entry." + dumpType;
     }
     else
     {
