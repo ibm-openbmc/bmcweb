@@ -16,7 +16,7 @@ namespace redfish
  *
  * @return None.
  */
-inline void getLampTestState(const std::shared_ptr<AsyncResp>& aResp)
+inline void getLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
 {
 
     BMCWEB_LOG_DEBUG << "Get lamp test state";
@@ -95,7 +95,7 @@ inline void getLampTestState(const std::shared_ptr<AsyncResp>& aResp)
  *
  * @return None.
  */
-inline void setLampTestState(const std::shared_ptr<AsyncResp>& aResp,
+inline void setLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                              const bool state)
 {
     BMCWEB_LOG_DEBUG << "Set lamp test status.";
