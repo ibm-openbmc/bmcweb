@@ -32,6 +32,7 @@
 #include <boost/system/linux_error.hpp>
 #include <error_messages.hpp>
 
+#include <charconv>
 #include <filesystem>
 #include <optional>
 #include <string_view>
