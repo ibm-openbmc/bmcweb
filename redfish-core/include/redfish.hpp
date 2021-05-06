@@ -29,6 +29,8 @@
 #include "../lib/metric_report_definition.hpp"
 #include "../lib/network_protocol.hpp"
 #include "../lib/pcie.hpp"
+#include "../lib/pcie_slots.hpp"
+#include "../lib/port.hpp"
 #include "../lib/power.hpp"
 #include "../lib/processor.hpp"
 #include "../lib/redfish_sessions.hpp"
@@ -44,6 +46,7 @@
 #ifdef BMCWEB_ENABLE_VM_NBDPROXY
 #include "../lib/virtual_media.hpp"
 #endif // BMCWEB_ENABLE_VM_NBDPROXY
+#include "../lib/FabricAdapters.hpp"
 #include "../lib/assembly.hpp"
 #include "../lib/hypervisor_system.hpp"
 
@@ -91,6 +94,11 @@ class RedfishService
         nodes.emplace_back(std::make_unique<Storage>(app));
         nodes.emplace_back(std::make_unique<Drive>(app));
         nodes.emplace_back(std::make_unique<Assembly>(app));
+        nodes.emplace_back(std::make_unique<FabricAdapters>(app));
+        nodes.emplace_back(std::make_unique<FabricAdapterCollection>(app));
+        nodes.emplace_back(std::make_unique<PCIeSlots>(app));
+        nodes.emplace_back(std::make_unique<Port>(app));
+        nodes.emplace_back(std::make_unique<PortCollection>(app));
 #ifdef BMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE
         nodes.emplace_back(
             std::make_unique<UpdateServiceActionsSimpleUpdate>(app));

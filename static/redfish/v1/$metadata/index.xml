@@ -731,6 +731,13 @@
         <edmx:Include Namespace="EventService.v1_7_0"/>
         <edmx:Include Namespace="EventService.v1_7_1"/>
     </edmx:Reference>
+    <edmx:Reference Uri="/redfish/v1/schema/FabricAdapter_v1.xml">
+        <edmx:Include Namespace="FabricAdapter"/>
+        <edmx:Include Namespace="FabricAdapter.v1_0_0"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="/redfish/v1/schema/FabricAdapterCollection_v1.xml">
+        <edmx:Include Namespace="FabricAdapterCollection"/>
+    </edmx:Reference>
     <edmx:Reference Uri="/redfish/v1/schema/IPAddresses_v1.xml">
         <edmx:Include Namespace="IPAddresses"/>
         <edmx:Include Namespace="IPAddresses.v1_0_0"/>
@@ -1343,6 +1350,47 @@
     </edmx:Reference>
     <edmx:Reference Uri="/redfish/v1/schema/PCIeFunctionCollection_v1.xml">
         <edmx:Include Namespace="PCIeFunctionCollection"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="/redfish/v1/schema/PCIeSlots_v1.xml">
+        <edmx:Include Namespace="PCIeSlots"/>
+        <edmx:Include Namespace="PCIeSlots.v1_0_0"/>
+        <edmx:Include Namespace="PCIeSlots.v1_0_1"/>
+        <edmx:Include Namespace="PCIeSlots.v1_0_2"/>
+        <edmx:Include Namespace="PCIeSlots.v1_0_3"/>
+        <edmx:Include Namespace="PCIeSlots.v1_1_0"/>
+        <edmx:Include Namespace="PCIeSlots.v1_1_1"/>
+        <edmx:Include Namespace="PCIeSlots.v1_1_2"/>
+        <edmx:Include Namespace="PCIeSlots.v1_2_0"/>
+        <edmx:Include Namespace="PCIeSlots.v1_3_0"/>
+        <edmx:Include Namespace="PCIeSlots.v1_4_0"/>
+        <edmx:Include Namespace="PCIeSlots.v1_4_1"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="/redfish/v1/schema/Port_v1.xml">
+        <edmx:Include Namespace="Port"/>
+        <edmx:Include Namespace="Port.v1_0_0"/>
+        <edmx:Include Namespace="Port.v1_0_1"/>
+        <edmx:Include Namespace="Port.v1_0_2"/>
+        <edmx:Include Namespace="Port.v1_0_3"/>
+        <edmx:Include Namespace="Port.v1_0_4"/>
+        <edmx:Include Namespace="Port.v1_0_5"/>
+        <edmx:Include Namespace="Port.v1_0_6"/>
+        <edmx:Include Namespace="Port.v1_0_7"/>
+        <edmx:Include Namespace="Port.v1_0_8"/>
+        <edmx:Include Namespace="Port.v1_1_0"/>
+        <edmx:Include Namespace="Port.v1_1_1"/>
+        <edmx:Include Namespace="Port.v1_1_2"/>
+        <edmx:Include Namespace="Port.v1_1_3"/>
+        <edmx:Include Namespace="Port.v1_1_4"/>
+        <edmx:Include Namespace="Port.v1_1_5"/>
+        <edmx:Include Namespace="Port.v1_2_0"/>
+        <edmx:Include Namespace="Port.v1_2_1"/>
+        <edmx:Include Namespace="Port.v1_2_2"/>
+        <edmx:Include Namespace="Port.v1_2_3"/>
+        <edmx:Include Namespace="Port.v1_3_0"/>
+        <edmx:Include Namespace="Port.v1_3_1"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="/redfish/v1/schema/PortCollection_v1.xml">
+        <edmx:Include Namespace="PortCollection"/>
     </edmx:Reference>
     <edmx:Reference Uri="/redfish/v1/schema/Power_v1.xml">
         <edmx:Include Namespace="Power"/>
