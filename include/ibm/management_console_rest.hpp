@@ -436,7 +436,7 @@ inline void
 
     redfish::EventServiceManager::getInstance().sendEvent(msgJson, origin,
                                                           "BroadcastService");
-    res.end();
+    asyncResp->res.end();
     return;
 }
 
