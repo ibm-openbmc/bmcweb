@@ -42,8 +42,12 @@ inline void getAdapterProperties(const std::shared_ptr<AsyncResp>& aResp,
                             const std::variant<std::string>& property) {
                         if (ec)
                         {
-                            BMCWEB_LOG_DEBUG << "DBUS response error";
-                            messages::internalError(aResp->res);
+                            // in case we do not find property
+                            // Pretty Name, we don't log error as we
+                            // already have updated name with object
+                            // path. This property is optional.
+                            BMCWEB_LOG_DEBUG << "No implementation "
+                                                "of Pretty Name";
                             return;
                         }
 
@@ -56,7 +60,10 @@ inline void getAdapterProperties(const std::shared_ptr<AsyncResp>& aResp,
                             messages::internalError(aResp->res);
                             return;
                         }
-                        aResp->res.jsonValue["Name"] = *value;
+                        else if (!(*value).empty())
+                        {
+                            aResp->res.jsonValue["Name"] = *value;
+                        }
                     },
                     connection.first, objPath,
                     "org.freedesktop.DBus.Properties", "Get", interface,
@@ -123,6 +130,10 @@ inline void getAdapter(const std::shared_ptr<AsyncResp>& aResp,
                 aResp->res.jsonValue["Ports"] = {
                     {"@odata.id", "/redfish/v1/Systems/system/FabricAdapters/" +
                                       adapterId + "/Ports"}};
+
+                // use last part of Object path as a default name but update it
+                // with PrettyName incase one is found.
+                aResp->res.jsonValue["Name"] = adapterId;
 
                 getAdapterProperties(aResp, adapterId, objectPath, serviceMap);
                 return;
