@@ -66,6 +66,11 @@ inline void getAssembliesLinkedToChassis(
                          {"@odata.id", dataID},
                          {"MemberId", std::to_string(assemblyIndex)}});
 
+                    // use last part of Object path as a default name but update
+                    // it with PrettyName incase one is found.
+                    assemblyArray.at(assemblyIndex)["Name"] =
+                        sdbusplus::message::object_path(objectPath).filename();
+
                     for (const auto interface : interfaceList)
                     {
                         if (interface ==
@@ -200,9 +205,12 @@ inline void getAssembliesLinkedToChassis(
                                     const std::variant<std::string>& property) {
                                     if (ec)
                                     {
-                                        BMCWEB_LOG_DEBUG
-                                            << "DBUS response error";
-                                        messages::internalError(aResp->res);
+                                        // in case we do not find property
+                                        // Pretty Name, we don't log error as we
+                                        // already have updated name with object
+                                        // path. This property is optional.
+                                        BMCWEB_LOG_DEBUG << "No implementation "
+                                                            "of Pretty Name";
                                         return;
                                     }
 
@@ -218,7 +226,10 @@ inline void getAssembliesLinkedToChassis(
                                         messages::internalError(aResp->res);
                                         return;
                                     }
-                                    assemblyData["Name"] = *value;
+                                    else if (!(*value).empty())
+                                    {
+                                        assemblyData["Name"] = *value;
+                                    }
                                 },
                                 serviceName, objectPath,
                                 "org.freedesktop.DBus.Properties", "Get",
