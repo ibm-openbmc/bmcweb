@@ -411,7 +411,8 @@ inline void
     {
         dumpPath = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
     }
-    else if (dumpType == "System" || dumpType == "Resource")
+    else if (dumpType == "System" || dumpType == "Resource" ||
+             dumpType == "Hostboot")
     {
         dumpPath = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
     }
@@ -521,7 +522,8 @@ inline void
                         "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/" +
                         entryID + "/attachment";
                 }
-                else if (dumpType == "System" || dumpType == "Resource")
+                else if (dumpType == "System" || dumpType == "Resource" ||
+                         dumpType == "Hostboot")
                 {
                     std::string dumpEntryId(dumpType + "_");
                     dumpEntryId.append(entryID);
@@ -553,7 +555,8 @@ inline void
         dumpPath = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
         dumpId = entryID;
     }
-    else if (dumpType == "System" || dumpType == "Resource")
+    else if (dumpType == "System" || dumpType == "Resource" ||
+             dumpType == "Hostboot")
     {
         dumpPath = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
         std::size_t pos = entryID.find_first_of('_');
@@ -658,7 +661,8 @@ inline void
                         "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/" +
                         entryID + "/attachment";
                 }
-                else if (dumpType == "System" || dumpType == "Resource")
+                else if (dumpType == "System" || dumpType == "Resource" ||
+                         dumpType == "Hostboot")
                 {
                     std::string dumpAttachment(
                         "/redfish/v1/Systems/system/LogServices/Dump/Entries/");
@@ -766,6 +770,12 @@ inline void createDumpTaskCallback(
     {
         dumpEntryPath =
             "/redfish/v1/Systems/system/LogServices/Dump/Entries/Resource_" +
+            dumpId;
+    }
+    else if (dumpPath == "/xyz/openbmc_project/dump/hostboot/entry")
+    {
+        dumpEntryPath =
+            "/redfish/v1/Systems/system/LogServices/Dump/Entries/Hostboot_" +
             dumpId;
     }
     else
@@ -942,7 +952,7 @@ inline void clearDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                       const std::string& dumpType)
 {
     std::string dumpInterface;
-    if (dumpType == "Resource")
+    if (dumpType == "Resource" || dumpType == "Hostboot")
     {
         dumpInterface = "com.ibm.Dump.Entry." + dumpType;
     }
@@ -2370,10 +2380,11 @@ inline void requestRoutesSystemDumpEntryCollection(App& app)
                     "/redfish/v1/Systems/system/LogServices/Dump/Entries";
                 asyncResp->res.jsonValue["Name"] = "System Dump Entries";
                 asyncResp->res.jsonValue["Description"] =
-                    "Collection of System & Resource Dump Entries";
+                    "Collection of System, Resource & Hostboot Dump Entries";
 
                 getDumpEntryCollection(asyncResp, "System");
                 getDumpEntryCollection(asyncResp, "Resource");
+                getDumpEntryCollection(asyncResp, "Hostboot");
             });
 }
 
@@ -2394,6 +2405,10 @@ inline void requestRoutesSystemDumpEntry(App& app)
                 else if (boost::starts_with(param, "Resource"))
                 {
                     getDumpEntryById(asyncResp, param, "Resource");
+                }
+                else if (boost::starts_with(param, "Hostboot"))
+                {
+                    getDumpEntryById(asyncResp, param, "Hostboot");
                 }
                 else
                 {
@@ -2425,6 +2440,10 @@ inline void requestRoutesSystemDumpEntry(App& app)
                 else if (boost::starts_with(param, "Resource"))
                 {
                     deleteDumpEntry(asyncResp, dumpId, "resource");
+                }
+                else if (boost::starts_with(param, "Hostboot"))
+                {
+                    deleteDumpEntry(asyncResp, dumpId, "hostboot");
                 }
                 else
                 {
@@ -2460,6 +2479,7 @@ inline void requestRoutesSystemDumpClear(App& app)
             {
                 clearDump(asyncResp, "System");
                 clearDump(asyncResp, "Resource");
+                clearDump(asyncResp, "Hostboot");
             });
 }
 
