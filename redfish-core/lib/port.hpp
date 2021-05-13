@@ -26,16 +26,10 @@ inline void getPortProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 {
     BMCWEB_LOG_DEBUG << "Getting Properties for port " << portInvPath;
 
-    // use last part of Object path as a default name but update it
-    // with PrettyName incase one is found.
-    aResp->res.jsonValue["Name"] =
-        sdbusplus::message::object_path(portInvPath).filename();
-
     for (const auto& connection : serviceMap)
     {
         for (const auto& interface : connection.second)
         {
-
             if (interface == "xyz.openbmc_project.Inventory.Item")
             {
                 crow::connections::systemBus->async_method_call(
@@ -43,12 +37,8 @@ inline void getPortProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                             const std::variant<std::string>& property) {
                         if (ec)
                         {
-                            // in case we do not find property
-                            // Pretty Name, we don't log error as we
-                            // already have updated name with object
-                            // path. This property is optional.
-                            BMCWEB_LOG_DEBUG << "No implementation "
-                                                "of Pretty Name";
+                            BMCWEB_LOG_DEBUG << "DBUS response error";
+                            messages::internalError(aResp->res);
                             return;
                         }
 
@@ -60,10 +50,7 @@ inline void getPortProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                             messages::internalError(aResp->res);
                             return;
                         }
-                        else if (!(*value).empty())
-                        {
-                            aResp->res.jsonValue["Name"] = *value;
-                        }
+                        aResp->res.jsonValue["Name"] = *value;
                     },
                     connection.first, portInvPath,
                     "org.freedesktop.DBus.Properties", "Get", interface,
