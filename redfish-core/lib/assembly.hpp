@@ -244,12 +244,12 @@ inline void getAssembliesLinkedToChassis(
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree", basePath, 0,
-        std::array<const char*, 5>{
+        std::array<const char*, 4>{
             "xyz.openbmc_project.Inventory.Item.Vrm",
             "xyz.openbmc_project.Inventory.Item.Tpm",
             "xyz.openbmc_project.Inventory.Item.Panel",
             "xyz.openbmc_project.Inventory.Item.Battery",
-            "xyz.openbmc_project.Inventory.Item.DiskBackplane"});
+        });
 }
 
 /**
