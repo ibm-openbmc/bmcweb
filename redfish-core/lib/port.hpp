@@ -26,8 +26,6 @@ inline void getPortProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 {
     BMCWEB_LOG_DEBUG << "Getting Properties for port " << portInvPath;
 
-    // use last part of Object path as a default name but update it
-    // with PrettyName incase one is found.
     aResp->res.jsonValue["Name"] =
         sdbusplus::message::object_path(portInvPath).filename();
 
@@ -35,42 +33,8 @@ inline void getPortProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
     {
         for (const auto& interface : connection.second)
         {
-
-            if (interface == "xyz.openbmc_project.Inventory.Item")
-            {
-                crow::connections::systemBus->async_method_call(
-                    [aResp](const boost::system::error_code ec,
-                            const std::variant<std::string>& property) {
-                        if (ec)
-                        {
-                            // in case we do not find property
-                            // Pretty Name, we don't log error as we
-                            // already have updated name with object
-                            // path. This property is optional.
-                            BMCWEB_LOG_DEBUG << "No implementation "
-                                                "of Pretty Name";
-                            return;
-                        }
-
-                        const std::string* value =
-                            std::get_if<std::string>(&property);
-                        if (value == nullptr)
-                        {
-                            // illegal value
-                            messages::internalError(aResp->res);
-                            return;
-                        }
-                        else if (!(*value).empty())
-                        {
-                            aResp->res.jsonValue["Name"] = *value;
-                        }
-                    },
-                    connection.first, portInvPath,
-                    "org.freedesktop.DBus.Properties", "Get", interface,
-                    "PrettyName");
-            }
-            else if (interface ==
-                     "xyz.openbmc_project.Inventory.Decorator.LocationCode")
+            if (interface ==
+                "xyz.openbmc_project.Inventory.Decorator.LocationCode")
             {
                 crow::connections::systemBus->async_method_call(
                     [aResp](const boost::system::error_code ec,
@@ -119,26 +83,31 @@ inline void getPort(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
     crow::connections::systemBus->async_method_call(
         [aResp, portId, adapterId](const boost::system::error_code ec,
                                    const MapperGetSubTreeResponse& subtree) {
+            if (ec.value() == boost::system::errc::io_error)
+            {
+                messages::resourceNotFound(aResp->res, "#Port.v1_3_0.Port",
+                                           portId);
+                return;
+            }
+
             if (ec)
             {
                 BMCWEB_LOG_ERROR << "DBus method call failed with error "
                                  << ec.value();
-
-                // No port objects found by mapper
-                if (ec.value() == boost::system::errc::io_error)
-                {
-                    messages::resourceNotFound(aResp->res, "#Port.v1_3_0.Port",
-                                               portId);
-                    return;
-                }
-
                 messages::internalError(aResp->res);
                 return;
             }
 
+            // incase no port object is found GetSubtree returns with empty
+            // vector.
             for (const auto& [objectPath, serviceMap] : subtree)
             {
-                if (objectPath.find(adapterId) != std::string::npos)
+                std::string parentAdapter =
+                    sdbusplus::message::object_path(objectPath).parent_path();
+                parentAdapter =
+                    sdbusplus::message::object_path(parentAdapter).filename();
+
+                if (parentAdapter == adapterId)
                 {
                     std::string portName =
                         sdbusplus::message::object_path(objectPath).filename();
@@ -148,6 +117,16 @@ inline void getPort(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                         // not the port we are interested in
                         continue;
                     }
+
+                    std::string dataId =
+                        "/redfish/v1/Systems/system/FabricAdapters/";
+                    dataId.append(adapterId);
+                    dataId.append("/Ports/");
+                    dataId.append(portId);
+
+                    aResp->res.jsonValue["@odata.type"] = "#Port.v1_3_0.Port";
+                    aResp->res.jsonValue["@odata.id"] = dataId;
+                    aResp->res.jsonValue["Id"] = "Port";
 
                     getPortProperties(aResp, objectPath, serviceMap);
                     return;
@@ -177,8 +156,7 @@ inline void getPort(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
  */
 inline void getPortCollection(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                               const std::string& collectionPath,
-                              const std::string& adapterId,
-                              const std::vector<const char*>& interfaces)
+                              const std::string& adapterId)
 {
     BMCWEB_LOG_DEBUG << "Get collection members for: " << collectionPath;
     crow::connections::systemBus->async_method_call(
@@ -221,7 +199,9 @@ inline void getPortCollection(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
-        "/xyz/openbmc_project/inventory", 0, interfaces);
+        "/xyz/openbmc_project/inventory", 0,
+        std::array<const char*, 1>{
+            "xyz.openbmc_project.Inventory.Item.Connector"});
 }
 
 class PortCollection : public Node
@@ -266,11 +246,55 @@ class PortCollection : public Node
             "/redfish/v1/Systems/system/FabricAdapters/" + adapterId + "/Ports";
         asyncResp->res.jsonValue["@odata.id"] = dataId;
 
-        // Util collection api will give all the ports implementing this
-        // interface but we are only interested in subset of those ports. Ports
-        // attached to the given fabric adapter.
-        getPortCollection(asyncResp, dataId, adapterId,
-                          {"xyz.openbmc_project.Inventory.Item.Connector"});
+        crow::connections::systemBus->async_method_call(
+            [adapterId, asyncResp,
+             dataId](const boost::system::error_code ec,
+                     const MapperGetSubTreeResponse& subtree) {
+                if (ec)
+                {
+                    BMCWEB_LOG_ERROR << "DBus method call failed with error "
+                                     << ec.value();
+
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+
+                for (const auto& [objectPath, serviceMap] : subtree)
+                {
+                    std::string adapter =
+                        sdbusplus::message::object_path(objectPath).filename();
+
+                    if (adapter.empty())
+                    {
+                        // invalid object path, continue
+                        continue;
+                    }
+
+                    if (adapterId != adapter)
+                    {
+                        // this is not the adapter we are interested in
+                        continue;
+                    }
+
+                    // imples adapterId was found, it is a valid adapterId
+                    // Util collection api will give all the ports implementing
+                    // this
+                    // interface but we are only interested in subset of those
+                    // ports. Ports attached to the given fabric adapter.
+                    getPortCollection(asyncResp, dataId, adapterId);
+                    return;
+                }
+                BMCWEB_LOG_ERROR << "Adapter not found";
+                messages::resourceNotFound(asyncResp->res, "FabricAdapter",
+                                           adapterId);
+                return;
+            },
+            "xyz.openbmc_project.ObjectMapper",
+            "/xyz/openbmc_project/object_mapper",
+            "xyz.openbmc_project.ObjectMapper", "GetSubTree",
+            "/xyz/openbmc_project/inventory", 0,
+            std::array<const char*, 1>{
+                "xyz.openbmc_project.Inventory.Item.FabricAdapter"});
     }
 };
 
@@ -281,7 +305,8 @@ class Port : public Node
      * Default Constructor
      */
     Port(App& app) :
-        Node(app, "/redfish/v1/Systems/system/FabricAdapters/<str>/Ports/<str>",
+        Node(app,
+             "/redfish/v1/Systems/system/FabricAdapters/<str>/Ports/<str>/",
              std::string(), std::string())
     {
         entityPrivileges = {
@@ -311,16 +336,9 @@ class Port : public Node
         const std::string& adapterId = params[0];
         const std::string& portId = params[1];
 
-        const std::string& dataId =
-            "/redfish/v1/Systems/system/FabricAdapters/" + adapterId +
-            "/Ports/" + portId;
-
-        asyncResp->res.jsonValue["@odata.type"] = "#Port.v1_3_0.Port";
-        asyncResp->res.jsonValue["@odata.id"] = dataId;
-        asyncResp->res.jsonValue["Id"] = "Port";
-
         getPort(asyncResp, portId, adapterId);
     }
+
 }; // class port
 
 } // namespace redfish

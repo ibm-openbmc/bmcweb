@@ -110,12 +110,13 @@ inline void getPCIeSlots(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 subtree) {
             if (ec)
             {
-                BMCWEB_LOG_DEBUG << "D-Bus response error on GetSubTree " << ec;
+                BMCWEB_LOG_ERROR << "D-Bus response error on GetSubTree " << ec;
+                messages::internalError(asyncResp->res);
                 return;
             }
             if (subtree.size() == 0)
             {
-                BMCWEB_LOG_DEBUG << "Can't find PCIeSlot D-Bus object!";
+                BMCWEB_LOG_ERROR << "Can't find PCIeSlot D-Bus object!";
                 return;
             }
 
@@ -123,109 +124,148 @@ inline void getPCIeSlots(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             {
                 if (objectPath.empty() || serviceName.size() != 1)
                 {
-                    BMCWEB_LOG_DEBUG << "Error getting PCIeSlot D-Bus object!";
+                    BMCWEB_LOG_ERROR << "Error getting PCIeSlot D-Bus object!";
                     messages::internalError(asyncResp->res);
                     return;
                 }
 
-                if (!boost::starts_with(
-                        objectPath,
-                        "/xyz/openbmc_project/inventory/system/" + chassisID))
-                {
-                    continue;
-                }
-
                 const std::string& connectionName = serviceName[0].first;
+                const std::string pcieSlotPath = objectPath;
 
+                // The association of this PCIeSlot is used to determine whether
+                // it belongs to this ChassisID
                 crow::connections::systemBus->async_method_call(
-                    [asyncResp](
+                    [asyncResp, chassisID, pcieSlotPath, connectionName](
                         const boost::system::error_code ec,
-                        const std::vector<
-                            std::pair<std::string,
-                                      std::variant<bool, size_t, std::string>>>&
-                            propertiesList) {
+                        const std::variant<std::vector<std::string>>&
+                            endpoints) {
                         if (ec)
                         {
-                            BMCWEB_LOG_DEBUG
-                                << "Can't get PCIeSlot properties!";
+                            BMCWEB_LOG_ERROR << "DBUS response error";
+                            messages::internalError(asyncResp->res);
                             return;
                         }
 
-                        nlohmann::json& tempArray =
-                            asyncResp->res.jsonValue["Slots"];
-                        tempArray.push_back({});
-                        nlohmann::json& propertyData = tempArray.back();
+                        const std::vector<std::string>* pcieSlotChassis =
+                            std::get_if<std::vector<std::string>>(&(endpoints));
 
-                        for (const std::pair<
-                                 std::string,
-                                 std::variant<bool, size_t, std::string>>&
-                                 property : propertiesList)
+                        if (pcieSlotChassis == nullptr)
                         {
-                            const std::string& propertyName = property.first;
-
-                            if (propertyName == "Generation")
-                            {
-                                const std::string* value =
-                                    std::get_if<std::string>(&property.second);
-                                if (value == nullptr)
-                                {
-                                    // illegal property
-                                    messages::internalError(asyncResp->res);
-                                    return;
-                                }
-
-                                std::string pcieType =
-                                    analysisGeneration(*value);
-                                if (!pcieType.empty())
-                                {
-                                    propertyData["PCIeType"] = pcieType;
-                                }
-                            }
-                            else if (propertyName == "Lanes")
-                            {
-                                const size_t* value =
-                                    std::get_if<size_t>(&property.second);
-                                if (value == nullptr)
-                                {
-                                    // illegal property
-                                    messages::internalError(asyncResp->res);
-                                    return;
-                                }
-                                propertyData["Lanes"] = *value;
-                            }
-                            else if (propertyName == "SlotType")
-                            {
-                                const std::string* value =
-                                    std::get_if<std::string>(&property.second);
-                                if (value == nullptr)
-                                {
-                                    // illegal property
-                                    messages::internalError(asyncResp->res);
-                                    return;
-                                }
-                                std::string slotType = analysisSlotType(*value);
-                                if (!slotType.empty())
-                                {
-                                    propertyData["SlotType"] = slotType;
-                                }
-                            }
-                            else if (propertyName == "HotPluggable")
-                            {
-                                const bool* value =
-                                    std::get_if<bool>(&property.second);
-                                if (value == nullptr)
-                                {
-                                    // illegal property
-                                    messages::internalError(asyncResp->res);
-                                    return;
-                                }
-                                propertyData["HotPluggable"] = *value;
-                            }
+                            return;
                         }
+
+                        if ((*pcieSlotChassis).size() != 1)
+                        {
+                            BMCWEB_LOG_ERROR << "PCIe Slot association error! ";
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+
+                        std::vector<std::string> chassisPath = *pcieSlotChassis;
+                        sdbusplus::message::object_path path(chassisPath[0]);
+                        std::string chassisName = path.filename();
+                        if (chassisName != chassisID)
+                        {
+                            // The pcie slot does't belong to the chassisID
+                            return;
+                        }
+
+                        crow::connections::systemBus->async_method_call(
+                            [asyncResp](
+                                const boost::system::error_code ec,
+                                const std::vector<std::pair<
+                                    std::string,
+                                    std::variant<bool, size_t, std::string>>>&
+                                    propertiesList) {
+                                if (ec)
+                                {
+                                    BMCWEB_LOG_ERROR
+                                        << "Can't get PCIeSlot properties!";
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+
+                                nlohmann::json& tempArray =
+                                    asyncResp->res.jsonValue["Slots"];
+                                tempArray.push_back({});
+                                nlohmann::json& propertyData = tempArray.back();
+
+                                for (const auto& property : propertiesList)
+                                {
+                                    const std::string& propertyName =
+                                        property.first;
+
+                                    if (propertyName == "Generation")
+                                    {
+                                        const std::string* value =
+                                            std::get_if<std::string>(
+                                                &property.second);
+                                        if (value == nullptr)
+                                        {
+                                            messages::internalError(
+                                                asyncResp->res);
+                                            return;
+                                        }
+                                        std::string pcieType =
+                                            analysisGeneration(*value);
+                                        if (!pcieType.empty())
+                                        {
+                                            propertyData["PCIeType"] = pcieType;
+                                        }
+                                    }
+                                    else if (propertyName == "Lanes")
+                                    {
+                                        const size_t* value =
+                                            std::get_if<size_t>(
+                                                &property.second);
+                                        if (value == nullptr)
+                                        {
+                                            messages::internalError(
+                                                asyncResp->res);
+                                            return;
+                                        }
+                                        propertyData["Lanes"] = *value;
+                                    }
+                                    else if (propertyName == "SlotType")
+                                    {
+                                        const std::string* value =
+                                            std::get_if<std::string>(
+                                                &property.second);
+                                        if (value == nullptr)
+                                        {
+                                            messages::internalError(
+                                                asyncResp->res);
+                                            return;
+                                        }
+                                        std::string slotType =
+                                            analysisSlotType(*value);
+                                        if (!slotType.empty())
+                                        {
+                                            propertyData["SlotType"] = slotType;
+                                        }
+                                    }
+                                    else if (propertyName == "HotPluggable")
+                                    {
+                                        const bool* value =
+                                            std::get_if<bool>(&property.second);
+                                        if (value == nullptr)
+                                        {
+                                            messages::internalError(
+                                                asyncResp->res);
+                                            return;
+                                        }
+                                        propertyData["HotPluggable"] = *value;
+                                    }
+                                }
+                            },
+                            connectionName, pcieSlotPath,
+                            "org.freedesktop.DBus.Properties", "GetAll",
+                            "xyz.openbmc_project.Inventory.Item.PCIeSlot");
                     },
-                    connectionName, objectPath,
-                    "org.freedesktop.DBus.Properties", "GetAll",
-                    "xyz.openbmc_project.Inventory.Item.PCIeSlot");
+                    "xyz.openbmc_project.ObjectMapper",
+                    pcieSlotPath + "/chassis",
+                    "org.freedesktop.DBus.Properties", "Get",
+                    "xyz.openbmc_project.Association", "endpoints");
             }
         },
         "xyz.openbmc_project.ObjectMapper",
@@ -278,7 +318,7 @@ class PCIeSlots : public Node
                     return;
                 }
 
-                getPCIeSlots(asyncResp, chassisID);
+                getPCIeSlots(asyncResp, *validChassisID);
             };
         redfish::chassis_utils::getValidChassisID(asyncResp, chassisID,
                                                   std::move(getChassisID));

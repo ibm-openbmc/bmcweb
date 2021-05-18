@@ -42,7 +42,7 @@ void getValidChassisID(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             chassisName = path.filename();
             if (chassisName.empty())
             {
-                BMCWEB_LOG_ERROR << "Failed to find '/' in " << chassis;
+                BMCWEB_LOG_ERROR << "Failed to find chassisName in " << chassis;
                 continue;
             }
             if (chassisName == chassisID)

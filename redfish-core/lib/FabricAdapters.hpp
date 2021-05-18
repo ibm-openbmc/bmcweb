@@ -15,65 +15,6 @@ using ServiceMap =
     std::vector<std::pair<std::string, std::vector<std::string>>>;
 
 /**
- * @brief Api to fetch and publish properties for the
- * given Fabric adapter.
- *
- * @param[in,out]   aResp       Async HTTP response.
- * @param[in]       adapter     Fabric adapter.
- * @param[in]       objPath     DBus path for the given Fabric adapter.
- * @param[in]       serviceMap  A map to hold services and Interface list
- * fetched for the given object path.
- */
-inline void
-    getAdapterProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-                         const std::string& adapter, const std::string& objPath,
-                         const ServiceMap& serviceMap)
-{
-    BMCWEB_LOG_DEBUG << "Get adapter properties for " << adapter;
-
-    for (const auto& connection : serviceMap)
-    {
-        for (const auto& interface : connection.second)
-        {
-            if (interface == "xyz.openbmc_project.Inventory.Item")
-            {
-                crow::connections::systemBus->async_method_call(
-                    [aResp](const boost::system::error_code ec,
-                            const std::variant<std::string>& property) {
-                        if (ec)
-                        {
-                            // in case we do not find property
-                            // Pretty Name, we don't log error as we
-                            // already have updated name with object
-                            // path. This property is optional.
-                            BMCWEB_LOG_DEBUG << "No implementation "
-                                                "of Pretty Name";
-                            return;
-                        }
-
-                        const std::string* value =
-                            std::get_if<std::string>(&property);
-                        if (value == nullptr)
-                        {
-                            BMCWEB_LOG_DEBUG
-                                << "Null value returned for pretty name";
-                            messages::internalError(aResp->res);
-                            return;
-                        }
-                        else if (!(*value).empty())
-                        {
-                            aResp->res.jsonValue["Name"] = *value;
-                        }
-                    },
-                    connection.first, objPath,
-                    "org.freedesktop.DBus.Properties", "Get", interface,
-                    "PrettyName");
-            }
-        }
-    }
-}
-
-/**
  * @brief Api to look for specific fabric adapter among
  * all available Fabric adapters on a system.
  *
@@ -135,7 +76,6 @@ inline void getAdapter(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 // with PrettyName incase one is found.
                 aResp->res.jsonValue["Name"] = adapterId;
 
-                getAdapterProperties(aResp, adapterId, objectPath, serviceMap);
                 return;
             }
             BMCWEB_LOG_ERROR << "Adapter not found";
