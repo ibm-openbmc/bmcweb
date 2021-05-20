@@ -34,13 +34,10 @@ include_list = [
     'EventDestination',
     'EventDestinationCollection',
     'EventService',
-<<<<<<< HEAD
     'FabricAdapter',
     'FabricAdapterCollection',
-=======
     'FanCollection',
     'Fan',
->>>>>>> 8571477... Implements Fan schema
     'IPAddresses',
     'JsonSchemaFile',
     'JsonSchemaFileCollection',  # redfish/v1/JsonSchemas
@@ -74,11 +71,11 @@ include_list = [
     'PCIeFunctionCollection',
     'PCIeSlots',
     'Power',
+    'Port',
+    'PortCollection',
     'PowerSubsystem',
     'PowerSupplyCollection',
     'PowerSupply',
-    'Port',
-    'PortCollection',
     'Privileges',  # Used in Role
     'Processor',
     'ProcessorCollection',
