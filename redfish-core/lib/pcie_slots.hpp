@@ -141,6 +141,11 @@ inline void getPCIeSlots(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                             endpoints) {
                         if (ec)
                         {
+                            if (ec.value() == EBADR)
+                            {
+                                // This PCIeSlot have no chassis association.
+                                return;
+                            }
                             BMCWEB_LOG_ERROR << "DBUS response error";
                             messages::internalError(asyncResp->res);
                             return;
