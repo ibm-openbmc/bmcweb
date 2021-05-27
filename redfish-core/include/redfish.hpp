@@ -21,6 +21,7 @@
 #include "../lib/chassis.hpp"
 #include "../lib/ethernet.hpp"
 #include "../lib/event_service.hpp"
+#include "../lib/fan.hpp"
 #include "../lib/log_services.hpp"
 #include "../lib/managers.hpp"
 #include "../lib/memory.hpp"
@@ -32,6 +33,8 @@
 #include "../lib/port.hpp"
 #include "../lib/pcie_slots.hpp"
 #include "../lib/power.hpp"
+#include "../lib/power_subsystem.hpp"
+#include "../lib/power_supply.hpp"
 #include "../lib/processor.hpp"
 #include "../lib/redfish_sessions.hpp"
 #include "../lib/roles.hpp"
@@ -42,6 +45,8 @@
 #include "../lib/task.hpp"
 #include "../lib/telemetry_service.hpp"
 #include "../lib/thermal.hpp"
+#include "../lib/thermal_metrics.hpp"
+#include "../lib/thermal_subsystem.hpp"
 #include "../lib/update_service.hpp"
 #ifdef BMCWEB_ENABLE_VM_NBDPROXY
 #include "../lib/virtual_media.hpp"
@@ -78,13 +83,20 @@ class RedfishService
         nodes.emplace_back(std::make_unique<SessionService>(app));
         nodes.emplace_back(std::make_unique<EthernetCollection>(app));
         nodes.emplace_back(std::make_unique<EthernetInterface>(app));
+        nodes.emplace_back(std::make_unique<Fan>(app));
+        nodes.emplace_back(std::make_unique<FanCollection>(app));
         nodes.emplace_back(std::make_unique<Thermal>(app));
+        nodes.emplace_back(std::make_unique<ThermalSubsystem>(app));
+        nodes.emplace_back(std::make_unique<ThermalMetrics>(app));
         nodes.emplace_back(std::make_unique<ManagerCollection>(app));
         nodes.emplace_back(std::make_unique<Manager>(app));
         nodes.emplace_back(std::make_unique<ManagerResetAction>(app));
         nodes.emplace_back(std::make_unique<ManagerResetActionInfo>(app));
         nodes.emplace_back(std::make_unique<ManagerResetToDefaultsAction>(app));
         nodes.emplace_back(std::make_unique<Power>(app));
+        nodes.emplace_back(std::make_unique<PowerSubsystem>(app));
+        nodes.emplace_back(std::make_unique<PowerSupplyCollection>(app));
+        nodes.emplace_back(std::make_unique<PowerSupply>(app));
         nodes.emplace_back(std::make_unique<PCIeSlots>(app));
         nodes.emplace_back(std::make_unique<ChassisCollection>(app));
         nodes.emplace_back(std::make_unique<Chassis>(app));

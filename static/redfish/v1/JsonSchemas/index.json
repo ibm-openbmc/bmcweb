@@ -4,7 +4,7 @@
   "@odata.type": "#JsonSchemaFileCollection.JsonSchemaFileCollection",
   "Name": "JsonSchemaFile Collection",
   "Description": "Collection of JsonSchemaFiles",
-  "Members@odata.count": 59,
+  "Members@odata.count": 64,
   "Members": [
     {
       "@odata.id": "/redfish/v1/JsonSchemas/AccountService"
@@ -53,6 +53,9 @@
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/FabricAdapter"
+    },
+    {
+      "@odata.id": "/redfish/v1/JsonSchemas/Fan"
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/IPAddresses"
@@ -115,6 +118,12 @@
       "@odata.id": "/redfish/v1/JsonSchemas/Power"
     },
     {
+      "@odata.id": "/redfish/v1/JsonSchemas/PowerSubsystem"
+    },
+    {
+      "@odata.id": "/redfish/v1/JsonSchemas/PowerSupply"
+    },
+    {
       "@odata.id": "/redfish/v1/JsonSchemas/Processor"
     },
     {
@@ -161,6 +170,12 @@
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/Thermal"
+    },
+    {
+      "@odata.id": "/redfish/v1/JsonSchemas/ThermalMetrics"
+    },
+    {
+      "@odata.id": "/redfish/v1/JsonSchemas/ThermalSubsystem"
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/UpdateService"
