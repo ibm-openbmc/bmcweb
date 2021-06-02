@@ -172,7 +172,7 @@ inline void BootProgressPropertyChange(sdbusplus::message::message& msg)
     {
         BMCWEB_LOG_DEBUG << *type;
         // Push an event
-        std::string origin = "/redfish/v1/Systems/system/BootProgress";
+        std::string origin = "/redfish/v1/Systems/system";
         redfish::EventServiceManager::getInstance().sendEvent(
             redfish::messages::resourceChanged(), origin, "ComputerSystem");
     }
