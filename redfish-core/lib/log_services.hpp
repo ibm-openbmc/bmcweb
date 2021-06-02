@@ -410,7 +410,8 @@ inline void
     {
         dumpPath = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
     }
-    else if (dumpType == "System" || dumpType == "Resource" || dumpType == "Hostboot")
+    else if (dumpType == "System" || dumpType == "Resource" ||
+             dumpType == "Hostboot")
     {
         dumpPath = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
     }
@@ -518,7 +519,8 @@ inline void
                         "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/" +
                         entryID + "/attachment";
                 }
-                else if (dumpType == "System" || dumpType == "Resource" || dumpType == "Hostboot")
+                else if (dumpType == "System" || dumpType == "Resource" ||
+                         dumpType == "Hostboot")
                 {
                     std::string dumpEntryId(dumpType + "_");
                     dumpEntryId.append(entryID);
@@ -550,7 +552,8 @@ inline void
         dumpPath = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
         dumpId = entryID;
     }
-    else if (dumpType == "System" || dumpType == "Resource" || dumpType == "Hostboot")
+    else if (dumpType == "System" || dumpType == "Resource" ||
+             dumpType == "Hostboot")
     {
         dumpPath = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
 
@@ -656,7 +659,8 @@ inline void
                         "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/" +
                         entryID + "/attachment";
                 }
-                else if (dumpType == "System" || dumpType == "Resource" || dumpType == "Hostboot")
+                else if (dumpType == "System" || dumpType == "Resource" ||
+                         dumpType == "Hostboot")
                 {
                     asyncResp->res.jsonValue["Name"] = "System Dump Entry";
                     asyncResp->res.jsonValue["DiagnosticDataType"] = "OEM";
@@ -727,11 +731,23 @@ inline void createDumpTaskCallback(
         dumpEntryPath =
             "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/" + dumpId;
     }
-    else if ((dumpPath == "/xyz/openbmc_project/dump/system/entry") ||
-             (dumpPath == "/xyz/openbmc_project/dump/resource/entry"))
+    else if (dumpPath == "/xyz/openbmc_project/dump/system/entry")
     {
         dumpEntryPath =
-            "/redfish/v1/Systems/system/LogServices/Dump/Entries/" + dumpId;
+            "/redfish/v1/Systems/system/LogServices/Dump/Entries/System_" +
+            dumpId;
+    }
+    else if (dumpPath == "/xyz/openbmc_project/dump/resource/entry")
+    {
+        dumpEntryPath =
+            "/redfish/v1/Systems/system/LogServices/Dump/Entries/Resource_" +
+            dumpId;
+    }
+    else if (dumpPath == "/xyz/openbmc_project/dump/hostboot/entry")
+    {
+        dumpEntryPath =
+            "/redfish/v1/Systems/system/LogServices/Dump/Entries/Hostboot_" +
+            dumpId;
     }
     else
     {
