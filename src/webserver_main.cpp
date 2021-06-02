@@ -147,7 +147,8 @@ int main(int /*argc*/, char** /*argv*/)
     crow::dbus_monitor::registerBIOSAttrUpdateSignal();
     // Start event log entry created monitor
     crow::dbus_monitor::registerEventLogCreatedSignal();
-
+    // Start PostCode change signal
+    crow::dbus_monitor::registerPostCodeChangeSignal();
 #endif
 
 #ifdef BMCWEB_ENABLE_REDFISH_DUMP_LOG

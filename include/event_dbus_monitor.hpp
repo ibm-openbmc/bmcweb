@@ -16,6 +16,7 @@ static std::shared_ptr<sdbusplus::bus::match::match> matchDumpDeletedSignal;
 static std::shared_ptr<sdbusplus::bus::match::match> matchBIOSAttrUpdate;
 static std::shared_ptr<sdbusplus::bus::match::match> matchBootProgressChange;
 static std::shared_ptr<sdbusplus::bus::match::match> matchEventLogCreated;
+static std::shared_ptr<sdbusplus::bus::match::match> matchPostCodeChange;
 
 void registerHostStateChangeSignal();
 void registerBMCStateChangeSignal();
@@ -25,6 +26,7 @@ void registerDumpDeletedSignal();
 void registerBIOSAttrUpdateSignal();
 void registerBootProgressChangeSignal();
 void registerEventLogCreatedSignal();
+void registerPostCodeChangeSignal();
 
 inline void VMIIPChange(sdbusplus::message::message& msg)
 {
@@ -178,6 +180,104 @@ inline void BootProgressPropertyChange(sdbusplus::message::message& msg)
     }
 }
 
+void findPostCodeForBoot(const uint16_t bootIndex,
+                         const std::vector<uint8_t>& secondaryPostCode)
+{
+    crow::connections::systemBus->async_method_call(
+        [bootIndex,
+         secondaryPostCode](const boost::system::error_code ec,
+              const boost::container::flat_map<
+                  uint64_t, std::tuple<uint64_t, std::vector<uint8_t>>>&
+                  postcode) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "DBUS GetPostCodesWithTimeStamp method failed";
+                return;
+            }
+
+            uint64_t currentCodeIndex = 0;
+            for (const std::pair<uint64_t,
+                                 std::tuple<uint64_t, std::vector<uint8_t>>>&
+                     code : postcode)
+            {
+                currentCodeIndex++;
+                std::vector<uint8_t> postCode = std::get<1>(code.second);
+                if (secondaryPostCode == postCode)
+                {
+                    std::string postcodeEntryID =
+                        "B" + std::to_string(bootIndex) + "-" +
+                        std::to_string(currentCodeIndex);
+                    BMCWEB_LOG_DEBUG << "sending post code event for "
+                                     << postcodeEntryID;
+
+                    // Push an event
+                    std::string eventOrigin = "/redfish/v1/Systems/system/"
+                                              "LogServices/PostCodes/Entries/" +
+                                              postcodeEntryID;
+                    redfish::EventServiceManager::getInstance().sendEvent(
+                        redfish::messages::resourceCreated(), eventOrigin,
+                        "ComputerSystem");
+                    break;
+                }
+            }
+        },
+        "xyz.openbmc_project.State.Boot.PostCode0",
+        "/xyz/openbmc_project/State/Boot/PostCode0",
+        "xyz.openbmc_project.State.Boot.PostCode", "GetPostCodesWithTimeStamp",
+        bootIndex);
+}
+
+void evaluatePostCodeEntryId(const std::vector<uint8_t>& secondaryPostCode)
+{
+    crow::connections::systemBus->async_method_call(
+        [secondaryPostCode](const boost::system::error_code ec,
+              const std::variant<uint16_t>& bootCount) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "DBUS response error " << ec;
+                return;
+            }
+            const uint16_t* pVal = std::get_if<uint16_t>(&bootCount);
+            if (pVal)
+            {
+                findPostCodeForBoot(*pVal, secondaryPostCode);
+            }
+            else
+            {
+                BMCWEB_LOG_ERROR << "Post code boot index failed.";
+            }
+        },
+        "xyz.openbmc_project.State.Boot.PostCode0",
+        "/xyz/openbmc_project/State/Boot/PostCode0",
+        "org.freedesktop.DBus.Properties", "Get",
+        "xyz.openbmc_project.State.Boot.PostCode", "CurrentBootCycleCount");
+}
+
+inline void postCodePropertyChange(sdbusplus::message::message& msg)
+{
+
+    if (msg.is_method_error())
+    {
+        BMCWEB_LOG_ERROR << "PostCode property changed Signal error";
+        return;
+    }
+    std::string iface;
+    using PostCode = std::tuple<uint64_t, std::vector<uint8_t>>;
+
+    std::map<std::string, std::variant<PostCode>> values;
+    std::string objName;
+    msg.read(objName, values);
+
+    const auto it = values.find("Value");
+    if (it != values.end())
+    {
+        std::vector<uint8_t> secondaryPostCode = std::get<1>(std::get<PostCode>(it->second));
+        BMCWEB_LOG_DEBUG << "Evaluate post code entry id";
+        evaluatePostCodeEntryId(secondaryPostCode);
+    }
+    return;
+}
+
 void registerHostStateChangeSignal()
 {
     BMCWEB_LOG_DEBUG << "Host state change signal - Register";
@@ -276,6 +376,18 @@ void registerStateChangeSignal()
     registerBMCStateChangeSignal();
     registerVMIIPChangeSignal();
     registerBootProgressChangeSignal();
+}
+
+void registerPostCodeChangeSignal()
+{
+    BMCWEB_LOG_ERROR << "PostCode change signal - Register";
+
+    matchPostCodeChange = std::make_unique<sdbusplus::bus::match::match>(
+        *crow::connections::systemBus,
+        "type='signal',member='PropertiesChanged',interface='org.freedesktop."
+        "DBus.Properties',path='/xyz/openbmc_project/state/boot/raw0',"
+        "arg0='xyz.openbmc_project.State.Boot.Raw'",
+        postCodePropertyChange);
 }
 
 inline void dumpCreatedSignal(sdbusplus::message::message& msg)
