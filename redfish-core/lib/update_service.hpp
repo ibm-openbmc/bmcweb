@@ -1065,6 +1065,7 @@ inline void requestRoutesSoftwareInventory(App& app)
                 sw_util::getSwStatus(asyncResp, swId, obj.second[0].first);
                 getSoftwareVersion(asyncResp, obj.second[0].first, obj.first,
                                    *swId);
+                asyncResp->res.jsonValue["Name"] = "Software Inventory";
             }
             if (!found)
             {
@@ -1077,7 +1078,6 @@ inline void requestRoutesSoftwareInventory(App& app)
             }
             asyncResp->res.jsonValue["@odata.type"] =
                 "#SoftwareInventory.v1_1_0.SoftwareInventory";
-            asyncResp->res.jsonValue["Name"] = "Software Inventory";
             asyncResp->res.jsonValue["Status"]["HealthRollup"] = "OK";
 
             asyncResp->res.jsonValue["Updateable"] = false;
