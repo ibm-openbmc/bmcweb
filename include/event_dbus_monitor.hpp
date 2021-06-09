@@ -574,7 +574,7 @@ inline void BIOSAttrUpdate(sdbusplus::message::message& msg)
     {
         BMCWEB_LOG_DEBUG << "Sending event\n";
         // Push an event
-        std::string origin = "/redfish/v1/Systems/system/Bios/Settings";
+        std::string origin = "/redfish/v1/Systems/system/Bios";
         redfish::EventServiceManager::getInstance().sendEvent(
             redfish::messages::resourceChanged(), origin, "Bios");
     }
