@@ -31,6 +31,7 @@
 #include <utils/collection.hpp>
 #include <utils/dbus_utils.hpp>
 #include <utils/json_utils.hpp>
+#include <utils/name_utils.hpp>
 
 namespace redfish
 {
@@ -723,6 +724,10 @@ inline void getProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
             // must be on the same object path.
 
             handler(objectPath, serviceMap);
+
+            name_util::getPrettyName(resp, objectPath, serviceMap,
+                                     "/Name"_json_pointer);
+
             return;
         }
         messages::resourceNotFound(resp->res, "Processor", processorId);

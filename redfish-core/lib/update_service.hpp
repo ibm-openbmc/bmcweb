@@ -26,6 +26,7 @@
 #include <sdbusplus/unpack_properties.hpp>
 #include <utils/dbus_utils.hpp>
 #include <utils/sw_utils.hpp>
+#include <utils/name_utils.hpp>
 
 namespace redfish
 {
@@ -1065,6 +1066,11 @@ inline void requestRoutesSoftwareInventory(App& app)
                 sw_util::getSwStatus(asyncResp, swId, obj.second[0].first);
                 getSoftwareVersion(asyncResp, obj.second[0].first, obj.first,
                                    *swId);
+                asyncResp->res.jsonValue["Name"] = "Software Inventory";
+                
+                name_util::getPrettyName(asyncResp, obj.first,
+                                                     obj.second,
+                                                     "/Name"_json_pointer);                                   
             }
             if (!found)
             {
@@ -1077,7 +1083,6 @@ inline void requestRoutesSoftwareInventory(App& app)
             }
             asyncResp->res.jsonValue["@odata.type"] =
                 "#SoftwareInventory.v1_1_0.SoftwareInventory";
-            asyncResp->res.jsonValue["Name"] = "Software Inventory";
             asyncResp->res.jsonValue["Status"]["HealthRollup"] = "OK";
 
             asyncResp->res.jsonValue["Updateable"] = false;
