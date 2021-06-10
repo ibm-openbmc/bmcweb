@@ -1011,6 +1011,53 @@ inline void requestRoutesFan(App& app)
                     asyncResp, chassisId, std::move(getChassisId));
             });
 
+    BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/ThermalSubsystem/Fans/<str>/")
+        .privileges({{"Login"}})
+        // TODO: Use automated PrivilegeRegistry
+        // Need to wait for Redfish to release a new registry
+        .methods(boost::beast::http::verb::patch)(
+            [](const crow::Request& req,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+               const std::string& chassisId, const std::string& fanId) {
+                std::optional<bool> locationIndicatorActive;
+                if (!json_util::readJson(req, asyncResp->res,
+                                         "LocationIndicatorActive",
+                                         locationIndicatorActive))
+                {
+                    return;
+                }
+
+                if (locationIndicatorActive)
+                {
+
+                    auto getChassisId =
+                        [asyncResp, chassisId, fanId, locationIndicatorActive](
+                            const std::optional<std::string>& validChassisId) {
+                            if (!validChassisId)
+                            {
+                                BMCWEB_LOG_ERROR << "Not a valid chassis Id:"
+                                                 << chassisId;
+                                messages::resourceNotFound(
+                                    asyncResp->res, "Chassis", chassisId);
+                                return;
+                            }
+                            auto getFanHandler =
+                                [asyncResp, chassisId, fanId,
+                                 locationIndicatorActive](
+                                    const std::string& validFanPath,
+                                    const std::string& validFanService) {
+                                    setFanLocationIndicator(
+                                        asyncResp, fanId,
+                                        *locationIndicatorActive, validFanPath,
+                                        validFanService);
+                                };
+                            getValidfanId(asyncResp, chassisId, fanId,
+                                          std::move(getFanHandler));
+                        };
+                    redfish::chassis_utils::getValidChassisID(
+                        asyncResp, chassisId, std::move(getChassisId));
+                }
+            });
 }
 
 } // namespace redfish
