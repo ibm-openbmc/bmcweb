@@ -23,6 +23,7 @@
 #include "../lib/chassis.hpp"
 #include "../lib/ethernet.hpp"
 #include "../lib/event_service.hpp"
+#include "../lib/fan.hpp"
 #include "../lib/hypervisor_system.hpp"
 #include "../lib/log_services.hpp"
 #include "../lib/managers.hpp"
@@ -83,6 +84,8 @@ class RedfishService
         requestRoutesThermalSubsystem(app);
         requestRoutesThermalMetrics(app);
         requestRoutesManagerCollection(app);
+        requestRoutesFan(app);
+        requestRoutesFanCollection(app);
         requestRoutesManager(app);
         requestRoutesManagerResetAction(app);
         requestRoutesManagerResetActionInfo(app);

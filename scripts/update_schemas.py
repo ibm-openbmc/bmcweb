@@ -37,8 +37,13 @@ include_list = [
     'EventDestination',
     'EventDestinationCollection',
     'EventService',
+<<<<<<< HEAD
     'FabricAdapter',
     'FabricAdapterCollection',
+=======
+    'FanCollection',
+    'Fan',
+>>>>>>> 8571477... Implements Fan schema
     'IPAddresses',
     'JsonSchemaFile',
     'JsonSchemaFileCollection', #redfish/v1/JsonSchemas
