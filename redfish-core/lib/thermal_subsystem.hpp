@@ -47,6 +47,9 @@ inline void requestRoutesThermalSubsystem(App& app)
                              "/redfish/v1/Chassis/" + chassisId +
                                  "/ThermalSubsystem/ThermalMetrics"}};
 
+                        asyncResp->res.jsonValue["Fans"] = {
+                            {"@odata.id", "/redfish/v1/Chassis/" + chassisId +
+                                              "/ThermalSubsystem/Fans"}};
                         asyncResp->res.jsonValue["Status"] = {
                             {"State", "Enabled"}, {"Health", "OK"}};
                     };
