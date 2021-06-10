@@ -7,6 +7,32 @@
 namespace redfish
 {
 
+inline void doThermalSubsystemCollection(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& chassisId, const std::optional<std::string>& chassisPath)
+{
+    if (!chassisPath)
+    {
+        BMCWEB_LOG_ERROR << "Not a valid chassis ID" << chassisId;
+        messages::resourceNotFound(asyncResp->res, "Chassis", chassisId);
+        return;
+    }
+    asyncResp->res.jsonValue["@odata.type"] =
+        "#ThermalSubsystem.v1_0_0.ThermalSubsystem";
+    asyncResp->res.jsonValue["Name"] = "Thermal Subsystem";
+    asyncResp->res.jsonValue["Id"] = "ThermalSubsystem";
+
+    asyncResp->res.jsonValue["@odata.id"] =
+        "/redfish/v1/Chassis/" + chassisId + "/ThermalSubsystem";
+
+    asyncResp->res.jsonValue["Fans"] = {
+        {"@odata.id",
+         "/redfish/v1/Chassis/" + chassisId + "/ThermalSubsystem/Fans"}};
+
+    asyncResp->res.jsonValue["Status"] = {{"State", "Enabled"},
+                                          {"Health", "OK"}};
+}
+
 inline void requestRoutesThermalSubsystem(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/ThermalSubsystem/")
