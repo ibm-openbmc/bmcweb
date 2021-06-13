@@ -457,6 +457,11 @@ inline void requestRoutesChassis(App& app)
                                     {"@odata.id", "/redfish/v1/Chassis/" +
                                                       chassisId + "/Thermal"}};
 
+                                asyncResp->res.jsonValue["EnvironmentMetrics"] =
+                                    {{"@odata.id", "/redfish/v1/Chassis/" +
+                                                       chassisId +
+                                                       "/EnvironmentMetrics"}};
+
                                 // Power object
                                 asyncResp->res.jsonValue["Power"] = {
                                     {"@odata.id", "/redfish/v1/Chassis/" +

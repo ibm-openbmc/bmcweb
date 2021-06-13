@@ -21,6 +21,7 @@
 #include "../lib/bios.hpp"
 #include "../lib/certificate_service.hpp"
 #include "../lib/chassis.hpp"
+#include "../lib/environment_metrics.hpp"
 #include "../lib/ethernet.hpp"
 #include "../lib/event_service.hpp"
 #include "../lib/fan.hpp"
@@ -95,6 +96,7 @@ class RedfishService
         requestRoutesPowerSupplyCollection(app);
         requestRoutesPowerSupply(app);
         requestRoutesPCIeSlots(app);
+        requestRoutesEnvironmentMetrics(app);
         requestRoutesChassisCollection(app);
         requestRoutesChassis(app);
         requestRoutesChassisResetAction(app);
