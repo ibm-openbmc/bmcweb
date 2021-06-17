@@ -180,79 +180,6 @@ inline void BootProgressPropertyChange(sdbusplus::message::message& msg)
     }
 }
 
-void findPostCodeForBoot(const uint16_t bootIndex,
-                         const std::vector<uint8_t>& secondaryPostCode)
-{
-    crow::connections::systemBus->async_method_call(
-        [bootIndex,
-         secondaryPostCode](const boost::system::error_code ec,
-              const boost::container::flat_map<
-                  uint64_t, std::tuple<uint64_t, std::vector<uint8_t>>>&
-                  postcode) {
-            if (ec)
-            {
-                BMCWEB_LOG_ERROR << "DBUS GetPostCodesWithTimeStamp method failed";
-                return;
-            }
-
-            uint64_t currentCodeIndex = 0;
-            for (const std::pair<uint64_t,
-                                 std::tuple<uint64_t, std::vector<uint8_t>>>&
-                     code : postcode)
-            {
-                currentCodeIndex++;
-                std::vector<uint8_t> postCode = std::get<1>(code.second);
-                if (secondaryPostCode == postCode)
-                {
-                    std::string postcodeEntryID =
-                        "B" + std::to_string(bootIndex) + "-" +
-                        std::to_string(currentCodeIndex);
-                    BMCWEB_LOG_DEBUG << "sending post code event for "
-                                     << postcodeEntryID;
-
-                    // Push an event
-                    std::string eventOrigin = "/redfish/v1/Systems/system/"
-                                              "LogServices/PostCodes/Entries/" +
-                                              postcodeEntryID;
-                    redfish::EventServiceManager::getInstance().sendEvent(
-                        redfish::messages::resourceCreated(), eventOrigin,
-                        "ComputerSystem");
-                    break;
-                }
-            }
-        },
-        "xyz.openbmc_project.State.Boot.PostCode0",
-        "/xyz/openbmc_project/State/Boot/PostCode0",
-        "xyz.openbmc_project.State.Boot.PostCode", "GetPostCodesWithTimeStamp",
-        bootIndex);
-}
-
-void evaluatePostCodeEntryId(const std::vector<uint8_t>& secondaryPostCode)
-{
-    crow::connections::systemBus->async_method_call(
-        [secondaryPostCode](const boost::system::error_code ec,
-              const std::variant<uint16_t>& bootCount) {
-            if (ec)
-            {
-                BMCWEB_LOG_ERROR << "DBUS response error " << ec;
-                return;
-            }
-            const uint16_t* pVal = std::get_if<uint16_t>(&bootCount);
-            if (pVal)
-            {
-                findPostCodeForBoot(*pVal, secondaryPostCode);
-            }
-            else
-            {
-                BMCWEB_LOG_ERROR << "Post code boot index failed.";
-            }
-        },
-        "xyz.openbmc_project.State.Boot.PostCode0",
-        "/xyz/openbmc_project/State/Boot/PostCode0",
-        "org.freedesktop.DBus.Properties", "Get",
-        "xyz.openbmc_project.State.Boot.PostCode", "CurrentBootCycleCount");
-}
-
 inline void postCodePropertyChange(sdbusplus::message::message& msg)
 {
 
@@ -271,11 +198,54 @@ inline void postCodePropertyChange(sdbusplus::message::message& msg)
     const auto it = values.find("Value");
     if (it != values.end())
     {
-        std::vector<uint8_t> secondaryPostCode = std::get<1>(std::get<PostCode>(it->second));
-        BMCWEB_LOG_DEBUG << "Evaluate post code entry id";
-        evaluatePostCodeEntryId(secondaryPostCode);
+        std::vector<uint8_t> secondaryPostCode =
+            std::get<1>(std::get<PostCode>(it->second));
+
+        // Boot index one will have updated postcodes for the current boot.
+        const uint16_t bootIndex = 1;
+        crow::connections::systemBus->async_method_call(
+            [secondaryPostCode](
+                const boost::system::error_code ec,
+                const boost::container::flat_map<
+                    uint64_t, std::tuple<uint64_t, std::vector<uint8_t>>>&
+                    postcode) {
+                if (ec)
+                {
+                    BMCWEB_LOG_ERROR
+                        << "DBUS GetPostCodesWithTimeStamp method failed";
+                    return;
+                }
+
+                uint64_t currentCodeIndex = 0;
+                for (const std::pair<
+                         uint64_t, std::tuple<uint64_t, std::vector<uint8_t>>>&
+                         code : postcode)
+                {
+                    currentCodeIndex++;
+                    std::vector<uint8_t> postCode = std::get<1>(code.second);
+                    if (secondaryPostCode == postCode)
+                    {
+                        std::string postcodeEntryID =
+                            "B1-" + std::to_string(currentCodeIndex);
+                        BMCWEB_LOG_DEBUG << "sending post code event for "
+                                         << postcodeEntryID;
+                        // Push an event
+                        std::string eventOrigin =
+                            "/redfish/v1/Systems/system/"
+                            "LogServices/PostCodes/Entries/" +
+                            postcodeEntryID;
+                        redfish::EventServiceManager::getInstance().sendEvent(
+                            redfish::messages::resourceCreated(), eventOrigin,
+                            "ComputerSystem");
+                        break;
+                    }
+                }
+            },
+            "xyz.openbmc_project.State.Boot.PostCode0",
+            "/xyz/openbmc_project/State/Boot/PostCode0",
+            "xyz.openbmc_project.State.Boot.PostCode",
+            "GetPostCodesWithTimeStamp", bootIndex);
     }
-    return;
 }
 
 void registerHostStateChangeSignal()
