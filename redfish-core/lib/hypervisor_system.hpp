@@ -691,7 +691,7 @@ class HypervisorInterface : public Node
         entityPrivileges = {
             {boost::beast::http::verb::get, {{"Login"}}},
             {boost::beast::http::verb::head, {{"Login"}}},
-            {boost::beast::http::verb::patch, {{"ConfigureComponents"}}}};
+            {boost::beast::http::verb::patch, {{"ConfigureManager"}}}};
     }
 
   private:
