@@ -233,18 +233,25 @@ static boost::container::flat_map<crow::streaming_response::Connection*,
 
 inline void requestRoutes(App& app)
 {
-    BMCWEB_ROUTE(app,
-                 "/redfish/v1/Managers/bmc/LogServices/Dump/attachment/<str>/")
+    BMCWEB_ROUTE(
+        app,
+        "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/<str>/attachment/")
         .privileges({"ConfigureComponents", "ConfigureManager"})
         .streamingResponse()
         .onopen([](crow::streaming_response::Connection& conn) {
             std::string url(conn.req.target());
-            std::size_t pos = url.rfind('/');
-            std::string dumpId;
-            if (pos != std::string::npos)
+            std::string startDelimiter = "Entries/";
+            std::size_t pos1 = url.rfind(startDelimiter);
+            std::size_t pos2 = url.rfind("/attachment");
+            if (pos1 == std::string::npos || pos2 == std::string::npos)
             {
-                dumpId = url.substr(pos + 1);
+                BMCWEB_LOG_DEBUG << "Unable to extract the dump id";
+                return;
             }
+
+            std::string dumpId =
+                url.substr(pos1 + startDelimiter.length(),
+                           pos2 - pos1 - startDelimiter.length());
 
             std::string dumpType = "bmc";
             boost::asio::io_context* ioCon = conn.getIoContext();
@@ -269,18 +276,25 @@ inline void requestRoutes(App& app)
         });
 
     BMCWEB_ROUTE(
-        app, "/redfish/v1/Systems/system/LogServices/Dump/attachment/<str>/")
+        app,
+        "/redfish/v1/Systems/system/LogServices/Dump/Entries/<str>/attachment/")
         .privileges({"ConfigureComponents", "ConfigureManager"})
         .streamingResponse()
         .onopen([](crow::streaming_response::Connection& conn) {
             std::string url(conn.req.target());
 
-            std::string dumpEntry;
-            std::size_t pos = url.rfind('/');
-            if (pos != std::string::npos)
+            std::string startDelimiter = "Entries/";
+            std::size_t pos1 = url.rfind(startDelimiter);
+            std::size_t pos2 = url.rfind("/attachment");
+            if (pos1 == std::string::npos || pos2 == std::string::npos)
             {
-                dumpEntry = url.substr(pos + 1);
+                BMCWEB_LOG_DEBUG << "Unable to extract the dump id";
+                return;
             }
+
+            std::string dumpEntry =
+                url.substr(pos1 + startDelimiter.length(),
+                           pos2 - pos1 - startDelimiter.length());
 
             // System and Resource dump entries are currently being
             // listed under /Systems/system/LogServices/Dump/Entries/
