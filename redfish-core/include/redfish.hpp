@@ -23,6 +23,7 @@
 #include "../lib/chassis.hpp"
 #include "../lib/ethernet.hpp"
 #include "../lib/event_service.hpp"
+#include "../lib/fan.hpp"
 #include "../lib/hypervisor_system.hpp"
 #include "../lib/log_services.hpp"
 #include "../lib/managers.hpp"
@@ -35,6 +36,8 @@
 #include "../lib/pcie_slots.hpp"
 #include "../lib/port.hpp"
 #include "../lib/power.hpp"
+#include "../lib/power_subsystem.hpp"
+#include "../lib/power_supply.hpp"
 #include "../lib/processor.hpp"
 #include "../lib/redfish_sessions.hpp"
 #include "../lib/roles.hpp"
@@ -45,6 +48,8 @@
 #include "../lib/task.hpp"
 #include "../lib/telemetry_service.hpp"
 #include "../lib/thermal.hpp"
+#include "../lib/thermal_metrics.hpp"
+#include "../lib/thermal_subsystem.hpp"
 #include "../lib/update_service.hpp"
 #include "../lib/virtual_media.hpp"
 
@@ -76,11 +81,18 @@ class RedfishService
         requestRoutesThermal(app);
         requestRoutesPower(app);
 #endif
+        requestRoutesThermalSubsystem(app);
+        requestRoutesThermalMetrics(app);
         requestRoutesManagerCollection(app);
+        requestRoutesFan(app);
+        requestRoutesFanCollection(app);
         requestRoutesManager(app);
         requestRoutesManagerResetAction(app);
         requestRoutesManagerResetActionInfo(app);
         requestRoutesManagerResetToDefaultsAction(app);
+        requestRoutesPowerSubsystem(app);
+        requestRoutesPowerSupplyCollection(app);
+        requestRoutesPowerSupply(app);
         requestRoutesPCIeSlots(app);
         requestRoutesChassisCollection(app);
         requestRoutesChassis(app);
