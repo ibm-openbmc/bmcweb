@@ -397,7 +397,7 @@ class Subscription
     {
         conn = std::make_shared<crow::HttpClient>(
             crow::connections::systemBus->get_io_context(), id, host, port,
-            path);
+            path, uriProto);
     }
 
     Subscription(const std::shared_ptr<boost::beast::tcp_stream>& adaptor) :
@@ -422,7 +422,7 @@ class Subscription
                     reqHeaders.emplace_back(std::pair(key, val));
                 }
             }
-            conn->setHeaders(reqHeaders);
+            conn->addHeaders(reqHeaders);
             conn->sendData(msg);
             this->eventSeqNum++;
         }
@@ -1108,20 +1108,6 @@ class EventServiceManager
             {
                 BMCWEB_LOG_INFO << "Not subscribed to this resource";
             }
-        }
-    }
-    void sendBroadcastMsg(const std::string& broadcastMsg)
-    {
-        for (const auto& it : this->subscriptionsMap)
-        {
-            std::shared_ptr<Subscription> entry = it.second;
-            nlohmann::json msgJson = {
-                {"Timestamp", crow::utility::dateTimeNow()},
-                {"OriginOfCondition", "/ibm/v1/HMC/BroadcastService"},
-                {"Name", "Broadcast Message"},
-                {"Message", broadcastMsg}};
-            entry->sendEvent(msgJson.dump(
-                2, ' ', true, nlohmann::json::error_handler_t::replace));
         }
     }
 

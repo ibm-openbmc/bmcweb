@@ -28,8 +28,10 @@ static constexpr const std::array<const char*, 3> supportedRetryPolicies = {
     "TerminateAfterRetries", "SuspendRetries", "RetryForever"};
 
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
-static constexpr const std::array<const char*, 2> supportedResourceTypes = {
-    "IBMConfigFile", "Task"};
+static constexpr const std::array<const char*, 8> supportedResourceTypes = {
+     "IBMConfigFile",  "Task",    "BroadcastService",
+     "ComputerSystem", "Manager", "EthernetInterface",
+     "LogEntry",       "Bios"};
 #else
 static constexpr const std::array<const char*, 1> supportedResourceTypes = {
     "Task"};
@@ -198,6 +200,20 @@ inline void requestRoutesEventDestinationCollection(App& app)
                     messages::eventSubscriptionLimitExceeded(asyncResp->res);
                     return;
                 }
+
+                auto [enabled, retryCount, retryTimeoutInterval] =
+                    EventServiceManager::getInstance().getEventServiceConfig();
+
+                if (enabled == false)
+                {
+                    BMCWEB_LOG_INFO << "EventService is not enabled. Cannot "
+                                       "subscribe to events";
+                    asyncResp->res.result(
+                        boost::beast::http::status::service_unavailable);
+                    messages::generalError(asyncResp->res);
+                    return;
+                }
+
                 std::string destUrl;
                 std::string protocol;
                 std::optional<std::string> context;
