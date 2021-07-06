@@ -17,6 +17,7 @@
 
 #include "registries.hpp"
 #include "registries/base_message_registry.hpp"
+#include "registries/bios_registry.hpp"
 #include "registries/openbmc_message_registry.hpp"
 #include "registries/resource_event_message_registry.hpp"
 #include "registries/task_event_message_registry.hpp"
@@ -48,6 +49,8 @@ inline void requestRoutesMessageRegistryFileCollection(App& app)
                     {"Members@odata.count", 4},
                     {"Members",
                      {{{"@odata.id", "/redfish/v1/Registries/Base"}},
+                      {{"@odata.id",
+                        "/redfish/v1/Registries/BiosAttributeRegistry"}},
                       {{"@odata.id", "/redfish/v1/Registries/TaskEvent"}},
                       {{"@odata.id", "/redfish/v1/Registries/ResourceEvent"}},
                       {{"@odata.id", "/redfish/v1/Registries/OpenBMC"}}}}};
@@ -70,6 +73,11 @@ inline void requestRoutesMessageRegistryFile(App& app)
                 {
                     header = &message_registries::base::header;
                     url = message_registries::base::url;
+                }
+                else if (registry == "BiosAttributeRegistry")
+                {
+                    header = &message_registries::bios::header;
+                    dmtf.clear();
                 }
                 else if (registry == "TaskEvent")
                 {

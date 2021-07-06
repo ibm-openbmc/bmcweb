@@ -171,7 +171,8 @@ class RedfishService
         requestRoutesSystemResetActionInfo(app);
         requestRoutesBiosService(app);
         requestRoutesBiosReset(app);
-
+        requestRoutesBiosSettings(app);
+        requestRoutesBiosAttributeRegistry(app);
 #ifdef BMCWEB_ENABLE_VM_NBDPROXY
         requestNBDVirtualMediaRoutes(app);
 #endif // BMCWEB_ENABLE_VM_NBDPROXY
