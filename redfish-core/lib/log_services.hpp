@@ -700,7 +700,7 @@ inline void
                     std::string dumpAttachment(
                         "/redfish/v1/Systems/system/LogServices/Dump/Entries/");
                     dumpAttachment.append(dumpType);
-                    dumpAttachment.append("_" + entryID);
+                    dumpAttachment.append("_" + dumpId);
                     dumpAttachment.append("/attachment");
                     asyncResp->res.jsonValue["Name"] = dumpType + " Dump Entry";
                     asyncResp->res.jsonValue["DiagnosticDataType"] = "OEM";
