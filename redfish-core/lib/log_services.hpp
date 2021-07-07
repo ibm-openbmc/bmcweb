@@ -796,20 +796,17 @@ inline void createDumpTaskCallback(
     else if (dumpPath == "/xyz/openbmc_project/dump/system/entry")
     {
         dumpEntryPath =
-            "/redfish/v1/Systems/system/LogServices/Dump/Entries/System_" +
-            dumpId;
+            "/redfish/v1/Systems/system/LogServices/Dump/Entries/System_";
     }
     else if (dumpPath == "/xyz/openbmc_project/dump/resource/entry")
     {
         dumpEntryPath =
-            "/redfish/v1/Systems/system/LogServices/Dump/Entries/Resource_" +
-            dumpId;
+            "/redfish/v1/Systems/system/LogServices/Dump/Entries/Resource_";
     }
     else if (dumpPath == "/xyz/openbmc_project/dump/hostboot/entry")
     {
         dumpEntryPath =
-            "/redfish/v1/Systems/system/LogServices/Dump/Entries/Hostboot_" +
-            dumpId;
+            "/redfish/v1/Systems/system/LogServices/Dump/Entries/Hostboot_";
     }
     else
     {
