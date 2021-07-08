@@ -629,6 +629,12 @@ inline void
             "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.Enumeration",
             origin));
     setVmiBiosEthernetInterfaceAttribute(pendingAttributes, asyncResp);
+
+    std::string eventOrigin =
+        "/redfish/v1/Systems/hypervisor/EthernetInterfaces/eth";
+    eventOrigin += ifaceId.back();
+    redfish::EventServiceManager::getInstance().sendEvent(
+        redfish::messages::resourceChanged(), eventOrigin, "EthernetInterface");
 }
 
 inline void parseInterfaceData(
