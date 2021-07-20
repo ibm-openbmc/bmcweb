@@ -177,7 +177,7 @@ inline bool extractHypervisorInterfaceData(
                 if (interface.first == "xyz.openbmc_project.Network.IP")
                 {
 
-                    for (auto& property : interface.second)
+                    for (const auto& property : interface.second)
                     {
                         if (property.first == "Address")
                         {
@@ -216,7 +216,7 @@ inline bool extractHypervisorInterfaceData(
                 }
                 else if (interface.first == "xyz.openbmc_project.Object.Enable")
                 {
-                    for (auto& property : interface.second)
+                    for (const auto& property : interface.second)
                     {
                         if (property.first == "Enabled")
                         {
@@ -237,7 +237,7 @@ inline bool extractHypervisorInterfaceData(
                     "xyz.openbmc_project.Network.EthernetInterface")
                 {
 
-                    for (auto& property : interface.second)
+                    for (const auto& property : interface.second)
                     {
                         if (property.first == "DHCPEnabled")
                         {
@@ -267,7 +267,7 @@ inline bool extractHypervisorInterfaceData(
                     "xyz.openbmc_project.Network.SystemConfiguration")
                 {
 
-                    for (auto& property : interface.second)
+                    for (const auto& property : interface.second)
                     {
                         if (property.first == "HostName")
                         {
@@ -366,23 +366,30 @@ inline void
                          const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
+        [asyncResp, prefixLength, gateway,
+         address](const boost::system::error_code ec) {
             if (ec)
             {
                 BMCWEB_LOG_DEBUG
                     << "createHypervisorIPv4 failed: ec: " << ec.message()
                     << " ec.value= " << ec.value();
-                if ((ec == boost::system::errc::invalid_argument) ||
-                    (ec == boost::system::errc::argument_list_too_long))
+                if (ec == boost::system::errc::invalid_argument)
                 {
-                    messages::invalidObject(asyncResp->res,
-                                            "IPv4StaticAddresses");
+                    messages::actionParameterUnknown(asyncResp->res, "Create",
+                                                     "IPv4StaticAddresses");
+                }
+                else if (ec == boost::system::errc::argument_list_too_long)
+                {
+                    std::string createInp =
+                        address + "; " + std::to_string(prefixLength) + "; " + gateway;
+                    messages::actionParameterValueFormatError(
+                        asyncResp->res, createInp, "IPv4StaticAddresses",
+                        "Create");
                 }
                 else
                 {
                     messages::internalError(asyncResp->res);
                 }
-
                 return;
             }
         },
@@ -443,17 +450,16 @@ inline void parseInterfaceData(
     for (auto& ipv4Config : ipv4Data)
     {
         jsonResponse["InterfaceEnabled"] = ipv4Config.isActive;
-        ipv4Array.push_back({{"AddressOrigin", ipv4Config.origin},
-                             {"SubnetMask", ipv4Config.netmask},
-                             {"Address", ipv4Config.address},
-                             {"Gateway", ipv4Config.gateway}});
+        nlohmann::json::object_t ipv4;
+        ipv4["AddressOrigin"] = ipv4Config.origin;
+        ipv4["SubnetMask"] = ipv4Config.netmask;
+        ipv4["Address"] = ipv4Config.address;
+        ipv4["Gateway"] = ipv4Config.gateway;
         if (ipv4Config.origin == "Static")
         {
-            ipv4StaticArray.push_back({{"AddressOrigin", ipv4Config.origin},
-                                       {"SubnetMask", ipv4Config.netmask},
-                                       {"Address", ipv4Config.address},
-                                       {"Gateway", ipv4Config.gateway}});
+            ipv4StaticArray.push_back(ipv4);
         }
+        ipv4Array.push_back(std::move(ipv4));
     }
 }
 
