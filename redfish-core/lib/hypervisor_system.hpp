@@ -165,15 +165,15 @@ inline bool extractHypervisorInterfaceData(
     {
         for (const auto& interface : objpath.second)
         {
+            std::pair<boost::container::flat_set<IPv4AddressData>::iterator,
+                      bool>
+                it = ipv4Config.insert(IPv4AddressData{});
+
+            IPv4AddressData& ipv4Address = *it.first;
             if (objpath.first == "/xyz/openbmc_project/network/hypervisor/" +
                                      ethIfaceId + "/ipv4/addr0")
             {
                 idFound = true;
-                std::pair<boost::container::flat_set<IPv4AddressData>::iterator,
-                          bool>
-                    it = ipv4Config.insert(IPv4AddressData{});
-
-                IPv4AddressData& ipv4Address = *it.first;
                 if (interface.first == "xyz.openbmc_project.Network.IP")
                 {
 
@@ -186,17 +186,6 @@ inline bool extractHypervisorInterfaceData(
                             if (address != nullptr)
                             {
                                 ipv4Address.address = *address;
-                            }
-                        }
-                        else if (property.first == "Origin")
-                        {
-                            const std::string* origin =
-                                std::get_if<std::string>(&property.second);
-                            if (origin != nullptr)
-                            {
-                                ipv4Address.origin =
-                                    translateAddressOriginDbusToRedfish(*origin,
-                                                                        true);
                             }
                         }
                         else if (property.first == "PrefixLength")
@@ -236,6 +225,36 @@ inline bool extractHypervisorInterfaceData(
                             if (enabled != nullptr)
                             {
                                 ipv4Address.isActive = *enabled;
+                            }
+                        }
+                    }
+                }
+            }
+            else if (objpath.first ==
+                     "/xyz/openbmc_project/network/hypervisor/" + ethIfaceId)
+            {
+                if (interface.first ==
+                    "xyz.openbmc_project.Network.EthernetInterface")
+                {
+
+                    for (auto& property : interface.second)
+                    {
+                        if (property.first == "DHCPEnabled")
+                        {
+                            const std::string* dhcpEnabled =
+                                std::get_if<std::string>(&property.second);
+                            if (dhcpEnabled != nullptr)
+                            {
+                                ethData.DHCPEnabled = *dhcpEnabled;
+                                if (!translateDHCPEnabledToBool(*dhcpEnabled,
+                                                                true))
+                                {
+                                    ipv4Address.origin = "Static";
+                                }
+                                else
+                                {
+                                    ipv4Address.origin = "DHCP";
+                                }
                             }
                         }
                     }
@@ -401,8 +420,6 @@ inline void parseInterfaceData(
     jsonResponse["@odata.id"] =
         "/redfish/v1/Systems/hypervisor/EthernetInterfaces/" + ifaceId;
     jsonResponse["InterfaceEnabled"] = true;
-    jsonResponse["MACAddress"] = ethData.mac_address;
-
     jsonResponse["HostName"] = ethData.hostname;
     jsonResponse["DHCPv4"]["DHCPEnabled"] =
         translateDHCPEnabledToBool(ethData.DHCPEnabled, true);
@@ -641,8 +658,8 @@ inline void requestRoutesHypervisorSystems(App& app)
                         getHypervisorActions(asyncResp);
                         // TODO: Add "SystemType" : "hypervisor"
                     },
-                    "xyz.openbmc_project.Settings",
-                    "/xyz/openbmc_project/network/hypervisor",
+                    "xyz.openbmc_project.Network.Hypervisor",
+                    "/xyz/openbmc_project/network/hypervisor/config",
                     "org.freedesktop.DBus.Properties", "Get",
                     "xyz.openbmc_project.Network.SystemConfiguration",
                     "HostName");
