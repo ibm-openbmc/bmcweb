@@ -1222,7 +1222,8 @@ inline void requestRoutesJournalEventLogClear(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/EventLog/Actions/"
                       "LogService.ClearLog/")
-        .privileges({{"ConfigureComponents"}})
+        .privileges(redfish::privileges::
+                        postLogServiceSubOverComputerSystemLogServiceCollection)
         .methods(boost::beast::http::verb::post)(
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
@@ -2617,9 +2618,7 @@ inline void requestRoutesCrashdumpService(App& app)
      * Functions triggers appropriate requests on DBus
      */
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/Crashdump/")
-        // This is incorrect, should be:
-        //.privileges(redfish::privileges::getLogService)
-        .privileges({{"ConfigureManager"}})
+        .privileges(redfish::privileges::getLogService)
         .methods(
             boost::beast::http::verb::
                 get)([](const crow::Request&,
@@ -2660,9 +2659,8 @@ void inline requestRoutesCrashdumpClear(App& app)
     BMCWEB_ROUTE(app,
                  "/redfish/v1/Systems/system/LogServices/Crashdump/Actions/"
                  "LogService.ClearLog/")
-        // This is incorrect, should be:
-        //.privileges(redfish::privileges::postLogService)
-        .privileges({{"ConfigureComponents"}})
+        .privileges(redfish::privileges::
+                        postLogServiceSubOverComputerSystemLogServiceCollection)
         .methods(boost::beast::http::verb::post)(
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
@@ -2746,9 +2744,7 @@ inline void requestRoutesCrashdumpEntryCollection(App& app)
      */
     BMCWEB_ROUTE(app,
                  "/redfish/v1/Systems/system/LogServices/Crashdump/Entries/")
-        // This is incorrect, should be.
-        //.privileges(redfish::privileges::postLogEntryCollection)
-        .privileges({{"ConfigureComponents"}})
+        .privileges(redfish::privileges::getLogEntryCollection)
         .methods(
             boost::beast::http::verb::
                 get)([](const crow::Request&,
@@ -2822,9 +2818,7 @@ inline void requestRoutesCrashdumpEntry(App& app)
 
     BMCWEB_ROUTE(
         app, "/redfish/v1/Systems/system/LogServices/Crashdump/Entries/<str>/")
-        // this is incorrect, should be
-        // .privileges(redfish::privileges::getLogEntry)
-        .privileges({{"ConfigureComponents"}})
+        .privileges(redfish::privileges::getLogEntry)
         .methods(boost::beast::http::verb::get)(
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -2928,9 +2922,8 @@ inline void requestRoutesCrashdumpCollect(App& app)
     // method for security reasons.
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/Crashdump/"
                       "Actions/LogService.CollectDiagnosticData/")
-        // The below is incorrect;  Should be ConfigureManager
-        //.privileges(redfish::privileges::postLogService)
-        .privileges({{"ConfigureComponents"}})
+        .privileges(redfish::privileges::
+                        postLogServiceSubOverComputerSystemLogServiceCollection)
         .methods(
             boost::beast::http::verb::
                 post)([](const crow::Request& req,
@@ -3115,9 +3108,8 @@ inline void requestRoutesPostCodesClear(App& app)
     BMCWEB_ROUTE(app,
                  "/redfish/v1/Systems/system/LogServices/PostCodes/Actions/"
                  "LogService.ClearLog/")
-        // The following privilege is incorrect;  It should be ConfigureManager
-        //.privileges(redfish::privileges::postLogService)
-        .privileges({{"ConfigureComponents"}})
+        .privileges(redfish::privileges::
+                        postLogServiceSubOverComputerSystemLogServiceCollection)
         .methods(boost::beast::http::verb::post)(
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
