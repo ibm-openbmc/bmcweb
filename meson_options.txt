@@ -46,3 +46,4 @@ option ('insecure-disable-auth', type : 'feature', value : 'disabled', descripti
 option ('insecure-disable-xss', type : 'feature', value : 'disabled', description : 'Disable XSS preventions')
 option ('insecure-tftp-update', type : 'feature', value : 'disabled', description : '''Enable TFTP based firmware update transactions through Redfish UpdateService.SimpleUpdate.''')
 option ('insecure-push-style-notification',type : 'feature', value : 'disabled', description : 'Enable HTTP push style eventing feature')
+option('hw-isolation', type : 'feature', value : 'disabled', description : 'Enable the Hardware Isolation feature')
