@@ -1085,6 +1085,44 @@ inline void requestRoutesSystemLogServiceCollection(App& app)
                     "/xyz/openbmc_project/object_mapper",
                     "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", "/",
                     0, std::array<const char*, 1>{postCodeIface});
+
+                crow::connections::systemBus->async_method_call(
+                    [asyncResp](const boost::system::error_code ec,
+                                const std::vector<std::string>& subtreePath) {
+                        if (ec)
+                        {
+                            BMCWEB_LOG_ERROR
+                                << "D-Bus response error [" << ec.value()
+                                << " : " << ec.message() << "] "
+                                << "when tried to check the HardwareIsolation "
+                                << "service support";
+                            return;
+                        }
+
+                        for (const auto& pathStr : subtreePath)
+                        {
+                            if (pathStr.find("hardware_isolation") !=
+                                std::string::npos)
+                            {
+                                nlohmann::json& logServiceArrayLocal =
+                                    asyncResp->res.jsonValue["Members"];
+                                logServiceArrayLocal.push_back(
+                                    {{"@odata.id",
+                                      "/redfish/v1/Systems/system/"
+                                      "LogServices/HardwareIsolation"}});
+                                asyncResp->res
+                                    .jsonValue["Members@odata.count"] =
+                                    logServiceArrayLocal.size();
+                                return;
+                            }
+                        }
+                    },
+                    "xyz.openbmc_project.ObjectMapper",
+                    "/xyz/openbmc_project/object_mapper",
+                    "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", "/",
+                    0,
+                    std::array<const char*, 1>{
+                        "xyz.openbmc_project.HardwareIsolation.Create"});
             });
 }
 
@@ -3344,6 +3382,54 @@ inline void requestRoutesPostCodesEntry(App& app)
 
                 getPostCodeForEntry(asyncResp, bootIndex, codeIndex);
             });
+}
+
+/**
+ * @brief API Used to add the supported HardwareIsolation LogServices Members
+ *
+ * @param[in] req - The HardwareIsolation redfish request (unused now).
+ * @param[in] asyncResp - The redfish response to return.
+ *
+ * @return The redfish response in the given buffer.
+ */
+inline void getSystemHardwareIsolationLogService(
+    const crow::Request& /* req */,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    asyncResp->res.jsonValue["@odata.id"] =
+        "/redfish/v1/Systems/system/LogServices/HardwareIsolation";
+    asyncResp->res.jsonValue["@odata.type"] = "#LogService.v1_2_0.LogService";
+    asyncResp->res.jsonValue["Name"] = "Hardware Isolation LogService";
+    asyncResp->res.jsonValue["Description"] =
+        "Hardware Isolation LogService for system owned devices";
+    asyncResp->res.jsonValue["Id"] = "HardwareIsolation";
+
+    asyncResp->res.jsonValue["Entries"] = {
+        {"@odata.id", "/redfish/v1/Systems/system/LogServices/"
+                      "HardwareIsolation/Entries"}};
+
+    asyncResp->res.jsonValue["Actions"] = {
+        {"#LogService.ClearLog",
+         {{"target", "/redfish/v1/Systems/system/LogServices/"
+                     "HardwareIsolation/Actions/"
+                     "LogService.ClearLog"}}}};
+}
+
+/**
+ * @brief API used to route the handler for HardwareIsolation Redfish
+ *        LogServices URI
+ *
+ * @param[in] app - Crow app on which Redfish will initialize
+ *
+ * @return The appropriate redfish response for the given redfish request.
+ */
+inline void requestRoutesSystemHardwareIsolationLogService(App& app)
+{
+    BMCWEB_ROUTE(app,
+                 "/redfish/v1/Systems/system/LogServices/HardwareIsolation/")
+        .privileges(redfish::privileges::getLogService)
+        .methods(boost::beast::http::verb::get)(
+            getSystemHardwareIsolationLogService);
 }
 
 } // namespace redfish

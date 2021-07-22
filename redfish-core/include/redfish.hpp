@@ -222,6 +222,8 @@ class RedfishService
         requestRoutesMetricReportDefinition(app);
         requestRoutesMetricReportCollection(app);
         requestRoutesMetricReport(app);
+
+        requestRoutesSystemHardwareIsolationLogService(app);
     }
 };
 
