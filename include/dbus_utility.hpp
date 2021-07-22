@@ -179,6 +179,11 @@ void getDbusObject(const std::string& path,
                    std::function<void(const boost::system::error_code&,
                                       const MapperGetObject&)>&& callback);
 
+void getAncestors(
+    const std::string& path, std::span<const std::string_view> interfaces,
+    std::function<void(const boost::system::error_code&,
+                       const MapperGetAncestorsResponse&)>&& callback);
+
 void getAssociationEndPoints(
     const std::string& path,
     std::function<void(const boost::system::error_code&,
