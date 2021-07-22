@@ -45,6 +45,9 @@ using MapperGetSubTreeResponse =
 constexpr std::array<const char*, 1> dimmInterfaces = {
     "xyz.openbmc_project.Inventory.Item.Dimm"};
 
+// Redfish URI which imply a Memory resource represents a "dimmInterfaces"
+constexpr auto memoryRedfishUri = "/redfish/v1/Systems/system/Memory";
+
 inline std::string translateMemoryTypeToRedfish(const std::string& memoryType)
 {
     if (memoryType == "xyz.openbmc_project.Inventory.Item.Dimm.DeviceType.DDR")

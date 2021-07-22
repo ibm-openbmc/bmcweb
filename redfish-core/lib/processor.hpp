@@ -46,6 +46,19 @@ constexpr std::array<const char*, 2> processorInterfaces = {
     "xyz.openbmc_project.Inventory.Item.Cpu",
     "xyz.openbmc_project.Inventory.Item.Accelerator"};
 
+// Redfish URI which imply a Processor resource represents a
+// "processorInterfaces"
+constexpr auto processorRedfishUri = "/redfish/v1/Systems/system/Processors";
+
+// Interfaces which imply a D-Bus object represents a Processor Core
+constexpr std::array<const char*, 1> procCoreInterfaces = {
+    "xyz.openbmc_project.Inventory.Item.CpuCore"};
+
+// Redfish URI which imply a Processor Core resource represents a
+// "procCoreInterfaces"
+constexpr auto processorCoreRedfishUri =
+    "/redfish/v1/Systems/system/Processors/<str>/SubProcessors";
+
 /**
  * @brief Fill out uuid info of a processor by
  * requesting data from the given D-Bus object.
