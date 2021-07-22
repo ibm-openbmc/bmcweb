@@ -224,6 +224,22 @@ void getDbusObject(const std::string& path,
         "xyz.openbmc_project.ObjectMapper", "GetObject", path, interfaces);
 }
 
+void getAncestors(
+    const std::string& path, std::span<const std::string_view> interfaces,
+    std::function<void(const boost::system::error_code&,
+                       const MapperGetAncestorsResponse&)>&& callback)
+{
+    crow::connections::systemBus->async_method_call(
+        [callback{std::move(callback)}](
+            const boost::system::error_code& ec,
+            const MapperGetAncestorsResponse& ancestors) {
+            callback(ec, ancestors);
+        },
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetAncestors", path, interfaces);
+}
+
 void getAssociationEndPoints(
     const std::string& path,
     std::function<void(const boost::system::error_code&,
