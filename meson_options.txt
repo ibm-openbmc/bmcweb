@@ -333,3 +333,10 @@ option(
       description: '''Enable hypervisor serial console WebSocket. Path is
                       \'/console1\'.'''
 )
+
+option(
+      'hw-isolation',
+      type : 'feature',
+      value : 'disabled',
+      description : 'Enable the Hardware Isolation feature'
+)
