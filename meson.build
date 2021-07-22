@@ -96,6 +96,7 @@ feature_map = {
   'redfish-license'                             : '-DBMCWEB_ENABLE_REDFISH_LICENSE',
   #'vm-nbdproxy'                                : '-DBMCWEB_ENABLE_VM_NBDPROXY',
   'ibm-led-extensions'                          : '-DBMCWEB_ENABLE_IBM_LED_EXTENSIONS',
+  'hw-isolation'                                : '-DBMCWEB_ENABLE_HW_ISOLATION',
 }
 
 # Get the options status and build a project summary to show which flags are

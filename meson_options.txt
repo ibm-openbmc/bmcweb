@@ -354,3 +354,10 @@ option('ibm-led-extensions',
       value : 'disabled',
       description : 'Enable the IBM LED extensions such as lamp test and system attention indicators'
 )
+
+option(
+      'hw-isolation',
+      type : 'feature',
+      value : 'disabled',
+      description : 'Enable the Hardware Isolation feature'
+)
