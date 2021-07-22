@@ -225,6 +225,10 @@ class RedfishService
         requestRoutesMetricReportDefinition(app);
         requestRoutesMetricReportCollection(app);
         requestRoutesMetricReport(app);
+
+#ifdef BMCWEB_ENABLE_HW_ISOLATION
+        requestRoutesSystemHardwareIsolationLogService(app);
+#endif
     }
 };
 
