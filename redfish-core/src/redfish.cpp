@@ -46,6 +46,7 @@
 #include "systems.hpp"
 #include "systems_logservices_audit.hpp"
 #include "systems_logservices_hostlogger.hpp"
+#include "systems_logservices_hwisolation.hpp"
 #include "systems_logservices_postcodes.hpp"
 #include "task.hpp"
 #include "telemetry_service.hpp"
@@ -201,6 +202,10 @@ RedfishService::RedfishService(App& app)
         requestRoutesSystemsLogServiceHostlogger(app);
     }
 
+    if constexpr (BMCWEB_HW_ISOLATION)
+    {
+        requestRoutesSystemHardwareIsolationLogService(app);
+    }
     requestRoutesMessageRegistryFileCollection(app);
     requestRoutesMessageRegistryFile(app);
     requestRoutesMessageRegistry(app);
