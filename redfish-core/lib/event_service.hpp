@@ -420,19 +420,6 @@ inline void requestRoutesEventDestinationCollection(App& app)
                     return;
                 }
 
-                auto [enabled, retryCount, retryTimeoutInterval] =
-                    EventServiceManager::getInstance().getEventServiceConfig();
-
-                if (enabled == false)
-                {
-                    BMCWEB_LOG_INFO << "EventService is not enabled. Cannot "
-                                       "subscribe to events";
-                    asyncResp->res.result(
-                        boost::beast::http::status::service_unavailable);
-                    messages::generalError(asyncResp->res);
-                    return;
-                }
-
                 std::string destUrl;
                 std::string protocol;
                 std::string uriProto;
