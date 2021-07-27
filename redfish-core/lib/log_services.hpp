@@ -843,7 +843,8 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     }
 
     std::string dumpPath;
-    std::vector<std::pair<std::string, std::string>> createDumpParams;
+    std::vector<std::pair<std::string, std::variant<std::string, uint64_t>>>
+        createDumpParams;
     if (dumpType == "System")
     {
         if (!oemDiagnosticDataType || !diagnosticDataType)
@@ -870,7 +871,7 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         else if (boost::starts_with(*oemDiagnosticDataType, "Resource"))
         {
             std::string resourceDumpType = *oemDiagnosticDataType;
-            std::vector<std::string> resourceDumpParams;
+            std::vector<std::variant<std::string, uint64_t>> resourceDumpParams;
 
             size_t pos = 0;
             while ((pos = resourceDumpType.find('_')) != std::string::npos)
@@ -926,8 +927,8 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         dumpPath = "/xyz/openbmc_project/dump/bmc";
     }
 
-    std::vector<std::pair<std::string, std::string>> createDumpParamVec(
-        createDumpParams);
+    std::vector<std::pair<std::string, std::variant<std::string, uint64_t>>>
+        createDumpParamVec(createDumpParams);
 
     crow::connections::systemBus->async_method_call(
         [asyncResp, req](const boost::system::error_code ec,
