@@ -50,6 +50,7 @@
 #include "../lib/thermal.hpp"
 #include "../lib/thermal_metrics.hpp"
 #include "../lib/thermal_subsystem.hpp"
+#include "../lib/trigger.hpp"
 #include "../lib/update_service.hpp"
 #include "../lib/virtual_media.hpp"
 
@@ -229,6 +230,7 @@ class RedfishService
         requestRoutesMetricReportDefinition(app);
         requestRoutesMetricReportCollection(app);
         requestRoutesMetricReport(app);
+        requestRoutesTriggerCollection(app);
 
 #ifdef BMCWEB_ENABLE_HW_ISOLATION
         requestRoutesSystemHardwareIsolationLogService(app);
