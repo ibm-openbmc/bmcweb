@@ -235,16 +235,18 @@ inline void requestRoutesEventService(App& app)
                                    "EventService.SubmitTestEvent"}}}}},
                     {"@odata.id", "/redfish/v1/EventService"}};
 
-                const auto& [enabled, retryAttempts, retryTimeoutInterval] =
-                    EventServiceManager::getInstance().getEventServiceConfig();
+                const persistent_data::EventServiceConfig eventServiceConfig =
+                    persistent_data::EventServiceStore::getInstance()
+                        .getEventServiceConfig();
 
                 asyncResp->res.jsonValue["Status"]["State"] =
-                    (enabled ? "Enabled" : "Disabled");
-                asyncResp->res.jsonValue["ServiceEnabled"] = enabled;
+                    (eventServiceConfig.enabled ? "Enabled" : "Disabled");
+                asyncResp->res.jsonValue["ServiceEnabled"] =
+                    eventServiceConfig.enabled;
                 asyncResp->res.jsonValue["DeliveryRetryAttempts"] =
-                    retryAttempts;
+                    eventServiceConfig.retryAttempts;
                 asyncResp->res.jsonValue["DeliveryRetryIntervalSeconds"] =
-                    retryTimeoutInterval;
+                    eventServiceConfig.retryTimeoutInterval;
                 asyncResp->res.jsonValue["EventFormatTypes"] =
                     supportedEvtFormatTypes;
                 asyncResp->res.jsonValue["RegistryPrefixes"] =
@@ -280,12 +282,13 @@ inline void requestRoutesEventService(App& app)
                     return;
                 }
 
-                auto [enabled, retryCount, retryTimeoutInterval] =
-                    EventServiceManager::getInstance().getEventServiceConfig();
+                persistent_data::EventServiceConfig eventServiceConfig =
+                    persistent_data::EventServiceStore::getInstance()
+                        .getEventServiceConfig();
 
                 if (serviceEnabled)
                 {
-                    enabled = *serviceEnabled;
+                    eventServiceConfig.enabled = *serviceEnabled;
                 }
 
                 if (retryAttemps)
@@ -299,7 +302,7 @@ inline void requestRoutesEventService(App& app)
                     }
                     else
                     {
-                        retryCount = *retryAttemps;
+                        eventServiceConfig.retryAttempts = *retryAttemps;
                     }
                 }
 
@@ -314,12 +317,13 @@ inline void requestRoutesEventService(App& app)
                     }
                     else
                     {
-                        retryTimeoutInterval = *retryInterval;
+                        eventServiceConfig.retryTimeoutInterval =
+                            *retryInterval;
                     }
                 }
 
                 EventServiceManager::getInstance().setEventServiceConfig(
-                    std::make_tuple(enabled, retryCount, retryTimeoutInterval));
+                    eventServiceConfig);
             });
 }
 
@@ -413,19 +417,6 @@ inline void requestRoutesEventDestinationCollection(App& app)
                         .getNumberOfSubscriptions() >= maxNoOfSubscriptions)
                 {
                     messages::eventSubscriptionLimitExceeded(asyncResp->res);
-                    return;
-                }
-
-                auto [enabled, retryCount, retryTimeoutInterval] =
-                    EventServiceManager::getInstance().getEventServiceConfig();
-
-                if (enabled == false)
-                {
-                    BMCWEB_LOG_INFO << "EventService is not enabled. Cannot "
-                                       "subscribe to events";
-                    asyncResp->res.result(
-                        boost::beast::http::status::service_unavailable);
-                    messages::generalError(asyncResp->res);
                     return;
                 }
 
