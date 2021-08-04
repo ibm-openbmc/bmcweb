@@ -11,7 +11,7 @@ namespace crow
 namespace obmc_kvm
 {
 
-static constexpr const uint maxSessions = 4;
+static constexpr const uint maxSessions = 1;
 
 class KvmSession
 {
@@ -20,7 +20,7 @@ class KvmSession
         conn(conn), doingWrite(false), hostSocket(conn.get_io_context())
     {
         boost::asio::ip::tcp::endpoint endpoint(
-            boost::asio::ip::make_address("::1"), 5900);
+            boost::asio::ip::make_address("127.0.0.1"), 5900);
         hostSocket.async_connect(
             endpoint, [this, &conn](const boost::system::error_code& ec) {
                 if (ec)
