@@ -41,6 +41,10 @@ inline std::string getRoleFromPrivileges(std::string_view priv)
     {
         return "NoAccess";
     }
+    if (priv == "priv-oemibmserviceagent")
+    {
+        return "OemIBMServiceAgent";
+    }
     return "";
 }
 
@@ -64,11 +68,55 @@ inline bool getAssignedPrivFromRole(std::string_view role,
     {
         privArray = nlohmann::json::array();
     }
+    else if (role == "OemIBMServiceAgent")
+    {
+        privArray = {"Login", "ConfigureManager", "ConfigureUsers",
+                     "ConfigureSelf", "ConfigureComponents"};
+    }
     else
     {
         return false;
     }
     return true;
+}
+
+inline bool getOemPrivFromRole(std::string_view role,
+                               nlohmann::json& privArray)
+{
+    if (role == "Administrator")
+    {
+        privArray = nlohmann::json::array();
+    }
+    else if (role == "Operator")
+    {
+        privArray = nlohmann::json::array();
+    }
+    else if (role == "ReadOnly")
+    {
+        privArray = nlohmann::json::array();
+    }
+    else if (role == "NoAccess")
+    {
+        privArray = nlohmann::json::array();
+    }
+    else if (role == "OemIBMServiceAgent")
+    {
+        privArray = {"OemIBMPerformService"};
+    }
+    else
+    {
+        return false;
+    }
+    return true;
+}
+
+inline bool isRestrictedRole(const std::string& role)
+{
+    if (role == "OemIBMServiceAgent")
+    {
+        return true;
+    }
+    return false;
 }
 
 inline void requestRoutesRoles(App& app)
@@ -86,17 +134,24 @@ inline void requestRoutesRoles(App& app)
 
                     return;
                 }
+                nlohmann::json oemPrivArray = nlohmann::json::array();
+                if (false == getOemPrivFromRole(roleId, oemPrivArray))
+                {
+                    messages::resourceNotFound(asyncResp->res, "Role", roleId);
+                    return;
+                }
 
                 asyncResp->res.jsonValue = {
                     {"@odata.type", "#Role.v1_2_2.Role"},
                     {"Name", "User Role"},
                     {"Description", roleId + " User Role"},
-                    {"OemPrivileges", nlohmann::json::array()},
+                    {"OemPrivileges", std::move(oemPrivArray)},
                     {"IsPredefined", true},
                     {"Id", roleId},
                     {"RoleId", roleId},
                     {"@odata.id", "/redfish/v1/AccountService/Roles/" + roleId},
-                    {"AssignedPrivileges", std::move(privArray)}};
+                    {"AssignedPrivileges", std::move(privArray)},
+                    {"Restricted", isRestrictedRole(roleId)}};
             });
 }
 
