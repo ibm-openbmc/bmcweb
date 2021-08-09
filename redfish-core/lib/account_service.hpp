@@ -24,6 +24,7 @@
 #include <openbmc_dbus_rest.hpp>
 #include <persistent_data.hpp>
 #include <query.hpp>
+#include <roles.hpp>
 #include <sdbusplus/asio/property.hpp>
 #include <sdbusplus/unpack_properties.hpp>
 #include <utils/dbus_utils.hpp>
@@ -90,6 +91,14 @@ inline std::string getRoleIdFromPrivilege(std::string_view role)
     {
         return "Operator";
     }
+    if (role == "priv-oemibmserviceagent")
+    {
+        return "OemIBMServiceAgent";
+    }
+    if (role.empty() || (role == "priv-noaccess"))
+    {
+        return "NoAccess";
+    }
     return "";
 }
 inline std::string getPrivilegeFromRoleId(std::string_view role)
@@ -105,6 +114,14 @@ inline std::string getPrivilegeFromRoleId(std::string_view role)
     if (role == "Operator")
     {
         return "priv-operator";
+    }
+    if (role == "OemIBMServiceAgent")
+    {
+        return "priv-oemibmserviceagent";
+    }
+    if ((role == "NoAccess") || (role.empty()))
+    {
+        return "priv-noaccess";
     }
     return "";
 }
@@ -310,6 +327,13 @@ inline void handleRoleMapPatch(
                                      localRole))
             {
                 continue;
+            }
+
+            // Do not allow mapping to a Restricted LocalRole
+            if (localRole && redfish::isRestrictedRole(*localRole))
+            {
+                messages::restrictedRole(asyncResp->res, *localRole);
+                return;
             }
 
             // Update existing RoleMapping Object
@@ -1719,6 +1743,13 @@ inline void handleAccountCollectionPost(
         return;
     }
 
+    // Don't allow new accounts to have a Restricted Role.
+    if (redfish::isRestrictedRole(*roleId))
+    {
+        messages::restrictedRole(asyncResp->res, *roleId);
+        return;
+    }
+
     std::string priv = getPrivilegeFromRoleId(*roleId);
     if (priv.empty())
     {
@@ -2021,6 +2052,16 @@ inline void
     tempObjPath /= username;
     const std::string userPath(tempObjPath);
 
+    // Don't DELETE accounts which have a Restricted Role (the service account).
+    // Implementation note: Ideally this would get the user's RoleId
+    // but that would take an additional D-Bus operation.
+    if (username == "service")
+    {
+        BMCWEB_LOG_ERROR << "Attempt to DELETE user who has a Restricted Role";
+        messages::restrictedRole(asyncResp->res, "OemIBMServiceAgent");
+        return;
+    }
+
     crow::connections::systemBus->async_method_call(
         [asyncResp, username](const boost::system::error_code ec) {
         if (ec)
@@ -2095,6 +2136,26 @@ inline void
         {
             return;
         }
+    }
+
+    // For accounts which have a Restricted Role, restrict which properties
+    // can be patched.  Allow only Locked, Enabled, and Oem.
+    // Do not even allow the service user to change these properties.
+    // Implementation note: Ideally this would get the user's RoleId
+    // but that would take an additional D-Bus operation.
+    if ((username == "service") && (newUserName || password || roleId))
+    {
+        BMCWEB_LOG_ERROR << "Attempt to PATCH user who has a Restricted Role";
+        messages::restrictedRole(asyncResp->res, "OemIBMServiceAgent");
+        return;
+    }
+
+    // Don't allow PATCHing an account to have a Restricted role.
+    if (roleId && redfish::isRestrictedRole(*roleId))
+    {
+        BMCWEB_LOG_ERROR << "Attempt to PATCH user to have a Restricted Role";
+        messages::restrictedRole(asyncResp->res, *roleId);
+        return;
     }
 
     if (oem)
