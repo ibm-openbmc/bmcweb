@@ -24,6 +24,8 @@
 #include <utils/json_utils.hpp>
 
 #include <string>
+#include <roles.hpp>
+
 #include <variant>
 #include <vector>
 
@@ -94,6 +96,10 @@ inline std::string getRoleIdFromPrivilege(std::string_view role)
     {
         return "Operator";
     }
+    if (role == "priv-oemibmserviceagent")
+    {
+        return "OemIBMServiceAgent";
+    }
     if ((role == "") || (role == "priv-noaccess"))
     {
         return "NoAccess";
@@ -113,6 +119,10 @@ inline std::string getPrivilegeFromRoleId(std::string_view role)
     if (role == "Operator")
     {
         return "priv-operator";
+    }
+    if (role == "OemIBMServiceAgent")
+    {
+        return "priv-oemibmserviceagent";
     }
     if ((role == "NoAccess") || (role == ""))
     {
@@ -267,6 +277,13 @@ inline void handleRoleMapPatch(
                                      localRole))
             {
                 continue;
+            }
+
+            // Do not allow mapping to a Restricted LocalRole
+            if (localRole && redfish::isRestrictedRole(*localRole))
+            {
+                messages::restrictedRole(asyncResp->res, *localRole);
+                return;
             }
 
             // Update existing RoleMapping Object
@@ -1676,6 +1693,13 @@ inline void requestAccountServiceRoutes(App& app)
                 return;
             }
 
+            // Don't allow new accounts to have a Restricted Role.
+            if (redfish::isRestrictedRole(*roleId))
+            {
+                messages::restrictedRole(asyncResp->res, *roleId);
+                return;
+            }
+
             std::string priv = getPrivilegeFromRoleId(*roleId);
             if (priv.empty())
             {
@@ -1687,6 +1711,7 @@ inline void requestAccountServiceRoutes(App& app)
             // phosphor-user-manager is added. In order to avoid dependency
             // issues, this is added in bmcweb, which will removed, once
             // phosphor-user-manager supports priv-noaccess.
+            // WARNING: roleId changes from Redfish Role to Phosphor privilege role.
             if (priv == "priv-noaccess")
             {
                 roleId = "";
@@ -1971,41 +1996,57 @@ inline void requestAccountServiceRoutes(App& app)
             std::optional<std::string> roleId;
             std::optional<bool> locked;
             std::optional<nlohmann::json> oem;
-            if (!json_util::readJson(req, asyncResp->res, "UserName",
-                                     newUserName, "Password", password,
-                                     "RoleId", roleId, "Enabled", enabled,
-                                     "Locked", locked, "Oem", oem))
-            {
-                return;
-            }
 
-            // Perform a proper ConfigureSelf authority check.  If the
-            // session is being used to PATCH a property other than
-            // Password, then the ConfigureSelf privilege does not apply.
-            // If the user is operating on an account not their own, then
-            // their ConfigureSelf privilege does not apply.  In either
-            // case, perform the authority check again without the user's
-            // ConfigureSelf privilege.
             Privileges effectiveUserPrivileges =
                 redfish::getUserPrivileges(req.userRole);
             Privileges configureUsers = {"ConfigureUsers"};
             bool userHasConfigureUsers =
                 effectiveUserPrivileges.isSupersetOf(configureUsers);
-            if (!userHasConfigureUsers)
+            if (userHasConfigureUsers)
             {
-
-                // Can't modify other users
+                if (!json_util::readJson(req, asyncResp->res, "UserName",
+                                         newUserName, "Password", password,
+                                         "RoleId", roleId, "Enabled", enabled,
+                                         "Locked", locked, "Oem", oem))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                // ConfigureSelf accounts can only modify their own account
                 if (username != req.session->username)
                 {
                     messages::insufficientPrivilege(asyncResp->res);
                     return;
                 }
-                // Can't modify properties other than password
-                if (newUserName || enabled || roleId || locked || oem)
+                // ConfigureSelf accounts can only modify their password
+                if (!json_util::readJson(req, asyncResp->res, "Password",
+                                         password))
                 {
-                    messages::insufficientPrivilege(asyncResp->res);
                     return;
                 }
+            }
+            
+            // For accounts which have a Restricted Role, restrict which properties
+            // can be patched.  Allow only Locked, Enabled, and Oem.
+            // Do not even allow the service user to change these properties.
+            // Implementation note: Ideally this would get the user's RoleId
+            // but that would take an additional D-Bus operation.
+            if ((username == "service") &&
+                (newUserName || password || roleId))
+            {
+                BMCWEB_LOG_ERROR << "Attempt to PATCH user who has a Restricted Role";
+                messages::restrictedRole(asyncResp->res, "OemIBMServiceAgent");
+                return;
+            }
+
+            // Don't allow PATCHing an account to have a Restricted role.
+            if (roleId && redfish::isRestrictedRole(*roleId))
+            {
+                BMCWEB_LOG_ERROR << "Attempt to PATCH user to have a Restricted Role";
+                messages::restrictedRole(asyncResp->res, *roleId);
+                return;
             }
 
             if (oem)
@@ -2153,6 +2194,16 @@ inline void requestAccountServiceRoutes(App& app)
                const std::string& username) -> void {
                 const std::string userPath =
                     "/xyz/openbmc_project/user/" + username;
+
+                // Don't DELETE accounts which have a Restricted Role (the service account).
+                // Implementation note: Ideally this would get the user's RoleId
+                // but that would take an additional D-Bus operation.
+                if (username == "service")
+                {
+                    BMCWEB_LOG_ERROR << "Attempt to DELETE user who has a Restricted Role";
+                    messages::restrictedRole(asyncResp->res, "OemIBMServiceAgent");
+                    return;
+                }
 
                 crow::connections::systemBus->async_method_call(
                     [asyncResp, username](const boost::system::error_code ec) {
