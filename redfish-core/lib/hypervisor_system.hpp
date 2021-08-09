@@ -1050,7 +1050,7 @@ inline void requestRoutesHypervisorSystems(App& app)
 
     BMCWEB_ROUTE(app,
                  "/redfish/v1/Systems/hypervisor/EthernetInterfaces/<str>/")
-        .privileges(redfish::privileges::patchEthernetInterface)
+        .privileges(redfish::privileges::patchOEMHypervisorEthInterface)
         .methods(
             boost::beast::http::verb::
                 patch)([](const crow::Request& req,
