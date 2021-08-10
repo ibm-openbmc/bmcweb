@@ -18,6 +18,7 @@
 
 #include <app.hpp>
 #include <registries/privilege_registry.hpp>
+
 #include <charconv>
 
 namespace redfish
@@ -32,9 +33,9 @@ static constexpr const std::array<const char*, 3> supportedRetryPolicies = {
 
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
 static constexpr const std::array<const char*, 8> supportedResourceTypes = {
-     "IBMConfigFile",  "Task",    "BroadcastService",
-     "ComputerSystem", "Manager", "EthernetInterface",
-     "LogEntry",       "Bios"};
+    "IBMConfigFile",  "Task",    "BroadcastService",
+    "ComputerSystem", "Manager", "EthernetInterface",
+    "LogEntry",       "Bios"};
 #else
 static constexpr const std::array<const char*, 1> supportedResourceTypes = {
     "Task"};
