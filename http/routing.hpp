@@ -417,7 +417,6 @@ class StreamingResponseRule : public BaseRule
         asyncResp->res.result(boost::beast::http::status::not_found);
     }
 
-
     void handleUpgrade(const Request& req, Response&,
                        boost::asio::ip::tcp::socket&& adaptor) override
     {
