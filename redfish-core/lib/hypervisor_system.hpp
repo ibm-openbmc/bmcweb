@@ -162,7 +162,8 @@ inline std::string getIfAttributeName(const std::string& ifaceId)
     {
         return "if0";
     }
-    else if (ifaceId == "eth1")
+
+    if (ifaceId == "eth1")
     {
         return "if1";
     }
@@ -173,13 +174,13 @@ inline bool extractHypervisorInterfaceData(
     const std::string& ethIfaceId, const GetManagedObjects& dbusData,
     EthernetInterfaceData& ethData,
     boost::container::flat_set<IPv4AddressData>& ipv4Config,
-    std::shared_ptr<std::map<
+    const std::shared_ptr<std::map<
         std::string,
         std::tuple<std::string, bool, std::string, std::string, std::string,
                    std::variant<int64_t, std::string>,
                    std::variant<int64_t, std::string>,
                    std::vector<std::tuple<
-                       std::string, std::variant<int64_t, std::string>>>>>>
+                       std::string, std::variant<int64_t, std::string>>>>>>&
         basebiosTable)
 {
     bool idFound = false;
@@ -384,7 +385,7 @@ inline void setVmiBiosEthernetInterfaceAttribute(
     const std::map<std::string,
                    std::tuple<std::string, std::variant<int64_t, std::string>>>&
         newPendingAttributes,
-    const std::shared_ptr<bmcweb::AsyncResp> asyncResp)
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
 
     using pendingAttributes_t =
@@ -540,7 +541,7 @@ inline void
     createHypervisorIPv4(const std::string& ifaceId, const int64_t prefixLength,
                          const std::string& gateway, const std::string& address,
                          const bool& dhcpEnabled,
-                         const std::shared_ptr<bmcweb::AsyncResp> asyncResp)
+                         const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     BMCWEB_LOG_DEBUG << "Called create HypervisorIPV4";
     using pendingAttributes_t =
