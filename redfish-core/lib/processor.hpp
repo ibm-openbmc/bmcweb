@@ -49,6 +49,55 @@ constexpr std::array<std::string_view, 2> processorInterfaces = {
     "xyz.openbmc_project.Inventory.Item.Accelerator"};
 
 /**
+ * @brief Workaround to handle DCM (Dual-Chip Module) package for Redfish
+ *
+ * Make sure processor modeled as dual chip module ("dcmN-cpuN"),
+ * If yes then, replace Redfish processor id as "dcmN/cpuN" and check with
+ * given object path because Redfish does not support chip module concept.
+ *
+ * @param[in] processorId - The Redfish processor Id
+ * @param[in] objectPath  - The D-Bus object path that contain the processor
+ *                          segment
+ *
+ * @return true if matched with the given object path else false.
+ *
+ * @note Inventory modeled as "dcmN/cpuN" to support DCM so wherever using
+ *       Redfish processor id as "dcmN-cpuN" then this function (it support
+ *       both SCM and DCM) can be used for the inventory processor object
+ *       path validation.
+ */
+inline bool
+    isProcObjectMatched(const std::string& processorId,
+                        const sdbusplus::message::object_path& objectPath)
+{
+    bool isMatched = false;
+    if (processorId.find("dcm") != std::string::npos)
+    {
+        std::size_t delimiterPos = processorId.find('-');
+        if (delimiterPos != std::string::npos)
+        {
+            std::string procParent = processorId.substr(0, delimiterPos);
+            std::string procId = processorId.substr(delimiterPos + 1,
+                                                    processorId.length());
+
+            if ((objectPath.parent_path().filename() == procParent) &&
+                (objectPath.filename() == procId))
+            {
+                isMatched = true;
+            }
+        }
+    }
+    else
+    {
+        if (objectPath.filename() == processorId)
+        {
+            isMatched = true;
+        }
+    }
+    return isMatched;
+}
+
+/**
  * @brief Fill out uuid info of a processor by
  * requesting data from the given D-Bus object.
  *
@@ -804,7 +853,9 @@ inline void getProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
         for (const auto& [objectPath, serviceMap] : subtree)
         {
             // Ignore any objects which don't end with our desired cpu name
-            if (!objectPath.ends_with(processorId))
+            sdbusplus::message::object_path path(objectPath);
+            std::string name = path.filename();
+            if (name.empty() || !isProcObjectMatched(processorId, path))
             {
                 continue;
             }
@@ -900,6 +951,275 @@ inline void
             }
         }
     }
+}
+
+template <typename Handler>
+inline void getProcessorPaths(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                              const std::string& processorId, Handler&& handler)
+{
+    crow::connections::systemBus->async_method_call(
+        [processorId, aResp, handler{std::forward<Handler>(handler)}](
+            const boost::system::error_code ec,
+            const std::vector<std::string>& subTreePaths) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR("DBUS response error");
+            // No processor objects found by mapper
+            if (ec.value() == boost::system::errc::io_error)
+            {
+                messages::resourceNotFound(
+                    aResp->res, "#Processor.v1_11_0.Processor", processorId);
+                return;
+            }
+
+            messages::internalError(aResp->res);
+            return;
+        }
+
+        for (const std::string& cpuPath : subTreePaths)
+        {
+            if (!isProcObjectMatched(processorId,
+                                     sdbusplus::message::object_path(cpuPath)))
+            {
+                continue;
+            }
+
+            handler(cpuPath);
+            return;
+        }
+
+        // Object not found
+        messages::resourceNotFound(aResp->res, "#Processor.v1_11_0.Processor",
+                                   processorId);
+    },
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
+        "/xyz/openbmc_project/inventory", 0,
+        std::array<const char*, 1>{"xyz.openbmc_project.Inventory.Item.Cpu"});
+}
+
+inline void
+    getCpuCoreDataByService(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                            const std::string& service,
+                            const std::string& objPath)
+{
+    BMCWEB_LOG_DEBUG("Get available system cpu core resources by service.");
+
+    aResp->res.jsonValue["Status"]["State"] = "Enabled";
+    aResp->res.jsonValue["Status"]["Health"] = "OK";
+
+    crow::connections::systemBus->async_method_call(
+        [objPath, aResp](const boost::system::error_code ec,
+                         const dbus::utility::ManagedObjectType& dbusData) {
+        if (ec)
+        {
+            BMCWEB_LOG_DEBUG("DBUS response error, ec: {}", ec.value());
+            messages::internalError(aResp->res);
+            return;
+        }
+
+        for (const auto& [path, interfaces] : dbusData)
+        {
+            if (path != objPath)
+            {
+                continue;
+            }
+
+            bool present = true;
+            bool functional = true;
+
+            for (const auto& [interface, properties] : interfaces)
+            {
+                if (interface == "xyz.openbmc_project.State."
+                                 "Decorator.OperationalStatus")
+                {
+                    for (const auto& [proName, proValue] : properties)
+                    {
+                        if (proName == "Functional")
+                        {
+                            const bool* value = std::get_if<bool>(&proValue);
+                            if (value == nullptr)
+                            {
+                                messages::internalError(aResp->res);
+                                return;
+                            }
+                            functional = *value;
+                        }
+                    }
+                }
+                else if (interface == "xyz.openbmc_project.Inventory.Item")
+                {
+                    for (const auto& [proName, proValue] : properties)
+                    {
+                        if (proName == "Present")
+                        {
+                            const bool* value = std::get_if<bool>(&proValue);
+                            if (value == nullptr)
+                            {
+                                messages::internalError(aResp->res);
+                                return;
+                            }
+                            present = *value;
+                        }
+                        else if (proName == "PrettyName")
+                        {
+                            const std::string* prettyName =
+                                std::get_if<std::string>(&proValue);
+                            if (prettyName == nullptr)
+                            {
+                                messages::internalError(aResp->res);
+                                return;
+                            }
+                            aResp->res.jsonValue["Name"] = *prettyName;
+                        }
+                    }
+                }
+            }
+
+            if (!present)
+            {
+                aResp->res.jsonValue["Status"]["State"] = "Absent";
+            }
+            else
+            {
+                if (!functional)
+                {
+                    aResp->res.jsonValue["Status"]["Health"] = "Critical";
+                }
+            }
+        }
+    },
+        service, "/xyz/openbmc_project/inventory",
+        "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
+}
+
+inline void getSubProcessorData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                                const std::string& processorId,
+                                const std::string& coreId)
+{
+    BMCWEB_LOG_DEBUG("Get available system sub processor resources.");
+
+    auto callback = [aResp, processorId, coreId](const std::string& cpuPath) {
+        crow::connections::systemBus->async_method_call(
+            [aResp, processorId, coreId](
+                const boost::system::error_code ec,
+                const boost::container::flat_map<
+                    std::string, boost::container::flat_map<
+                                     std::string, std::vector<std::string>>>&
+                    subtree) {
+            if (ec)
+            {
+                BMCWEB_LOG_DEBUG("DBUS response error, ec: {}", ec.value());
+                // No processor objects found by mapper
+                if (ec.value() == boost::system::errc::io_error)
+                {
+                    messages::resourceNotFound(aResp->res,
+                                               "#Processor.v1_11_0.Processor",
+                                               processorId);
+                    return;
+                }
+
+                messages::internalError(aResp->res);
+                return;
+            }
+
+            for (const auto& object : subtree)
+            {
+                if (sdbusplus::message::object_path(object.first).filename() !=
+                    coreId)
+                {
+                    continue;
+                }
+
+                aResp->res.jsonValue["@odata.type"] =
+                    "#Processor.v1_11_0.Processor";
+                aResp->res.jsonValue["@odata.id"] =
+                    std::string("/redfish/v1/Systems/system/Processors/")
+                        .append(processorId)
+                        .append("/SubProcessors/")
+                        .append(coreId);
+                aResp->res.jsonValue["Name"] = "SubProcessor";
+                aResp->res.jsonValue["Id"] = coreId;
+
+                for (const auto& service : object.second)
+                {
+                    getCpuCoreDataByService(aResp, service.first, object.first);
+                    break;
+                }
+                return;
+            }
+
+            if (!subtree.empty())
+            {
+                // Object not found
+                messages::resourceNotFound(
+                    aResp->res, "#Processor.v1_11_0.Processor", coreId);
+                return;
+            }
+        },
+            "xyz.openbmc_project.ObjectMapper",
+            "/xyz/openbmc_project/object_mapper",
+            "xyz.openbmc_project.ObjectMapper", "GetSubTree", cpuPath, 0,
+            std::array<const char*, 1>{
+                "xyz.openbmc_project.Inventory.Item.CpuCore"});
+    };
+
+    getProcessorPaths(aResp, processorId, std::move(callback));
+}
+
+inline void
+    getSubProcessorMembers(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                           const std::string& processorId)
+{
+    auto callback = [aResp, processorId](const std::string& cpuPath) {
+        crow::connections::systemBus->async_method_call(
+            [processorId, aResp](const boost::system::error_code ec,
+                                 const std::vector<std::string>& subTreePaths) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR("DBUS response error");
+                // No processor objects found by mapper
+                if (ec.value() == boost::system::errc::io_error)
+                {
+                    messages::resourceNotFound(aResp->res,
+                                               "#Processor.v1_11_0.Processor",
+                                               processorId);
+                    return;
+                }
+
+                messages::internalError(aResp->res);
+                return;
+            }
+
+            aResp->res.jsonValue["@odata.type"] =
+                "#ProcessorCollection.ProcessorCollection";
+            aResp->res.jsonValue["@odata.id"] =
+                "/redfish/v1/Systems/system/Processors/" + processorId +
+                "/SubProcessors";
+            aResp->res.jsonValue["Name"] = "SubProcessor Collection";
+            nlohmann::json& members = aResp->res.jsonValue["Members"];
+            members = nlohmann::json::array();
+            std::string subProcessorsPath =
+                "/redfish/v1/Systems/system/Processors/" + processorId +
+                "/SubProcessors/";
+            for (const std::string& corePath : subTreePaths)
+            {
+                members.push_back(
+                    {{"@odata.id", subProcessorsPath +
+                                       sdbusplus::message::object_path(corePath)
+                                           .filename()}});
+            }
+            aResp->res.jsonValue["Members@odata.count"] = members.size();
+        },
+            "xyz.openbmc_project.ObjectMapper",
+            "/xyz/openbmc_project/object_mapper",
+            "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", cpuPath, 0,
+            std::array<const char*, 1>{
+                "xyz.openbmc_project.Inventory.Item.CpuCore"});
+    };
+
+    getProcessorPaths(aResp, processorId, std::move(callback));
 }
 
 /**
@@ -1215,7 +1535,8 @@ inline void requestRoutesOperatingConfigCollection(App& app)
 
             for (const std::string& object : objects)
             {
-                if (!object.ends_with(cpuName))
+                if (!isProcObjectMatched(
+                        cpuName, sdbusplus::message::object_path(object)))
                 {
                     continue;
                 }
@@ -1287,6 +1608,12 @@ inline void requestRoutesOperatingConfig(App& app)
             const std::string expectedEnding = cpuName + '/' + configName;
             for (const auto& [objectPath, serviceMap] : subtree)
             {
+                if (!isProcObjectMatched(
+                        cpuName, sdbusplus::message::object_path(objectPath)
+                                     .parent_path()))
+                {
+                    continue;
+                }
                 // Ignore any configs without matching cpuX/configY
                 if (!objectPath.ends_with(expectedEnding) || serviceMap.empty())
                 {
@@ -1360,10 +1687,63 @@ inline void requestRoutesProcessorCollection(App& app)
         asyncResp->res.jsonValue["@odata.id"] =
             "/redfish/v1/Systems/system/Processors";
 
-        collection_util::getCollectionMembers(
-            asyncResp,
-            boost::urls::url("/redfish/v1/Systems/system/Processors"),
-            processorInterfaces, "/xyz/openbmc_project/inventory");
+        crow::connections::systemBus->async_method_call(
+            [asyncResp](const boost::system::error_code ec,
+                        const std::vector<std::string>& objects) {
+            if (ec)
+            {
+                BMCWEB_LOG_DEBUG("DBUS response error");
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            nlohmann::json& members = asyncResp->res.jsonValue["Members"];
+            members = nlohmann::json::array();
+
+            for (const auto& object : objects)
+            {
+                sdbusplus::message::object_path path(object);
+                std::string leaf;
+
+                /**
+                 * @brief Workaround to handle DCM (Dual-Chip Module)
+                 *        package for Redfish
+                 *
+                 * Make sure processor modeled as dual chip module,
+                 * If yes then, replace redfish processor id as
+                 * "dcmN-cpuN" because redfish does not support chip
+                 * module concept.
+                 *
+                 * @note Inventory modeled as "dcmN/cpuN" so wherever
+                 *       using redfish processor id as "dcmN-cpuN" then
+                 *       that need to convert as "dcmN/cpuN" before
+                 *       validating the inventory processor object path
+                 */
+                if (path.parent_path().filename().find("dcm") !=
+                    std::string::npos)
+                {
+                    leaf = path.parent_path().filename() + "-" +
+                           path.filename();
+                }
+                else
+                {
+                    leaf = path.filename();
+                }
+
+                if (leaf.empty())
+                {
+                    continue;
+                }
+                std::string newPath = "/redfish/v1/Systems/system/Processors";
+                newPath += '/';
+                newPath += leaf;
+                members.push_back({{"@odata.id", std::move(newPath)}});
+            }
+            asyncResp->res.jsonValue["Members@odata.count"] = members.size();
+        },
+            "xyz.openbmc_project.ObjectMapper",
+            "/xyz/openbmc_project/object_mapper",
+            "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
+            "/xyz/openbmc_project/inventory", 0, processorInterfaces);
     });
 }
 
