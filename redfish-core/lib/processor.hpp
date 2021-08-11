@@ -43,6 +43,55 @@ constexpr std::array<std::string_view, 2> processorInterfaces = {
     "xyz.openbmc_project.Inventory.Item.Accelerator"};
 
 /**
+ * @brief Workaround to handle DCM (Dual-Chip Module) package for Redfish
+ *
+ * Make sure processor modeled as dual chip module ("dcmN-cpuN"),
+ * If yes then, replace Redfish processor id as "dcmN/cpuN" and check with
+ * given object path because Redfish does not support chip module concept.
+ *
+ * @param[in] processorId - The Redfish processor Id
+ * @param[in] objectPath  - The D-Bus object path that contain the processor
+ *                          segment
+ *
+ * @return true if matched with the given object path else false.
+ *
+ * @note Inventory modeled as "dcmN/cpuN" to support DCM so wherever using
+ *       Redfish processor id as "dcmN-cpuN" then this function (it support
+ *       both SCM and DCM) can be used for the inventory processor object
+ *       path validation.
+ */
+inline bool
+    isProcObjectMatched(const std::string& processorId,
+                        const sdbusplus::message::object_path& objectPath)
+{
+    bool isMatched = false;
+    if (processorId.find("dcm") != std::string::npos)
+    {
+        std::size_t delimiterPos = processorId.find('-');
+        if (delimiterPos != std::string::npos)
+        {
+            std::string procParent = processorId.substr(0, delimiterPos);
+            std::string procId =
+                processorId.substr(delimiterPos + 1, processorId.length());
+
+            if ((objectPath.parent_path().filename() == procParent) &&
+                (objectPath.filename() == procId))
+            {
+                isMatched = true;
+            }
+        }
+    }
+    else
+    {
+        if (objectPath.filename() == processorId)
+        {
+            isMatched = true;
+        }
+    }
+    return isMatched;
+}
+
+/**
  * @brief Fill out uuid info of a processor by
  * requesting data from the given D-Bus object.
  *
@@ -695,7 +744,7 @@ inline void getProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
             // Ignore any objects which don't end with our desired cpu name
             sdbusplus::message::object_path path(objectPath);
             std::string name = path.filename();
-            if (name.empty() || name != processorId)
+            if (name.empty() || !isProcObjectMatched(processorId, path))
             {
                 continue;
             }
@@ -867,8 +916,8 @@ inline void getProcessorPaths(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 
             for (const std::string& cpuPath : subTreePaths)
             {
-                if (sdbusplus::message::object_path(cpuPath).filename() !=
-                    processorId)
+                if (!isProcObjectMatched(
+                        processorId, sdbusplus::message::object_path(cpuPath)))
                 {
                     continue;
                 }
@@ -1518,7 +1567,9 @@ inline void requestRoutesOperatingConfigCollection(App& app)
 
             for (const std::string& object : objects)
             {
-                if (!object.ends_with(cpuName))
+                if (!isProcObjectMatched(
+                                    cpuName,
+                                    sdbusplus::message::object_path(object)))
                 {
                     continue;
                 }
@@ -1580,6 +1631,13 @@ inline void requestRoutesOperatingConfig(App& app)
             const std::string expectedEnding = cpuName + '/' + configName;
             for (const auto& [objectPath, serviceMap] : subtree)
             {
+                if (!isProcObjectMatched(
+                        cpuName,
+                        sdbusplus::message::object_path(objectPath)
+                            .parent_path()))
+                {
+                    continue;
+                }            
                 // Ignore any configs without matching cpuX/configY
                 if (!objectPath.ends_with(expectedEnding) || serviceMap.empty())
                 {
@@ -1649,10 +1707,66 @@ inline void requestRoutesProcessorCollection(App& app)
         asyncResp->res.jsonValue["@odata.id"] =
             "/redfish/v1/Systems/system/Processors";
 
-        collection_util::getCollectionMembers(
-            asyncResp,
-            boost::urls::url("/redfish/v1/Systems/system/Processors"),
-            processorInterfaces);
+        crow::connections::systemBus->async_method_call(
+            [asyncResp](const boost::system::error_code ec,
+                        const std::vector<std::string>& objects) {
+                if (ec)
+                {
+                    BMCWEB_LOG_DEBUG << "DBUS response error";
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                nlohmann::json& members =
+                    asyncResp->res.jsonValue["Members"];
+                members = nlohmann::json::array();
+
+                for (const auto& object : objects)
+                {
+                    sdbusplus::message::object_path path(object);
+                    std::string leaf;
+
+                    /**
+                     * @brief Workaround to handle DCM (Dual-Chip Module)
+                     *        package for Redfish
+                     *
+                     * Make sure processor modeled as dual chip module,
+                     * If yes then, replace redfish processor id as
+                     * "dcmN-cpuN" because redfish does not support chip
+                     * module concept.
+                     *
+                     * @note Inventory modeled as "dcmN/cpuN" so wherever
+                     *       using redfish processor id as "dcmN-cpuN" then
+                     *       that need to convert as "dcmN/cpuN" before
+                     *       validating the inventory processor object path
+                     */
+                    if (path.parent_path().filename().find("dcm") !=
+                        std::string::npos)
+                    {
+                        leaf = path.parent_path().filename() + "-" +
+                               path.filename();
+                    }
+                    else
+                    {
+                        leaf = path.filename();
+                    }
+
+                    if (leaf.empty())
+                    {
+                        continue;
+                    }
+                    std::string newPath =
+                        "/redfish/v1/Systems/system/Processors";
+                    newPath += '/';
+                    newPath += leaf;
+                    members.push_back({{"@odata.id", std::move(newPath)}});
+                }
+                asyncResp->res.jsonValue["Members@odata.count"] =
+                    members.size();
+            },
+            "xyz.openbmc_project.ObjectMapper",
+            "/xyz/openbmc_project/object_mapper",
+            "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
+            "/xyz/openbmc_project/inventory", 0, processorInterfaces);
         });
 }
 
