@@ -191,7 +191,8 @@ inline void
                     const std::string& dbusSNMPid) {
             if (ec)
             {
-                messages::internalError(asyncResp->res);
+                BMCWEB_LOG_ERROR << "Create SNMP subscriber failed. " << ec;
+                messages::invalidObject(asyncResp->res, "Destination");
                 return;
             }
 
