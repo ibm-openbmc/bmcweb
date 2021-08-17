@@ -174,8 +174,7 @@ inline void requestRoutesChassisCollection(App& app)
 
                 collection_util::getCollectionMembers(
                     asyncResp, "/redfish/v1/Chassis",
-                    {"xyz.openbmc_project.Inventory.Item.Board",
-                     "xyz.openbmc_project.Inventory.Item.Chassis"});
+                    {"xyz.openbmc_project.Inventory.Item.Chassis"});
             });
 }
 
@@ -192,8 +191,7 @@ inline void requestRoutesChassis(App& app)
                                               const std::shared_ptr<
                                                   bmcweb::AsyncResp>& asyncResp,
                                               const std::string& chassisId) {
-            const std::array<const char*, 2> interfaces = {
-                "xyz.openbmc_project.Inventory.Item.Board",
+            const std::array<const char*, 1> interfaces = {
                 "xyz.openbmc_project.Inventory.Item.Chassis"};
 
             crow::connections::systemBus->async_method_call(
@@ -276,10 +274,8 @@ inline void requestRoutesChassis(App& app)
 
                         const std::vector<std::string>& interfaces2 =
                             connectionNames[0].second;
-                        const std::array<const char*, 2> hasIndicatorLed = {
-                            "xyz.openbmc_project.Inventory.Item.Panel",
-                            "xyz.openbmc_project.Inventory.Item.Board."
-                            "Motherboard"};
+                        const std::array<const char*, 1> hasIndicatorLed = {
+                            "xyz.openbmc_project.Inventory.Item.Panel"};
 
                         const std::string assetTagInterface =
                             "xyz.openbmc_project.Inventory.Decorator."
@@ -534,8 +530,7 @@ inline void requestRoutesChassis(App& app)
                     "LocationIndicatorActive instead.\"");
             }
 
-            const std::array<const char*, 2> interfaces = {
-                "xyz.openbmc_project.Inventory.Item.Board",
+            const std::array<const char*, 1> interfaces = {
                 "xyz.openbmc_project.Inventory.Item.Chassis"};
 
             const std::string& chassisId = param;
@@ -576,10 +571,8 @@ inline void requestRoutesChassis(App& app)
                         const std::vector<std::string>& interfaces3 =
                             connectionNames[0].second;
 
-                        const std::array<const char*, 2> hasIndicatorLed = {
-                            "xyz.openbmc_project.Inventory.Item.Panel",
-                            "xyz.openbmc_project.Inventory.Item.Board."
-                            "Motherboard"};
+                        const std::array<const char*, 1> hasIndicatorLed = {
+                            "xyz.openbmc_project.Inventory.Item.Panel"};
                         bool indicatorChassis = false;
                         for (const char* interface : hasIndicatorLed)
                         {
