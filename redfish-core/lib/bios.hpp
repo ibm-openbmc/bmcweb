@@ -407,7 +407,8 @@ inline void requestRoutesBiosSettings(App& app)
                         return;
                     }
 
-                    boost::container::flat_map<std::string, std::string>
+                    boost::container::flat_map<std::string,
+                                               std::pair<bool, std::string>>
                         biosAttrsType;
                     const BiosBaseTableType* baseBiosTable =
                         std::get_if<BiosBaseTableType>(&retBiosTable);
@@ -423,7 +424,9 @@ inline void requestRoutesBiosSettings(App& app)
                     {
                         biosAttrsType.try_emplace(
                             item.first,
-                            std::get<biosBaseAttrType>(item.second));
+                            std::make_pair(
+                                std::get<biosBaseReadonlyStatus>(item.second),
+                                std::get<biosBaseAttrType>(item.second)));
                     }
 
                     PendingAttributesType pendingAttributes;
@@ -445,7 +448,17 @@ inline void requestRoutesBiosSettings(App& app)
                             return;
                         }
 
-                        std::string biosAttrType = (*it).second;
+                        bool biosAttrReadOnlyStatus = ((*it).second).first;
+                        if (biosAttrReadOnlyStatus == true)
+                        {
+                            BMCWEB_LOG_ERROR
+                                << "Attribute Type is ReadOnly. Patch failed!";
+                            messages::propertyNotWritable(asyncResp->res,
+                                                          attrName);
+                            return;
+                        }
+
+                        std::string biosAttrType = ((*it).second).second;
                         if (biosAttrType == "")
                         {
                             BMCWEB_LOG_ERROR
