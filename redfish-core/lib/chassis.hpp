@@ -274,10 +274,8 @@ inline void requestRoutesChassis(App& app)
 
                         const std::vector<std::string>& interfaces2 =
                             connectionNames[0].second;
-                        const std::array<const char*, 2> hasIndicatorLed = {
-                            "xyz.openbmc_project.Inventory.Item.Panel",
-                            "xyz.openbmc_project.Inventory.Item.Board."
-                            "Motherboard"};
+                        const std::array<const char*, 1> hasIndicatorLed = {
+                            "xyz.openbmc_project.Inventory.Item.Panel"};
 
                         const std::string assetTagInterface =
                             "xyz.openbmc_project.Inventory.Decorator."
@@ -573,10 +571,8 @@ inline void requestRoutesChassis(App& app)
                         const std::vector<std::string>& interfaces3 =
                             connectionNames[0].second;
 
-                        const std::array<const char*, 2> hasIndicatorLed = {
-                            "xyz.openbmc_project.Inventory.Item.Panel",
-                            "xyz.openbmc_project.Inventory.Item.Board."
-                            "Motherboard"};
+                        const std::array<const char*, 1> hasIndicatorLed = {
+                            "xyz.openbmc_project.Inventory.Item.Panel"};
                         bool indicatorChassis = false;
                         for (const char* interface : hasIndicatorLed)
                         {
