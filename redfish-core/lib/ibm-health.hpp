@@ -34,8 +34,6 @@ struct ibmHealthPopulate : std::enable_shared_from_this<ibmHealthPopulate>
             {
                 for (const std::string& child : inventory)
                 {
-                    std::cout << "dzjtest 0000  child =" << child
-                              << " path =" << path << "\n";
                     if (child == path)
                     {
                         const std::string& serviceName =
@@ -54,7 +52,6 @@ struct ibmHealthPopulate : std::enable_shared_from_this<ibmHealthPopulate>
                                 {
                                     return;
                                 }
-                                std::cout << "dzjtest 4444 continue \n";
                                 if (*value == false)
                                 {
                                     async->res.jsonValue["Status"]["Health"] =
@@ -72,7 +69,6 @@ struct ibmHealthPopulate : std::enable_shared_from_this<ibmHealthPopulate>
                     }
                     else
                     {
-                        std::cout << "dzjtest 1111 continue \n";
                         continue;
                     }
                 }
