@@ -1,6 +1,7 @@
 #pragma once
 
 #include <app.hpp>
+#include <ibm-health.hpp>
 #include <utils/chassis_utils.hpp>
 #include <utils/json_utils.hpp>
 
@@ -23,6 +24,28 @@ inline void
         "/redfish/v1/Chassis/" + chassisID + "/PowerSubsystem";
     asyncResp->res.jsonValue["PowerSupplies"]["@odata.id"] =
         "/redfish/v1/Chassis/" + chassisID + "/PowerSubsystem/PowerSupplies";
+
+    constexpr const std::array<const char*, 1> inventoryForChassis = {
+        "xyz.openbmc_project.Inventory.Item.PowerSupply"};
+
+    auto health = std::make_shared<ibmHealthPopulate>(asyncResp);
+
+    crow::connections::systemBus->async_method_call(
+        [health](const boost::system::error_code ec,
+                 std::vector<std::string>& resp) {
+            if (ec)
+            {
+                // no inventory
+                return;
+            }
+            health->inventory = std::move(resp);
+        },
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
+        "/xyz/openbmc_project/inventory", 0, inventoryForChassis);
+
+    health->populate();
 }
 
 inline void requestRoutesPowerSubsystem(App& app)

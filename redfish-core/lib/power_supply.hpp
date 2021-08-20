@@ -1,6 +1,7 @@
 #pragma once
 
 #include <app.hpp>
+#include <ibm-health.hpp>
 #include <utils/chassis_utils.hpp>
 #include <utils/json_utils.hpp>
 
@@ -81,39 +82,6 @@ inline void
         },
         connectionName, path, "org.freedesktop.DBus.Properties", "Get",
         "xyz.openbmc_project.Inventory.Item", "Present");
-}
-
-inline void
-    getPowerSupplyHealth(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                         const std::string& connectionName,
-                         const std::string& path)
-{
-    // Set the default Health to OK
-    asyncResp->res.jsonValue["Status"]["Health"] = "OK";
-
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec,
-                    const std::variant<bool> health) {
-            if (ec)
-            {
-                BMCWEB_LOG_ERROR << "Can't get PowerSupply health!";
-                messages::internalError(asyncResp->res);
-                return;
-            }
-
-            const bool* value = std::get_if<bool>(&health);
-            if (value == nullptr)
-            {
-                messages::internalError(asyncResp->res);
-                return;
-            }
-            if (*value == false)
-            {
-                asyncResp->res.jsonValue["Status"]["Health"] = "Critical";
-            }
-        },
-        connectionName, path, "org.freedesktop.DBus.Properties", "Get",
-        "xyz.openbmc_project.State.Decorator.OperationalStatus", "Functional");
 }
 
 inline void
@@ -494,6 +462,12 @@ inline void requestRoutesPowerSupply(App& app)
                                     "/PowerSubsystem/PowerSupplies/" +
                                     powerSupplyID;
 
+                                auto health =
+                                    std::make_shared<ibmHealthPopulate>(
+                                        asyncResp);
+                                health->selfPath = validPowerSupplyPath;
+                                health->populate();
+
                                 // Get power supply asset
                                 getPowerSupplyAsset(asyncResp,
                                                     validPowerSupplyService,
@@ -503,11 +477,6 @@ inline void requestRoutesPowerSupply(App& app)
                                 getPowerSupplyState(asyncResp,
                                                     validPowerSupplyService,
                                                     validPowerSupplyPath);
-
-                                // Get power supply health
-                                getPowerSupplyHealth(asyncResp,
-                                                     validPowerSupplyService,
-                                                     validPowerSupplyPath);
 
                                 // Get power supply efficiency ratings
                                 getEfficiencyRatings(asyncResp);
