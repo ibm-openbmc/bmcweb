@@ -15,7 +15,7 @@ namespace crow
 namespace obmc_dump
 {
 
-std::string unixSocketPathDir = "/var/lib/bmcweb/";
+std::string unixSocketPathDir = "/var/lib/phosphor-debug-collector/";
 
 inline void handleDumpOffloadUrl(const crow::Request& req, crow::Response& res,
                                  const std::string& entryId,
