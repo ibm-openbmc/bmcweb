@@ -85,6 +85,7 @@ include_list = [
     'Resource',
     'Role',
     'RoleCollection',
+    'Schedule',
     'Sensor',
     'SensorCollection',
     'ServiceRoot',
