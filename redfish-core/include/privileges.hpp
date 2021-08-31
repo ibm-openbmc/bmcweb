@@ -44,9 +44,14 @@ constexpr const size_t maxPrivilegeCount = 32;
  * "hostconsole" user group. This privilege is required to access the host
  * console.
  */
-constexpr std::array<std::string_view, maxPrivilegeCount> privilegeNames{
-    "Login",         "ConfigureManager", "ConfigureComponents",
-    "ConfigureSelf", "ConfigureUsers",   "OpenBMCHostConsole"};
+static const std::array<std::string, maxPrivilegeCount> privilegeNames{
+    "Login",
+    "ConfigureManager",
+    "ConfigureComponents",
+    "ConfigureSelf",
+    "ConfigureUsers",
+    "OpenBMCHostConsole",
+    "OemIBMPerformService"};
 
 /**
  * @brief Redfish privileges
@@ -242,7 +247,16 @@ inline Privileges getUserPrivileges(const persistent_data::UserSession& session)
         privs.setSinglePrivilege("Login");
         privs.setSinglePrivilege("ConfigureSelf");
     }
-
+    else if (session.userRole == "priv-oemibmserviceagent")
+    {
+        // Redfish privilege : Administrator + IBM OEM
+        privs.setSinglePrivilege("Login");
+        privs.setSinglePrivilege("ConfigureManager");
+        privs.setSinglePrivilege("ConfigureSelf");
+        privs.setSinglePrivilege("ConfigureUsers");
+        privs.setSinglePrivilege("ConfigureComponents");
+        privs.setSinglePrivilege("OemIBMPerformService");
+    }
     return privs;
 }
 
