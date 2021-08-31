@@ -23,7 +23,9 @@
 #include <registries/privilege_registry.hpp>
 #include <utils/json_utils.hpp>
 
+#include <string>
 #include <variant>
+#include <vector>
 
 namespace redfish
 {
@@ -807,6 +809,107 @@ inline void
         ldapConfigInterface, "UserNameAttribute",
         std::variant<std::string>(userNameAttribute));
 }
+
+inline void getAcfProperties(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::tuple<std::vector<uint8_t>, bool, std::string>& messageFDbus)
+{
+    asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
+        "#OemManagerAccount.v1_0_0.IBM";
+    asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["@odata.type"] =
+        "#OemManagerAccount.v1_0_0.ACF";
+    // Get messages from call to InstallACF and add values to json
+    std::vector<uint8_t> acfFile = std::get<0>(messageFDbus);
+    std::string decodeACFFile(acfFile.begin(), acfFile.end());
+    std::string encodedACFFile = crow::utility::base64encode(decodeACFFile);
+
+    bool acfInstalled = std::get<1>(messageFDbus);
+    std::string expirationDate = std::get<2>(messageFDbus);
+
+    asyncResp->res
+        .jsonValue["Oem"]["IBM"]["ACF"]["WarningLongDatedExpiration"] = nullptr;
+    asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["ACFFile"] = nullptr;
+    asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["ExpirationDate"] = nullptr;
+
+    if (acfInstalled)
+    {
+        asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["ExpirationDate"] =
+            expirationDate;
+
+        asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["ACFFile"] =
+            encodedACFFile;
+
+        std::time_t result = std::time(nullptr);
+
+        // YYYY-MM-DD format
+        // Parse expirationDate to get difference between now and expiration
+        std::string expirationDateCpy = expirationDate;
+        std::string delimiter = "-";
+        std::vector<int> parseTime;
+
+        char* endPtr;
+        size_t pos = 0;
+        std::string token;
+        // expirationDate should be exactly 10 characters
+        if (expirationDateCpy.length() != 10)
+        {
+            BMCWEB_LOG_ERROR << "expirationDate format invalid";
+            asyncResp->res = {};
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        while ((pos = expirationDateCpy.find(delimiter)) != std::string::npos)
+        {
+            token = expirationDateCpy.substr(0, pos);
+            parseTime.push_back(
+                static_cast<int>(std::strtol(token.c_str(), &endPtr, 10)));
+
+            if (*endPtr != '\0')
+            {
+                BMCWEB_LOG_ERROR << "expirationDate format enum";
+                asyncResp->res = {};
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            expirationDateCpy.erase(0, pos + delimiter.length());
+        }
+        parseTime.push_back(static_cast<int>(
+            std::strtol(expirationDateCpy.c_str(), &endPtr, 10)));
+
+        // Expect 3 sections. YYYY MM DD
+        if (*endPtr != '\0' && parseTime.size() != 3)
+        {
+            BMCWEB_LOG_ERROR << "expirationDate format invalid";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        std::tm tm{}; // zero initialise
+        tm.tm_year = parseTime.at(0) - 1900;
+        tm.tm_mon = parseTime.at(1) - 1;
+        tm.tm_mday = parseTime.at(2);
+
+        std::time_t t = std::mktime(&tm);
+        u_int diffTime = static_cast<u_int>(std::difftime(t, result));
+        // BMC date is displayed if exp date > 30 days
+        // 30 days = 30 * 24 * 60 * 60 seconds
+        if (diffTime > 2592000)
+        {
+            asyncResp->res
+                .jsonValue["Oem"]["IBM"]["ACF"]["WarningLongDatedExpiration"] =
+                true;
+        }
+        else
+        {
+            asyncResp->res
+                .jsonValue["Oem"]["IBM"]["ACF"]["WarningLongDatedExpiration"] =
+                false;
+        }
+    }
+    asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["ACFInstalled"] =
+        acfInstalled;
+}
+
 /**
  * @brief updates the LDAP group attribute and updates the
           json response with the new value.
@@ -1826,6 +1929,27 @@ inline void requestAccountServiceRoutes(App& app)
                         "/redfish/v1/AccountService/Accounts/" + accountName;
                     asyncResp->res.jsonValue["Id"] = accountName;
                     asyncResp->res.jsonValue["UserName"] = accountName;
+
+                    if (accountName == "service")
+                    {
+                        crow::connections::systemBus->async_method_call(
+                            [asyncResp](
+                                const boost::system::error_code ec,
+                                const std::tuple<std::vector<uint8_t>, bool,
+                                                 std::string>& messageFDbus) {
+                                if (ec)
+                                {
+                                    BMCWEB_LOG_ERROR << "DBUS response error: "
+                                                     << ec;
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                                getAcfProperties(asyncResp, messageFDbus);
+                            },
+                            "xyz.openbmc_project.Certs.ACF.Manager",
+                            "/xyz/openbmc_project/certs/ACF",
+                            "xyz.openbmc_project.Certs.ACF", "GetACFInfo");
+                    }
                 },
                 "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
                 "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
@@ -1836,77 +1960,183 @@ inline void requestAccountServiceRoutes(App& app)
         // because of the special handling of ConfigureSelf, it's not able to
         // yet
         .privileges({{"ConfigureUsers"}, {"ConfigureSelf"}})
-        .methods(boost::beast::http::verb::patch)(
-            [](const crow::Request& req,
-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-               const std::string& username) -> void {
-                std::optional<std::string> newUserName;
-                std::optional<std::string> password;
-                std::optional<bool> enabled;
-                std::optional<std::string> roleId;
-                std::optional<bool> locked;
-                if (!json_util::readJson(req, asyncResp->res, "UserName",
-                                         newUserName, "Password", password,
-                                         "RoleId", roleId, "Enabled", enabled,
-                                         "Locked", locked))
+        .methods(
+            boost::beast::http::verb::
+                patch)([](const crow::Request& req,
+                          const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                          const std::string& username) -> void {
+            std::optional<std::string> newUserName;
+            std::optional<std::string> password;
+            std::optional<bool> enabled;
+            std::optional<std::string> roleId;
+            std::optional<bool> locked;
+            std::optional<nlohmann::json> oem;
+            if (!json_util::readJson(req, asyncResp->res, "UserName",
+                                     newUserName, "Password", password,
+                                     "RoleId", roleId, "Enabled", enabled,
+                                     "Locked", locked, "Oem", oem))
+            {
+                return;
+            }
+
+            // Perform a proper ConfigureSelf authority check.  If the
+            // session is being used to PATCH a property other than
+            // Password, then the ConfigureSelf privilege does not apply.
+            // If the user is operating on an account not their own, then
+            // their ConfigureSelf privilege does not apply.  In either
+            // case, perform the authority check again without the user's
+            // ConfigureSelf privilege.
+            if ((username != req.session->username))
+            {
+                Privileges requiredPermissionsToChangeNonSelf = {
+                    {"ConfigureUsers"}};
+                Privileges effectiveUserPrivileges =
+                    redfish::getUserPrivileges(req.userRole);
+
+                if (!effectiveUserPrivileges.isSupersetOf(
+                        requiredPermissionsToChangeNonSelf))
                 {
+                    messages::insufficientPrivilege(asyncResp->res);
                     return;
                 }
+            }
 
-                // Perform a proper ConfigureSelf authority check.  If the
-                // session is being used to PATCH a property other than
-                // Password, then the ConfigureSelf privilege does not apply.
-                // If the user is operating on an account not their own, then
-                // their ConfigureSelf privilege does not apply.  In either
-                // case, perform the authority check again without the user's
-                // ConfigureSelf privilege.
-                if ((username != req.session->username))
+            if (oem)
+            {
+                std::optional<nlohmann::json> ibm;
+                if (!redfish::json_util::readJson(*oem, asyncResp->res, "IBM",
+                                                  ibm))
                 {
-                    Privileges requiredPermissionsToChangeNonSelf = {
-                        "ConfigureUsers"};
-                    Privileges effectiveUserPrivileges =
-                        redfish::getUserPrivileges(req.userRole);
-
-                    if (!effectiveUserPrivileges.isSupersetOf(
-                            requiredPermissionsToChangeNonSelf))
+                    BMCWEB_LOG_ERROR << "Illegal Property ";
+                    messages::propertyMissing(asyncResp->res, "IBM");
+                    return;
+                }
+                if (ibm)
+                {
+                    std::optional<nlohmann::json> acf;
+                    if (!redfish::json_util::readJson(*ibm, asyncResp->res,
+                                                      "ACF", acf))
                     {
-                        messages::insufficientPrivilege(asyncResp->res);
+                        BMCWEB_LOG_ERROR << "Illegal Property ";
+                        messages::propertyMissing(asyncResp->res, "ACF");
                         return;
                     }
-                }
-
-                // if user name is not provided in the patch method or if it
-                // matches the user name in the URI, then we are treating it as
-                // updating user properties other then username. If username
-                // provided doesn't match the URI, then we are treating this as
-                // user rename request.
-                if (!newUserName || (newUserName.value() == username))
-                {
-                    updateUserProperties(asyncResp, username, password, enabled,
-                                         roleId, locked);
-                    return;
-                }
-                crow::connections::systemBus->async_method_call(
-                    [asyncResp, username, password(std::move(password)),
-                     roleId(std::move(roleId)), enabled,
-                     newUser{std::string(*newUserName)},
-                     locked](const boost::system::error_code ec,
-                             sdbusplus::message::message& m) {
-                        if (ec)
+                    if (acf && (username == "service"))
+                    {
+                        std::vector<uint8_t> decodedAcf;
+                        std::optional<std::string> acfFile;
+                        if (acf.value().contains("ACFFile") &&
+                            acf.value()["ACFFile"] == nullptr)
                         {
-                            userErrorMessageHandler(m.get_error(), asyncResp,
-                                                    newUser, username);
-                            return;
+                            acfFile = "";
+                        }
+                        else
+                        {
+                            if (!redfish::json_util::readJson(
+                                    *acf, asyncResp->res, "ACFFile", acfFile))
+                            {
+                                BMCWEB_LOG_ERROR << "Illegal Property ";
+                                messages::propertyMissing(asyncResp->res,
+                                                          "ACFFile");
+                                return;
+                            }
+
+                            std::string sDecodedAcf;
+                            if (!crow::utility::base64Decode(*acfFile,
+                                                             sDecodedAcf))
+                            {
+                                BMCWEB_LOG_ERROR << "base64 decode failure ";
+                                messages::internalError(asyncResp->res);
+                                return;
+                            }
+                            try
+                            {
+                                std::copy(sDecodedAcf.begin(),
+                                          sDecodedAcf.end(),
+                                          std::back_inserter(decodedAcf));
+                            }
+                            catch (const std::exception& e)
+                            {
+                                BMCWEB_LOG_ERROR << e.what();
+                                messages::internalError(asyncResp->res);
+                                return;
+                            }
                         }
 
-                        updateUserProperties(asyncResp, newUser, password,
-                                             enabled, roleId, locked);
-                    },
-                    "xyz.openbmc_project.User.Manager",
-                    "/xyz/openbmc_project/user",
-                    "xyz.openbmc_project.User.Manager", "RenameUser", username,
-                    *newUserName);
-            });
+                        crow::connections::systemBus->async_method_call(
+                            [asyncResp](
+                                const boost::system::error_code ec,
+                                sdbusplus::message::message& m,
+                                const std::tuple<std::vector<uint8_t>, bool,
+                                                 std::string>& messageFDbus) {
+                                if (ec)
+                                {
+                                    BMCWEB_LOG_ERROR << "DBUS response error: "
+                                                     << ec;
+                                    if (strcmp(m.get_error()->name,
+                                               "xyz.openbmc_project.Certs."
+                                               "Error.InvalidCertificate") == 0)
+                                    {
+                                        redfish::messages::invalidUpload(
+                                            asyncResp->res,
+                                            "/redfish/v1/AccountService/"
+                                            "Accounts/service",
+                                            "Invalid Certificate");
+                                    }
+                                    else
+                                    {
+                                        messages::internalError(asyncResp->res);
+                                    }
+                                    return;
+                                }
+                                getAcfProperties(asyncResp, messageFDbus);
+                            },
+                            "xyz.openbmc_project.Certs.ACF.Manager",
+                            "/xyz/openbmc_project/certs/ACF",
+                            "xyz.openbmc_project.Certs.ACF", "InstallACF",
+                            decodedAcf);
+                    }
+                    else if (acf && (username != "service"))
+                    {
+                        messages::resourceAtUriUnauthorized(
+                            asyncResp->res, std::string(req.url),
+                            "ACF properties access not allowed by non service "
+                            "user");
+                    }
+                }
+            }
+
+            // if user name is not provided in the patch method or if it
+            // matches the user name in the URI, then we are treating it as
+            // updating user properties other then username. If username
+            // provided doesn't match the URI, then we are treating this as
+            // user rename request.
+            if (!newUserName || (newUserName.value() == username))
+            {
+                updateUserProperties(asyncResp, username, password, enabled,
+                                     roleId, locked);
+                return;
+            }
+            crow::connections::systemBus->async_method_call(
+                [asyncResp, username, password(std::move(password)),
+                 roleId(std::move(roleId)), enabled,
+                 newUser{std::string(*newUserName)},
+                 locked](const boost::system::error_code ec,
+                         sdbusplus::message::message& m) {
+                    if (ec)
+                    {
+                        userErrorMessageHandler(m.get_error(), asyncResp,
+                                                newUser, username);
+                        return;
+                    }
+
+                    updateUserProperties(asyncResp, newUser, password, enabled,
+                                         roleId, locked);
+                },
+                "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
+                "xyz.openbmc_project.User.Manager", "RenameUser", username,
+                *newUserName);
+        });
 
     BMCWEB_ROUTE(app, "/redfish/v1/AccountService/Accounts/<str>/")
         .privileges(redfish::privileges::deleteManagerAccount)
