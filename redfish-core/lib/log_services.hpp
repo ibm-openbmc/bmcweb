@@ -1061,8 +1061,8 @@ inline void requestRoutesSystemLogServiceCollection(App& app)
                                                      effectiveUserPrivileges))
                 {
                     logServiceArray.push_back(
-                        {{"@odata.id", 
-                          "/redfish/v1/Systems/system/LogServices/CorrectableEventLog"}});
+                        {{"@odata.id", "/redfish/v1/Systems/system/LogServices/"
+                                       "CorrectableEventLog"}});
                 }
 
                 asyncResp->res.jsonValue["Members@odata.count"] =
@@ -1137,7 +1137,8 @@ inline void requestRoutesEventLogService(App& app)
 
 inline void requestRoutesCorrectableEventLogService(App& app)
 {
-    BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/")
+    BMCWEB_ROUTE(app,
+                 "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/")
         .privileges(redfish::privileges::getCorrectableLogService)
         .methods(
             boost::beast::http::verb::
@@ -1161,12 +1162,13 @@ inline void requestRoutesCorrectableEventLogService(App& app)
                 redfishDateTimeOffset.second;
 
             asyncResp->res.jsonValue["Entries"] = {
-                {"@odata.id",
-                 "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/Entries"}};
+                {"@odata.id", "/redfish/v1/Systems/system/LogServices/"
+                              "CorrectableEventLog/Entries"}};
             asyncResp->res.jsonValue["Actions"]["#LogService.ClearLog"] = {
 
-                {"target", "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/"
-                           "Actions/LogService.ClearLog"}};
+                {"target",
+                 "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/"
+                 "Actions/LogService.ClearLog"}};
         });
 }
 
@@ -1684,8 +1686,9 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
 
 inline void requestRoutesDBusCorrectableEventLogEntryCollection(App& app)
 {
-    BMCWEB_ROUTE(app,
-                 "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/Entries/")
+    BMCWEB_ROUTE(
+        app,
+        "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/Entries/")
         .privileges(redfish::privileges::getCorrectableLogEntryCollection)
         .methods(
             boost::beast::http::verb::
@@ -1696,8 +1699,10 @@ inline void requestRoutesDBusCorrectableEventLogEntryCollection(App& app)
             asyncResp->res.jsonValue["@odata.type"] =
                 "#LogEntryCollection.CorrectableLogEntryCollection";
             asyncResp->res.jsonValue["@odata.id"] =
-                "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/Entries";
-            asyncResp->res.jsonValue["Name"] = "Correctable System Event Log Entries";
+                "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/"
+                "Entries";
+            asyncResp->res.jsonValue["Name"] =
+                "Correctable System Event Log Entries";
             asyncResp->res.jsonValue["Description"] =
                 "Collection of Correctable System Event Log Entries";
 
@@ -1843,7 +1848,8 @@ inline void requestRoutesDBusCorrectableEventLogEntryCollection(App& app)
                             "/redfish/v1/Systems/system/"
                             "LogServices/CorrectableEventLog/Entries/" +
                             std::to_string(*id);
-                        thisEntry["Name"] = "Correctable System Event Log Entry";
+                        thisEntry["Name"] =
+                            "Correctable System Event Log Entry";
                         thisEntry["Id"] = std::to_string(*id);
                         thisEntry["Message"] = *message;
                         thisEntry["Resolved"] = resolved;
@@ -1893,8 +1899,9 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                 // DBus implementation of EventLog/Entries
                 // Make call to Logging Service to find all log entry objects
                 crow::connections::systemBus->async_method_call(
-                    [asyncResp, entryID, req](const boost::system::error_code ec,
-                                         GetManagedPropertyType& resp) {
+                    [asyncResp, entryID,
+                     req](const boost::system::error_code ec,
+                          GetManagedPropertyType& resp) {
                         if (ec.value() == EBADR)
                         {
                             messages::resourceNotFound(
@@ -1928,7 +1935,9 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                                     std::to_string(*id);
                                 if (isHiddenEventLogEntry(path))
                                 {
-                                    messages::internalError(asyncResp->res);
+                                    messages::resourceNotFound(asyncResp->res,
+                                                               "EventLogEntry",
+                                                               entryID);
                                     return;
                                 }
                             }
@@ -2102,8 +2111,8 @@ inline void requestRoutesDBusEventLogEntry(App& app)
 
 inline void requestRoutesDBusCorrectableEventLogEntry(App& app)
 {
-    BMCWEB_ROUTE(
-        app, "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/Entries/<str>/")
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/"
+                      "CorrectableEventLog/Entries/<str>/")
         .privileges(redfish::privileges::getCorrectableLogEntry)
         .methods(boost::beast::http::verb::get)(
             [](const crow::Request& req,
@@ -2151,10 +2160,12 @@ inline void requestRoutesDBusCorrectableEventLogEntry(App& app)
                                 std::string path =
                                     "/xyz/openbmc_project/logging/entry/" +
                                     std::to_string(*id);
-                                
+
                                 if (!isHiddenEventLogEntry(path))
                                 {
-                                    messages::internalError(asyncResp->res);
+                                    messages::resourceNotFound(asyncResp->res,
+                                                               "EventLogEntry",
+                                                               entryID);
                                     return;
                                 }
                             }
@@ -2215,7 +2226,8 @@ inline void requestRoutesDBusCorrectableEventLogEntry(App& app)
                         asyncResp->res.jsonValue["@odata.type"] =
                             "#LogEntry.v1_8_0.LogEntry";
                         asyncResp->res.jsonValue["@odata.id"] =
-                            "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/"
+                            "/redfish/v1/Systems/system/LogServices/"
+                            "CorrectableEventLog/"
                             "Entries/" +
                             std::to_string(*id);
                         asyncResp->res.jsonValue["Name"] =
@@ -2477,9 +2489,8 @@ static int fillBMCJournalLogEntryJson(const std::string& bmcJournalLogEntryID,
         {"Id", bmcJournalLogEntryID},
         {"Message", std::move(message)},
         {"EntryType", "Oem"},
-        {"Severity", severity <= 2   ? "Critical"
-                     : severity <= 4 ? "Warning"
-                                     : "OK"},
+        {"Severity",
+         severity <= 2 ? "Critical" : severity <= 4 ? "Warning" : "OK"},
         {"OemRecordFormat", "BMC Journal Entry"},
         {"Created", std::move(entryTimeStr)}};
     return 0;
