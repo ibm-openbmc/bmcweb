@@ -1022,7 +1022,7 @@ inline void requestRoutesSystemLogServiceCollection(App& app)
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/")
         .privileges(redfish::privileges::getLogServiceCollection)
         .methods(boost::beast::http::verb::get)(
-            [](const crow::Request&,
+            [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 
             {
@@ -1053,6 +1053,18 @@ inline void requestRoutesSystemLogServiceCollection(App& app)
                     {{"@odata.id",
                       "/redfish/v1/Systems/system/LogServices/Crashdump"}});
 #endif
+
+                Privileges effectiveUserPrivileges =
+                    redfish::getUserPrivileges(req.userRole);
+
+                if (isOperationAllowedWithPrivileges({{"ConfigureManager"}},
+                                                     effectiveUserPrivileges))
+                {
+                    logServiceArray.push_back(
+                        {{"@odata.id", 
+                          "/redfish/v1/Systems/system/LogServices/CorrectableEventLog"}});
+                }
+
                 asyncResp->res.jsonValue["Members@odata.count"] =
                     logServiceArray.size();
 
@@ -1119,6 +1131,41 @@ inline void requestRoutesEventLogService(App& app)
             asyncResp->res.jsonValue["Actions"]["#LogService.ClearLog"] = {
 
                 {"target", "/redfish/v1/Systems/system/LogServices/EventLog/"
+                           "Actions/LogService.ClearLog"}};
+        });
+}
+
+inline void requestRoutesCorrectableEventLogService(App& app)
+{
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/")
+        .privileges(redfish::privileges::getCorrectableLogService)
+        .methods(
+            boost::beast::http::verb::
+                get)([](const crow::Request&,
+                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+            asyncResp->res.jsonValue["@odata.id"] =
+                "/redfish/v1/Systems/system/LogServices/CorrectableEventLog";
+            asyncResp->res.jsonValue["@odata.type"] =
+                "#LogService.v1_1_0.LogService";
+            asyncResp->res.jsonValue["Name"] = "Correctable Event Log Service";
+            asyncResp->res.jsonValue["Description"] =
+                "Correctable System Event Log Service";
+            asyncResp->res.jsonValue["Id"] = "CorrectableEventLog";
+            asyncResp->res.jsonValue["OverWritePolicy"] = "WrapsWhenFull";
+
+            std::pair<std::string, std::string> redfishDateTimeOffset =
+                crow::utility::getDateTimeOffsetNow();
+
+            asyncResp->res.jsonValue["DateTime"] = redfishDateTimeOffset.first;
+            asyncResp->res.jsonValue["DateTimeLocalOffset"] =
+                redfishDateTimeOffset.second;
+
+            asyncResp->res.jsonValue["Entries"] = {
+                {"@odata.id",
+                 "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/Entries"}};
+            asyncResp->res.jsonValue["Actions"]["#LogService.ClearLog"] = {
+
+                {"target", "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/"
                            "Actions/LogService.ClearLog"}};
         });
 }
@@ -1413,6 +1460,34 @@ inline void requestRoutesJournalEventLogEntry(App& app)
             });
 }
 
+static bool isHiddenEventLogEntry(std::string& path)
+{
+    constexpr auto loggingService = "xyz.openbmc_project.Logging";
+    constexpr auto loggingPelInterface = "org.open_power.Logging.PEL.Entry";
+    constexpr auto loggingPelProperty = "Hidden";
+
+    constexpr auto interface = "org.freedesktop.DBus.Properties";
+
+    auto bus = sdbusplus::bus::new_default();
+    bool propValue = false;
+    try
+    {
+        auto method =
+            bus.new_method_call(loggingService, path.c_str(), interface, "Get");
+        method.append(loggingPelInterface, loggingPelProperty);
+        auto reply = bus.call(method);
+        std::variant<bool> property;
+        reply.read(property);
+        propValue = std::get<bool>(property);
+    }
+    catch (const sdbusplus::exception::SdBusError& e)
+    {
+        // Log error, and continue as if the the 'Hidden' entry is false
+        BMCWEB_LOG_ERROR << "Failed to get PEL Hidden property " << e.what();
+    }
+    return propValue;
+}
+
 inline void requestRoutesDBusEventLogEntryCollection(App& app)
 {
     BMCWEB_ROUTE(app,
@@ -1458,8 +1533,10 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                         std::string* message = nullptr;
                         std::string* filePath = nullptr;
                         bool resolved = false;
+                        bool hiddenProperty = false;
                         for (auto& interfaceMap : objectPath.second)
                         {
+                            hiddenProperty = false;
                             if (interfaceMap.first ==
                                 "xyz.openbmc_project.Logging.Entry")
                             {
@@ -1469,6 +1546,17 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                                     {
                                         id = std::get_if<uint32_t>(
                                             &propertyMap.second);
+
+                                        std::string path =
+                                            "/xyz/openbmc_project/logging/"
+                                            "entry/" +
+                                            std::to_string(*id);
+
+                                        if (isHiddenEventLogEntry(path))
+                                        {
+                                            hiddenProperty = true;
+                                            break;
+                                        }
                                     }
                                     else if (propertyMap.first == "Timestamp")
                                     {
@@ -1518,6 +1606,10 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                                         resolved = *resolveptr;
                                     }
                                 }
+                                if (hiddenProperty)
+                                {
+                                    continue;
+                                }
                                 if (id == nullptr || message == nullptr ||
                                     severity == nullptr)
                                 {
@@ -1537,6 +1629,10 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                                     }
                                 }
                             }
+                        }
+                        if (hiddenProperty)
+                        {
+                            continue;
                         }
                         // Object path without the
                         // xyz.openbmc_project.Logging.Entry interface, ignore
@@ -1586,13 +1682,207 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
         });
 }
 
+inline void requestRoutesDBusCorrectableEventLogEntryCollection(App& app)
+{
+    BMCWEB_ROUTE(app,
+                 "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/Entries/")
+        .privileges(redfish::privileges::getCorrectableLogEntryCollection)
+        .methods(
+            boost::beast::http::verb::
+                get)([](const crow::Request&,
+                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+            // Collections don't include the static data added by SubRoute
+            // because it has a duplicate entry for members
+            asyncResp->res.jsonValue["@odata.type"] =
+                "#LogEntryCollection.CorrectableLogEntryCollection";
+            asyncResp->res.jsonValue["@odata.id"] =
+                "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/Entries";
+            asyncResp->res.jsonValue["Name"] = "Correctable System Event Log Entries";
+            asyncResp->res.jsonValue["Description"] =
+                "Collection of Correctable System Event Log Entries";
+
+            // DBus implementation of EventLog/Entries
+            // Make call to Logging Service to find all log entry objects
+            crow::connections::systemBus->async_method_call(
+                [asyncResp](const boost::system::error_code ec,
+                            GetManagedObjectsType& resp) {
+                    if (ec)
+                    {
+                        // TODO Handle for specific error code
+                        BMCWEB_LOG_ERROR
+                            << "getLogEntriesIfaceData resp_handler got error "
+                            << ec;
+                        messages::internalError(asyncResp->res);
+                        return;
+                    }
+                    nlohmann::json& entriesArray =
+                        asyncResp->res.jsonValue["Members"];
+                    entriesArray = nlohmann::json::array();
+                    for (auto& objectPath : resp)
+                    {
+                        uint32_t* id = nullptr;
+                        std::time_t timestamp{};
+                        std::time_t updateTimestamp{};
+                        std::string* severity = nullptr;
+                        std::string* message = nullptr;
+                        std::string* filePath = nullptr;
+                        bool resolved = false;
+                        bool hiddenProperty = true;
+                        for (auto& interfaceMap : objectPath.second)
+                        {
+                            hiddenProperty = true;
+                            if (interfaceMap.first ==
+                                "xyz.openbmc_project.Logging.Entry")
+                            {
+                                for (auto& propertyMap : interfaceMap.second)
+                                {
+                                    if (propertyMap.first == "Id")
+                                    {
+                                        id = std::get_if<uint32_t>(
+                                            &propertyMap.second);
+
+                                        std::string path =
+                                            "/xyz/openbmc_project/logging/"
+                                            "entry/" +
+                                            std::to_string(*id);
+
+                                        if (!isHiddenEventLogEntry(path))
+                                        {
+                                            hiddenProperty = false;
+                                            break;
+                                        }
+                                    }
+                                    else if (propertyMap.first == "Timestamp")
+                                    {
+                                        const uint64_t* millisTimeStamp =
+                                            std::get_if<uint64_t>(
+                                                &propertyMap.second);
+                                        if (millisTimeStamp != nullptr)
+                                        {
+                                            timestamp =
+                                                crow::utility::getTimestamp(
+                                                    *millisTimeStamp);
+                                        }
+                                    }
+                                    else if (propertyMap.first ==
+                                             "UpdateTimestamp")
+                                    {
+                                        const uint64_t* millisTimeStamp =
+                                            std::get_if<uint64_t>(
+                                                &propertyMap.second);
+                                        if (millisTimeStamp != nullptr)
+                                        {
+                                            updateTimestamp =
+                                                crow::utility::getTimestamp(
+                                                    *millisTimeStamp);
+                                        }
+                                    }
+                                    else if (propertyMap.first == "Severity")
+                                    {
+                                        severity = std::get_if<std::string>(
+                                            &propertyMap.second);
+                                    }
+                                    else if (propertyMap.first == "Message")
+                                    {
+                                        message = std::get_if<std::string>(
+                                            &propertyMap.second);
+                                    }
+                                    else if (propertyMap.first == "Resolved")
+                                    {
+                                        bool* resolveptr = std::get_if<bool>(
+                                            &propertyMap.second);
+                                        if (resolveptr == nullptr)
+                                        {
+                                            messages::internalError(
+                                                asyncResp->res);
+                                            return;
+                                        }
+                                        resolved = *resolveptr;
+                                    }
+                                }
+                                if (!hiddenProperty)
+                                {
+                                    continue;
+                                }
+                                if (id == nullptr || message == nullptr ||
+                                    severity == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                            }
+                            else if (interfaceMap.first ==
+                                     "xyz.openbmc_project.Common.FilePath")
+                            {
+                                for (auto& propertyMap : interfaceMap.second)
+                                {
+                                    if (propertyMap.first == "Path")
+                                    {
+                                        filePath = std::get_if<std::string>(
+                                            &propertyMap.second);
+                                    }
+                                }
+                            }
+                        }
+                        if (!hiddenProperty)
+                        {
+                            continue;
+                        }
+                        // Object path without the
+                        // xyz.openbmc_project.Logging.Entry interface, ignore
+                        // and continue.
+                        if (id == nullptr || message == nullptr ||
+                            severity == nullptr)
+                        {
+                            continue;
+                        }
+                        entriesArray.push_back({});
+                        nlohmann::json& thisEntry = entriesArray.back();
+                        thisEntry["@odata.type"] = "#LogEntry.v1_8_0.LogEntry";
+                        thisEntry["@odata.id"] =
+                            "/redfish/v1/Systems/system/"
+                            "LogServices/CorrectableEventLog/Entries/" +
+                            std::to_string(*id);
+                        thisEntry["Name"] = "Correctable System Event Log Entry";
+                        thisEntry["Id"] = std::to_string(*id);
+                        thisEntry["Message"] = *message;
+                        thisEntry["Resolved"] = resolved;
+                        thisEntry["EntryType"] = "Event";
+                        thisEntry["Severity"] =
+                            translateSeverityDbusToRedfish(*severity);
+                        thisEntry["Created"] =
+                            crow::utility::getDateTime(timestamp);
+                        thisEntry["Modified"] =
+                            crow::utility::getDateTime(updateTimestamp);
+                        if (filePath != nullptr)
+                        {
+                            thisEntry["AdditionalDataURI"] =
+                                "/redfish/v1/Systems/system/LogServices/"
+                                "CorrectableEventLog/"
+                                "Entries/" +
+                                std::to_string(*id) + "/attachment";
+                        }
+                    }
+                    std::sort(entriesArray.begin(), entriesArray.end(),
+                              [](const nlohmann::json& left,
+                                 const nlohmann::json& right) {
+                                  return (left["Id"] <= right["Id"]);
+                              });
+                    asyncResp->res.jsonValue["Members@odata.count"] =
+                        entriesArray.size();
+                },
+                "xyz.openbmc_project.Logging", "/xyz/openbmc_project/logging",
+                "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
+        });
+}
+
 inline void requestRoutesDBusEventLogEntry(App& app)
 {
     BMCWEB_ROUTE(
         app, "/redfish/v1/Systems/system/LogServices/EventLog/Entries/<str>/")
         .privileges(redfish::privileges::getLogEntry)
         .methods(boost::beast::http::verb::get)(
-            [](const crow::Request&,
+            [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                const std::string& param)
 
@@ -1603,7 +1893,7 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                 // DBus implementation of EventLog/Entries
                 // Make call to Logging Service to find all log entry objects
                 crow::connections::systemBus->async_method_call(
-                    [asyncResp, entryID](const boost::system::error_code ec,
+                    [asyncResp, entryID, req](const boost::system::error_code ec,
                                          GetManagedPropertyType& resp) {
                         if (ec.value() == EBADR)
                         {
@@ -1632,6 +1922,15 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                             if (propertyMap.first == "Id")
                             {
                                 id = std::get_if<uint32_t>(&propertyMap.second);
+
+                                std::string path =
+                                    "/xyz/openbmc_project/logging/entry/" +
+                                    std::to_string(*id);
+                                if (isHiddenEventLogEntry(path))
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
                             }
                             else if (propertyMap.first == "Timestamp")
                             {
@@ -1798,6 +2097,151 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                     respHandler, "xyz.openbmc_project.Logging",
                     "/xyz/openbmc_project/logging/entry/" + entryID,
                     "xyz.openbmc_project.Object.Delete", "Delete");
+            });
+}
+
+inline void requestRoutesDBusCorrectableEventLogEntry(App& app)
+{
+    BMCWEB_ROUTE(
+        app, "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/Entries/<str>/")
+        .privileges(redfish::privileges::getCorrectableLogEntry)
+        .methods(boost::beast::http::verb::get)(
+            [](const crow::Request& req,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+               const std::string& param)
+
+            {
+                std::string entryID = param;
+                dbus::utility::escapePathForDbus(entryID);
+
+                // DBus implementation of EventLog/Entries
+                // Make call to Logging Service to find all log entry objects
+                crow::connections::systemBus->async_method_call(
+                    [asyncResp, entryID,
+                     req](const boost::system::error_code ec,
+                          GetManagedPropertyType& resp) {
+                        if (ec.value() == EBADR)
+                        {
+                            messages::resourceNotFound(
+                                asyncResp->res, "EventLogEntry", entryID);
+                            return;
+                        }
+                        if (ec)
+                        {
+                            BMCWEB_LOG_ERROR << "EventLogEntry (DBus) "
+                                                "resp_handler got error "
+                                             << ec;
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+                        uint32_t* id = nullptr;
+                        std::time_t timestamp{};
+                        std::time_t updateTimestamp{};
+                        std::string* severity = nullptr;
+                        std::string* message = nullptr;
+                        std::string* filePath = nullptr;
+                        bool resolved = false;
+
+                        for (auto& propertyMap : resp)
+                        {
+                            if (propertyMap.first == "Id")
+                            {
+                                id = std::get_if<uint32_t>(&propertyMap.second);
+
+                                std::string path =
+                                    "/xyz/openbmc_project/logging/entry/" +
+                                    std::to_string(*id);
+                                
+                                if (!isHiddenEventLogEntry(path))
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                            }
+                            else if (propertyMap.first == "Timestamp")
+                            {
+                                const uint64_t* millisTimeStamp =
+                                    std::get_if<uint64_t>(&propertyMap.second);
+                                if (millisTimeStamp != nullptr)
+                                {
+                                    timestamp = crow::utility::getTimestamp(
+                                        *millisTimeStamp);
+                                }
+                            }
+                            else if (propertyMap.first == "UpdateTimestamp")
+                            {
+                                const uint64_t* millisTimeStamp =
+                                    std::get_if<uint64_t>(&propertyMap.second);
+                                if (millisTimeStamp != nullptr)
+                                {
+                                    updateTimestamp =
+                                        crow::utility::getTimestamp(
+                                            *millisTimeStamp);
+                                }
+                            }
+                            else if (propertyMap.first == "Severity")
+                            {
+                                severity = std::get_if<std::string>(
+                                    &propertyMap.second);
+                            }
+                            else if (propertyMap.first == "Message")
+                            {
+                                message = std::get_if<std::string>(
+                                    &propertyMap.second);
+                            }
+                            else if (propertyMap.first == "Resolved")
+                            {
+                                bool* resolveptr =
+                                    std::get_if<bool>(&propertyMap.second);
+                                if (resolveptr == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                                resolved = *resolveptr;
+                            }
+                            else if (propertyMap.first == "Path")
+                            {
+                                filePath = std::get_if<std::string>(
+                                    &propertyMap.second);
+                            }
+                        }
+                        if (id == nullptr || message == nullptr ||
+                            severity == nullptr)
+                        {
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+                        asyncResp->res.jsonValue["@odata.type"] =
+                            "#LogEntry.v1_8_0.LogEntry";
+                        asyncResp->res.jsonValue["@odata.id"] =
+                            "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/"
+                            "Entries/" +
+                            std::to_string(*id);
+                        asyncResp->res.jsonValue["Name"] =
+                            "Correctable System Event Log Entry";
+                        asyncResp->res.jsonValue["Id"] = std::to_string(*id);
+                        asyncResp->res.jsonValue["Message"] = *message;
+                        asyncResp->res.jsonValue["Resolved"] = resolved;
+                        asyncResp->res.jsonValue["EntryType"] = "Event";
+                        asyncResp->res.jsonValue["Severity"] =
+                            translateSeverityDbusToRedfish(*severity);
+                        asyncResp->res.jsonValue["Created"] =
+                            crow::utility::getDateTime(timestamp);
+                        asyncResp->res.jsonValue["Modified"] =
+                            crow::utility::getDateTime(updateTimestamp);
+                        if (filePath != nullptr)
+                        {
+                            asyncResp->res.jsonValue["AdditionalDataURI"] =
+                                "/redfish/v1/Systems/system/LogServices/"
+                                "CorrectableEventLog/"
+                                "attachment/" +
+                                std::to_string(*id);
+                        }
+                    },
+                    "xyz.openbmc_project.Logging",
+                    "/xyz/openbmc_project/logging/entry/" + entryID,
+                    "org.freedesktop.DBus.Properties", "GetAll", "");
             });
 }
 
