@@ -510,6 +510,9 @@ const auto& putLogEntry = privilegeSetConfigureManager;
 const auto& deleteLogEntry = privilegeSetConfigureManager;
 const auto& postLogEntry = privilegeSetConfigureManager;
 
+// CorrectableLogEntry
+const auto& getCorrectableLogEntry = privilegeSetConfigureManager;
+
 // LogEntryCollection
 const auto& getLogEntryCollection = privilegeSetLogin;
 const auto& headLogEntryCollection = privilegeSetLogin;
@@ -518,6 +521,9 @@ const auto& putLogEntryCollection = privilegeSetConfigureManager;
 const auto& deleteLogEntryCollection = privilegeSetConfigureManager;
 const auto& postLogEntryCollection = privilegeSetConfigureManager;
 
+// CorrectableLogEntryCollection
+const auto& getCorrectableLogEntryCollection = privilegeSetConfigureManager;
+
 // LogService
 const auto& getLogService = privilegeSetLogin;
 const auto& headLogService = privilegeSetLogin;
@@ -525,6 +531,9 @@ const auto& patchLogService = privilegeSetConfigureManager;
 const auto& putLogService = privilegeSetConfigureManager;
 const auto& deleteLogService = privilegeSetConfigureManager;
 const auto& postLogService = privilegeSetConfigureManager;
+
+// CorrectableLogService
+const auto& getCorrectableLogService = privilegeSetConfigureManager;
 
 // LogServiceCollection
 const auto& getLogServiceCollection = privilegeSetLogin;

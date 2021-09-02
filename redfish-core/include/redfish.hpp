@@ -115,6 +115,7 @@ class RedfishService
 
         requestRoutesSystemLogServiceCollection(app);
         requestRoutesEventLogService(app);
+        requestRoutesCorrectableEventLogService(app);
 
         requestRoutesPostCodesLogService(app);
         requestRoutesPostCodesClear(app);
@@ -179,7 +180,9 @@ class RedfishService
 #ifdef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
         requestRoutesDBusLogServiceActionsClear(app);
         requestRoutesDBusEventLogEntryCollection(app);
+        requestRoutesDBusCorrectableEventLogEntryCollection(app);
         requestRoutesDBusEventLogEntry(app);
+        requestRoutesDBusCorrectableEventLogEntry(app);
         requestRoutesDBusEventLogEntryDownload(app);
 #endif
 
