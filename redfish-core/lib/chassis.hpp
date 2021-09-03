@@ -239,6 +239,35 @@ inline void requestRoutesChassis(App& app)
                                     return;
                                 }
                                 health->inventory = std::move(*data);
+                                constexpr const std::array<const char*, 4>
+                                    inventoryForChassis = {
+                                        "xyz.openbmc_project.Inventory.Item."
+                                        "Dimm",
+                                        "xyz.openbmc_project.Inventory.Item."
+                                        "Cpu",
+                                        "xyz.openbmc_project.Inventory.Item."
+                                        "PowerSupply",
+                                        "xyz.openbmc_project.Inventory.Item."
+                                        "PCIeSlot"};
+
+                                crow::connections::systemBus->async_method_call(
+                                    [health](const boost::system::error_code ec,
+                                             std::vector<std::string>& resp) {
+                                        if (ec)
+                                        {
+                                            // no inventory
+                                            return;
+                                        }
+
+                                        health->inventory.insert(
+                                            health->inventory.end(),
+                                            resp.begin(), resp.end());
+                                    },
+                                    "xyz.openbmc_project.ObjectMapper",
+                                    "/xyz/openbmc_project/object_mapper",
+                                    "xyz.openbmc_project.ObjectMapper",
+                                    "GetSubTreePaths", "/", int32_t(0),
+                                    inventoryForChassis);
                             },
                             "xyz.openbmc_project.ObjectMapper",
                             path + "/all_sensors",
