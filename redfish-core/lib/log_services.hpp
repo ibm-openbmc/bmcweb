@@ -1697,7 +1697,7 @@ inline void requestRoutesDBusCorrectableEventLogEntryCollection(App& app)
             // Collections don't include the static data added by SubRoute
             // because it has a duplicate entry for members
             asyncResp->res.jsonValue["@odata.type"] =
-                "#LogEntryCollection.CorrectableLogEntryCollection";
+                "#LogEntryCollection.LogEntryCollection";
             asyncResp->res.jsonValue["@odata.id"] =
                 "/redfish/v1/Systems/system/LogServices/CorrectableEventLog/"
                 "Entries";
