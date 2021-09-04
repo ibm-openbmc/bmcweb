@@ -119,7 +119,6 @@ struct HealthPopulate : std::enable_shared_from_this<HealthPopulate>
             if (boost::starts_with(path.str, globalInventoryPath) &&
                 boost::ends_with(path.str, "critical"))
             {
-                health = "Critical";
                 rollup = "Critical";
                 return;
             }
