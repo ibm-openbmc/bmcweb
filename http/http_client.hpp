@@ -73,7 +73,6 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
     std::optional<
         boost::beast::http::response_parser<boost::beast::http::string_body>>
         parser;
-    std::vector<std::pair<std::string, std::string>> headers;
     boost::circular_buffer_space_optimized<std::string> requestDataQueue{};
 
     ConnState state = ConnState::initialized;
