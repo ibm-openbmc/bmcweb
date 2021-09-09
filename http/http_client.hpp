@@ -486,10 +486,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
   public:
     explicit HttpClient(boost::asio::io_context& ioc, const std::string& id,
                         const std::string& destIP, const std::string& destPort,
-                        const std::string& destUri,
-                        const std::string& uriProto) :
+                        const std::string& destUri, const std::string& uriProto,
+                        const boost::beast::http::fields& httpHeader) :
         conn(ioc),
-        timer(ioc), req(boost::beast::http::verb::post, destUri, 11),
+        timer(ioc),
+        req(boost::beast::http::verb::post, destUri, 11, "", httpHeader),
         state(ConnState::initialized), subId(id), host(destIP), port(destPort),
         uri(destUri), retryCount(0), maxRetryAttempts(5), retryIntervalSecs(0),
         retryPolicyAction("TerminateAfterRetries"), runningTimer(false)
@@ -523,12 +524,6 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
         }
 
         return;
-    }
-
-    void setHeaders(
-        const std::vector<std::pair<std::string, std::string>>& httpHeaders)
-    {
-        headers = httpHeaders;
     }
 
     void setRetryConfig(const uint32_t retryAttempts,
