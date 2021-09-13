@@ -360,7 +360,8 @@ const static auto& putEthernetInterface = privilegeSetConfigureComponents;
 const static auto& deleteEthernetInterface = privilegeSetConfigureComponents;
 
 // Restrict the hypervisor ethernet interface PATCH to ConfigureManager
-const static auto& patchOEMHypervisorEthInterface = privilegeSetConfigureManager;
+const static auto& patchOEMHypervisorEthInterface =
+    privilegeSetConfigureManager;
 
 // EthernetInterfaceCollection
 const static auto& getEthernetInterfaceCollection = privilegeSetLogin;
