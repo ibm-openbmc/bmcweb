@@ -415,7 +415,8 @@ inline void
         dumpPath = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
     }
     else if (dumpType == "System" || dumpType == "Resource" ||
-             dumpType == "Hostboot" || dumpType == "Hardware")
+             dumpType == "Hostboot" || dumpType == "Hardware" ||
+             dumpType == "SBE")
     {
         dumpPath = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
     }
@@ -553,7 +554,8 @@ inline void
                         entryID + "/attachment";
                 }
                 else if (dumpType == "System" || dumpType == "Resource" ||
-                         dumpType == "Hostboot" || dumpType == "Hardware")
+                         dumpType == "Hostboot" || dumpType == "Hardware" ||
+                         dumpType == "SBE")
                 {
                     std::string dumpEntryId(dumpType + "_");
                     dumpEntryId.append(entryID);
@@ -587,7 +589,8 @@ inline void
         dumpId = entryID;
     }
     else if (dumpType == "System" || dumpType == "Resource" ||
-             dumpType == "Hostboot" || dumpType == "Hardware")
+             dumpType == "Hostboot" || dumpType == "Hardware" ||
+             dumpType == "SBE")
     {
         dumpPath = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
         std::size_t pos = entryID.find_first_of('_');
@@ -724,7 +727,8 @@ inline void
                         entryID + "/attachment";
                 }
                 else if (dumpType == "System" || dumpType == "Resource" ||
-                         dumpType == "Hostboot" || dumpType == "Hardware")
+                         dumpType == "Hostboot" || dumpType == "Hardware" ||
+                         dumpType == "SBE")
                 {
                     std::string dumpAttachment(
                         "/redfish/v1/Systems/system/LogServices/Dump/Entries/");
@@ -1001,7 +1005,7 @@ inline void clearDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 {
     std::string dumpInterface;
     if (dumpType == "Resource" || dumpType == "Hostboot" ||
-        dumpType == "Hardware")
+        dumpType == "Hardware" || dumpType == "SBE")
     {
         dumpInterface = "com.ibm.Dump.Entry." + dumpType;
     }
@@ -2975,23 +2979,25 @@ inline void requestRoutesSystemDumpEntryCollection(App& app)
      */
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/Dump/Entries/")
         .privileges(redfish::privileges::getLogEntryCollection)
-        .methods(boost::beast::http::verb::get)(
-            [](const crow::Request&,
-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
-                asyncResp->res.jsonValue["@odata.type"] =
-                    "#LogEntryCollection.LogEntryCollection";
-                asyncResp->res.jsonValue["@odata.id"] =
-                    "/redfish/v1/Systems/system/LogServices/Dump/Entries";
-                asyncResp->res.jsonValue["Name"] = "System Dump Entries";
-                asyncResp->res.jsonValue["Description"] =
-                    "Collection of System, Resource, Hostboot & Hardware Dump "
-                    "Entries";
+        .methods(
+            boost::beast::http::verb::
+                get)([](const crow::Request&,
+                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+            asyncResp->res.jsonValue["@odata.type"] =
+                "#LogEntryCollection.LogEntryCollection";
+            asyncResp->res.jsonValue["@odata.id"] =
+                "/redfish/v1/Systems/system/LogServices/Dump/Entries";
+            asyncResp->res.jsonValue["Name"] = "System Dump Entries";
+            asyncResp->res.jsonValue["Description"] =
+                "Collection of System, Resource, Hostboot, Hardware & SBE Dump "
+                "Entries";
 
-                getDumpEntryCollection(asyncResp, "System");
-                getDumpEntryCollection(asyncResp, "Resource");
-                getDumpEntryCollection(asyncResp, "Hostboot");
-                getDumpEntryCollection(asyncResp, "Hardware");
-            });
+            getDumpEntryCollection(asyncResp, "System");
+            getDumpEntryCollection(asyncResp, "Resource");
+            getDumpEntryCollection(asyncResp, "Hostboot");
+            getDumpEntryCollection(asyncResp, "Hardware");
+            getDumpEntryCollection(asyncResp, "SBE");
+        });
 }
 
 inline void requestRoutesSystemDumpEntry(App& app)
@@ -3019,6 +3025,10 @@ inline void requestRoutesSystemDumpEntry(App& app)
                 else if (boost::starts_with(param, "Hardware"))
                 {
                     getDumpEntryById(asyncResp, param, "Hardware");
+                }
+                else if (boost::starts_with(param, "SBE"))
+                {
+                    getDumpEntryById(asyncResp, param, "SBE");
                 }
                 else
                 {
@@ -3059,6 +3069,10 @@ inline void requestRoutesSystemDumpEntry(App& app)
                 {
                     deleteDumpEntry(asyncResp, dumpId, "hardware");
                 }
+                else if (boost::starts_with(param, "SBE"))
+                {
+                    deleteDumpEntry(asyncResp, dumpId, "SBE");
+                }
                 else
                 {
                     messages::invalidObject(asyncResp->res, "Dump Id");
@@ -3095,6 +3109,7 @@ inline void requestRoutesSystemDumpClear(App& app)
                 clearDump(asyncResp, "Resource");
                 clearDump(asyncResp, "Hostboot");
                 clearDump(asyncResp, "Hardware");
+                clearDump(asyncResp, "SBE");
             });
 }
 
