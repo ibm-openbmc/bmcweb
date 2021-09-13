@@ -76,7 +76,7 @@ include_list = [
     'PowerSubsystem',
     'PowerSupplyCollection',
     'PowerSupply',
-    'Privileges', #Used in Role
+    'Privileges',  # Used in Role
     'Processor',
     'ProcessorCollection',
     'RedfishError',
