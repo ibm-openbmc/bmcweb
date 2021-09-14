@@ -1517,9 +1517,12 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                         std::time_t timestamp{};
                         std::time_t updateTimestamp{};
                         std::string* severity = nullptr;
-                        std::string* message = nullptr;
+                        std::string* subsystem = nullptr;
                         std::string* filePath = nullptr;
+                        std::string* resolution = nullptr;
+                        std::string* eventId = nullptr;
                         bool resolved = false;
+                        bool serviceProviderNotify = false;
                         for (auto& interfaceMap : objectPath.second)
                         {
                             if (interfaceMap.first ==
@@ -1562,9 +1565,14 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                                         severity = std::get_if<std::string>(
                                             &propertyMap.second);
                                     }
-                                    else if (propertyMap.first == "Message")
+                                    else if (propertyMap.first == "Resolution")
                                     {
-                                        message = std::get_if<std::string>(
+                                        resolution = std::get_if<std::string>(
+                                            &propertyMap.second);
+                                    }
+                                    else if (propertyMap.first == "EventId")
+                                    {
+                                        eventId = std::get_if<std::string>(
                                             &propertyMap.second);
                                     }
                                     else if (propertyMap.first == "Resolved")
@@ -1579,9 +1587,22 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                                         }
                                         resolved = *resolveptr;
                                     }
+                                    else if (propertyMap.first ==
+                                             "ServiceProviderNotify")
+                                    {
+                                        bool* servicepnptr = std::get_if<bool>(
+                                            &propertyMap.second);
+                                        if (servicepnptr == nullptr)
+                                        {
+                                            messages::internalError(
+                                                asyncResp->res);
+                                            return;
+                                        }
+                                        serviceProviderNotify = *servicepnptr;
+                                    }
                                 }
-                                if (id == nullptr || message == nullptr ||
-                                    severity == nullptr)
+                                if (id == nullptr || resolution == nullptr ||
+                                    eventId == nullptr || severity == nullptr)
                                 {
                                     messages::internalError(asyncResp->res);
                                     return;
@@ -1599,25 +1620,47 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                                     }
                                 }
                             }
+                            else if (interfaceMap.first ==
+                                     "org.open_power.Logging.PEL.Entry")
+                            {
+                                for (auto& propertyMap : interfaceMap.second)
+                                {
+                                    if (propertyMap.first == "Subsystem")
+                                    {
+                                        subsystem = std::get_if<std::string>(
+                                            &propertyMap.second);
+                                    }
+                                }
+                            }
                         }
                         // Object path without the
                         // xyz.openbmc_project.Logging.Entry interface, ignore
                         // and continue.
-                        if (id == nullptr || message == nullptr ||
-                            severity == nullptr)
+                        if (id == nullptr || severity == nullptr)
                         {
                             continue;
                         }
                         entriesArray.push_back({});
                         nlohmann::json& thisEntry = entriesArray.back();
-                        thisEntry["@odata.type"] = "#LogEntry.v1_8_0.LogEntry";
+                        thisEntry["@odata.type"] = "#LogEntry.v1_9_0.LogEntry";
                         thisEntry["@odata.id"] =
                             "/redfish/v1/Systems/system/"
                             "LogServices/EventLog/Entries/" +
                             std::to_string(*id);
                         thisEntry["Name"] = "System Event Log Entry";
+                        thisEntry["EventId"] = *eventId;
+                        thisEntry["Resolution"] = *resolution;
+                        if (subsystem == nullptr)
+                        {
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+                        thisEntry["ServiceProviderNotified"] =
+                            serviceProviderNotify;
                         thisEntry["Id"] = std::to_string(*id);
-                        thisEntry["Message"] = *message;
+                        thisEntry["Message"] =
+                            (*eventId).substr(0, 8) +
+                            " event in subsystem:: " + *subsystem;
                         thisEntry["Resolved"] = resolved;
                         thisEntry["EntryType"] = "Event";
                         thisEntry["Severity"] =
@@ -1685,9 +1728,12 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                         std::time_t timestamp{};
                         std::time_t updateTimestamp{};
                         std::string* severity = nullptr;
-                        std::string* message = nullptr;
                         std::string* filePath = nullptr;
+                        std::string* resolution = nullptr;
+                        std::string* eventId = nullptr;
+                        std::string* subsystem = nullptr;
                         bool resolved = false;
+                        bool serviceProviderNotify = false;
 
                         for (auto& propertyMap : resp)
                         {
@@ -1721,9 +1767,14 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                                 severity = std::get_if<std::string>(
                                     &propertyMap.second);
                             }
-                            else if (propertyMap.first == "Message")
+                            else if (propertyMap.first == "Resolution")
                             {
-                                message = std::get_if<std::string>(
+                                resolution = std::get_if<std::string>(
+                                    &propertyMap.second);
+                            }
+                            else if (propertyMap.first == "EventId")
+                            {
+                                eventId = std::get_if<std::string>(
                                     &propertyMap.second);
                             }
                             else if (propertyMap.first == "Resolved")
@@ -1742,23 +1793,47 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                                 filePath = std::get_if<std::string>(
                                     &propertyMap.second);
                             }
+                            else if (propertyMap.first == "Subsystem")
+                            {
+                                subsystem = std::get_if<std::string>(
+                                    &propertyMap.second);
+                            }
+                            else if (propertyMap.first ==
+                                     "ServiceProviderNotify")
+                            {
+                                bool* servicepnptr =
+                                    std::get_if<bool>(&propertyMap.second);
+                                if (servicepnptr == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                                serviceProviderNotify = *servicepnptr;
+                            }
                         }
-                        if (id == nullptr || message == nullptr ||
+                        if (id == nullptr || resolution == nullptr ||
+                            eventId == nullptr || subsystem == nullptr ||
                             severity == nullptr)
                         {
                             messages::internalError(asyncResp->res);
                             return;
                         }
                         asyncResp->res.jsonValue["@odata.type"] =
-                            "#LogEntry.v1_8_0.LogEntry";
+                            "#LogEntry.v1_9_0.LogEntry";
                         asyncResp->res.jsonValue["@odata.id"] =
                             "/redfish/v1/Systems/system/LogServices/EventLog/"
                             "Entries/" +
                             std::to_string(*id);
                         asyncResp->res.jsonValue["Name"] =
                             "System Event Log Entry";
+                        asyncResp->res.jsonValue["EventId"] = *eventId;
+                        asyncResp->res.jsonValue["Resolution"] = *resolution;
+                        asyncResp->res.jsonValue["ServiceProviderNotified"] =
+                            serviceProviderNotify;
                         asyncResp->res.jsonValue["Id"] = std::to_string(*id);
-                        asyncResp->res.jsonValue["Message"] = *message;
+                        asyncResp->res.jsonValue["Message"] =
+                            (*eventId).substr(0, 8) +
+                            " event in subsystem:: " + *subsystem;
                         asyncResp->res.jsonValue["Resolved"] = resolved;
                         asyncResp->res.jsonValue["EntryType"] = "Event";
                         asyncResp->res.jsonValue["Severity"] =
