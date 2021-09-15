@@ -131,7 +131,7 @@ inline void setLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             BMCWEB_LOG_DEBUG << "GetObjectType: " << service;
 
             crow::connections::systemBus->async_method_call(
-                [aResp](const boost::system::error_code ec) {
+                [aResp, state](const boost::system::error_code ec) {
                     if (ec)
                     {
                         BMCWEB_LOG_DEBUG
@@ -139,6 +139,18 @@ inline void setLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                         messages::internalError(aResp->res);
                         return;
                     }
+                    crow::connections::systemBus->async_method_call(
+                        [aResp](const boost::system::error_code ec) {
+                            if (ec)
+                            {
+                                BMCWEB_LOG_DEBUG << "Panel Lamp test failed."
+                                                 << ec;
+                                messages::internalError(aResp->res);
+                                return;
+                            }
+                        },
+                        "com.ibm.PanelApp", "/com/ibm/panel_app",
+                        "com.ibm.panel", "TriggerPanelLampTest", bool(state));
                 },
                 service, "/xyz/openbmc_project/led/groups/lamp_test",
                 "org.freedesktop.DBus.Properties", "Set",
