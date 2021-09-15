@@ -288,6 +288,27 @@ inline bool extractHypervisorInterfaceData(
                                        "hypervisor gateway attribute is not "
                                        "set";
                             }
+                            else
+                            {
+                                ipv4Address.origin = "Static";
+                                ethData.DHCPEnabled =
+                                    "xyz.openbmc_project.Network."
+                                    "EthernetInterface.DHCPConf.none";
+                                BMCWEB_LOG_DEBUG
+                                    << "Setting the Origin as Static as "
+                                       "hypervisor gateway attribute is not "
+                                       "set";
+                            }
+                        }
+                    }
+                    if (key.first == "vmi_hostname")
+                    {
+                        const std::string* hostName = std::get_if<std::string>(
+                            &(std::get<5>(key.second)));
+                        if (hostName != nullptr)
+                        {
+                            ethData.hostname = *hostName;
+                            BMCWEB_LOG_DEBUG << key.first << ethData.hostname;
                         }
                     }
                     if (key.first == "vmi_hostname")
@@ -942,6 +963,7 @@ inline void requestRoutesHypervisorSystems(App& app)
                         asyncResp->res.jsonValue["Description"] = "Hypervisor";
                         asyncResp->res.jsonValue["Name"] = "Hypervisor";
                         asyncResp->res.jsonValue["Id"] = "hypervisor";
+                        asyncResp->res.jsonValue["SystemType"] = "OS";
                         asyncResp->res.jsonValue["Links"]["ManagedBy"] = {
                             {{"@odata.id", "/redfish/v1/Managers/bmc"}}};
                         asyncResp->res.jsonValue["EthernetInterfaces"] = {
@@ -1074,6 +1096,7 @@ inline void requestRoutesHypervisorSystems(App& app)
             if (ipv4Addresses)
             {
                 messages::propertyNotWritable(asyncResp->res, "IPv4Addresses");
+                return;
             }
 
             if (dhcpv4)

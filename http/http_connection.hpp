@@ -69,9 +69,31 @@ class Connection :
         parser.emplace(std::piecewise_construct, std::make_tuple());
         parser->body_limit(httpReqBodyLimit);
         parser->header_limit(httpHeaderLimit);
-        req.emplace(parser->get());
 
 #ifdef BMCWEB_ENABLE_MUTUAL_TLS_AUTHENTICATION
+        prepareMutualTls();
+#endif // BMCWEB_ENABLE_MUTUAL_TLS_AUTHENTICATION
+
+#ifdef BMCWEB_ENABLE_DEBUG
+        connectionCount++;
+        BMCWEB_LOG_DEBUG << this << " Connection open, total "
+                         << connectionCount;
+#endif
+    }
+
+    ~Connection()
+    {
+        res.setCompleteRequestHandler(nullptr);
+        cancelDeadlineTimer();
+#ifdef BMCWEB_ENABLE_DEBUG
+        connectionCount--;
+        BMCWEB_LOG_DEBUG << this << " Connection closed, total "
+                         << connectionCount;
+#endif
+    }
+
+    void prepareMutualTls()
+    {
         std::error_code error;
         std::filesystem::path caPath(ensuressl::trustStorePath);
         auto caAvailable = !std::filesystem::is_empty(caPath, error);
@@ -240,36 +262,20 @@ class Connection :
             }
             sslUser.resize(lastChar);
             std::string unsupportedClientId = "";
-            session = persistent_data::SessionStore::getInstance()
-                          .generateUserSession(
-                              sslUser, req->ipAddress.to_string(),
-                              unsupportedClientId,
-                              persistent_data::PersistenceType::TIMEOUT);
-            if (auto sp = session.lock())
+            sessionIsFromTransport = true;
+            userSession = persistent_data::SessionStore::getInstance()
+                              .generateUserSession(
+                                  sslUser, req->ipAddress.to_string(),
+                                  unsupportedClientId,
+                                  persistent_data::PersistenceType::TIMEOUT);
+            if (userSession != nullptr)
             {
-                BMCWEB_LOG_DEBUG << this
-                                 << " Generating TLS session: " << sp->uniqueId;
+                BMCWEB_LOG_DEBUG
+                    << this
+                    << " Generating TLS session: " << userSession->uniqueId;
             }
             return true;
         });
-#endif // BMCWEB_ENABLE_MUTUAL_TLS_AUTHENTICATION
-
-#ifdef BMCWEB_ENABLE_DEBUG
-        connectionCount++;
-        BMCWEB_LOG_DEBUG << this << " Connection open, total "
-                         << connectionCount;
-#endif
-    }
-
-    ~Connection()
-    {
-        res.completeRequestHandler = nullptr;
-        cancelDeadlineTimer();
-#ifdef BMCWEB_ENABLE_DEBUG
-        connectionCount--;
-        BMCWEB_LOG_DEBUG << this << " Connection closed, total "
-                         << connectionCount;
-#endif
     }
 
     Adaptor& socket()
@@ -311,80 +317,81 @@ class Connection :
         // Fetch the client IP address
         readClientIp();
 
-        bool isInvalidRequest = false;
-
         // Check for HTTP version 1.1.
-        if (req->version() == 11)
+        if (parser->get().version() == 11)
         {
-            if (req->getHeaderValue(boost::beast::http::field::host).empty())
+            if (parser->get()[boost::beast::http::field::host].empty())
             {
-                isInvalidRequest = true;
                 res.result(boost::beast::http::status::bad_request);
+                completeRequest();
+                return;
             }
         }
 
         BMCWEB_LOG_INFO << "Request: "
-                        << " " << this << " HTTP/" << req->version() / 10 << "."
-                        << req->version() % 10 << ' ' << req->methodString()
-                        << " " << req->target() << " " << req->ipAddress;
-
-        needToCallAfterHandlers = false;
-
-        if (!isInvalidRequest)
+                        << " " << this << " HTTP/"
+                        << parser->get().version() / 10 << "."
+                        << parser->get().version() % 10 << ' '
+                        << parser->get().method_string() << " "
+                        << parser->get().target() << " " << req->ipAddress;
+        req.emplace(parser->release());
+        req->session = userSession;
+        try
         {
-            res.completeRequestHandler = [] {};
-            res.isAliveHelper = [this]() -> bool { return isAlive(); };
-
-            req->ioService = static_cast<decltype(req->ioService)>(
-                &adaptor.get_executor().context());
-
-            if (!res.completed)
-            {
-                needToCallAfterHandlers = true;
-                res.completeRequestHandler = [self(shared_from_this())] {
-                    boost::asio::post(self->adaptor.get_executor(),
-                                      [self] { self->completeRequest(); });
-                };
-                if (req->isUpgrade() &&
-                    boost::iequals(
-                        req->getHeaderValue(boost::beast::http::field::upgrade),
-                        "websocket"))
-                {
-                    handler->handleUpgrade(*req, res, std::move(adaptor));
-                    // delete lambda with self shared_ptr
-                    // to enable connection destruction
-                    res.completeRequestHandler = nullptr;
-                    return;
-                }
-
-                std::string url(req->target());
-                if (boost::contains(url, "/Dump/Entries/") &&
-                    boost::ends_with(url, "/attachment"))
-                {
-                    BMCWEB_LOG_DEBUG << "upgrade stream connection";
-                    handler->handleUpgrade(*req, res, std::move(adaptor));
-                    // delete lambda with self shared_ptr
-                    // to enable connection destruction
-                    res.completeRequestHandler = nullptr;
-                    return;
-                }
-                auto asyncResp = std::make_shared<bmcweb::AsyncResp>(res);
-                handler->handle(*req, asyncResp);
-            }
-            else
-            {
-                completeRequest();
-            }
+            // causes life time issue
+            req->urlView = boost::urls::url_view(req->target());
+            req->url = req->urlView.encoded_path();
         }
-        else
+        catch (std::exception& p)
+        {
+            BMCWEB_LOG_ERROR << p.what();
+        }
+
+        res.setCompleteRequestHandler(nullptr);
+        res.isAliveHelper = [this]() -> bool { return isAlive(); };
+
+        req->ioService = static_cast<decltype(req->ioService)>(
+            &adaptor.get_executor().context());
+
+        if (res.completed)
         {
             completeRequest();
+            return;
         }
+        res.setCompleteRequestHandler([self(shared_from_this())] {
+            boost::asio::post(self->adaptor.get_executor(),
+                              [self] { self->completeRequest(); });
+        });
+
+        if (req->isUpgrade() &&
+            boost::iequals(
+                req->getHeaderValue(boost::beast::http::field::upgrade),
+                "websocket"))
+        {
+            handler->handleUpgrade(*req, res, std::move(adaptor));
+            // delete lambda with self shared_ptr
+            // to enable connection destruction
+            res.setCompleteRequestHandler(nullptr);
+            return;
+        }
+
+        std::string url(req->target());
+        if (boost::contains(url, "/Dump/Entries/") &&
+            boost::ends_with(url, "/attachment"))
+        {
+            BMCWEB_LOG_DEBUG << "upgrade stream connection";
+            handler->handleUpgrade(*req, res, std::move(adaptor));
+            // delete lambda with self shared_ptr
+            // to enable connection destruction
+            res.completeRequestHandler = nullptr;
+            return;
+        }
+        auto asyncResp = std::make_shared<bmcweb::AsyncResp>(res);
+        handler->handle(*req, asyncResp);
     }
 
     bool isAlive()
     {
-
         if constexpr (std::is_same_v<Adaptor,
                                      boost::beast::ssl_stream<
                                          boost::asio::ip::tcp::socket>>)
@@ -404,11 +411,13 @@ class Connection :
         {
             adaptor.next_layer().close();
 #ifdef BMCWEB_ENABLE_MUTUAL_TLS_AUTHENTICATION
-            if (auto sp = session.lock())
+            if (userSession != nullptr)
             {
-                BMCWEB_LOG_DEBUG << this
-                                 << " Removing TLS session: " << sp->uniqueId;
-                persistent_data::SessionStore::getInstance().removeSession(sp);
+                BMCWEB_LOG_DEBUG
+                    << this
+                    << " Removing TLS session: " << userSession->uniqueId;
+                persistent_data::SessionStore::getInstance().removeSession(
+                    userSession);
             }
 #endif // BMCWEB_ENABLE_MUTUAL_TLS_AUTHENTICATION
         }
@@ -425,10 +434,7 @@ class Connection :
 
         addSecurityHeaders(*req, res);
 
-        if (needToCallAfterHandlers)
-        {
-            crow::authorization::cleanupTempSession(*req);
-        }
+        crow::authorization::cleanupTempSession(*req);
 
         if (!isAlive())
         {
@@ -439,12 +445,12 @@ class Connection :
 
             // delete lambda with self shared_ptr
             // to enable connection destruction
-            res.completeRequestHandler = nullptr;
+            res.setCompleteRequestHandler(nullptr);
             return;
         }
         if (res.body().empty() && !res.jsonValue.empty())
         {
-            if (http_helpers::requestPrefersHtml(*req))
+            if (http_helpers::requestPrefersHtml(req->getHeaderValue("Accept")))
             {
                 prettyPrintJson(res);
             }
@@ -479,10 +485,21 @@ class Connection :
 
         // delete lambda with self shared_ptr
         // to enable connection destruction
-        res.completeRequestHandler = nullptr;
+        res.setCompleteRequestHandler(nullptr);
     }
 
     void readClientIp()
+    {
+        boost::asio::ip::address ip;
+        boost::system::error_code ec = getClientIp(ip);
+        if (ec)
+        {
+            return;
+        }
+        req->ipAddress = ip;
+    }
+
+    boost::system::error_code getClientIp(boost::asio::ip::address& ip)
     {
         boost::system::error_code ec;
         BMCWEB_LOG_DEBUG << "Fetch the client IP address";
@@ -495,11 +512,10 @@ class Connection :
             // will be empty.
             BMCWEB_LOG_ERROR << "Failed to get the client's IP Address. ec : "
                              << ec;
+            return ec;
         }
-        else
-        {
-            req->ipAddress = endpoint.address();
-        }
+        ip = endpoint.address();
+        return ec;
     }
 
   private:
@@ -526,7 +542,8 @@ class Connection :
                 {
                     // if the adaptor isn't open anymore, and wasn't handed to a
                     // websocket, treat as an error
-                    if (!isAlive() && !req->isUpgrade())
+                    if (!isAlive() &&
+                        !boost::beast::websocket::is_upgrade(parser->get()))
                     {
                         errorWhileReading = true;
                     }
@@ -541,24 +558,12 @@ class Connection :
                     return;
                 }
 
-                if (!req)
-                {
-                    close();
-                    return;
-                }
-
-                // Note, despite the bmcweb coding policy on use of exceptions
-                // for error handling, this one particular use of exceptions is
-                // deemed acceptible, as it solved a significant error handling
-                // problem that resulted in seg faults, the exact thing that the
-                // exceptions rule is trying to avoid. If at some point,
-                // boost::urls makes the parser object public (or we port it
-                // into bmcweb locally) this will be replaced with
-                // parser::parse, which returns a status code
-
+                boost::beast::http::verb method = parser->get().method();
+                readClientIp();
                 try
                 {
-                    req->urlView = boost::urls::url_view(req->target());
+                    req->urlView =
+                        boost::urls::url_view(parser->get().target());
                     req->url = req->urlView.encoded_path();
                 }
                 catch (std::exception& p)
@@ -566,9 +571,16 @@ class Connection :
                     BMCWEB_LOG_ERROR << p.what();
                 }
 
-                crow::authorization::authenticate(*req, res, session);
-
-                bool loggedIn = req && req->session;
+                boost::asio::ip::address ip;
+                if (getClientIp(ip))
+                {
+                    BMCWEB_LOG_DEBUG << "Unable to get client IP";
+                }
+                sessionIsFromTransport = false;
+                userSession = crow::authorization::authenticate(
+                    req->url, ip, res, method, parser->get().base(),
+                    userSession);
+                bool loggedIn = userSession != nullptr;
                 if (loggedIn)
                 {
                     startDeadline(loggedInAttempts);
@@ -629,8 +641,7 @@ class Connection :
                     if (isAlive())
                     {
                         cancelDeadlineTimer();
-                        bool loggedIn = req && req->session;
-                        if (loggedIn)
+                        if (userSession != nullptr)
                         {
                             startDeadline(loggedInAttempts);
                         }
@@ -699,7 +710,14 @@ class Connection :
                                                       // newly created parser
                 buffer.consume(buffer.size());
 
-                req.emplace(parser->get());
+                // If the session was built from the transport, we don't need to
+                // clear it.  All other sessions are generated per request.
+                if (!sessionIsFromTransport)
+                {
+                    userSession = nullptr;
+                }
+
+                req.emplace(parser->release());
                 doReadHeaders();
             });
     }
@@ -769,7 +787,6 @@ class Connection :
   private:
     Adaptor adaptor;
     Handler* handler;
-
     // Making this a std::optional allows it to be efficiently destroyed and
     // re-created on Connection reset
     std::optional<
@@ -785,12 +802,10 @@ class Connection :
     std::optional<crow::Request> req;
     crow::Response res;
 
-    std::weak_ptr<persistent_data::UserSession> session;
+    bool sessionIsFromTransport = false;
+    std::shared_ptr<persistent_data::UserSession> userSession;
 
     std::optional<size_t> timerCancelKey;
-
-    bool needToCallAfterHandlers{};
-    bool needToStartReadAfterComplete{};
 
     std::function<std::string()>& getCachedDateStr;
     detail::TimerQueue& timerQueue;

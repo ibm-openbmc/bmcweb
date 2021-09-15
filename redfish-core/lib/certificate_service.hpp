@@ -123,14 +123,14 @@ inline std::string getCertificateFromReqBody(
     {
         BMCWEB_LOG_ERROR << "Required parameters are missing";
         messages::internalError(asyncResp->res);
-        return std::string();
+        return {};
     }
 
     if (*certificateType != "PEM")
     {
         messages::propertyValueNotInList(asyncResp->res, *certificateType,
                                          "CertificateType");
-        return std::string();
+        return {};
     }
 
     return certificate;
@@ -941,10 +941,10 @@ inline void requestRoutesHTTPSCertificateCollection(App& app)
  * @param[in] path  Path of the D-Bus service object
  * @return None
  */
-void getCertificateLocations(
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& certURL, const std::string& path,
-    const std::string& service)
+inline void
+    getCertificateLocations(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                            const std::string& certURL, const std::string& path,
+                            const std::string& service)
 {
     BMCWEB_LOG_DEBUG << "getCertificateLocations URI=" << certURL
                      << " Path=" << path << " service= " << service;

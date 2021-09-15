@@ -17,6 +17,7 @@
 
 #include "error_messages.hpp"
 #include "openbmc_dbus_rest.hpp"
+#include "redfish_util.hpp"
 
 #include <app.hpp>
 #include <registries/privilege_registry.hpp>
@@ -30,35 +31,7 @@ namespace redfish
 void getNTPProtocolEnabled(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp);
 std::string getHostName();
 
-enum NetworkProtocolUnitStructFields
-{
-    NET_PROTO_UNIT_NAME,
-    NET_PROTO_UNIT_DESC,
-    NET_PROTO_UNIT_LOAD_STATE,
-    NET_PROTO_UNIT_ACTIVE_STATE,
-    NET_PROTO_UNIT_SUB_STATE,
-    NET_PROTO_UNIT_DEVICE,
-    NET_PROTO_UNIT_OBJ_PATH,
-    NET_PROTO_UNIT_ALWAYS_0,
-    NET_PROTO_UNIT_ALWAYS_EMPTY,
-    NET_PROTO_UNIT_ALWAYS_ROOT_PATH
-};
-
-enum NetworkProtocolListenResponseElements
-{
-    NET_PROTO_LISTEN_TYPE,
-    NET_PROTO_LISTEN_STREAM
-};
-
-/**
- * @brief D-Bus Unit structure returned in array from ListUnits Method
- */
-using UnitStruct =
-    std::tuple<std::string, std::string, std::string, std::string, std::string,
-               std::string, sdbusplus::message::object_path, uint32_t,
-               std::string, sdbusplus::message::object_path>;
-
-const static std::array<std::pair<const char*, const char*>, 3> protocolToDBus{
+const static std::array<std::pair<std::string, std::string>, 3> protocolToDBus{
     {{"SSH", "dropbear"}, {"HTTPS", "bmcweb"}, {"IPMI", "phosphor-ipmi-net"}}};
 
 inline void
@@ -129,8 +102,8 @@ void getEthernetIfaceData(CallbackFunc&& callback)
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
 
-void getNetworkData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                    const crow::Request& req)
+inline void getNetworkData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                           const crow::Request& req)
 {
     asyncResp->res.jsonValue["@odata.type"] =
         "#ManagerNetworkProtocol.v1_5_0.ManagerNetworkProtocol";
@@ -191,118 +164,53 @@ void getNetworkData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     Privileges effectiveUserPrivileges =
         redfish::getUserPrivileges(req.userRole);
 
-    crow::connections::systemBus->async_method_call(
-        [asyncResp,
-         &effectiveUserPrivileges](const boost::system::error_code e,
-                                   const std::vector<UnitStruct>& r) {
-            if (e)
-            {
-                asyncResp->res.jsonValue = nlohmann::json::object();
-                messages::internalError(asyncResp->res);
-                return;
-            }
-            // /redfish/v1/Managers/bmc/NetworkProtocol/HTTPS/Certificates is
-            // something only ConfigureManager can access then only display when
-            // the user has permissions ConfigureManager
-            if (isOperationAllowedWithPrivileges({{"ConfigureManager"}},
-                                                 effectiveUserPrivileges))
-            {
-                asyncResp->res.jsonValue["HTTPS"]["Certificates"] = {
-                    {"@odata.id", "/redfish/v1/Managers/bmc/NetworkProtocol/"
-                                  "HTTPS/Certificates"}};
-            }
-            for (auto& unit : r)
-            {
-                /* Only traverse through <xyz>.socket units */
-                const std::string& unitName =
-                    std::get<NET_PROTO_UNIT_NAME>(unit);
-                if (!boost::ends_with(unitName, ".socket"))
+    // /redfish/v1/Managers/bmc/NetworkProtocol/HTTPS/Certificates is
+    // something only ConfigureManager can access then only display when
+    // the user has permissions ConfigureManager
+    if (isOperationAllowedWithPrivileges({{"ConfigureManager"}},
+                                         effectiveUserPrivileges))
+    {
+        asyncResp->res.jsonValue["HTTPS"]["Certificates"] = {
+            {"@odata.id",
+             "/redfish/v1/Managers/bmc/NetworkProtocol/HTTPS/Certificates"}};
+    }
+
+    for (const auto& protocol : protocolToDBus)
+    {
+        const std::string& protocolName = protocol.first;
+        const std::string& serviceName = protocol.second;
+        getPortStatusAndPath(
+            serviceName,
+            [asyncResp, protocolName](const boost::system::error_code ec,
+                                      const std::string& socketPath,
+                                      bool isProtocolEnabled) {
+                if (ec)
                 {
-                    continue;
+                    messages::internalError(asyncResp->res);
+                    return;
                 }
-
-                for (auto& kv : protocolToDBus)
-                {
-                    // We are interested in services, which starts with
-                    // mapped service name
-                    if (!boost::starts_with(unitName, kv.second))
-                    {
-                        continue;
-                    }
-                    const char* rfServiceKey = kv.first;
-                    const std::string& socketPath =
-                        std::get<NET_PROTO_UNIT_OBJ_PATH>(unit);
-                    const std::string& unitState =
-                        std::get<NET_PROTO_UNIT_SUB_STATE>(unit);
-
-                    asyncResp->res.jsonValue[rfServiceKey]["ProtocolEnabled"] =
-                        (unitState == "running") || (unitState == "listening");
-
-                    crow::connections::systemBus->async_method_call(
-                        [asyncResp, rfServiceKey{std::string(rfServiceKey)}](
-                            const boost::system::error_code ec,
-                            const std::variant<std::vector<
-                                std::tuple<std::string, std::string>>>& resp) {
-                            if (ec)
-                            {
-                                messages::internalError(asyncResp->res);
-                                return;
-                            }
-                            const std::vector<
-                                std::tuple<std::string, std::string>>*
-                                responsePtr = std::get_if<std::vector<
-                                    std::tuple<std::string, std::string>>>(
-                                    &resp);
-                            if (responsePtr == nullptr ||
-                                responsePtr->size() < 1)
-                            {
-                                return;
-                            }
-
-                            const std::string& listenStream =
-                                std::get<NET_PROTO_LISTEN_STREAM>(
-                                    (*responsePtr)[0]);
-                            std::size_t lastColonPos = listenStream.rfind(':');
-                            if (lastColonPos == std::string::npos)
-                            {
-                                // Not a port
-                                return;
-                            }
-                            std::string portStr =
-                                listenStream.substr(lastColonPos + 1);
-                            if (portStr.empty())
-                            {
-                                return;
-                            }
-                            char* endPtr = nullptr;
-                            errno = 0;
-                            // Use strtol instead of stroi to avoid
-                            // exceptions
-                            long port =
-                                std::strtol(portStr.c_str(), &endPtr, 10);
-                            if ((errno == 0) && (*endPtr == '\0'))
-                            {
-                                asyncResp->res.jsonValue[rfServiceKey]["Port"] =
-                                    port;
-                            }
+                asyncResp->res.jsonValue[protocolName]["ProtocolEnabled"] =
+                    isProtocolEnabled;
+                getPortNumber(
+                    socketPath,
+                    [asyncResp, protocolName](
+                        const boost::system::error_code ec, int portNumber) {
+                        if (ec)
+                        {
+                            messages::internalError(asyncResp->res);
                             return;
-                        },
-                        "org.freedesktop.systemd1", socketPath,
-                        "org.freedesktop.DBus.Properties", "Get",
-                        "org.freedesktop.systemd1.Socket", "Listen");
-
-                    // We found service, break the inner loop.
-                    break;
-                }
-            }
-        },
-        "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-        "org.freedesktop.systemd1.Manager", "ListUnits");
-}
+                        }
+                        asyncResp->res.jsonValue[protocolName]["Port"] =
+                            portNumber;
+                    });
+            });
+    }
+} // namespace redfish
 
 #ifdef BMCWEB_ALLOW_DEPRECATED_HOSTNAME_PATCH
-void handleHostnamePatch(const std::string& hostName,
-                         const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+inline void
+    handleHostnamePatch(const std::string& hostName,
+                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code ec) {
@@ -319,7 +227,7 @@ void handleHostnamePatch(const std::string& hostName,
 }
 #endif
 
-void handleNTPProtocolEnabled(
+inline void handleNTPProtocolEnabled(
     const bool& ntpEnabled, const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     std::string timeSyncMethod;
@@ -346,8 +254,9 @@ void handleNTPProtocolEnabled(
         std::variant<std::string>{timeSyncMethod});
 }
 
-void handleNTPServersPatch(const std::vector<std::string>& ntpServers,
-                           const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+inline void
+    handleNTPServersPatch(const std::vector<std::string>& ntpServers,
+                          const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code ec) {
@@ -363,9 +272,10 @@ void handleNTPServersPatch(const std::vector<std::string>& ntpServers,
         std::variant<std::vector<std::string>>{ntpServers});
 }
 
-void handleProtocolEnabled(const bool protocolEnabled,
-                           const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                           const std::string_view netBasePath)
+inline void
+    handleProtocolEnabled(const bool protocolEnabled,
+                          const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                          const std::string_view netBasePath)
 {
     crow::connections::systemBus->async_method_call(
         [protocolEnabled, asyncResp,
@@ -417,7 +327,7 @@ void handleProtocolEnabled(const bool protocolEnabled,
             "xyz.openbmc_project.Control.Service.Attributes"});
 }
 
-std::string getHostName()
+inline std::string getHostName()
 {
     std::string hostName;
 
@@ -429,7 +339,8 @@ std::string getHostName()
     return hostName;
 }
 
-void getNTPProtocolEnabled(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+inline void
+    getNTPProtocolEnabled(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code errorCode,

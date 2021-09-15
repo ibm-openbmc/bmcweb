@@ -1,5 +1,4 @@
 #pragma once
-#ifdef BMCWEB_ENABLE_SSL
 
 #include <openssl/bio.h>
 #include <openssl/dh.h>
@@ -12,6 +11,7 @@
 #include <openssl/ssl.h>
 
 #include <boost/asio/ssl/context.hpp>
+#include <random.hpp>
 
 #include <random>
 
@@ -409,5 +409,3 @@ inline std::shared_ptr<boost::asio::ssl::context>
     return mSslContext;
 }
 } // namespace ensuressl
-
-#endif

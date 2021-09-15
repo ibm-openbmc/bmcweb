@@ -846,7 +846,7 @@ inline void createDumpTaskCallback(
                 values;
             std::string prop;
             m.read(prop, values);
-
+          
             if (getDumpCompletionStatus(values))
             {
                 BMCWEB_LOG_ERROR << createdObjPath.str
@@ -1324,7 +1324,7 @@ inline void requestRoutesJournalEventLogEntryCollection(App& app)
 {
     BMCWEB_ROUTE(app,
                  "/redfish/v1/Systems/system/LogServices/EventLog/Entries/")
-        .privileges(redfish::privileges::getLogEntry)
+        .privileges(redfish::privileges::getLogEntryCollection)
         .methods(boost::beast::http::verb::get)(
             [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
@@ -1873,8 +1873,7 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                 BMCWEB_LOG_DEBUG << "Set Resolved";
 
                 crow::connections::systemBus->async_method_call(
-                    [asyncResp, resolved,
-                     entryId](const boost::system::error_code ec) {
+                    [asyncResp, entryId](const boost::system::error_code ec) {
                         if (ec)
                         {
                             BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
@@ -2052,7 +2051,7 @@ inline void requestRoutesDBusEventLogEntryDownload(App& app)
 inline void requestRoutesBMCLogServiceCollection(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/Managers/bmc/LogServices/")
-        .privileges(redfish::privileges::getLogService)
+        .privileges(redfish::privileges::getLogServiceCollection)
         .methods(boost::beast::http::verb::get)(
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {

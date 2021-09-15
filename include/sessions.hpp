@@ -13,6 +13,7 @@
 #include <dbus_singleton.hpp>
 #include <nlohmann/json.hpp>
 #include <pam_authenticate.hpp>
+#include <random.hpp>
 #include <sdbusplus/bus/match.hpp>
 
 #include <csignal>
@@ -412,7 +413,7 @@ class SessionStore
     AuthConfigMethods authMethodsConfig;
 
   private:
-    SessionStore() : timeoutInSeconds(3600)
+    SessionStore() : timeoutInSeconds(1800)
     {}
 };
 

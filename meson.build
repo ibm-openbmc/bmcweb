@@ -61,6 +61,7 @@ feature_map = {
 'insecure-disable-ssl'            : '-DBMCWEB_INSECURE_DISABLE_SSL',
 'host-serial-socket'              : '-DBMCWEB_ENABLE_HOST_SERIAL_WEBSOCKET',
 'ibm-management-console'          : '-DBMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE',
+'google-api'                      : '-DBMCWEB_ENABLE_GOOGLE_API',
 'kvm'                             : '-DBMCWEB_ENABLE_KVM' ,
 'basic-auth'                      : '-DBMCWEB_ENABLE_BASIC_AUTHENTICATION',
 'session-auth'                    : '-DBMCWEB_ENABLE_SESSION_AUTHENTICATION',
@@ -223,6 +224,16 @@ if (cxx.get_id() == 'gcc' and cxx.version().version_compare('>8.0'))
       summary({'power-thermal' :'-DBMCWEB_ALLOW_DEPRECATED_POWER_THERMAL'
               },section : 'Enabled Features')
     endif
+
+    if( get_option('redfish-new-powersubsystem-thermalsubsystem').enabled())
+     add_project_arguments([
+       '-DBMCWEB_NEW_POWERSUBSYSTEM_THERMALSUBSYSTEM'
+       ],
+      language : 'cpp')
+
+      summary({'new-powersubsystem-thermalsubsystem' :'-DBMCWEB_NEW_POWERSUBSYSTEM_THERMALSUBSYSTEM'
+              },section : 'Enabled Features')
+    endif
   endif
 endif
 
@@ -276,7 +287,7 @@ atomic =  cxx.find_library('atomic', required: true)
 openssl = dependency('openssl', required : true)
 bmcweb_dependencies += [pam, atomic, openssl]
 
-sdbusplus = dependency('sdbusplus',required : false)
+sdbusplus = dependency('sdbusplus', required : false, include_type: 'system')
 if not sdbusplus.found()
   sdbusplus_proj = subproject('sdbusplus', required: true)
   sdbusplus = sdbusplus_proj.get_variable('sdbusplus_dep')
@@ -312,7 +323,7 @@ else
 endif
 bmcweb_dependencies += nlohmann_json
 
-boost = dependency('boost',version : '>=1.75.0', required : false)
+boost = dependency('boost',version : '>=1.75.0', required : false, include_type: 'system')
 if not boost.found()
   subproject('boost', required: false)
   boost_inc = include_directories('subprojects/boost_1_75_0/', is_system:true)

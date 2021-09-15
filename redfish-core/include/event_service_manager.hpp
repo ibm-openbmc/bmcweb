@@ -905,8 +905,25 @@ class EventServiceManager
         if (retry <= 0)
         {
             BMCWEB_LOG_ERROR << "Failed to generate random number";
-            return std::string("");
+            return "";
         }
+
+        std::shared_ptr<persistent_data::UserSubscription> newSub =
+            std::make_shared<persistent_data::UserSubscription>();
+        newSub->id = id;
+        newSub->destinationUrl = subValue->destinationUrl;
+        newSub->protocol = subValue->protocol;
+        newSub->retryPolicy = subValue->retryPolicy;
+        newSub->customText = subValue->customText;
+        newSub->eventFormatType = subValue->eventFormatType;
+        newSub->subscriptionType = subValue->subscriptionType;
+        newSub->registryMsgIds = subValue->registryMsgIds;
+        newSub->registryPrefixes = subValue->registryPrefixes;
+        newSub->resourceTypes = subValue->resourceTypes;
+        newSub->httpHeaders = subValue->httpHeaders;
+        newSub->metricReportDefinitions = subValue->metricReportDefinitions;
+        persistent_data::EventServiceStore::getInstance()
+            .subscriptionsConfigMap.emplace(newSub->id, newSub);
 
         std::shared_ptr<persistent_data::UserSubscription> newSub =
             std::make_shared<persistent_data::UserSubscription>();

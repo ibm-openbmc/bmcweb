@@ -7,6 +7,7 @@
 #include <dbus_monitor.hpp>
 #include <dbus_singleton.hpp>
 #include <dump_offload.hpp>
+#include <google/google_service_root.hpp>
 #include <hostname_monitor.hpp>
 #include <ibm/management_console_rest.hpp>
 #include <image_upload.hpp>
@@ -111,6 +112,10 @@ int main(int /*argc*/, char** /*argv*/)
     crow::ibm_mc_lock::Lock::getInstance();
 #endif
 
+#ifdef BMCWEB_ENABLE_GOOGLE_API
+    crow::google_api::requestRoutes(app);
+#endif
+
     if (bmcwebInsecureDisableXssPrevention)
     {
         cors_preflight::requestRoutes(app);
@@ -159,4 +164,5 @@ int main(int /*argc*/, char** /*argv*/)
     io->run();
 
     crow::connections::systemBus.reset();
+    return 0;
 }

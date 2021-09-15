@@ -3,12 +3,9 @@ import requests
 import zipfile
 from io import BytesIO
 import os
-from collections import defaultdict
 from collections import OrderedDict
-from distutils.version import StrictVersion
 import shutil
 import json
-import glob
 
 import xml.etree.ElementTree as ET
 
@@ -43,7 +40,7 @@ include_list = [
     'Fan',
     'IPAddresses',
     'JsonSchemaFile',
-    'JsonSchemaFileCollection', #redfish/v1/JsonSchemas
+    'JsonSchemaFileCollection',  # redfish/v1/JsonSchemas
     'LogEntry',
     'LogEntryCollection',
     'LogService',
@@ -79,7 +76,7 @@ include_list = [
     'PowerSubsystem',
     'PowerSupplyCollection',
     'PowerSupply',
-    'Privileges', #Used in Role
+    'Privileges',  # Used in Role
     'Processor',
     'ProcessorCollection',
     'RedfishError',
@@ -146,12 +143,15 @@ zipBytesIO = BytesIO(r.content)
 zip_ref = zipfile.ZipFile(zipBytesIO)
 
 # Remove the old files
+skip_prefixes = ('Oem')
 if os.path.exists(schema_path):
-    files = glob.glob(os.path.join(schema_path, '[!Oem]*'))
+    files = [os.path.join(schema_path, f) for f in os.listdir(schema_path)
+             if not f.startswith(skip_prefixes)]
     for f in files:
         os.remove(f)
 if os.path.exists(json_schema_path):
-    files = glob.glob(os.path.join(json_schema_path, '[!Oem]*'))
+    files = [os.path.join(json_schema_path, f) for f in
+             os.listdir(json_schema_path) if not f.startswith(skip_prefixes)]
     for f in files:
         if (os.path.isfile(f)):
             os.remove(f)
@@ -168,13 +168,14 @@ with open(metadata_index_path, 'w') as metadata_index:
 
     metadata_index.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
     metadata_index.write(
-        "<edmx:Edmx xmlns:edmx=\"http://docs.oasis-open.org/odata/ns/edmx\" Version=\"4.0\">\n")
+        "<edmx:Edmx xmlns:edmx="
+        "\"http://docs.oasis-open.org/odata/ns/edmx\""
+        " Version=\"4.0\">\n")
 
     for zip_filepath in zip_ref.namelist():
-        if zip_filepath.startswith(VERSION +
-                                   '/csdl/') & (zip_filepath != VERSION +
-                                                "/csdl/") & (zip_filepath != VERSION +
-                                                             "/csdl/"):
+        if zip_filepath.startswith(VERSION + '/csdl/') and \
+            (zip_filepath != VERSION + "/csdl/") and \
+                (zip_filepath != VERSION + "/csdl/"):
             filename = os.path.basename(zip_filepath)
 
             # filename looks like Zone_v1.xml
@@ -183,7 +184,7 @@ with open(metadata_index_path, 'w') as metadata_index:
                 print("excluding schema: " + filename)
                 continue
 
-            with open(os.path.join(schema_path, filename), 'wb') as schema_file:
+            with open(os.path.join(schema_path, filename), 'wb') as schema_out:
 
                 metadata_index.write(
                     "    <edmx:Reference Uri=\"/redfish/v1/schema/" +
@@ -193,29 +194,39 @@ with open(metadata_index_path, 'w') as metadata_index:
                 content = zip_ref.read(zip_filepath)
                 content = content.replace(b'\r\n', b'\n')
                 xml_root = ET.fromstring(content)
-
+                edmx = "{http://docs.oasis-open.org/odata/ns/edmx}"
+                edm = "{http://docs.oasis-open.org/odata/ns/edm}"
                 for edmx_child in xml_root:
-
-                    if edmx_child.tag == "{http://docs.oasis-open.org/odata/ns/edmx}DataServices":
+                    if edmx_child.tag == edmx + "DataServices":
                         for data_child in edmx_child:
-                            if data_child.tag == "{http://docs.oasis-open.org/odata/ns/edm}Schema":
+                            if data_child.tag == edm + "Schema":
                                 namespace = data_child.attrib["Namespace"]
                                 if namespace.startswith("RedfishExtensions"):
                                     metadata_index.write(
-                                        "        <edmx:Include Namespace=\"" + namespace + "\"  Alias=\"Redfish\"/>\n")
+                                        "        "
+                                        "<edmx:Include Namespace=\"" +
+                                        namespace +
+                                        "\"  Alias=\"Redfish\"/>\n"
+                                    )
 
                                 else:
                                     metadata_index.write(
-                                        "        <edmx:Include Namespace=\"" + namespace + "\"/>\n")
-                schema_file.write(content)
+                                        "        "
+                                        "<edmx:Include Namespace=\""
+                                        + namespace + "\"/>\n"
+                                    )
+                schema_out.write(content)
                 metadata_index.write("    </edmx:Reference>\n")
 
-    metadata_index.write("""    <edmx:DataServices>
-        <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="Service">
-            <EntityContainer Name="Service" Extends="ServiceRoot.v1_0_0.ServiceContainer"/>
-        </Schema>
-    </edmx:DataServices>
-""")
+    metadata_index.write("    <edmx:DataServices>\n"
+                         "        <Schema "
+                         "xmlns=\"http://docs.oasis-open.org/odata/ns/edm\" "
+                         "Namespace=\"Service\">\n"
+                         "            <EntityContainer Name=\"Service\" "
+                         "Extends=\"ServiceRoot.v1_0_0.ServiceContainer\"/>\n"
+                         "        </Schema>\n"
+                         "    </edmx:DataServices>\n"
+                         )
     # TODO:Issue#32 There's a bug in the script that currently deletes this
     # schema (because it's an OEM schema). Because it's the only six, and we
     # don't update schemas very often, we just manually fix it. Need a
@@ -226,26 +237,35 @@ with open(metadata_index_path, 'w') as metadata_index:
     metadata_index.write("    </edmx:Reference>\n")
 
     metadata_index.write(
-        "    <edmx:Reference Uri=\"/redfish/v1/schema/OemComputerSystem_v1.xml\">\n")
-    metadata_index.write("        <edmx:Include Namespace=\"OemComputerSystem\"/>\n")
+        "    <edmx:Reference Uri=\""
+        "/redfish/v1/schema/OemComputerSystem_v1.xml\">\n")
+    metadata_index.write(
+        "        <edmx:Include Namespace=\"OemComputerSystem\"/>\n")
     metadata_index.write("    </edmx:Reference>\n")
 
     metadata_index.write(
-        "    <edmx:Reference Uri=\"/redfish/v1/schema/OemVirtualMedia_v1.xml\">\n")
-    metadata_index.write("        <edmx:Include Namespace=\"OemVirtualMedia\"/>\n")
-    metadata_index.write("        <edmx:Include Namespace=\"OemVirtualMedia.v1_0_0\"/>\n")
+        "    <edmx:Reference Uri=\""
+        "/redfish/v1/schema/OemVirtualMedia_v1.xml\">\n")
+    metadata_index.write(
+        "        <edmx:Include Namespace=\"OemVirtualMedia\"/>\n")
+    metadata_index.write(
+        "        <edmx:Include Namespace=\"OemVirtualMedia.v1_0_0\"/>\n")
     metadata_index.write("    </edmx:Reference>\n")
 
     metadata_index.write(
-        "    <edmx:Reference Uri=\"/redfish/v1/schema/OemAccountService_v1.xml\">\n")
-    metadata_index.write("        <edmx:Include Namespace=\"OemAccountService\"/>\n")
-    metadata_index.write("        <edmx:Include Namespace=\"OemAccountService.v1_0_0\"/>\n")
+        "    <edmx:Reference Uri=\""
+        "/redfish/v1/schema/OemAccountService_v1.xml\">\n")
+    metadata_index.write(
+        "        <edmx:Include Namespace=\"OemAccountService\"/>\n")
+    metadata_index.write(
+        "        <edmx:Include Namespace=\"OemAccountService.v1_0_0\"/>\n")
     metadata_index.write("    </edmx:Reference>\n")
 
     metadata_index.write(
         "    <edmx:Reference Uri=\"/redfish/v1/schema/OemSession_v1.xml\">\n")
     metadata_index.write("        <edmx:Include Namespace=\"OemSession\"/>\n")
-    metadata_index.write("        <edmx:Include Namespace=\"OemSession.v1_0_0\"/>\n")
+    metadata_index.write(
+        "        <edmx:Include Namespace=\"OemSession.v1_0_0\"/>\n")
     metadata_index.write("    </edmx:Reference>\n")
 
     metadata_index.write("</edmx:Edmx>\n")
@@ -284,7 +304,8 @@ for schema, version in schema_files.items():
         "/redfish/v1/JsonSchemas/" + schema + "/" + schema + ".json")
 
     index_json = OrderedDict()
-    index_json["@odata.context"] = "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile"
+    index_json["@odata.context"] = \
+        "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile"
     index_json["@odata.id"] = "/redfish/v1/JsonSchemas/" + schema
     index_json["@odata.type"] = "#JsonSchemaFile.v1_0_2.JsonSchemaFile"
     index_json["Name"] = schema + " Schema File"

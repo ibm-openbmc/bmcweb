@@ -200,14 +200,14 @@ inline void
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetObject", assembly,
-            std::array<const char*, 6>{
+            std::array<const char*, 7>{
                 "xyz.openbmc_project.Inventory.Item.Vrm",
                 "xyz.openbmc_project.Inventory.Item.Tpm",
                 "xyz.openbmc_project.Inventory.Item.Panel",
                 "xyz.openbmc_project.Inventory.Item.Battery",
                 "xyz.openbmc_project.Inventory.Item.DiskBackplane",
-                "xyz.openbmc_project.Inventory.Item.Board"});
-
+                "xyz.openbmc_project.Inventory.Item.Board",
+                "xyz.openbmc_project.Inventory.Item.Board.Motherboard"});
         assemblyIndex++;
     }
 }
@@ -349,13 +349,14 @@ inline void checkAssemblyInterface(
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
         "/xyz/openbmc_project/inventory", int32_t(0),
-        std::array<const char*, 6>{
+        std::array<const char*, 7>{
             "xyz.openbmc_project.Inventory.Item.Vrm",
             "xyz.openbmc_project.Inventory.Item.Tpm",
             "xyz.openbmc_project.Inventory.Item.Panel",
             "xyz.openbmc_project.Inventory.Item.Battery",
             "xyz.openbmc_project.Inventory.Item.DiskBackplane",
-            "xyz.openbmc_project.Inventory.Item.Board"});
+            "xyz.openbmc_project.Inventory.Item.Board",
+            "xyz.openbmc_project.Inventory.Item.Board.Motherboard"});
 }
 
 /**

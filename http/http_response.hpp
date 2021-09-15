@@ -139,6 +139,11 @@ struct Response
         return isAliveHelper && isAliveHelper();
     }
 
+    void setCompleteRequestHandler(std::function<void()> newHandler)
+    {
+        completeRequestHandler = std::move(newHandler);
+    }
+
   private:
     bool completed{};
     std::function<void()> completeRequestHandler;
