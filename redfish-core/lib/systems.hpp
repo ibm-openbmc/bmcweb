@@ -2856,7 +2856,6 @@ inline void requestRoutesSystems(App& app)
                 std::optional<std::string> assetTag;
                 std::optional<std::string> powerRestorePolicy;
                 std::optional<std::string> powerMode;
-                std::optional<bool> trustedModuleRequiredToBoot;
                 std::optional<nlohmann::json> oem;
 
                 if (!json_util::readJson(
@@ -2864,9 +2863,7 @@ inline void requestRoutesSystems(App& app)
                         "LocationIndicatorActive", locationIndicatorActive,
                         "Boot", bootProps, "WatchdogTimer", wdtTimerProps,
                         "PowerRestorePolicy", powerRestorePolicy, "AssetTag",
-                        assetTag, "PowerMode", powerMode,
-                        "TrustedModuleRequiredToBoot",
-                        trustedModuleRequiredToBoot, "Oem", oem))
+                        assetTag, "PowerMode", powerMode, "Oem", oem))
                 {
                     return;
                 }
@@ -2898,13 +2895,16 @@ inline void requestRoutesSystems(App& app)
                     std::optional<std::string> bootType;
                     std::optional<std::string> bootEnable;
                     std::optional<std::string> automaticRetryConfig;
+                    std::optional<bool> trustedModuleRequiredToBoot;
 
                     if (!json_util::readJson(
                             *bootProps, asyncResp->res,
                             "BootSourceOverrideTarget", bootSource,
                             "BootSourceOverrideMode", bootType,
                             "BootSourceOverrideEnabled", bootEnable,
-                            "AutomaticRetryConfig", automaticRetryConfig))
+                            "AutomaticRetryConfig", automaticRetryConfig,
+                            "TrustedModuleRequiredToBoot",
+                            trustedModuleRequiredToBoot))
                     {
                         return;
                     }
@@ -2917,6 +2917,12 @@ inline void requestRoutesSystems(App& app)
                     if (automaticRetryConfig)
                     {
                         setAutomaticRetry(asyncResp, *automaticRetryConfig);
+                    }
+
+                    if (trustedModuleRequiredToBoot)
+                    {
+                        setTrustedModuleRequiredToBoot(
+                            asyncResp, *trustedModuleRequiredToBoot);
                     }
                 }
 
@@ -2945,12 +2951,6 @@ inline void requestRoutesSystems(App& app)
                 if (powerMode)
                 {
                     setPowerMode(asyncResp, *powerMode);
-                }
-
-                if (trustedModuleRequiredToBoot)
-                {
-                    setTrustedModuleRequiredToBoot(
-                        asyncResp, *trustedModuleRequiredToBoot);
                 }
 
                 if (oem)
