@@ -94,9 +94,12 @@ int main(int /*argc*/, char** /*argv*/)
 #endif
 
 #ifdef BMCWEB_ENABLE_DBUS_REST
-    crow::dbus_monitor::requestRoutes(app);
     crow::image_upload::requestRoutes(app);
     crow::openbmc_mapper::requestRoutes(app);
+#endif
+
+#ifdef BMCWEB_ENABLE_EVENT_SUBSCRIPTION_WEBSOCKET
+    crow::dbus_monitor::requestRoutes(app);
 #endif
 
 #ifdef BMCWEB_ENABLE_HOST_SERIAL_WEBSOCKET

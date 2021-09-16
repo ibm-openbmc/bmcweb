@@ -77,6 +77,7 @@ feature_map = {
 'redfish-provisioning-feature'    : '-DBMCWEB_ENABLE_REDFISH_PROVISIONING_FEATURE',
 'redfish-dump-log'                : '-DBMCWEB_ENABLE_REDFISH_DUMP_LOG',
 'rest'                            : '-DBMCWEB_ENABLE_DBUS_REST',
+'event-subscription'              : '-DBMCWEB_ENABLE_EVENT_SUBSCRIPTION_WEBSOCKET',
 'static-hosting'                  : '-DBMCWEB_ENABLE_STATIC_HOSTING',
 'insecure-tftp-update'            : '-DBMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE',
 #'vm-nbdproxy'                     : '-DBMCWEB_ENABLE_VM_NBDPROXY',
