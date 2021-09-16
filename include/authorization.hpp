@@ -42,14 +42,8 @@ static std::shared_ptr<persistent_data::UserSession>
 {
     BMCWEB_LOG_DEBUG << "[AuthMiddleware] Basic authentication";
 
-    if (!boost::starts_with(authHeader, "Basic "))
-    {
-        return nullptr;
-    }
-
-    std::string_view param = authHeader.substr(strlen("Basic "));
     std::string authData;
-
+    std::string_view param = authHeader.substr(strlen("Basic "));
     if (!crow::utility::base64Decode(param, authData))
     {
         return nullptr;
@@ -97,10 +91,7 @@ static std::shared_ptr<persistent_data::UserSession>
     performTokenAuth(std::string_view authHeader)
 {
     BMCWEB_LOG_DEBUG << "[AuthMiddleware] Token authentication";
-    if (!boost::starts_with(authHeader, "Token "))
-    {
-        return nullptr;
-    }
+
     std::string_view token = authHeader.substr(strlen("Token "));
     auto sessionOut =
         persistent_data::SessionStore::getInstance().loginSessionByToken(token);
@@ -289,25 +280,29 @@ static std::shared_ptr<persistent_data::UserSession> authenticate(
     }
 #endif
     std::string_view authHeader = reqHeader["Authorization"];
-    BMCWEB_LOG_ERROR << "authHeader=" << authHeader;
 
-    if (sessionOut == nullptr && authMethodsConfig.sessionToken)
+    if (!authHeader.empty())
     {
+        // Reject any kind of auth other than basic or token
+        if (boost::starts_with(authHeader, "Token ") &&
+            authMethodsConfig.sessionToken)
+        {
 #ifdef BMCWEB_ENABLE_SESSION_AUTHENTICATION
-        sessionOut = performTokenAuth(authHeader);
+            sessionOut = performTokenAuth(authHeader);
 #endif
-    }
-    if (sessionOut == nullptr && authMethodsConfig.basic)
-    {
+        }
+        else if (boost::starts_with(authHeader, "Basic ") &&
+                 authMethodsConfig.basic)
+        {
 #ifdef BMCWEB_ENABLE_BASIC_AUTHENTICATION
-        sessionOut = performBasicAuth(ipAddress, authHeader);
+            sessionOut = performBasicAuth(ipAddress, authHeader);
 #endif
+        }
+        if (sessionOut != nullptr)
+        {
+            return sessionOut;
+        }
     }
-    if (sessionOut != nullptr)
-    {
-        return sessionOut;
-    }
-
     BMCWEB_LOG_WARNING << "[AuthMiddleware] authorization failed";
     forward_unauthorized::sendUnauthorized(url, reqHeader["User-Agent"],
                                            reqHeader["accept"], res);
