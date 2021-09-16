@@ -5,8 +5,9 @@
 
 namespace http_helpers
 {
-inline bool requestPrefersHtml(std::string_view header)
+inline bool requestPrefersHtml(const crow::Request& req)
 {
+    std::string_view header = req.getHeaderValue("accept");
     std::vector<std::string> encodings;
     // chrome currently sends 6 accepts headers, firefox sends 4.
     encodings.reserve(6);
