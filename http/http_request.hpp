@@ -34,7 +34,7 @@ struct Request
 
     std::string userRole{};
     Request(
-        boost::beast::http::request<boost::beast::http::string_body> reqIn) :
+        boost::beast::http::request<boost::beast::http::string_body>&& reqIn) :
         req(std::move(reqIn)),
         fields(req.base()), body(req.body())
     {}
