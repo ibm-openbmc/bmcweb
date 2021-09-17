@@ -66,7 +66,7 @@ inline static void activateImage(const std::string& objPath,
 static void
     softwareInterfaceAdded(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                            sdbusplus::message::message& m,
-                           const crow::Request& req)
+                           task::Payload&& payload)
 {
     std::vector<std::pair<
         std::string,
@@ -86,10 +86,11 @@ static void
         {
             // Retrieve service and activate
             crow::connections::systemBus->async_method_call(
-                [objPath, asyncResp,
-                 req](const boost::system::error_code errorCode,
-                      const std::vector<std::pair<
-                          std::string, std::vector<std::string>>>& objInfo) {
+                [objPath, asyncResp, payload(std::move(payload))](
+                    const boost::system::error_code errorCode,
+                    const std::vector<
+                        std::pair<std::string, std::vector<std::string>>>&
+                        objInfo) mutable {
                     if (errorCode)
                     {
                         BMCWEB_LOG_DEBUG << "error_code = " << errorCode;
@@ -244,7 +245,7 @@ static void
                                     objPath.str + "'");
                         task->startTimer(std::chrono::minutes(5));
                         task->populateResp(asyncResp->res);
-                        task->payload.emplace(req);
+                        task->payload.emplace(std::move(payload));
                     }
                     fwUpdateInProgress = false;
                 },
@@ -301,10 +302,11 @@ static void monitorForSoftwareAvailable(
                 redfish::messages::internalError(asyncResp->res);
             }
         });
-
-    auto callback = [asyncResp, req](sdbusplus::message::message& m) {
+    task::Payload payload(req);
+    auto callback = [asyncResp,
+                     payload](sdbusplus::message::message& m) mutable {
         BMCWEB_LOG_DEBUG << "Match fired";
-        softwareInterfaceAdded(asyncResp, m, req);
+        softwareInterfaceAdded(asyncResp, m, std::move(payload));
     };
 
     fwUpdateInProgress = true;
