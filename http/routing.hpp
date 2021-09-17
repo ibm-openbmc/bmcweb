@@ -49,7 +49,7 @@ class BaseRule
     virtual void handle(const Request&,
                         const std::shared_ptr<bmcweb::AsyncResp>&,
                         const RoutingParams&) = 0;
-    virtual void handleUpgrade(const Request& /*req*/,
+    virtual void handleUpgrade(Request& /*req*/,
                                std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                                boost::asio::ip::tcp::socket&& /*adaptor*/)
     {
@@ -57,7 +57,7 @@ class BaseRule
     }
 #ifdef BMCWEB_ENABLE_SSL
     virtual void handleUpgrade(
-        const Request& /*req*/, std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+        Request& /*req*/, std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         boost::beast::ssl_stream<boost::asio::ip::tcp::socket>&& /*adaptor*/)
     {
         asyncResp->res.result(boost::beast::http::status::not_found);
@@ -362,7 +362,7 @@ class WebSocketRule : public BaseRule
         asyncResp->res.result(boost::beast::http::status::not_found);
     }
 
-    void handleUpgrade(const Request& req,
+    void handleUpgrade(Request& req,
                        std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                        boost::asio::ip::tcp::socket&& adaptor) override
     {
@@ -375,7 +375,7 @@ class WebSocketRule : public BaseRule
         myConnection->start(asyncResp);
     }
 #ifdef BMCWEB_ENABLE_SSL
-    void handleUpgrade(const Request& req,
+    void handleUpgrade(Request& req,
                        std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                        boost::beast::ssl_stream<boost::asio::ip::tcp::socket>&&
                            adaptor) override
@@ -447,7 +447,7 @@ class StreamingResponseRule : public BaseRule
         asyncResp->res.result(boost::beast::http::status::not_found);
     }
 
-    void handleUpgrade(const Request& req, std::shared_ptr<bmcweb::AsyncResp>&,
+    void handleUpgrade(Request& req, std::shared_ptr<bmcweb::AsyncResp>&,
                        boost::asio::ip::tcp::socket&& adaptor) override
     {
         std::shared_ptr<crow::streaming_response::ConnectionImpl<
@@ -464,7 +464,7 @@ class StreamingResponseRule : public BaseRule
     }
 
 #ifdef BMCWEB_ENABLE_SSL
-    void handleUpgrade(const Request& req, std::shared_ptr<bmcweb::AsyncResp>&,
+    void handleUpgrade(Request& req, std::shared_ptr<bmcweb::AsyncResp>&,
                        boost::beast::ssl_stream<boost::asio::ip::tcp::socket>&&
                            adaptor) override
     {
@@ -1238,7 +1238,7 @@ class Router
     }
 
     template <typename Adaptor>
-    void handleUpgrade(const Request& req,
+    void handleUpgrade(Request& req,
                        std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                        Adaptor&& adaptor)
     {
@@ -1306,28 +1306,139 @@ class Router
                          << "' " << static_cast<uint32_t>(req.method()) << " / "
                          << rules[ruleIndex]->getMethods();
 
-        // any uncaught exceptions become 500s
-        try
-        {
-            rules[ruleIndex]->handleUpgrade(req, asyncResp,
-                                            std::forward<Adaptor>(adaptor));
-        }
-        catch (const std::exception& e)
-        {
-            BMCWEB_LOG_ERROR << "An uncaught exception occurred: " << e.what();
-            asyncResp->res.result(
-                boost::beast::http::status::internal_server_error);
-            return;
-        }
-        catch (...)
-        {
-            BMCWEB_LOG_ERROR
-                << "An uncaught exception occurred. The type was unknown "
-                   "so no information was available.";
-            asyncResp->res.result(
-                boost::beast::http::status::internal_server_error);
-            return;
-        }
+        // crow::connections::systemBus->async_method_call(
+        //     [&req, asyncResp, &rules, ruleIndex, &adaptor](
+        //         const boost::system::error_code ec,
+        //         std::map<std::string, std::variant<bool, std::string,
+        //                                            std::vector<std::string>>>
+        //             userInfo) {
+        //         if (ec)
+        //         {
+        //             BMCWEB_LOG_ERROR << "GetUserInfo failed...";
+        //             asyncResp->res.result(
+        //                 boost::beast::http::status::internal_server_error);
+        //             return;
+        //         }
+
+        //         const std::string* userRolePtr = nullptr;
+        //         auto userInfoIter = userInfo.find("UserPrivilege");
+        //         if (userInfoIter != userInfo.end())
+        //         {
+        //             userRolePtr =
+        //                 std::get_if<std::string>(&userInfoIter->second);
+        //         }
+
+        //         std::string userRole{};
+        //         if (userRolePtr != nullptr)
+        //         {
+        //             userRole = *userRolePtr;
+        //             BMCWEB_LOG_DEBUG << "userName = " << req.session->username
+        //                              << " userRole = " << *userRolePtr;
+        //         }
+
+        //         bool* remoteUserPtr = nullptr;
+        //         auto remoteUserIter = userInfo.find("RemoteUser");
+        //         if (remoteUserIter != userInfo.end())
+        //         {
+        //             remoteUserPtr = std::get_if<bool>(&remoteUserIter->second);
+        //         }
+        //         if (remoteUserPtr == nullptr)
+        //         {
+        //             BMCWEB_LOG_ERROR
+        //                 << "RemoteUser property missing or wrong type";
+        //             asyncResp->res.result(
+        //                 boost::beast::http::status::internal_server_error);
+        //             return;
+        //         }
+        //         bool remoteUser = *remoteUserPtr;
+
+        //         bool passwordExpired = false; // default for remote user
+        //         if (!remoteUser)
+        //         {
+        //             bool* passwordExpiredPtr = nullptr;
+        //             auto passwordExpiredIter =
+        //                 userInfo.find("UserPasswordExpired");
+        //             if (passwordExpiredIter != userInfo.end())
+        //             {
+        //                 passwordExpiredPtr =
+        //                     std::get_if<bool>(&passwordExpiredIter->second);
+        //             }
+        //             if (passwordExpiredPtr != nullptr)
+        //             {
+        //                 passwordExpired = *passwordExpiredPtr;
+        //             }
+        //             else
+        //             {
+        //                 BMCWEB_LOG_ERROR
+        //                     << "UserPasswordExpired property is expected for"
+        //                        " local user but is missing or wrong type";
+        //                 asyncResp->res.result(
+        //                     boost::beast::http::status::internal_server_error);
+        //                 return;
+        //             }
+        //         }
+
+        //         // Get the userprivileges from the role
+        //         redfish::Privileges userPrivileges =
+        //             redfish::getUserPrivileges(userRole);
+
+        //         // Set isConfigureSelfOnly based on D-Bus results.  This
+        //         // ignores the results from both pamAuthenticateUser and the
+        //         // value from any previous use of this session.
+        //         req.session->isConfigureSelfOnly = passwordExpired;
+
+        //         // Modifyprivileges if isConfigureSelfOnly.
+        //         if (req.session->isConfigureSelfOnly)
+        //         {
+        //             // Remove allprivileges except ConfigureSelf
+        //             userPrivileges = userPrivileges.intersection(
+        //                 redfish::Privileges{"ConfigureSelf"});
+        //             BMCWEB_LOG_DEBUG << "Operation limited to ConfigureSelf";
+        //         }
+
+        //         if (!rules[ruleIndex]->checkPrivileges(userPrivileges))
+        //         {
+        //             asyncResp->res.result(
+        //                 boost::beast::http::status::forbidden);
+        //             if (req.session->isConfigureSelfOnly)
+        //             {
+        //                 redfish::messages::passwordChangeRequired(
+        //                     asyncResp->res,
+        //                     "/redfish/v1/AccountService/Accounts/" +
+        //                         req.session->username);
+        //             }
+        //             return;
+        //         }
+
+        //         req.userRole = userRole;
+
+                // any uncaught exceptions become 500s
+                try
+                {
+                    rules[ruleIndex]->handleUpgrade(
+                        req, asyncResp, std::forward<Adaptor>(adaptor));
+                }
+                catch (const std::exception& e)
+                {
+                    BMCWEB_LOG_ERROR << "An uncaught exception occurred: "
+                                     << e.what();
+                    asyncResp->res.result(
+                        boost::beast::http::status::internal_server_error);
+                    return;
+                }
+                catch (...)
+                {
+                    BMCWEB_LOG_ERROR << "An uncaught exception occurred. The "
+                                        "type was unknown "
+                                        "so no information was available.";
+                    asyncResp->res.result(
+                        boost::beast::http::status::internal_server_error);
+                    return;
+                }
+            // },
+            // "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
+            // "xyz.openbmc_project.User.Manager", "GetUserInfo",
+            // req.session->username);
     }
 
     void handle(Request& req,
