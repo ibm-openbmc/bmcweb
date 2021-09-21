@@ -22,6 +22,14 @@
                 }
             },
             "properties": {
+                "GeneratorId": {
+                    "description": "Id of the user who created the LogEntry.",
+                    "longDescription": "Unique id of the user who has caused the creation of the LogEntry. Eg: ip address, session id, client id.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
                 "ManagementSystemAck" : {
                     "description": "Flag to keep track of external interface acknowledgment.",
                     "longDescription": "A true value says external interface acked error log, false says otherwise.",

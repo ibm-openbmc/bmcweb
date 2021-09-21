@@ -481,6 +481,7 @@ inline void
                 std::time_t timestamp;
                 uint64_t size = 0;
                 std::string dumpStatus;
+                std::string clientId;
                 entriesArray.push_back({});
                 nlohmann::json& thisEntry = entriesArray.back();
 
@@ -551,6 +552,26 @@ inline void
                             }
                         }
                     }
+                    else if (interfaceMap.first ==
+                             "xyz.openbmc_project.Common.GeneratedBy")
+                    {
+                        for (auto& propertyMap : interfaceMap.second)
+                        {
+                            if (propertyMap.first == "GeneratorId")
+                            {
+                                const std::string* id =
+                                    std::get_if<std::string>(
+                                        &propertyMap.second);
+                                if (id == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    break;
+                                }
+                                clientId = *id;
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 if (dumpStatus != "xyz.openbmc_project.Common.Progress."
@@ -570,6 +591,13 @@ inline void
                 thisEntry["Created"] = crow::utility::getDateTime(timestamp);
 
                 thisEntry["AdditionalDataSizeBytes"] = size;
+
+                if (!clientId.empty())
+                {
+                    thisEntry["Oem"]["OpenBMC"]["@odata.type"] =
+                        "#OemLogEntry.v1_0_0.LogEntry";
+                    thisEntry["Oem"]["OpenBMC"]["GeneratorId"] = clientId;
+                }
 
                 if (dumpType == "BMC")
                 {
@@ -645,6 +673,7 @@ inline void
             }
 
             bool foundDumpEntry = false;
+            std::string clientId;
             std::string dumpEntryPath =
                 "/xyz/openbmc_project/dump/" +
                 std::string(boost::algorithm::to_lower_copy(dumpType)) +
@@ -721,6 +750,26 @@ inline void
                             }
                         }
                     }
+                    else if (interfaceMap.first ==
+                             "xyz.openbmc_project.Common.GeneratedBy")
+                    {
+                        for (auto& propertyMap : interfaceMap.second)
+                        {
+                            if (propertyMap.first == "GeneratorId")
+                            {
+                                const std::string* id =
+                                    std::get_if<std::string>(
+                                        &propertyMap.second);
+                                if (id == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    break;
+                                }
+                                clientId = *id;
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 if (dumpStatus != "xyz.openbmc_project.Common.Progress."
@@ -741,6 +790,14 @@ inline void
                 asyncResp->res.jsonValue["Created"] =
                     crow::utility::getDateTime(timestamp);
                 asyncResp->res.jsonValue["AdditionalDataSizeBytes"] = size;
+
+                if (!clientId.empty())
+                {
+                    asyncResp->res.jsonValue["Oem"]["OpenBMC"]["@odata.type"] =
+                        "#OemLogEntry.v1_0_0.LogEntry";
+                    asyncResp->res.jsonValue["Oem"]["OpenBMC"]["GeneratorId"] =
+                        clientId;
+                }
 
                 if (dumpType == "BMC")
                 {
@@ -1003,6 +1060,10 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         }
         dumpPath = "/xyz/openbmc_project/dump/bmc";
     }
+
+    createDumpParams.emplace_back(std::make_pair(
+        "xyz.openbmc_project.Dump.Create.CreateParameters.GeneratorId",
+        req.session->clientIp));
 
     std::vector<std::pair<std::string, std::variant<std::string, uint64_t>>>
         createDumpParamVec(createDumpParams);
