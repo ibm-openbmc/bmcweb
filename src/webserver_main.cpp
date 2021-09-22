@@ -114,6 +114,10 @@ static int run()
     crow::obmc_shell::requestRoutes(app);
 #endif
 
+#ifdef BMCWEB_ENABLE_HYPERVISOR_SERIAL_WEBSOCKET
+    crow::obmc_console::requestRoutesHypervisor(app);
+#endif
+
 #ifdef BMCWEB_ENABLE_VM_WEBSOCKET
     crow::obmc_vm::requestRoutes(app);
 #endif

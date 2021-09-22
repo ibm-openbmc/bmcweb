@@ -318,10 +318,18 @@ option(
 )
 
 option(
-      'bmc-shell-socket',
-      type : 'feature',
-      value : 'disabled',
-      description : '''Enable BMC command shell WebSocket, which makes it
-                       possible to access secure shell. Path is
-                       \'/bmc-console\'.'''
+    'bmc-shell-socket',
+    type: 'feature',
+    value: 'disabled',
+    description: '''Enable BMC command shell WebSocket, which makes it
+                    possible to access secure shell. Path is
+                    \'/bmc-console\'.'''
+)
+
+option(
+    'hypervisor-serial-socket',
+    type: 'feature',
+    value: 'disabled',
+    description: '''Enable hypervisor serial console WebSocket. Path is
+                    \'/console1\'.'''
 )
