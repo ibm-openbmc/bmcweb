@@ -240,7 +240,7 @@ inline void requestRoutesChassis(App& app)
                                     return;
                                 }
                                 health->inventory = std::move(*data);
-                                constexpr const std::array<const char*, 4>
+                                constexpr const std::array<const char*, 13>
                                     inventoryForChassis = {
                                         "xyz.openbmc_project.Inventory.Item."
                                         "Dimm",
@@ -249,7 +249,25 @@ inline void requestRoutesChassis(App& app)
                                         "xyz.openbmc_project.Inventory.Item."
                                         "PowerSupply",
                                         "xyz.openbmc_project.Inventory.Item."
-                                        "PCIeSlot"};
+                                        "Fan",
+                                        "xyz.openbmc_project.Inventory.Item."
+                                        "PCIeSlot",
+                                        "xyz.openbmc_project.Inventory.Item."
+                                        "Vrm",
+                                        "xyz.openbmc_project.Inventory.Item."
+                                        "Tpm",
+                                        "xyz.openbmc_project.Inventory.Item."
+                                        "Panel",
+                                        "xyz.openbmc_project.Inventory.Item."
+                                        "Battery",
+                                        "xyz.openbmc_project.Inventory.Item."
+                                        "DiskBackplane",
+                                        "xyz.openbmc_project.Inventory.Item."
+                                        "Board",
+                                        "xyz.openbmc_project.Inventory.Item."
+                                        "Board.Motherboard",
+                                        "xyz.openbmc_project.Inventory.Item."
+                                        "Connector"};
 
                                 crow::connections::systemBus->async_method_call(
                                     [health](const boost::system::error_code ec,
