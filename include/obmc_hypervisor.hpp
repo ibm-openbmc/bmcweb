@@ -10,7 +10,7 @@
 
 namespace crow
 {
-namespace obmc_console
+namespace obmc_hypervisor
 {
 
 static std::unique_ptr<boost::asio::local::stream_protocol::socket> hostSocket;
@@ -116,7 +116,7 @@ inline void connectHandler(const boost::system::error_code& ec)
 
 inline void requestRoutes(App& app)
 {
-    BMCWEB_ROUTE(app, "/console0")
+    BMCWEB_ROUTE(app, "/console1")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
         .websocket()
         .onopen([](crow::websocket::Connection& conn,
@@ -126,7 +126,7 @@ inline void requestRoutes(App& app)
             sessions.insert(&conn);
             if (hostSocket == nullptr)
             {
-                const std::string consoleName("\0obmc-console", 13);
+                const std::string consoleName("\0obmc-console.hypervisor", 24);
                 boost::asio::local::stream_protocol::endpoint ep(consoleName);
 
                 hostSocket = std::make_unique<
@@ -153,5 +153,5 @@ inline void requestRoutes(App& app)
             doWrite();
         });
 }
-} // namespace obmc_console
+} // namespace obmc_hypervisor
 } // namespace crow
