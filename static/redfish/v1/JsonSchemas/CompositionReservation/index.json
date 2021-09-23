@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/CompositionReservation",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "CompositionReservation Schema File",
+    "Schema": "#CompositionReservation.CompositionReservation",
+    "Description": "CompositionReservation Schema File Location",
+    "Id": "CompositionReservation",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/CompositionReservation.json",
+            "Uri": "/redfish/v1/JsonSchemas/CompositionReservation/CompositionReservation.json"
+        }
+    ],
+    "Location@odata.count": 1
+}

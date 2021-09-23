@@ -11,113 +11,6 @@ import xml.etree.ElementTree as ET
 
 VERSION = "DSP8010_2021.2"
 
-# To use a new schema, add to list and rerun tool
-include_list = [
-    'AccountService',
-    'ActionInfo',
-    'Assembly',
-    'AttributeRegistry',
-    'Bios',
-    'Certificate',
-    'CertificateCollection',
-    'CertificateLocations',
-    'CertificateService',
-    'Chassis',
-    'ChassisCollection',
-    'ComputerSystem',
-    'ComputerSystemCollection',
-    'Drive',
-    'DriveCollection',
-    'EthernetInterface',
-    'EthernetInterfaceCollection',
-    'Event',
-    'EventDestination',
-    'EventDestinationCollection',
-    'EventService',
-    'FabricAdapter',
-    'FabricAdapterCollection',
-    'FanCollection',
-    'Fan',
-    'IPAddresses',
-    'JsonSchemaFile',
-    'JsonSchemaFileCollection',  # redfish/v1/JsonSchemas
-    'LogEntry',
-    'LogEntryCollection',
-    'LogService',
-    'LogServiceCollection',
-    'Manager',
-    'ManagerAccount',
-    'ManagerAccountCollection',
-    'ManagerCollection',
-    'ManagerNetworkProtocol',
-    'Memory',
-    'MemoryCollection',
-    'Message',
-    'MessageRegistry',
-    'MessageRegistryCollection',
-    'MessageRegistryFile',
-    'MessageRegistryFileCollection',
-    'MetricDefinition',
-    'MetricDefinitionCollection',
-    'MetricReport',
-    'MetricReportCollection',
-    'MetricReportDefinition',
-    'MetricReportDefinitionCollection',
-    'OperatingConfig',
-    'OperatingConfigCollection',
-    'PCIeDevice',
-    'PCIeDeviceCollection',
-    'PCIeFunction',
-    'PCIeFunctionCollection',
-    'PCIeSlots',
-    'Power',
-    'Port',
-    'PortCollection',
-    'PowerSubsystem',
-    'PowerSupplyCollection',
-    'PowerSupply',
-    'Privileges',  # Used in Role
-    'Processor',
-    'ProcessorCollection',
-    'RedfishError',
-    'RedfishExtensions',
-    'Redundancy',
-    'Resource',
-    'Role',
-    'RoleCollection',
-    'Sensor',
-    'SensorCollection',
-    'ServiceRoot',
-    'Session',
-    'SessionCollection',
-    'SessionService',
-    'Settings',
-    'SoftwareInventory',
-    'SoftwareInventoryCollection',
-    'Storage',
-    'StorageCollection',
-    'StorageController',
-    'StorageControllerCollection',
-    'Task',
-    'TaskCollection',
-    'TaskService',
-    'TelemetryService',
-    'Thermal',
-    'ThermalSubsystem',
-    'ThermalMetrics',
-    'UpdateService',
-    'VLanNetworkInterfaceCollection',
-    'VLanNetworkInterface',
-    'VirtualMedia',
-    'VirtualMediaCollection',
-    'odata',
-    'odata-v4',
-    'redfish-error',
-    'redfish-payload-annotations',
-    'redfish-schema',
-    'redfish-schema-v1',
-]
-
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 proxies = {
@@ -177,12 +70,6 @@ with open(metadata_index_path, 'w') as metadata_index:
             (zip_filepath != VERSION + "/csdl/") and \
                 (zip_filepath != VERSION + '/' + VERSION + "/csdl/"):
             filename = os.path.basename(zip_filepath)
-
-            # filename looks like Zone_v1.xml
-            filenamesplit = filename.split("_")
-            if filenamesplit[0] not in include_list:
-                print("excluding schema: " + filename)
-                continue
 
             with open(os.path.join(schema_path, filename), 'wb') as schema_out:
 
@@ -275,10 +162,6 @@ for zip_filepath in zip_ref.namelist():
     if zip_filepath.startswith(os.path.join(VERSION, VERSION, 'json-schema/')):
         filename = os.path.basename(zip_filepath)
         filenamesplit = filename.split(".")
-
-        # exclude schemas again to save flash space
-        if filenamesplit[0] not in include_list:
-            continue
 
         if len(filenamesplit) == 3:
             thisSchemaVersion = schema_files.get(filenamesplit[0], None)
