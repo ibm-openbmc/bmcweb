@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Port.v1_4_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Port.v1_5_0.json",
     "$ref": "#/definitions/Port",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -110,6 +110,16 @@
                     "type": "array",
                     "versionAdded": "v1_4_0"
                 },
+                "EEEEnabled": {
+                    "description": "Indicates whether IEEE 802.3az Energy-Efficient Ethernet (EEE) is enabled on this port.",
+                    "longDescription": "This property shall indicate whether IEEE 802.3az Energy-Efficient Ethernet (EEE) is enabled on this port.",
+                    "readonly": false,
+                    "type": [
+                        "boolean",
+                        "null"
+                    ],
+                    "versionAdded": "v1_5_0"
+                },
                 "FlowControlConfiguration": {
                     "anyOf": [
                         {
@@ -172,6 +182,7 @@
                     "versionAdded": "v1_4_0"
                 },
                 "SupportedEthernetCapabilities": {
+                    "deprecated": "This property has been deprecated in favor of individual fields for the various properties.",
                     "description": "The set of Ethernet capabilities that this port supports.",
                     "items": {
                         "anyOf": [
@@ -186,7 +197,18 @@
                     "longDescription": "This property shall contain an array of Ethernet capabilities supported by this port.",
                     "readonly": true,
                     "type": "array",
-                    "versionAdded": "v1_3_0"
+                    "versionAdded": "v1_3_0",
+                    "versionDeprecated": "v1_5_0"
+                },
+                "WakeOnLANEnabled": {
+                    "description": "Indicates whether Wake on LAN (WoL) is enabled on this port.",
+                    "longDescription": "This property shall indicate whether Wake on LAN (WoL) is enabled on this port.",
+                    "readonly": false,
+                    "type": [
+                        "boolean",
+                        "null"
+                    ],
+                    "versionAdded": "v1_5_0"
                 }
             },
             "type": "object"
@@ -811,6 +833,19 @@
                 "AssociatedEndpoints@odata.count": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
                 },
+                "Cables": {
+                    "description": "An array of links to the cables connected to this port.",
+                    "items": {
+                        "$ref": "http://redfish.dmtf.org/schemas/v1/Cable.json#/definitions/Cable"
+                    },
+                    "longDescription": "This property shall contain an array of links to resources of type Cable that represent the cables connected to this port.",
+                    "readonly": true,
+                    "type": "array",
+                    "versionAdded": "v1_5_0"
+                },
+                "Cables@odata.count": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
+                },
                 "ConnectedPorts": {
                     "description": "An array of links to the remote ports connected to this port.",
                     "items": {
@@ -1085,9 +1120,9 @@
                 },
                 "LinkStatus": {
                     "$ref": "#/definitions/LinkStatus",
-                    "description": "The desired link status for this interface.",
-                    "longDescription": "This property shall contain the desired link status for this interface.",
-                    "readonly": false,
+                    "description": "The link status for this interface.",
+                    "longDescription": "This property shall contain the link status for this interface.",
+                    "readonly": true,
                     "versionAdded": "v1_2_0"
                 },
                 "LinkTransitionIndicator": {
@@ -1265,16 +1300,48 @@
                 "PrivateLoop",
                 "PublicLoop",
                 "Generic",
-                "ExtenderFabric"
+                "ExtenderFabric",
+                "FPort",
+                "EPort",
+                "TEPort",
+                "NPPort",
+                "GPort",
+                "NLPort",
+                "FLPort",
+                "EXPort",
+                "UPort",
+                "DPort"
             ],
             "enumDescriptions": {
+                "DPort": "This port connection type is a diagnostic port.",
+                "EPort": "This port connection type is an extender fabric port.",
+                "EXPort": "This port connection type is an external fabric port.",
                 "ExtenderFabric": "This port connection type is an extender fabric port.",
+                "FLPort": "This port connects in a fabric loop configuration.",
+                "FPort": "This port connection type is a fabric port.",
+                "GPort": "This port connection type is a generic fabric port.",
                 "Generic": "This port connection type is a generic fabric port.",
+                "NLPort": "This port connects in a node loop configuration.",
+                "NPPort": "This port connection type is a proxy N port for N-Port virtualization.",
                 "NPort": "This port connects through an N-Port to a switch.",
                 "NotConnected": "This port is not connected.",
                 "PointToPoint": "This port connects in a Point-to-point configuration.",
                 "PrivateLoop": "This port connects in a private loop configuration.",
-                "PublicLoop": "This port connects in a public configuration."
+                "PublicLoop": "This port connects in a public configuration.",
+                "TEPort": "This port connection type is an trunking extender fabric port.",
+                "UPort": "This port connection type is unassigned."
+            },
+            "enumVersionAdded": {
+                "DPort": "v1_5_0",
+                "EPort": "v1_5_0",
+                "EXPort": "v1_5_0",
+                "FLPort": "v1_5_0",
+                "FPort": "v1_5_0",
+                "GPort": "v1_5_0",
+                "NLPort": "v1_5_0",
+                "NPPort": "v1_5_0",
+                "TEPort": "v1_5_0",
+                "UPort": "v1_5_0"
             },
             "type": "string"
         },
@@ -1505,6 +1572,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.1",
-    "title": "#Port.v1_4_0.Port"
+    "release": "2021.2",
+    "title": "#Port.v1_5_0.Port"
 }
