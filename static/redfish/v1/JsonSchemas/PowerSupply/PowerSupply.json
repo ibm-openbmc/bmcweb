@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/PowerSupply.v1_0_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/PowerSupply.v1_1_0.json",
     "$ref": "#/definitions/PowerSupply",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2020 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -349,7 +349,7 @@
                 },
                 "Manufacturer": {
                     "description": "The manufacturer of this power supply.",
-                    "longDescription": "This property shall contain the name of the organization responsible for producing the power supply.  This organization might be the entity from whom the power supply is purchased, but this is not necessarily true.",
+                    "longDescription": "This property shall contain the name of the organization responsible for producing the power supply.  This organization may be the entity from whom the power supply is purchased, but this is not necessarily true.",
                     "readonly": true,
                     "type": [
                         "string",
@@ -447,6 +447,17 @@
                     "longDescription": "This property shall contain the input power type (AC or DC) of this power supply.",
                     "readonly": true
                 },
+                "ProductionDate": {
+                    "description": "The production or manufacturing date of this power supply.",
+                    "format": "date-time",
+                    "longDescription": "This property shall contain the date of production or manufacture for this power supply.",
+                    "readonly": true,
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "versionAdded": "v1_1_0"
+                },
                 "SerialNumber": {
                     "description": "The serial number for this power supply.",
                     "longDescription": "This property shall contain the serial number as defined by the manufacturer for this power supply.",
@@ -469,6 +480,16 @@
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Status",
                     "description": "The status and health of the resource and its subordinate or dependent resources.",
                     "longDescription": "This property shall contain any status or health properties of the resource."
+                },
+                "Version": {
+                    "description": "The hardware version of this power supply.",
+                    "longDescription": "This property shall contain the hardware version of this power supply as determined by the vendor or supplier.",
+                    "readonly": true,
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "versionAdded": "v1_1_0"
                 }
             },
             "required": [
@@ -495,7 +516,7 @@
         "Reset": {
             "additionalProperties": false,
             "description": "This action resets the power supply.",
-            "longDescription": "This action shall reset a power supply.  A `GracefulRestart` ResetType shall reset the power supply but shall not affect the power output.  A `ForceRestart` ResetType might affect the power supply output.",
+            "longDescription": "This action shall reset a power supply.  A `GracefulRestart` ResetType shall reset the power supply but shall not affect the power output.  A `ForceRestart` ResetType can affect the power supply output.",
             "parameters": {
                 "ResetType": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/ResetType",
@@ -532,6 +553,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2020.4",
-    "title": "#PowerSupply.v1_0_0.PowerSupply"
+    "release": "2021.1",
+    "title": "#PowerSupply.v1_1_0.PowerSupply"
 }

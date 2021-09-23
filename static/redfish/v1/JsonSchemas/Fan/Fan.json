@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Fan.v1_0_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Fan.v1_1_0.json",
     "$ref": "#/definitions/Fan",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2020 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -113,7 +113,7 @@
                 },
                 "Manufacturer": {
                     "description": "The manufacturer of this fan.",
-                    "longDescription": "This property shall contain the name of the organization responsible for producing the fan.  This organization might be the entity from whom the fan is purchased, but this is not necessarily true.",
+                    "longDescription": "This property shall contain the name of the organization responsible for producing the fan.  This organization may be the entity from whom the fan is purchased, but this is not necessarily true.",
                     "readonly": true,
                     "type": [
                         "string",
@@ -152,6 +152,21 @@
                     "description": "The area or device associated with this fan.",
                     "longDescription": "This property shall contain a description of the affected device or region within the chassis with which this fan is associated.",
                     "readonly": true
+                },
+                "PowerWatts": {
+                    "anyOf": [
+                        {
+                            "$ref": "http://redfish.dmtf.org/schemas/v1/Sensor.json#/definitions/SensorPowerExcerpt"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Power consumption (Watts).",
+                    "excerptCopy": "SensorPowerExcerpt",
+                    "longDescription": "This property shall contain the total power, measured in Watts, for this resource.",
+                    "readonly": true,
+                    "versionAdded": "v1_1_0"
                 },
                 "SerialNumber": {
                     "description": "The serial number for this fan.",
@@ -222,6 +237,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2020.4",
-    "title": "#Fan.v1_0_0.Fan"
+    "release": "2021.1",
+    "title": "#Fan.v1_1_0.Fan"
 }
