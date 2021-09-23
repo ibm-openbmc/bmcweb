@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/Manifest",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "Manifest Schema File",
+    "Schema": "#Manifest.Manifest",
+    "Description": "Manifest Schema File Location",
+    "Id": "Manifest",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/Manifest.json",
+            "Uri": "/redfish/v1/JsonSchemas/Manifest/Manifest.json"
+        }
+    ],
+    "Location@odata.count": 1
+}
