@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import json
 import os
 import shutil
 import xml.etree.ElementTree as ET
@@ -22,118 +23,6 @@ WARNING = """/****************************************************************
  * should be first pushed to the relevant registry in the DMTF
  * github organization.
  ***************************************************************/"""
-
-# To use a new schema, add to list and rerun tool
-include_list = [
-    "AccountService",
-    "ActionInfo",
-    "Assembly",
-    "AttributeRegistry",
-    "Bios",
-    "Cable",
-    "CableCollection",
-    "Certificate",
-    "CertificateCollection",
-    "CertificateLocations",
-    "CertificateService",
-    "Chassis",
-    "ChassisCollection",
-    "ComputerSystem",
-    "ComputerSystemCollection",
-    "Drive",
-    "DriveCollection",
-    "EnvironmentMetrics",
-    "EthernetInterface",
-    "EthernetInterfaceCollection",
-    "Event",
-    "EventDestination",
-    "EventDestinationCollection",
-    "EventService",
-    "Fan",
-    "FanCollection",
-    "IPAddresses",
-    "JsonSchemaFile",
-    "JsonSchemaFileCollection",  # redfish/v1/JsonSchemas
-    "LogEntry",
-    "LogEntryCollection",
-    "LogService",
-    "LogServiceCollection",
-    "Manager",
-    "ManagerAccount",
-    "ManagerAccountCollection",
-    "ManagerCollection",
-    "ManagerDiagnosticData",
-    "ManagerNetworkProtocol",
-    "Memory",
-    "MemoryCollection",
-    "Message",
-    "MessageRegistry",
-    "MessageRegistryCollection",
-    "MessageRegistryFile",
-    "MessageRegistryFileCollection",
-    "MetricDefinition",
-    "MetricDefinitionCollection",
-    "MetricReport",
-    "MetricReportCollection",
-    "MetricReportDefinition",
-    "MetricReportDefinitionCollection",
-    "OperatingConfig",
-    "OperatingConfigCollection",
-    "PCIeDevice",
-    "PCIeDeviceCollection",
-    "PCIeFunction",
-    "PCIeFunctionCollection",
-    "PhysicalContext",
-    "PCIeSlots",
-    "Port",
-    "PortCollection",
-    "Power",
-    "PowerSubsystem",
-    "PowerSupply",
-    "PowerSupplyCollection",
-    "Privileges",  # Used in Role
-    "Processor",
-    "ProcessorCollection",
-    "RedfishError",
-    "RedfishExtensions",
-    "Redundancy",
-    "Resource",
-    "Role",
-    "RoleCollection",
-    "Sensor",
-    "SensorCollection",
-    "ServiceRoot",
-    "Session",
-    "SessionCollection",
-    "SessionService",
-    "Settings",
-    "SoftwareInventory",
-    "SoftwareInventoryCollection",
-    "Storage",
-    "StorageCollection",
-    "StorageController",
-    "StorageControllerCollection",
-    "Task",
-    "TaskCollection",
-    "TaskService",
-    "TelemetryService",
-    "Thermal",
-    "ThermalMetrics",
-    "ThermalSubsystem",
-    "Triggers",
-    "TriggersCollection",
-    "UpdateService",
-    "VLanNetworkInterfaceCollection",
-    "VLanNetworkInterface",
-    "VirtualMedia",
-    "VirtualMediaCollection",
-    "odata",
-    "odata-v4",
-    "redfish-error",
-    "redfish-payload-annotations",
-    "redfish-schema",
-    "redfish-schema-v1",
-]
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -236,9 +125,6 @@ for zip_file in zip_ref.infolist():
     elif zip_file.filename.startswith("json-schema/"):
         filename = os.path.basename(zip_file.filename)
         filenamesplit = filename.split(".")
-        # exclude schemas again to save flash space
-        if filenamesplit[0] not in include_list:
-            continue
         json_schema_files[filenamesplit[0]].append(filename)
     elif zip_file.filename.startswith("openapi/"):
         pass
@@ -266,9 +152,6 @@ with open(metadata_index_path, "w") as metadata_index:
     for filename in csdl_filenames:
         # filename looks like Zone_v1.xml
         filenamesplit = filename.split("_")
-        if filenamesplit[0] not in include_list:
-            print("excluding schema: " + filename)
-            continue
 
         with open(os.path.join(schema_path, filename), "wb") as schema_out:
             metadata_index.write(
@@ -473,10 +356,63 @@ with open(metadata_index_path, "w") as metadata_index:
 for schema, version in json_schema_files.items():
     zip_filepath = os.path.join("json-schema", version[0])
     schemadir = os.path.join(json_schema_path, schema)
-    os.makedirs(schemadir)
+    if not os.path.exists(schemadir):
+        os.makedirs(schemadir)
 
+    location_json = OrderedDict()
+    location_json["Language"] = "en"
+    location_json["PublicationUri"] = (
+        "http://redfish.dmtf.org/schemas/v1/" + schema + ".json"
+    )
+    location_json["Uri"] = (
+        "/redfish/v1/JsonSchemas/" + schema + "/" + schema + ".json"
+    )
+
+    index_json = OrderedDict()
+    index_json["@odata.context"] = (
+        "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile"
+    )
+    index_json["@odata.id"] = "/redfish/v1/JsonSchemas/" + schema
+    index_json["@odata.type"] = "#JsonSchemaFile.v1_0_2.JsonSchemaFile"
+    index_json["Name"] = schema + " Schema File"
+    index_json["Schema"] = "#" + schema + "." + schema
+    index_json["Description"] = schema + " Schema File Location"
+    index_json["Id"] = schema
+    index_json["Languages"] = ["en"]
+    index_json["Languages@odata.count"] = 1
+    index_json["Location"] = [location_json]
+    index_json["Location@odata.count"] = 1
+
+    with open(os.path.join(schemadir, "index.json"), "w") as schema_file:
+        json.dump(index_json, schema_file, indent=4)
     with open(os.path.join(schemadir, schema + ".json"), "wb") as schema_file:
         schema_file.write(zip_ref.read(zip_filepath).replace(b"\r\n", b"\n"))
+
+with open(os.path.join(json_schema_path, "index.json"), "w") as index_file:
+    members = [
+        {"@odata.id": "/redfish/v1/JsonSchemas/" + schema}
+        for schema in json_schema_files
+    ]
+
+    members.sort(key=lambda x: x["@odata.id"])
+
+    indexData = OrderedDict()
+
+    indexData["@odata.id"] = "/redfish/v1/JsonSchemas"
+    indexData["@odata.context"] = (
+        "/redfish/v1/$metadata"
+        "#JsonSchemaFileCollection."
+        "JsonSchemaFileCollection"
+    )
+    indexData["@odata.type"] = (
+        "#JsonSchemaFileCollection.JsonSchemaFileCollection"
+    )
+    indexData["Name"] = "JsonSchemaFile Collection"
+    indexData["Description"] = "Collection of JsonSchemaFiles"
+    indexData["Members@odata.count"] = len(json_schema_files)
+    indexData["Members"] = members
+
+    json.dump(indexData, index_file, indent=2)
 
 with open(os.path.join(cpp_path, "schemas.hpp"), "w") as hpp_file:
     hpp_file.write(

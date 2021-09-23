@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/ExternalAccountProviderCollection",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "ExternalAccountProviderCollection Schema File",
+    "Schema": "#ExternalAccountProviderCollection.ExternalAccountProviderCollection",
+    "Description": "ExternalAccountProviderCollection Schema File Location",
+    "Id": "ExternalAccountProviderCollection",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/ExternalAccountProviderCollection.json",
+            "Uri": "/redfish/v1/JsonSchemas/ExternalAccountProviderCollection/ExternalAccountProviderCollection.json"
+        }
+    ],
+    "Location@odata.count": 1
+}

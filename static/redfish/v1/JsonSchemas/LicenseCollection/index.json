@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/LicenseCollection",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "LicenseCollection Schema File",
+    "Schema": "#LicenseCollection.LicenseCollection",
+    "Description": "LicenseCollection Schema File Location",
+    "Id": "LicenseCollection",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/LicenseCollection.json",
+            "Uri": "/redfish/v1/JsonSchemas/LicenseCollection/LicenseCollection.json"
+        }
+    ],
+    "Location@odata.count": 1
+}
