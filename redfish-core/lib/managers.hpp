@@ -16,6 +16,9 @@
 #pragma once
 
 #include "health.hpp"
+#ifdef BMCWEB_ENABLE_IBM_USB_PORT_STATE
+#include "oem/ibm/USB_port.hpp"
+#endif
 #include "redfish_util.hpp"
 
 #include <app.hpp>
@@ -2028,6 +2031,10 @@ inline void requestRoutesManager(App& app)
 
             managerGetLastResetTime(asyncResp);
 
+#ifdef BMCWEB_ENABLE_IBM_USB_PORT_STATE
+            getUSBPortState(asyncResp);
+#endif
+
             auto pids = std::make_shared<GetPIDValues>(asyncResp);
             pids->run();
 
@@ -2206,8 +2213,10 @@ inline void requestRoutesManager(App& app)
             if (oem)
             {
                 std::optional<nlohmann::json> openbmc;
+                std::optional<nlohmann::json> ibmOem;
                 if (!redfish::json_util::readJson(*oem, asyncResp->res,
-                                                  "OpenBmc", openbmc))
+                                                  "OpenBmc", openbmc, "IBM",
+                                                  ibmOem))
                 {
                     BMCWEB_LOG_ERROR
                         << "Illegal Property "
@@ -2233,6 +2242,23 @@ inline void requestRoutesManager(App& app)
                         auto pid =
                             std::make_shared<SetPIDValues>(asyncResp, *fan);
                         pid->run();
+                    }
+                }
+
+                if (ibmOem)
+                {
+                    std::optional<std::string> usbPortState;
+                    if (!json_util::readJson(*ibmOem, asyncResp->res,
+                                             "USBPortState", usbPortState))
+                    {
+                        return;
+                    }
+
+                    if (usbPortState)
+                    {
+#ifdef BMCWEB_ENABLE_IBM_USB_PORT_STATE
+                        setUSBPortState(asyncResp, *usbPortState);
+#endif
                     }
                 }
             }
