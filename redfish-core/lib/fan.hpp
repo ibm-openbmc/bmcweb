@@ -71,6 +71,79 @@ inline void getFanHealth(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         "xyz.openbmc_project.State.Decorator.OperationalStatus", "Functional");
 }
 
+inline void getFanAsset(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                        const std::string& connectionName,
+                        const std::string& path)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code ec,
+                    const std::vector<
+                        std::pair<std::string, std::variant<std::string>>>&
+                        propertiesList) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "Can't get fan asset!";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            for (const std::pair<std::string, std::variant<std::string>>&
+                     property : propertiesList)
+            {
+                const std::string& propertyName = property.first;
+
+                if ((propertyName == "PartNumber") ||
+                    (propertyName == "SerialNumber") ||
+                    (propertyName == "Model") ||
+                    (propertyName == "SparePartNumber") ||
+                    (propertyName == "Manufacturer"))
+                {
+                    const std::string* value =
+                        std::get_if<std::string>(&property.second);
+                    if (value == nullptr)
+                    {
+                        messages::internalError(asyncResp->res);
+                        return;
+                    }
+                    asyncResp->res.jsonValue[propertyName] = *value;
+                }
+            }
+        },
+        connectionName, path, "org.freedesktop.DBus.Properties", "GetAll",
+        "xyz.openbmc_project.Inventory.Decorator.Asset");
+}
+
+inline void getFanLocation(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                           const std::string& connectionName,
+                           const std::string& path)
+{
+    const std::string locationInterface =
+        "xyz.openbmc_project.Inventory.Decorator.LocationCode";
+    crow::connections::systemBus->async_method_call(
+        [aResp](const boost::system::error_code ec,
+                const std::variant<std::string>& property) {
+            if (ec)
+            {
+                BMCWEB_LOG_DEBUG << "Can't get fan Location";
+                messages::internalError(aResp->res);
+                return;
+            }
+
+            const std::string* value = std::get_if<std::string>(&property);
+
+            if (value == nullptr)
+            {
+                // illegal value
+                messages::internalError(aResp->res);
+                return;
+            }
+
+            aResp->res.jsonValue["Location"]["PartLocation"]["ServiceLabel"] =
+                *value;
+        },
+        connectionName, path, "org.freedesktop.DBus.Properties", "Get",
+        locationInterface, "LocationCode");
+}
+
 inline void
     getFanSpeedPercent(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                        const std::string& connectionName,
@@ -206,6 +279,8 @@ inline void
                 const std::string& connectionName = tempObject.first;
                 getFanState(asyncResp, connectionName, fanPath);
                 getFanHealth(asyncResp, connectionName, fanPath);
+                getFanAsset(asyncResp, connectionName, fanPath);
+                getFanLocation(asyncResp, connectionName, fanPath);
                 getLocationIndicatorActive(asyncResp, fanPath);
             }
         },
