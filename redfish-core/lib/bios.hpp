@@ -161,11 +161,6 @@ inline void requestRoutesBiosService(App& app)
                 // Get the ActiveSoftwareImage and SoftwareImages
                 fw_util::populateFirmwareInformation(
                     asyncResp, fw_util::biosPurpose, "", true);
-                asyncResp->res.jsonValue["@Redfish.Settings"] = {
-                    {"@odata.type", "#Settings.v1_3_0.Settings"},
-                    {"SettingsObject",
-                     {{"@odata.id",
-                       "/redfish/v1/Systems/system/Bios/Settings"}}}};
                 asyncResp->res.jsonValue["AttributeRegistry"] =
                     "BiosAttributeRegistry";
                 asyncResp->res.jsonValue["Attributes"] = {};
