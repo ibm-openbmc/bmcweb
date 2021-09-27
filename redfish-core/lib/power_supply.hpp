@@ -50,6 +50,46 @@ inline void
 }
 
 inline void
+    getPowerSupplyLocation(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                           const std::string& connectionName,
+                           const std::string& path)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code ec,
+                    const std::vector<
+                        std::pair<std::string, std::variant<std::string>>>&
+                        propertiesList) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "Can't get PowerSupply location!";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            for (const std::pair<std::string, std::variant<std::string>>&
+                     property : propertiesList)
+            {
+                const std::string& propertyName = property.first;
+
+                if (propertyName == "LocationCode")
+                {
+                    const std::string* value =
+                        std::get_if<std::string>(&property.second);
+                    if (value == nullptr)
+                    {
+                        messages::internalError(asyncResp->res);
+                        return;
+                    }
+                    asyncResp->res
+                        .jsonValue["Location"]["PartLocation"]["ServiceLabel"] =
+                        *value;
+                }
+            }
+        },
+        connectionName, path, "org.freedesktop.DBus.Properties", "GetAll",
+        "xyz.openbmc_project.Inventory.Decorator.LocationCode");
+}
+
+inline void
     getPowerSupplyState(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                         const std::string& connectionName,
                         const std::string& path)
@@ -498,6 +538,11 @@ inline void requestRoutesPowerSupply(App& app)
                                 getPowerSupplyAsset(asyncResp,
                                                     validPowerSupplyService,
                                                     validPowerSupplyPath);
+
+                                // Get power supply Location
+                                getPowerSupplyLocation(asyncResp,
+                                                       validPowerSupplyService,
+                                                       validPowerSupplyPath);
 
                                 // Get power supply state
                                 getPowerSupplyState(asyncResp,
