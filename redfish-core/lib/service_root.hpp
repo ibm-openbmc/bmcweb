@@ -29,11 +29,12 @@ inline void
 {
 
     std::string uuid = persistent_data::getConfig().systemUuid;
-    asyncResp->res.jsonValue["@odata.type"] = "#ServiceRoot.v1_5_0.ServiceRoot";
+    asyncResp->res.jsonValue["@odata.type"] =
+        "#ServiceRoot.v1_12_0.ServiceRoot";
     asyncResp->res.jsonValue["@odata.id"] = "/redfish/v1";
     asyncResp->res.jsonValue["Id"] = "RootService";
     asyncResp->res.jsonValue["Name"] = "Root Service";
-    asyncResp->res.jsonValue["RedfishVersion"] = "1.9.0";
+    asyncResp->res.jsonValue["RedfishVersion"] = "1.12.0";
     asyncResp->res.jsonValue["Links"]["Sessions"] = {
         {"@odata.id", "/redfish/v1/SessionService/Sessions"}};
     asyncResp->res.jsonValue["AccountService"] = {
@@ -62,6 +63,10 @@ inline void
         {"@odata.id", "/redfish/v1/EventService"}};
     asyncResp->res.jsonValue["TelemetryService"] = {
         {"@odata.id", "/redfish/v1/TelemetryService"}};
+#ifdef BMCWEB_ENABLE_REDFISH_LICENSE
+    asyncResp->res.jsonValue["LicenseService"] = {
+        {"@odata.id", "/redfish/v1/LicenseService"}};
+#endif
 }
 
 inline void requestRoutesServiceRoot(App& app)
