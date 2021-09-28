@@ -43,6 +43,11 @@
         },
         {
             "kind": "Singleton",
+            "name": "LicenseService",
+            "url": "/redfish/v1/LicenseService"
+        },
+        {
+            "kind": "Singleton",
             "name": "SessionService",
             "url": "/redfish/v1/SessionService"
         },
