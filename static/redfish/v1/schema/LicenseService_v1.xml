@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!---->
+<!--################################################################################       -->
+<!--# Redfish Schema:  LicenseService v1.0.0                                               -->
+<!--#                                                                                      -->
+<!--# For a detailed change log, see the README file contained in the DSP8010 bundle,      -->
+<!--# available at http://www.dmtf.org/standards/redfish                                   -->
+<!--# Copyright 2014-2021 DMTF.                                                            -->
+<!--# For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright -->
+<!--################################################################################       -->
+<!---->
+<edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
+
+  <edmx:Reference Uri="http://docs.oasis-open.org/odata/odata/v4.0/errata03/csd01/complete/vocabularies/Org.OData.Core.V1.xml">
+    <edmx:Include Namespace="Org.OData.Core.V1" Alias="OData"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://docs.oasis-open.org/odata/odata/v4.0/errata03/csd01/complete/vocabularies/Org.OData.Capabilities.V1.xml">
+    <edmx:Include Namespace="Org.OData.Capabilities.V1" Alias="Capabilities"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/RedfishExtensions_v1.xml">
+    <edmx:Include Namespace="RedfishExtensions.v1_0_0" Alias="Redfish"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Resource_v1.xml">
+    <edmx:Include Namespace="Resource.v1_0_0"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/LicenseCollection_v1.xml">
+    <edmx:Include Namespace="LicenseCollection"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/License_v1.xml">
+    <edmx:Include Namespace="License"/>
+  </edmx:Reference>
+
+  <edmx:DataServices>
+
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="LicenseService">
+      <Annotation Term="Redfish.OwningEntity" String="DMTF"/>
+
+      <EntityType Name="LicenseService" BaseType="Resource.v1_0_0.Resource" Abstract="true">
+        <Annotation Term="OData.Description" String="The LicenseService schema describes a license service that represents the actions available to manage licenses and links to the licenses."/>
+        <Annotation Term="OData.LongDescription" String="This resource shall represent the license service properties for a Redfish implementation."/>
+        <Annotation Term="Capabilities.InsertRestrictions">
+          <Record>
+            <PropertyValue Property="Insertable" Bool="false"/>
+          </Record>
+        </Annotation>
+        <Annotation Term="Capabilities.UpdateRestrictions">
+          <Record>
+            <PropertyValue Property="Updatable" Bool="false"/>
+          </Record>
+        </Annotation>
+        <Annotation Term="Capabilities.DeleteRestrictions">
+          <Record>
+            <PropertyValue Property="Deletable" Bool="false"/>
+          </Record>
+        </Annotation>
+        <Annotation Term="Redfish.Uris">
+          <Collection>
+            <String>/redfish/v1/LicenseService</String>
+          </Collection>
+        </Annotation>
+      </EntityType>
+
+      <ComplexType Name="LicenseParameter" Abstract="true"/>
+
+      <Action Name="Install" IsBound="true">
+        <Annotation Term="OData.Description" String="This action makes a license installation request."/>
+        <Annotation Term="OData.LongDescription" String="This action shall make a request to install single or multiple licenses in file."/>
+        <Parameter Name="LicenseService" Type="LicenseService.v1_0_0.Actions"/>
+        <Parameter Name="FileURI" Type="Edm.String" Nullable="false">
+          <Annotation Term="OData.Description" String="The URI of the license to install."/>
+          <Annotation Term="OData.LongDescription" String="This parameter shall contain an RFC3986-defined URI that links to a file that the license service retrieves to install license in that file.  This URI should contain a scheme that describes the transfer protocol.  If the TransferProtocol parameter is absent or not supported, and a transfer protocol is not specified by a scheme contained within this URI, the service shall use HTTP to get the file."/>
+        </Parameter>
+        <Parameter Name="TransferProtocol" Type="LicenseService.v1_0_0.TransferProtocolType">
+          <Annotation Term="OData.Description" String="The network protocol that the license service uses to retrieve the license file located at the URI provided in FileURI.  This parameter is ignored if the URI provided in FileURI contains a scheme."/>
+          <Annotation Term="OData.LongDescription" String="This parameter shall contain the network protocol that the license service shall use to retrieve the license file located at the FileURI.  Services should ignore this parameter if the URI provided in FileURI contains a scheme.  If this parameter is not provided (or supported), and a transfer protocol is not specified by a scheme contained within this URI, the service shall use HTTP to retrieve the file."/>
+        </Parameter>
+        <Parameter Name="Username" Type="Edm.String">
+          <Annotation Term="OData.Description" String="The user name to access the URI specified by the FileURI parameter."/>
+          <Annotation Term="OData.LongDescription" String="This parameter shall represent the user name to access the URI specified by the FileURI parameter."/>
+        </Parameter>
+        <Parameter Name="Password" Type="Edm.String">
+          <Annotation Term="OData.Description" String="The password to access the URI specified by the FileURI parameter."/>
+          <Annotation Term="OData.LongDescription" String="This parameter shall represent the password to access the URI specified by the FileURI parameter."/>
+        </Parameter>
+      </Action>
+    </Schema>
+
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="LicenseService.v1_0_0">
+      <Annotation Term="Redfish.OwningEntity" String="DMTF"/>
+      <Annotation Term="Redfish.Release" String="2021.3"/>
+
+      <EntityType Name="LicenseService" BaseType="LicenseService.LicenseService">
+        <Property Name="MultipartHttpPushUri" Type="Edm.String" Nullable="false">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The URI used to perform a Redfish Specification-defined Multipart HTTP or HTTPS push operation to install a license."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain a URI used to perform a Redfish Specification-defined Multipart HTTP or HTTPS POST of license file for the purpose of installing license contained within the file."/>
+          <Annotation Term="OData.IsURL"/>
+        </Property>
+        <Property Name="Actions" Type="LicenseService.v1_0_0.Actions" Nullable="false">
+          <Annotation Term="OData.Description" String="The available actions for this resource."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the available actions for this resource."/>
+        </Property>
+        <NavigationProperty Name="Licenses" Type="LicenseCollection.LicenseCollection">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The link to the collection of licenses."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain a link to a resource collection of type License."/>
+          <Annotation Term="OData.AutoExpandReferences"/>
+        </NavigationProperty>
+      </EntityType>
+
+      <ComplexType Name="LicenseParameter" BaseType="LicenseService.LicenseParameter">
+        <Annotation Term="OData.AdditionalProperties" Bool="false"/>
+        <Annotation Term="OData.Description" String="The license parameters used with MultipartHttpPushUri for license installation."/>
+        <Annotation Term="OData.LongDescription" String="This type shall contain the license parameters when passing the license when using the URI specified by the MultipartHttpPushUri property to push a license file."/>
+        <Property Name="Targets" Type="Collection(Edm.String)">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="An array of URIs that indicate where to apply the license."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain zero or more URIs that indicate where to apply the license when using the URI specified by the MultipartHttpPushUri property to push a license file. The service shall determine it if this property is not present or contains no targets."/>
+          <Annotation Term="OData.IsURL"/>
+        </Property>
+        <Property Name="Oem" Type="Resource.Oem" Nullable="false">
+          <Annotation Term="OData.Description" String="The OEM extension property."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the OEM extensions.  All values for properties contained in this object shall conform to the Redfish Specification-described requirements."/>
+        </Property>
+      </ComplexType>
+
+      <ComplexType Name="Actions">
+        <Annotation Term="OData.AdditionalProperties" Bool="false"/>
+        <Annotation Term="OData.Description" String="The available actions for this resource."/>
+        <Annotation Term="OData.LongDescription" String="This type shall contain the available actions for this resource."/>
+        <Property Name="Oem" Type="LicenseService.v1_0_0.OemActions" Nullable="false">
+          <Annotation Term="OData.Description" String="The available OEM-specific actions for this resource."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the available OEM-specific actions for this resource."/>
+        </Property>
+      </ComplexType>
+
+      <ComplexType Name="OemActions">
+        <Annotation Term="OData.AdditionalProperties" Bool="true"/>
+        <Annotation Term="OData.Description" String="The available OEM-specific actions for this resource."/>
+        <Annotation Term="OData.LongDescription" String="This type shall contain the available OEM-specific actions for this resource."/>
+      </ComplexType>
+
+      <EnumType Name="TransferProtocolType">
+        <Member Name="CIFS">
+          <Annotation Term="OData.Description" String="Common Internet File System (CIFS)."/>
+        </Member>
+        <Member Name="FTP">
+          <Annotation Term="OData.Description" String="File Transfer Protocol (FTP)."/>
+        </Member>
+        <Member Name="SFTP">
+          <Annotation Term="OData.Description" String="Secure File Transfer Protocol (SFTP)."/>
+        </Member>
+        <Member Name="HTTP">
+          <Annotation Term="OData.Description" String="Hypertext Transfer Protocol (HTTP)."/>
+        </Member>
+        <Member Name="HTTPS">
+          <Annotation Term="OData.Description" String="Hypertext Transfer Protocol Secure (HTTPS)."/>
+        </Member>
+        <Member Name="SCP">
+          <Annotation Term="OData.Description" String="Secure Copy Protocol (SCP)."/>
+        </Member>
+        <Member Name="TFTP">
+          <Annotation Term="OData.Description" String="Trivial File Transfer Protocol (TFTP)."/>
+        </Member>
+        <Member Name="OEM">
+          <Annotation Term="OData.Description" String="A manufacturer-defined protocol."/>
+        </Member>
+        <Member Name="NFS">
+          <Annotation Term="OData.Description" String="Network File System (NFS)."/>
+        </Member>
+      </EnumType>
+
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>
