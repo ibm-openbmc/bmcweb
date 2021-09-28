@@ -52,6 +52,7 @@
 #include "../lib/thermal_subsystem.hpp"
 #include "../lib/update_service.hpp"
 #include "../lib/virtual_media.hpp"
+#include "../lib/license_service.hpp"
 
 namespace redfish
 {
@@ -234,6 +235,13 @@ class RedfishService
 #ifdef BMCWEB_ENABLE_HW_ISOLATION
         requestRoutesSystemHardwareIsolationLogService(app);
 #endif
+
+#ifdef BMCWEB_ENABLE_REDFISH_LICENSE
+         requestRoutesLicenseService(app);
+         requestRoutesLicenseEntryCollection(app);
+         requestRoutesLicenseEntry(app);
+         requestRoutesInstallLicense(app);
+ #endif
     }
 };
 
