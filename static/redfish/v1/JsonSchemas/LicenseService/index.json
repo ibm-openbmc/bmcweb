@@ -1,0 +1,35 @@
+{
+    "$id": "http://redfish.dmtf.org/schemas/v1/LicenseService.json",
+    "$ref": "#/definitions/LicenseService",
+    "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
+    "copyright": "Copyright 2014-2019 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "definitions": {
+        "LicenseParameter": {
+            "anyOf": [
+                {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/LicenseService.v1_0_0.json#/definitions/LicenseParameter"
+                }
+            ]
+        },
+        "LicenseService": {
+            "anyOf": [
+                {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/idRef"
+                },
+                {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/LicenseService.v1_0_0.json#/definitions/LicenseService"
+                }
+            ],
+            "deletable": false,
+            "description": "The LicenseService schema describes a license service that represents the actions available to manage licenses and links to the licenses.",
+            "insertable": false,
+            "longDescription": "This resource shall represent the license service properties for a Redfish implementation.",
+            "updatable": false,
+            "uris": [
+                "/redfish/v1/LicenseService"
+            ]
+        }
+    },
+    "owningEntity": "DMTF",
+    "title": "#LicenseService.LicenseService"
+}
