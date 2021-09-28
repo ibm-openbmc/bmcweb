@@ -85,6 +85,7 @@ feature_map = {
 'vm-websocket'                    : '-DBMCWEB_ENABLE_VM_WEBSOCKET',
 'ibm-lamp-test'                   : '-DBMCWEB_ENABLE_IBM_LAMP_TEST',
 'hw-isolation'                    : '-DBMCWEB_ENABLE_HW_ISOLATION',
+'redfish-license'                 : '-DBMCWEB_ENABLE_REDFISH_LICENSE',
 }
 
 # Get the options status and build a project summary to show which flags are
