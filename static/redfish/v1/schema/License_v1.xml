@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!---->
+<!--################################################################################       -->
+<!--# Redfish Schema:  License v1.0.0                                                      -->
+<!--#                                                                                      -->
+<!--# For a detailed change log, see the README file contained in the DSP8010 bundle,      -->
+<!--# available at http://www.dmtf.org/standards/redfish                                   -->
+<!--# Copyright 2014-2021 DMTF.                                                            -->
+<!--# For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright -->
+<!--################################################################################       -->
+<!---->
+<edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
+
+  <edmx:Reference Uri="http://docs.oasis-open.org/odata/odata/v4.0/errata03/csd01/complete/vocabularies/Org.OData.Core.V1.xml">
+    <edmx:Include Namespace="Org.OData.Core.V1" Alias="OData"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://docs.oasis-open.org/odata/odata/v4.0/errata03/csd01/complete/vocabularies/Org.OData.Capabilities.V1.xml">
+    <edmx:Include Namespace="Org.OData.Capabilities.V1" Alias="Capabilities"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Resource_v1.xml">
+    <edmx:Include Namespace="Resource"/>
+    <edmx:Include Namespace="Resource.v1_0_0"/>
+    <edmx:Include Namespace="Resource.v1_7_0"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/RedfishExtensions_v1.xml">
+    <edmx:Include Namespace="RedfishExtensions.v1_0_0" Alias="Redfish"/>
+  </edmx:Reference>
+
+  <edmx:DataServices>
+
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="License">
+      <Annotation Term="Redfish.OwningEntity" String="DMTF"/>
+
+      <EntityType Name="License" BaseType="Resource.v1_0_0.Resource" Abstract="true">
+        <Annotation Term="OData.Description" String="The License schema describes a license for the specified feature."/>
+        <Annotation Term="OData.LongDescription" String="This resource shall represent a license for a Redfish implementation."/>
+        <Annotation Term="Capabilities.InsertRestrictions">
+          <Record>
+            <PropertyValue Property="Insertable" Bool="false"/>
+          </Record>
+        </Annotation>
+        <Annotation Term="Capabilities.UpdateRestrictions">
+          <Record>
+            <PropertyValue Property="Updatable" Bool="false"/>
+          </Record>
+        </Annotation>
+        <Annotation Term="Capabilities.DeleteRestrictions">
+          <Record>
+            <PropertyValue Property="Deletable" Bool="true"/>
+            <Annotation Term="OData.Description" String="Use the DELETE operation to remove Licenses."/>
+          </Record>
+        </Annotation>
+        <Annotation Term="Redfish.Uris">
+          <Collection>
+            <String>/redfish/v1/LicenseService/Licenses/{LicenseId}</String>
+          </Collection>
+        </Annotation>
+      </EntityType>
+
+      <EnumType Name="LicenseType">
+        <Member Name="Purchased">
+          <Annotation Term="OData.Description" String="A purchased license."/>
+          <Annotation Term="OData.LongDescription" String="The purchased license shall contain a license purchased by user."/>
+        </Member>
+        <Member Name="Prototype">
+          <Annotation Term="OData.Description" String="A prototype version of license."/>
+          <Annotation Term="OData.LongDescription" String="The prototype version of license shall contain a prototype version of license which is designed for the development or internal use."/>
+        </Member>
+        <Member Name="Trial">
+          <Annotation Term="OData.Description" String="A trial license."/>
+          <Annotation Term="OData.LongDescription" String="The trial license shall contain a trial version of license for the user."/>
+        </Member>
+      </EnumType>
+
+      <EnumType Name="AuthorizationType">
+        <Annotation Term="OData.Description" String="The authorization type of the license."/>
+        <Annotation Term="OData.LongDescription" String="This property shall describe the authorization type for features."/>
+        <Member Name="Device">
+          <Annotation Term="OData.Description" String="The license authorizes the feature per device."/>
+        </Member>
+        <Member Name="Capacity">
+          <Annotation Term="OData.Description" String="The license authorizes the feature to a number of devices, but not restricts to specific device."/>
+        </Member>
+        <Member Name="Unlimited">
+          <Annotation Term="OData.Description" String="The license has no limits on the device to use the feature."/>
+        </Member>
+      </EnumType>
+
+      <EnumType Name="LicenseOrigin">
+        <Member Name="Builtin">
+          <Annotation Term="OData.Description" String="A license was built in the product."/>
+        </Member>
+        <Member Name="Installed">
+          <Annotation Term="OData.Description" String="A license installed by user."/>
+        </Member>
+      </EnumType>
+    </Schema>
+
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="License.v1_0_0">
+      <Annotation Term="Redfish.OwningEntity" String="DMTF"/>
+      <Annotation Term="Redfish.Release" String="2021.3"/>
+
+      <EntityType Name="License" BaseType="License.License">
+        <Property Name="LicenseType" Type="License.LicenseType">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The type of the license."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the type for the license."/>
+        </Property>
+        <Property Name="LicenseOrigin" Type="License.LicenseOrigin">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="This indicates how the license was installed."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the origin for this license."/>
+        </Property>
+        <Property Name="Removable" Type="Edm.Boolean">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="An indication of whether a user can remove the license."/>
+          <Annotation Term="OData.LongDescription" String="This property shall indicate whether a user can remove the license via a delete operation."/>
+        </Property>
+        <Property Name="Vendor" Type="Edm.String" Nullable="false">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The licensor of the license."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the information about the licensor of the license."/>
+        </Property>
+        <Property Name="SerialNumber" Type="Edm.String" Nullable="false">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The serial number of the license."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain a number that identifies the license."/>
+        </Property>
+        <Property Name="Status" Type="Resource.Status" Nullable="false">
+          <Annotation Term="OData.Description" String="The status of the license."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the status of license."/>
+        </Property>
+        <Property Name="Contact" Type="Resource.v1_7_0.ContactInfo" Nullable="false">
+          <Annotation Term="OData.Description" String="The contact of the license."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain an object containing information about the contact of the license."/>
+        </Property>
+        <Property Name="DownloadURI" Type="Edm.String" Nullable="false">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The URI at which to download the license file."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the URI at which to download the license file, using the Redfish protocol and authentication methods.  The Service provides this URI for the download of the OEM-specific binary file of license data.  An HTTP GET from this URI shall return a response payload of MIME time `application/octet-stream`."/>
+          <Annotation Term="OData.IsURL"/>
+        </Property>
+        <Property Name="LicenseScope" Type="License.v1_0_0.LicenseScope" Nullable="false">
+          <Annotation Term="OData.Description" String="The authorization scope of the license."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the authorization scope of the license."/>
+        </Property>
+        <Property Name="GracePeriodDays" Type="Edm.Int64" Nullable="true">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The grace days of this license."/>
+          <Annotation Term="OData.LongDescription" String="The value of this property shall contain the number of days that the license is still usable after the ExpirationDate."/>
+        </Property>
+        <Property Name="InstallDate" Type="Edm.DateTimeOffset" Nullable="true">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The date when the license is installed."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the date when the license is installed."/>
+        </Property>
+        <Property Name="ExpirationDate" Type="Edm.DateTimeOffset" Nullable="true">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The date when the license expires."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the date when the license is expired."/>
+        </Property>
+        <Property Name="RemainingDuration" Type="Edm.Duration" Nullable="false">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The remaining length of time before the license expires."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the remaining length of time before the license expires."/>
+        </Property>
+        <Property Name="RemainingUseCount" Type="Edm.Int64" Nullable="false">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The number of remaining use count."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the number of remaining use count."/>
+        </Property>
+        <Property Name="LicenseInfoURI" Type="Edm.String" Nullable="true">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The URI at which to describe the license."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the URI at which to provide more information about the license. It is generic URI not tied to specific user."/>
+          <Annotation Term="OData.IsURL"/>
+        </Property>
+        <Property Name="Actions" Type="License.v1_0_0.Actions" Nullable="false">
+          <Annotation Term="OData.Description" String="The available actions for this resource."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the available actions for this resource."/>
+        </Property>
+      </EntityType>
+
+      <ComplexType Name="LicenseScope">
+        <Annotation Term="OData.AdditionalProperties" Bool="false"/>
+        <Annotation Term="OData.Description" String="The license authorization scope."/>
+        <Annotation Term="OData.LongDescription" String="This type shall contain the properties about the license authorization scope and limit."/>
+        <Property Name="AuthorizationType" Type="License.AuthorizationType" Nullable="false">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The license authorization type."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the type of license authorization."/>
+        </Property>
+        <Property Name="MaxNumberOfDevices" Type="Edm.Int64" Nullable="true">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The number of devices authorized by the license."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the number of devices that are authorized by the license. It is provided when the AuthorizationType is Capacity."/>
+        </Property>
+        <Property Name="AuthorizedDeviceList" Type="Collection(Resource.Item)" Nullable="true">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="An array of links to devices authorized by the license."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain an array of links to devices that are authorized by the license. It is provided only when the AuthorizationType is Device."/>
+        </Property>
+      </ComplexType>
+
+      <ComplexType Name="Actions">
+        <Annotation Term="OData.AdditionalProperties" Bool="false"/>
+        <Annotation Term="OData.Description" String="The available actions for this resource."/>
+        <Annotation Term="OData.LongDescription" String="This type shall contain the available actions for this resource."/>
+        <Property Name="Oem" Type="License.v1_0_0.OemActions" Nullable="false">
+          <Annotation Term="OData.Description" String="The available OEM-specific actions for this resource."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the available OEM-specific actions for this resource."/>
+        </Property>
+      </ComplexType>
+
+      <ComplexType Name="OemActions">
+        <Annotation Term="OData.AdditionalProperties" Bool="true"/>
+        <Annotation Term="OData.Description" String="The available OEM-specific actions for this resource."/>
+        <Annotation Term="OData.LongDescription" String="This type shall contain the available OEM-specific actions for this resource."/>
+      </ComplexType>
+    </Schema>
+
+  </edmx:DataServices>
+</edmx:Edmx>
