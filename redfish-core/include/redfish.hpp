@@ -200,10 +200,15 @@ class RedfishService
 #endif // BMCWEB_ENABLE_VM_NBDPROXY
 
 #ifdef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
+        requestRoutesCELogService(app);
         requestRoutesDBusLogServiceActionsClear(app);
+        requestRoutesDBusCELogServiceActionsClear(app);
         requestRoutesDBusEventLogEntryCollection(app);
+        requestRoutesDBusCELogEntryCollection(app);
         requestRoutesDBusEventLogEntry(app);
+        requestRoutesDBusCELogEntry(app);
         requestRoutesDBusEventLogEntryDownload(app);
+        requestRoutesDBusCEEventLogEntryDownload(app);
 #endif
 
 #ifdef BMCWEB_ENABLE_REDFISH_HOST_LOGGER
