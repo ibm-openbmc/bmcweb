@@ -154,6 +154,7 @@ oem_schema_names = [
     "OemFabricAdapter",
     "OemServiceRoot",
     "OemPCIeDevice",
+    "OemLogEntry",
 ]
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
