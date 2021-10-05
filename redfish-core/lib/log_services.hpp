@@ -1611,6 +1611,9 @@ inline void getDBusLogEntryCollection(
         bool resolved = false;
         bool* hiddenProp = nullptr;
         bool serviceProviderNotified = false;
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+        bool managementSystemAck = false;
+#endif
 
         for (auto& interfaceMap : objectPath.second)
         {
@@ -1724,8 +1727,20 @@ inline void getDBusLogEntryCollection(
                             messages::internalError(asyncResp->res);
                             return;
                         }
-                        break;
                     }
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+                    else if (propertyMap.first == "ManagementSystemAck")
+                    {
+                        bool* managementSystemAckptr =
+                            std::get_if<bool>(&propertyMap.second);
+                        if (managementSystemAckptr == nullptr)
+                        {
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+                        managementSystemAck = *managementSystemAckptr;
+                    }
+#endif
                 }
             }
         }
@@ -1759,6 +1774,12 @@ inline void getDBusLogEntryCollection(
         thisEntry["Severity"] = translateSeverityDbusToRedfish(*severity);
         thisEntry["Created"] = crow::utility::getDateTime(timestamp);
         thisEntry["Modified"] = crow::utility::getDateTime(updateTimestamp);
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+        thisEntry["Oem"]["OpenBMC"]["@odata.type"] =
+            "#OemLogEntry.v1_0_0.LogEntry";
+        thisEntry["Oem"]["OpenBMC"]["ManagementSystemAck"] =
+            managementSystemAck;
+#endif
         if (type == eventLogTypes::eventLog)
         {
             thisEntry["@odata.id"] = "/redfish/v1/Systems/system/"
@@ -1880,31 +1901,72 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
         });
 }
 
-inline void
-    updateResolvedProperty(const crow::Request& req,
+inline void updateProperty(const crow::Request& req,
                            const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                            const std::string& entryId)
 {
     std::optional<bool> resolved;
-    if (!json_util::readJson(req, asyncResp->res, "Resolved", resolved))
+    std::optional<nlohmann::json> oemObject;
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+    std::optional<bool> managementSystemAck;
+#endif
+    if (!json_util::readJson(req, asyncResp->res, "Resolved", resolved, "Oem",
+                             oemObject))
     {
         return;
     }
-    BMCWEB_LOG_DEBUG << "Set Resolved";
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
-            if (ec)
-            {
-                BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
-                messages::internalError(asyncResp->res);
-                return;
-            }
-        },
-        "xyz.openbmc_project.Logging",
-        "/xyz/openbmc_project/logging/entry/" + entryId,
-        "org.freedesktop.DBus.Properties", "Set",
-        "xyz.openbmc_project.Logging.Entry", "Resolved",
-        std::variant<bool>(*resolved));
+    if (resolved.has_value())
+    {
+        crow::connections::systemBus->async_method_call(
+            [asyncResp](const boost::system::error_code ec) {
+                if (ec)
+                {
+                    BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+            },
+            "xyz.openbmc_project.Logging",
+            "/xyz/openbmc_project/logging/entry/" + entryId,
+            "org.freedesktop.DBus.Properties", "Set",
+            "xyz.openbmc_project.Logging.Entry", "Resolved",
+            std::variant<bool>(*resolved));
+        BMCWEB_LOG_DEBUG << "Updated Resolved Property";
+    }
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+    if (oemObject)
+    {
+        std::optional<nlohmann::json> bmcOem;
+        if (!json_util::readJson(*oemObject, asyncResp->res, "OpenBMC", bmcOem))
+        {
+            return;
+        }
+        if (!json_util::readJson(*bmcOem, asyncResp->res, "ManagementSystemAck",
+                                 managementSystemAck))
+        {
+            BMCWEB_LOG_ERROR << "Could not read managementSystemAck";
+            return;
+        }
+    }
+    if (managementSystemAck.has_value())
+    {
+        crow::connections::systemBus->async_method_call(
+            [asyncResp](const boost::system::error_code ec) {
+                if (ec)
+                {
+                    BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+            },
+            "xyz.openbmc_project.Logging",
+            "/xyz/openbmc_project/logging/entry/" + entryId,
+            "org.freedesktop.DBus.Properties", "Set",
+            "org.open_power.Logging.PEL.Entry", "ManagementSystemAck",
+            std::variant<bool>(*managementSystemAck));
+        BMCWEB_LOG_DEBUG << "Updated ManagementSystemAck Property";
+    }
+#endif
 }
 
 inline void
@@ -1953,6 +2015,9 @@ inline void getDBusLogEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     bool resolved = false;
     bool* hiddenProp = nullptr;
     bool serviceProviderNotified = false;
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+    bool managementSystemAck = false;
+#endif
 
     for (auto& propertyMap : resp)
     {
@@ -2039,6 +2104,19 @@ inline void getDBusLogEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             }
             serviceProviderNotified = *serviceProviderNotifiedptr;
         }
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+        else if (propertyMap.first == "ManagementSystemAck")
+        {
+            bool* managementSystemAckptr =
+                std::get_if<bool>(&propertyMap.second);
+            if (managementSystemAckptr == nullptr)
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            managementSystemAck = *managementSystemAckptr;
+        }
+#endif
     }
 
     if ((id == nullptr) || (message == nullptr) || (severity == nullptr) ||
@@ -2072,6 +2150,12 @@ inline void getDBusLogEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     asyncResp->res.jsonValue["Created"] = crow::utility::getDateTime(timestamp);
     asyncResp->res.jsonValue["Modified"] =
         crow::utility::getDateTime(updateTimestamp);
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+    asyncResp->res.jsonValue["Oem"]["OpenBMC"]["@odata.type"] =
+        "#OemLogEntry.v1_0_0.LogEntry";
+    asyncResp->res.jsonValue["Oem"]["OpenBMC"]["ManagementSystemAck"] =
+        managementSystemAck;
+#endif
 
     if (type == eventLogTypes::eventLog)
     {
@@ -2153,19 +2237,18 @@ inline void requestRoutesDBusEventLogEntry(App& app)
             [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                const std::string& entryId) {
-                auto updateResolvedPropertyCallback =
-                    [req, asyncResp, entryId](bool hiddenPropVal) {
-                        if (hiddenPropVal)
-                        {
-                            messages::resourceNotFound(asyncResp->res,
-                                                       "LogEntry", entryId);
-                            return;
-                        }
-                        updateResolvedProperty(req, asyncResp, entryId);
-                    };
-                getHiddenPropertyValue(
-                    asyncResp, entryId,
-                    std::move(updateResolvedPropertyCallback));
+                auto updatePropertyCallback = [req, asyncResp,
+                                               entryId](bool hiddenPropVal) {
+                    if (hiddenPropVal)
+                    {
+                        messages::resourceNotFound(asyncResp->res, "LogEntry",
+                                                   entryId);
+                        return;
+                    }
+                    updateProperty(req, asyncResp, entryId);
+                };
+                getHiddenPropertyValue(asyncResp, entryId,
+                                       std::move(updatePropertyCallback));
             });
 
     BMCWEB_ROUTE(
@@ -2242,19 +2325,18 @@ inline void requestRoutesDBusCELogEntry(App& app)
             [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                const std::string& entryId) {
-                auto updateResolvedPropertyCallback =
-                    [req, asyncResp, entryId](bool hiddenPropVal) {
-                        if (!hiddenPropVal)
-                        {
-                            messages::resourceNotFound(asyncResp->res,
-                                                       "LogEntry", entryId);
-                            return;
-                        }
-                        updateResolvedProperty(req, asyncResp, entryId);
-                    };
-                getHiddenPropertyValue(
-                    asyncResp, entryId,
-                    std::move(updateResolvedPropertyCallback));
+                auto updatePropertyCallback = [req, asyncResp,
+                                               entryId](bool hiddenPropVal) {
+                    if (!hiddenPropVal)
+                    {
+                        messages::resourceNotFound(asyncResp->res, "LogEntry",
+                                                   entryId);
+                        return;
+                    }
+                    updateProperty(req, asyncResp, entryId);
+                };
+                getHiddenPropertyValue(asyncResp, entryId,
+                                       std::move(updatePropertyCallback));
             });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/"
