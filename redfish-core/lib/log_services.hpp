@@ -1579,10 +1579,16 @@ inline void updateProperty(const crow::Request& req,
                            const std::string& entryId)
 {
     std::optional<bool> resolved;
-    if (!json_util::readJsonPatch(req, asyncResp->res, "Resolved", resolved))
+    std::optional<nlohmann::json> oemObject;
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+    std::optional<bool> managementSystemAck;
+#endif
+    if (!json_util::readJsonPatch(req, asyncResp->res, "Resolved", resolved,
+                                  "Oem", oemObject))
     {
         return;
     }
+
     if (resolved.has_value())
     {
         crow::connections::systemBus->async_method_call(
@@ -1601,6 +1607,40 @@ inline void updateProperty(const crow::Request& req,
             dbus::utility::DbusVariantType(*resolved));
         BMCWEB_LOG_DEBUG << "Set Resolved";
     }
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+    if (oemObject)
+    {
+        std::optional<nlohmann::json> bmcOem;
+        if (!json_util::readJson(*oemObject, asyncResp->res, "OpenBMC", bmcOem))
+        {
+            return;
+        }
+        if (!json_util::readJson(*bmcOem, asyncResp->res, "ManagementSystemAck",
+                                 managementSystemAck))
+        {
+            BMCWEB_LOG_ERROR << "Could not read managementSystemAck";
+            return;
+        }
+    }
+    if (managementSystemAck.has_value())
+    {
+        crow::connections::systemBus->async_method_call(
+            [asyncResp](const boost::system::error_code ec) {
+            if (ec)
+            {
+                BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            },
+            "xyz.openbmc_project.Logging",
+            "/xyz/openbmc_project/logging/entry/" + entryId,
+            "org.freedesktop.DBus.Properties", "Set",
+            "org.open_power.Logging.PEL.Entry", "ManagementSystemAck",
+            std::variant<bool>(*managementSystemAck));
+        BMCWEB_LOG_DEBUG << "Updated ManagementSystemAck Property";
+    }
+#endif
 }
 
 inline void
@@ -1690,9 +1730,12 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                 const std::string* filePath = nullptr;
                 const std::string* resolution = nullptr;
                 const std::string* eventId = nullptr;
-                bool resolved = false;
+                const bool* resolved = nullptr;
                 const bool* hidden = nullptr;
-                bool serviceProviderNotified = false;
+                const bool* serviceProviderNotified = nullptr;
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+                const bool* managementSystemAck = nullptr;
+#endif
 
                 for (const auto& interfaceMap : objectPath.second)
                 {
@@ -1737,27 +1780,24 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                             }
                             else if (propertyMap.first == "Resolved")
                             {
-                                const bool* resolveptr =
+                                resolved =
                                     std::get_if<bool>(&propertyMap.second);
-                                if (resolveptr == nullptr)
+                                if (resolved == nullptr)
                                 {
                                     messages::internalError(asyncResp->res);
                                     return;
                                 }
-                                resolved = *resolveptr;
                             }
                             else if (propertyMap.first ==
                                      "ServiceProviderNotify")
                             {
-                                const bool* serviceProviderNotifiedptr =
+                                serviceProviderNotified =
                                     std::get_if<bool>(&propertyMap.second);
-                                if (serviceProviderNotifiedptr == nullptr)
+                                if (serviceProviderNotified == nullptr)
                                 {
                                     messages::internalError(asyncResp->res);
                                     return;
                                 }
-                                serviceProviderNotified =
-                                    *serviceProviderNotifiedptr;
                             }
                         }
                         if (id == nullptr || severity == nullptr)
@@ -1802,6 +1842,18 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                                     return;
                                 }
                             }
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+                            else if (propertyMap.first == "ManagementSystemAck")
+                            {
+                                managementSystemAck =
+                                    std::get_if<bool>(&propertyMap.second);
+                                if (managementSystemAck == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                            }
+#endif
                         }
                     }
                 }
@@ -1833,7 +1885,7 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                 thisEntry["EventId"] = *eventId;
                 thisEntry["Message"] = (*eventId).substr(0, 8) +
                                        " event in subsystem: " + *subsystem;
-                thisEntry["Resolved"] = resolved;
+                thisEntry["Resolved"] = *resolved;
                 if ((resolution != nullptr) && (!(*resolution).empty()))
                 {
                     thisEntry["Resolution"] = *resolution;
@@ -1846,13 +1898,19 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                 thisEntry["Modified"] =
                     redfish::time_utils::getDateTimeUintMs(*updateTimestamp);
                 asyncResp->res.jsonValue["ServiceProviderNotified"] =
-                    serviceProviderNotified;
+                    *serviceProviderNotified;
                 if (filePath != nullptr)
                 {
                     thisEntry["AdditionalDataURI"] =
                         "/redfish/v1/Systems/system/LogServices/EventLog/Entries/" +
                         std::to_string(*id) + "/attachment";
                 }
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+                thisEntry["Oem"]["OpenBMC"]["@odata.type"] =
+                    "#OemLogEntry.v1_0_0.LogEntry";
+                thisEntry["Oem"]["OpenBMC"]["ManagementSystemAck"] =
+                    *managementSystemAck;
+#endif
             }
             std::sort(
                 entriesArray.begin(), entriesArray.end(),
@@ -1924,6 +1982,9 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
                 bool resolved = false;
                 const bool* hidden = nullptr;
                 bool serviceProviderNotified = false;
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+                bool managementSystemAck = false;
+#endif
 
                 for (const auto& interfaceMap : objectPath.second)
                 {
@@ -2033,6 +2094,19 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
                                     return;
                                 }
                             }
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+                            else if (propertyMap.first == "ManagementSystemAck")
+                            {
+                                const bool* managementSystemAckptr =
+                                    std::get_if<bool>(&propertyMap.second);
+                                if (managementSystemAckptr == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                                managementSystemAck = *managementSystemAckptr;
+                            }
+#endif
                         }
                     }
                 }
@@ -2084,6 +2158,12 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
                         "/redfish/v1/Systems/system/LogServices/CELog/Entries/" +
                         std::to_string(*id) + "/attachment";
                 }
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+                thisEntry["Oem"]["OpenBMC"]["@odata.type"] =
+                    "#OemLogEntry.v1_0_0.LogEntry";
+                thisEntry["Oem"]["OpenBMC"]["ManagementSystemAck"] =
+                    managementSystemAck;
+#endif
             }
             std::sort(
                 entriesArray.begin(), entriesArray.end(),
@@ -2152,6 +2232,9 @@ inline void requestRoutesDBusEventLogEntry(App& app)
             bool resolved = false;
             const bool* hidden = nullptr;
             bool serviceProviderNotified = false;
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+            const bool* managementSystemAck = nullptr;
+#endif
 
             const bool success = sdbusplus::unpackPropertiesNoThrow(
                 dbus_utils::UnpackErrorPrinter(), resp, "Id", id, "Timestamp",
@@ -2159,7 +2242,12 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                 severity, "EventId", eventId, "Resolved", resolved,
                 "Resolution", resolution, "Path", filePath, "Hidden", hidden,
                 "ServiceProviderNotify", serviceProviderNotified, "Subsystem",
-                subsystem);
+                subsystem
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+                ,
+                "ManagementSystemAck", managementSystemAck
+#endif
+            );
 
             if (!success)
             {
@@ -2169,7 +2257,11 @@ inline void requestRoutesDBusEventLogEntry(App& app)
 
             if (id == nullptr || eventId == nullptr || severity == nullptr ||
                 timestamp == nullptr || updateTimestamp == nullptr ||
-                hidden == nullptr || subsystem == nullptr)
+                hidden == nullptr || subsystem == nullptr
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+                || managementSystemAck == nullptr
+#endif
+            )
             {
                 messages::internalError(asyncResp->res);
                 return;
@@ -2213,6 +2305,12 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                     "/redfish/v1/Systems/system/LogServices/EventLog/Entries/" +
                     std::to_string(*id) + "/attachment";
             }
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+            asyncResp->res.jsonValue["Oem"]["OpenBMC"]["@odata.type"] =
+                "#OemLogEntry.v1_0_0.LogEntry";
+            asyncResp->res.jsonValue["Oem"]["OpenBMC"]["ManagementSystemAck"] =
+                *managementSystemAck;
+#endif
             });
         });
 
@@ -2337,6 +2435,9 @@ inline void requestRoutesDBusCELogEntry(App& app)
             bool resolved = false;
             const bool* hidden = nullptr;
             bool serviceProviderNotified = false;
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+            const bool* managementSystemAck = nullptr;
+#endif
 
             const bool success = sdbusplus::unpackPropertiesNoThrow(
                 dbus_utils::UnpackErrorPrinter(), resp, "Id", id, "Timestamp",
@@ -2344,7 +2445,12 @@ inline void requestRoutesDBusCELogEntry(App& app)
                 severity, "EventId", eventId, "Resolved", resolved,
                 "Resolution", resolution, "Path", filePath, "Hidden", hidden,
                 "ServiceProviderNotify", serviceProviderNotified, "Subsystem",
-                subsystem);
+                subsystem
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+                ,
+                "ManagementSystemAck", managementSystemAck
+#endif
+            );
 
             if (!success)
             {
@@ -2354,7 +2460,11 @@ inline void requestRoutesDBusCELogEntry(App& app)
 
             if (id == nullptr || eventId == nullptr || severity == nullptr ||
                 timestamp == nullptr || updateTimestamp == nullptr ||
-                hidden == nullptr || subsystem == nullptr)
+                hidden == nullptr || subsystem == nullptr
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+                || managementSystemAck == nullptr
+#endif
+            )
             {
                 messages::internalError(asyncResp->res);
                 return;
@@ -2398,6 +2508,12 @@ inline void requestRoutesDBusCELogEntry(App& app)
                     "/redfish/v1/Systems/system/LogServices/CELog/Entries/" +
                     std::to_string(*id) + "/attachment";
             }
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+            asyncResp->res.jsonValue["Oem"]["OpenBMC"]["@odata.type"] =
+                "#OemLogEntry.v1_0_0.LogEntry";
+            asyncResp->res.jsonValue["Oem"]["OpenBMC"]["ManagementSystemAck"] =
+                *managementSystemAck;
+#endif
             });
         });
 
