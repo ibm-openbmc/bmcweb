@@ -427,6 +427,12 @@ inline void dumpCreatedSignal(sdbusplus::message::message& msg)
                           "Hardware_" +
                           dumpId;
         }
+        else if (dumpType == "sbe")
+        {
+            eventOrigin = "/redfish/v1/Systems/system/LogServices/Dump/Entries/"
+                          "SBE_" +
+                          dumpId;
+        }
         else
         {
             BMCWEB_LOG_ERROR << "Invalid dump type received when listening for "
@@ -489,6 +495,11 @@ inline void dumpDeletedSignal(sdbusplus::message::message& msg)
         eventOrigin =
             "/redfish/v1/Systems/system/LogServices/Dump/Entries/Hardware_" +
             dumpId;
+    }
+    else if (dumpType == "sbe")
+    {
+        eventOrigin =
+            "/redfish/v1/Systems/system/LogServices/Dump/Entries/SBE_" + dumpId;
     }
     else
     {
