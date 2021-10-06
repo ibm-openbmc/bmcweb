@@ -86,6 +86,53 @@ inline void requestRoutesLicenseService(App& app)
             });
 }
 
+inline void
+    getLicenseActivationAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                            const std::string& status)
+{
+
+    if (status == "com.ibm.License.LicenseManager.Status.ActivationFailed")
+    {
+        // TODO: Need to return appropriate redfish error
+        BMCWEB_LOG_ERROR << "LicenseActivationStatus: ActivationFailed";
+        messages::internalError(asyncResp->res);
+    }
+    else if (status == "com.ibm.License.LicenseManager.Status.InvalidLicense")
+    {
+        // TODO: Need to return appropriate redfish error
+        BMCWEB_LOG_ERROR << "LicenseActivationStatus: InvalidLicense";
+        messages::internalError(asyncResp->res);
+    }
+    else if (status == "com.ibm.License.LicenseManager.Status.IncorrectSystem")
+    {
+        // TODO: Need to return appropriate redfish error
+        BMCWEB_LOG_ERROR << "LicenseActivationStatus: IncorrectSystem";
+        messages::internalError(asyncResp->res);
+    }
+    else if (status ==
+             "com.ibm.License.LicenseManager.Status.IncorrectSequence")
+    {
+        // TODO: Need to return appropriate redfish error
+        BMCWEB_LOG_ERROR << "LicenseActivationStatus: IncorrectSequence";
+        messages::internalError(asyncResp->res);
+    }
+    else if (status == "com.ibm.License.LicenseManager.Status.InvalidHostState")
+    {
+        // TODO: Need to return appropriate redfish error
+        BMCWEB_LOG_ERROR << "LicenseActivationStatus: InvalidHostState";
+        messages::internalError(asyncResp->res);
+    }
+    else if (status == "com.ibm.License.LicenseManager.Status.Activated")
+    {
+        BMCWEB_LOG_INFO << "License Activated";
+    }
+    else
+    {
+        messages::internalError(asyncResp->res);
+    }
+    licenseActivationStatusMatch = nullptr;
+}
+
 inline void requestRoutesLicenseEntryCollection(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/LicenseService/Licenses")
@@ -101,6 +148,115 @@ inline void requestRoutesLicenseEntryCollection(App& app)
 
                 getLicenseEntryCollection(asyncResp);
             });
+
+    BMCWEB_ROUTE(app, "/redfish/v1/LicenseService/Licenses")
+        .privileges({{"ConfigureManager"}})
+        .methods(
+            boost::beast::http::verb::
+                post)([](const crow::Request& req,
+                         const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+            std::string licenseString;
+            if (!redfish::json_util::readJson(req, asyncResp->res,
+                                              "LicenseString", licenseString))
+            {
+                return;
+            }
+
+            if (licenseString.empty())
+            {
+                messages::propertyMissing(asyncResp->res, "LicenseString");
+            }
+
+            // Only allow one License install at a time
+            if (licenseActivationStatusMatch != nullptr)
+            {
+                messages::resourceInUse(asyncResp->res);
+                return;
+            }
+
+            std::shared_ptr<boost::asio::steady_timer> timeout =
+                std::make_shared<boost::asio::steady_timer>(
+                    crow::connections::systemBus->get_io_context());
+            timeout->expires_after(std::chrono::seconds(10));
+            crow::connections::systemBus->async_method_call(
+                [timeout, asyncResp](const boost::system::error_code ec) {
+                    if (ec)
+                    {
+                        BMCWEB_LOG_ERROR
+                            << "LicenseString resp_handler got error " << ec;
+                        messages::internalError(asyncResp->res);
+                        return;
+                    }
+
+                    auto timeoutHandler =
+                        [asyncResp,
+                         timeout](const boost::system::error_code ec) {
+                            licenseActivationStatusMatch = nullptr;
+                            if (ec)
+                            {
+                                if (ec != boost::asio::error::operation_aborted)
+                                {
+                                    BMCWEB_LOG_ERROR << "Async_wait failed "
+                                                     << ec;
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                            }
+                            else
+                            {
+                                messages::serviceTemporarilyUnavailable(
+                                    asyncResp->res, "60");
+                                BMCWEB_LOG_ERROR
+                                    << "Timed out waiting for HostInterface to "
+                                       "serve license upload request";
+                                return;
+                            }
+                        };
+
+                    timeout->async_wait(timeoutHandler);
+
+                    auto callback = [asyncResp,
+                                     timeout](sdbusplus::message::message& m) {
+                        BMCWEB_LOG_DEBUG << "Response Matched " << m.get();
+                        boost::container::flat_map<std::string,
+                                                   std::variant<std::string>>
+                            values;
+                        std::string iface;
+                        m.read(iface, values);
+                        if (iface == "com.ibm.License.LicenseManager")
+                        {
+                            auto findStatus =
+                                values.find("LicenseActivationStatus");
+                            if (findStatus != values.end())
+                            {
+                                BMCWEB_LOG_INFO
+                                    << "Found Status property change";
+                                std::string* status = std::get_if<std::string>(
+                                    &(findStatus->second));
+                                if (status == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                                getLicenseActivationAck(asyncResp, *status);
+                                timeout->cancel();
+                            }
+                        }
+                    };
+
+                    licenseActivationStatusMatch = std::make_unique<
+                        sdbusplus::bus::match::match>(
+                        *crow::connections::systemBus,
+                        "interface='org.freedesktop.DBus.Properties',type='"
+                        "signal',"
+                        "member='PropertiesChanged',path='/com/ibm/license'",
+                        callback);
+                },
+                "com.ibm.License.Manager", "/com/ibm/license",
+                "org.freedesktop.DBus.Properties", "Set",
+                "com.ibm.License.LicenseManager", "LicenseString",
+                std::variant<std::string>(licenseString));
+        });
 }
 
 inline void
@@ -295,143 +451,4 @@ inline void requestRoutesLicenseEntry(App& app)
                 getLicenseEntryById(asyncResp, param);
             });
 }
-
-inline void
-    getLicenseActivationAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
-{
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec,
-                    const std::variant<std::string>& hostAck) {
-            if (ec)
-            {
-                BMCWEB_LOG_ERROR
-                    << "getLicenseActivationAck respHandler got error " << ec;
-                asyncResp->res.jsonValue["Description"] =
-                    "Failed to get request status";
-                messages::internalError(asyncResp->res);
-                return;
-            }
-
-            const std::string* status = std::get_if<std::string>(&hostAck);
-            if (status == nullptr)
-            {
-                messages::internalError(asyncResp->res);
-                return;
-            }
-
-            if (*status ==
-                "com.ibm.License.LicenseManager.Status.ActivationFailed")
-            {
-                BMCWEB_LOG_ERROR << "LicenseActivationStatus: ActivationFailed";
-                messages::internalError(asyncResp->res);
-            }
-            else if (*status ==
-                     "com.ibm.License.LicenseManager.Status.InvalidLicense")
-            {
-                // TODO: Need to return appropriate redfish error
-                BMCWEB_LOG_ERROR << "LicenseActivationStatus: InvalidLicense";
-                messages::internalError(asyncResp->res);
-            }
-            else if (*status ==
-                     "com.ibm.License.LicenseManager.Status.Activated")
-            {
-                BMCWEB_LOG_INFO << "License Activated";
-            }
-
-            licenseActivationStatusMatch = nullptr;
-        },
-        "com.ibm.License.Manager", "/com/ibm/license",
-        "org.freedesktop.DBus.Properties", "Get",
-        "com.ibm.License.LicenseManager", "LicenseActivationStatus");
-}
-
-inline void requestRoutesInstallLicense(App& app)
-{
-    BMCWEB_ROUTE(app, "/redfish/v1/LicenseService/Actions/"
-                      "LicenseService.Install/")
-        .privileges({{"ConfigureManager"}})
-        .methods(
-            boost::beast::http::verb::
-                post)([](const crow::Request& req,
-                         const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
-            // Only allow one License install at a time
-            if (licenseActivationStatusMatch != nullptr)
-            {
-                messages::resourceInUse(asyncResp->res);
-                return;
-            }
-
-            std::shared_ptr<boost::asio::steady_timer> timeout =
-                std::make_shared<boost::asio::steady_timer>(
-                    crow::connections::systemBus->get_io_context());
-            timeout->expires_after(std::chrono::seconds(10));
-            crow::connections::systemBus->async_method_call(
-                [timeout, asyncResp](const boost::system::error_code ec) {
-                    if (ec)
-                    {
-                        BMCWEB_LOG_ERROR
-                            << "LicenseString resp_handler got error " << ec;
-                        messages::internalError(asyncResp->res);
-                        return;
-                    }
-
-                    auto timeoutHandler =
-                        [asyncResp,
-                         timeout](const boost::system::error_code ec) {
-                            if (ec)
-                            {
-                                if (ec != boost::asio::error::operation_aborted)
-                                {
-                                    BMCWEB_LOG_ERROR << "Async_wait failed "
-                                                     << ec;
-                                }
-                            }
-                            licenseActivationStatusMatch = nullptr;
-                            timeout->cancel();
-                            messages::serviceTemporarilyUnavailable(
-                                asyncResp->res, "60");
-                            BMCWEB_LOG_INFO
-                                << "Service temporarily unavailable";
-                            return;
-                        };
-
-                    timeout->async_wait(timeoutHandler);
-
-                    auto callback = [asyncResp,
-                                     timeout](sdbusplus::message::message& m) {
-                        BMCWEB_LOG_DEBUG << "Response Matched " << m.get();
-                        boost::container::flat_map<std::string,
-                                                   std::variant<std::string>>
-                            values;
-                        std::string iface;
-                        m.read(iface, values);
-                        if (iface == "com.ibm.License.LicenseManager")
-                        {
-                            auto findStatus =
-                                values.find("LicenseActivationStatus");
-                            if (findStatus != values.end())
-                            {
-                                BMCWEB_LOG_DEBUG
-                                    << "Found Status property change";
-                                getLicenseActivationAck(asyncResp);
-                                timeout->cancel();
-                            }
-                        }
-                    };
-
-                    licenseActivationStatusMatch = std::make_unique<
-                        sdbusplus::bus::match::match>(
-                        *crow::connections::systemBus,
-                        "interface='org.freedesktop.DBus.Properties',type='"
-                        "signal',"
-                        "member='PropertiesChanged',path='/com/ibm/license'",
-                        callback);
-                },
-                "com.ibm.License.Manager", "/com/ibm/license",
-                "org.freedesktop.DBus.Properties", "Set",
-                "com.ibm.License.LicenseManager", "LicenseString",
-                std::variant<std::string>(req.body));
-        });
-}
-
 } // namespace redfish
