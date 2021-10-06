@@ -25,6 +25,7 @@
 #include "../lib/event_service.hpp"
 #include "../lib/fan.hpp"
 #include "../lib/hypervisor_system.hpp"
+#include "../lib/license_service.hpp"
 #include "../lib/log_services.hpp"
 #include "../lib/managers.hpp"
 #include "../lib/memory.hpp"
@@ -53,7 +54,6 @@
 #include "../lib/thermal_subsystem.hpp"
 #include "../lib/update_service.hpp"
 #include "../lib/virtual_media.hpp"
-#include "../lib/license_service.hpp"
 
 namespace redfish
 {
@@ -240,11 +240,10 @@ class RedfishService
 #endif
 
 #ifdef BMCWEB_ENABLE_REDFISH_LICENSE
-         requestRoutesLicenseService(app);
-         requestRoutesLicenseEntryCollection(app);
-         requestRoutesLicenseEntry(app);
-         requestRoutesInstallLicense(app);
- #endif
+        requestRoutesLicenseService(app);
+        requestRoutesLicenseEntryCollection(app);
+        requestRoutesLicenseEntry(app);
+#endif
     }
 };
 
