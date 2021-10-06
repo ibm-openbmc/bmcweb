@@ -1686,9 +1686,10 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                 const uint64_t* timestamp = nullptr;
                 const uint64_t* updateTimestamp = nullptr;
                 const std::string* severity = nullptr;
-                const std::string* message = nullptr;
+                const std::string* subsystem = nullptr;
                 const std::string* filePath = nullptr;
                 const std::string* resolution = nullptr;
+                const std::string* eventId = nullptr;
                 bool resolved = false;
                 const bool* hidden = nullptr;
                 bool serviceProviderNotified = false;
@@ -1724,10 +1725,15 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                                 resolution = std::get_if<std::string>(
                                     &propertyMap.second);
                             }
-                            else if (propertyMap.first == "Message")
+                            else if (propertyMap.first == "EventId")
                             {
-                                message = std::get_if<std::string>(
+                                eventId = std::get_if<std::string>(
                                     &propertyMap.second);
+                                if (eventId == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
                             }
                             else if (propertyMap.first == "Resolved")
                             {
@@ -1754,8 +1760,7 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                                     *serviceProviderNotifiedptr;
                             }
                         }
-                        if (id == nullptr || message == nullptr ||
-                            severity == nullptr)
+                        if (id == nullptr || severity == nullptr)
                         {
                             messages::internalError(asyncResp->res);
                             return;
@@ -1786,7 +1791,16 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                                     messages::internalError(asyncResp->res);
                                     return;
                                 }
-                                break;
+                            }
+                            else if (propertyMap.first == "Subsystem")
+                            {
+                                subsystem = std::get_if<std::string>(
+                                    &propertyMap.second);
+                                if (subsystem == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
                             }
                         }
                     }
@@ -1794,9 +1808,10 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                 // Object path without the
                 // xyz.openbmc_project.Logging.Entry interface, ignore
                 // and continue.
-                if (id == nullptr || message == nullptr ||
+                if (id == nullptr || eventId == nullptr ||
                     severity == nullptr || timestamp == nullptr ||
-                    updateTimestamp == nullptr || hidden == nullptr)
+                    updateTimestamp == nullptr || hidden == nullptr ||
+                    subsystem == nullptr)
                 {
                     continue;
                 }
@@ -1815,7 +1830,9 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                     std::to_string(*id);
                 thisEntry["Name"] = "System Event Log Entry";
                 thisEntry["Id"] = std::to_string(*id);
-                thisEntry["Message"] = *message;
+                thisEntry["EventId"] = *eventId;
+                thisEntry["Message"] = (*eventId).substr(0, 8) +
+                                       " event in subsystem: " + *subsystem;
                 thisEntry["Resolved"] = resolved;
                 if ((resolution != nullptr) && (!(*resolution).empty()))
                 {
@@ -1900,8 +1917,9 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
                 const uint64_t* timestamp = nullptr;
                 const uint64_t* updateTimestamp = nullptr;
                 const std::string* severity = nullptr;
-                const std::string* message = nullptr;
+                const std::string* subsystem = nullptr;
                 const std::string* filePath = nullptr;
+                const std::string* eventId = nullptr;
                 const std::string* resolution = nullptr;
                 bool resolved = false;
                 const bool* hidden = nullptr;
@@ -1938,10 +1956,15 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
                                 resolution = std::get_if<std::string>(
                                     &propertyMap.second);
                             }
-                            else if (propertyMap.first == "Message")
+                            else if (propertyMap.first == "EventId")
                             {
-                                message = std::get_if<std::string>(
+                                eventId = std::get_if<std::string>(
                                     &propertyMap.second);
+                                if (eventId == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
                             }
                             else if (propertyMap.first == "Resolved")
                             {
@@ -1968,8 +1991,7 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
                                     *serviceProviderNotifiedptr;
                             }
                         }
-                        if (id == nullptr || message == nullptr ||
-                            severity == nullptr)
+                        if (id == nullptr || severity == nullptr)
                         {
                             messages::internalError(asyncResp->res);
                             return;
@@ -2000,7 +2022,16 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
                                     messages::internalError(asyncResp->res);
                                     return;
                                 }
-                                break;
+                            }
+                            else if (propertyMap.first == "Subsystem")
+                            {
+                                subsystem = std::get_if<std::string>(
+                                    &propertyMap.second);
+                                if (subsystem == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
                             }
                         }
                     }
@@ -2008,9 +2039,10 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
                 // Object path without the
                 // xyz.openbmc_project.Logging.Entry interface, ignore
                 // and continue.
-                if (id == nullptr || message == nullptr ||
+                if (id == nullptr || eventId == nullptr ||
                     severity == nullptr || timestamp == nullptr ||
-                    updateTimestamp == nullptr || hidden == nullptr)
+                    updateTimestamp == nullptr || hidden == nullptr ||
+                    subsystem == nullptr)
                 {
                     continue;
                 }
@@ -2029,7 +2061,9 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
                     std::to_string(*id);
                 thisEntry["Name"] = "System Event Log Entry";
                 thisEntry["Id"] = std::to_string(*id);
-                thisEntry["Message"] = *message;
+                thisEntry["EventId"] = *eventId;
+                thisEntry["Message"] = (*eventId).substr(0, 8) +
+                                       " event in subsystem: " + *subsystem;
                 thisEntry["Resolved"] = resolved;
                 if ((resolution != nullptr) && (!(*resolution).empty()))
                 {
@@ -2111,7 +2145,8 @@ inline void requestRoutesDBusEventLogEntry(App& app)
             const uint64_t* timestamp = nullptr;
             const uint64_t* updateTimestamp = nullptr;
             const std::string* severity = nullptr;
-            const std::string* message = nullptr;
+            const std::string* eventId = nullptr;
+            const std::string* subsystem = nullptr;
             const std::string* filePath = nullptr;
             const std::string* resolution = nullptr;
             bool resolved = false;
@@ -2121,9 +2156,10 @@ inline void requestRoutesDBusEventLogEntry(App& app)
             const bool success = sdbusplus::unpackPropertiesNoThrow(
                 dbus_utils::UnpackErrorPrinter(), resp, "Id", id, "Timestamp",
                 timestamp, "UpdateTimestamp", updateTimestamp, "Severity",
-                severity, "Message", message, "Resolved", resolved,
+                severity, "EventId", eventId, "Resolved", resolved,
                 "Resolution", resolution, "Path", filePath, "Hidden", hidden,
-                "ServiceProviderNotify", serviceProviderNotified);
+                "ServiceProviderNotify", serviceProviderNotified, "Subsystem",
+                subsystem);
 
             if (!success)
             {
@@ -2131,9 +2167,9 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                 return;
             }
 
-            if (id == nullptr || message == nullptr || severity == nullptr ||
+            if (id == nullptr || eventId == nullptr || severity == nullptr ||
                 timestamp == nullptr || updateTimestamp == nullptr ||
-                hidden == nullptr)
+                hidden == nullptr || subsystem == nullptr)
             {
                 messages::internalError(asyncResp->res);
                 return;
@@ -2154,8 +2190,10 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                 std::to_string(*id);
             asyncResp->res.jsonValue["Name"] = "System Event Log Entry";
             asyncResp->res.jsonValue["Id"] = std::to_string(*id);
-            asyncResp->res.jsonValue["Message"] = *message;
+            asyncResp->res.jsonValue["Message"] =
+                (*eventId).substr(0, 8) + " event in subsystem: " + *subsystem;
             asyncResp->res.jsonValue["Resolved"] = resolved;
+            asyncResp->res.jsonValue["EventId"] = *eventId;
             if ((resolution != nullptr) && (!(*resolution).empty()))
             {
                 asyncResp->res.jsonValue["Resolution"] = *resolution;
@@ -2292,7 +2330,8 @@ inline void requestRoutesDBusCELogEntry(App& app)
             const uint64_t* timestamp = nullptr;
             const uint64_t* updateTimestamp = nullptr;
             const std::string* severity = nullptr;
-            const std::string* message = nullptr;
+            const std::string* eventId = nullptr;
+            const std::string* subsystem = nullptr;
             const std::string* filePath = nullptr;
             const std::string* resolution = nullptr;
             bool resolved = false;
@@ -2302,9 +2341,10 @@ inline void requestRoutesDBusCELogEntry(App& app)
             const bool success = sdbusplus::unpackPropertiesNoThrow(
                 dbus_utils::UnpackErrorPrinter(), resp, "Id", id, "Timestamp",
                 timestamp, "UpdateTimestamp", updateTimestamp, "Severity",
-                severity, "Message", message, "Resolved", resolved,
+                severity, "EventId", eventId, "Resolved", resolved,
                 "Resolution", resolution, "Path", filePath, "Hidden", hidden,
-                "ServiceProviderNotify", serviceProviderNotified);
+                "ServiceProviderNotify", serviceProviderNotified, "Subsystem",
+                subsystem);
 
             if (!success)
             {
@@ -2312,9 +2352,9 @@ inline void requestRoutesDBusCELogEntry(App& app)
                 return;
             }
 
-            if (id == nullptr || message == nullptr || severity == nullptr ||
+            if (id == nullptr || eventId == nullptr || severity == nullptr ||
                 timestamp == nullptr || updateTimestamp == nullptr ||
-                hidden == nullptr)
+                hidden == nullptr || subsystem == nullptr)
             {
                 messages::internalError(asyncResp->res);
                 return;
@@ -2335,8 +2375,10 @@ inline void requestRoutesDBusCELogEntry(App& app)
                 std::to_string(*id);
             asyncResp->res.jsonValue["Name"] = "System Event Log Entry";
             asyncResp->res.jsonValue["Id"] = std::to_string(*id);
-            asyncResp->res.jsonValue["Message"] = *message;
+            asyncResp->res.jsonValue["Message"] =
+                (*eventId).substr(0, 8) + " event in subsystem: " + *subsystem;
             asyncResp->res.jsonValue["Resolved"] = resolved;
+            asyncResp->res.jsonValue["EventId"] = *eventId;
             if ((resolution != nullptr) && (!(*resolution).empty()))
             {
                 asyncResp->res.jsonValue["Resolution"] = *resolution;
