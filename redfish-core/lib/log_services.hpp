@@ -1586,6 +1586,7 @@ inline void getDBusLogEntryCollection(
         std::string* subsystem = nullptr;
         std::string* filePath = nullptr;
         std::string* eventId = nullptr;
+        std::string* resolution = nullptr;
         bool resolved = false;
         bool* hiddenProp = nullptr;
         bool serviceProviderNotified = false;
@@ -1642,6 +1643,16 @@ inline void getDBusLogEntryCollection(
                             return;
                         }
                     }
+                    else if (propertyMap.first == "Resolution")
+                    {
+                        resolution =
+                            std::get_if<std::string>(&propertyMap.second);
+                        if (resolution == nullptr)
+                        {
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+                    }
                     else if (propertyMap.first == "EventId")
                     {
                         eventId = std::get_if<std::string>(&propertyMap.second);
@@ -1674,7 +1685,8 @@ inline void getDBusLogEntryCollection(
                         serviceProviderNotified = *serviceProviderNotifiedptr;
                     }
                 }
-                if ((id == nullptr) || (severity == nullptr))
+                if ((id == nullptr) || (resolution == nullptr) ||
+                    (severity == nullptr))
                 {
                     messages::internalError(asyncResp->res);
                     return;
@@ -1760,6 +1772,10 @@ inline void getDBusLogEntryCollection(
         thisEntry["Message"] =
             (*eventId).substr(0, 8) + " event in subsystem: " + *subsystem;
         thisEntry["Resolved"] = resolved;
+        if (!(*resolution).empty())
+        {
+            thisEntry["Resolution"] = *resolution;
+        }
         thisEntry["ServiceProviderNotified"] = serviceProviderNotified;
         thisEntry["Severity"] = translateSeverityDbusToRedfish(*severity);
         thisEntry["Created"] = crow::utility::getDateTime(timestamp);
@@ -2003,6 +2019,7 @@ inline void getDBusLogEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     std::string* filePath = nullptr;
     std::string* eventId = nullptr;
     std::string* subsystem = nullptr;
+    std::string* resolution = nullptr;
     bool resolved = false;
     bool* hiddenProp = nullptr;
     bool serviceProviderNotified = false;
@@ -2056,6 +2073,15 @@ inline void getDBusLogEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         {
             eventId = std::get_if<std::string>(&propertyMap.second);
             if (eventId == nullptr)
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+        }
+        else if (propertyMap.first == "Resolution")
+        {
+            resolution = std::get_if<std::string>(&propertyMap.second);
+            if (resolution == nullptr)
             {
                 messages::internalError(asyncResp->res);
                 return;
@@ -2120,7 +2146,8 @@ inline void getDBusLogEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     }
 
     if ((id == nullptr) || (severity == nullptr) || (hiddenProp == nullptr) ||
-        (eventId == nullptr) || (subsystem == nullptr))
+        (resolution == nullptr) || (eventId == nullptr) ||
+        (subsystem == nullptr))
     {
         messages::internalError(asyncResp->res);
         return;
@@ -2145,6 +2172,10 @@ inline void getDBusLogEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         (*eventId).substr(0, 8) + " event in subsystem: " + *subsystem;
     asyncResp->res.jsonValue["Resolved"] = resolved;
     asyncResp->res.jsonValue["EventId"] = *eventId;
+    if (!(*resolution).empty())
+    {
+        asyncResp->res.jsonValue["Resolution"] = *resolution;
+    }
     asyncResp->res.jsonValue["ServiceProviderNotified"] =
         serviceProviderNotified;
     asyncResp->res.jsonValue["Severity"] =
