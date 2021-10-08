@@ -350,7 +350,7 @@ void registerStateChangeSignal()
 
 void registerPostCodeChangeSignal()
 {
-    BMCWEB_LOG_ERROR << "PostCode change signal - Register";
+    BMCWEB_LOG_DEBUG << "PostCode change signal - Register";
 
     matchPostCodeChange = std::make_unique<sdbusplus::bus::match::match>(
         *crow::connections::systemBus,
