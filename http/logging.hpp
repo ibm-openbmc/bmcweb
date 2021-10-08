@@ -45,20 +45,16 @@ class Logger
            [[maybe_unused]] const size_t line, LogLevel levelIn) :
         level(levelIn)
     {
-#ifdef BMCWEB_ENABLE_LOGGING
         stringstream << "(" << timestamp() << ") [" << prefix << " "
                      << std::filesystem::path(filename).filename() << ":"
                      << line << "] ";
-#endif
     }
     ~Logger()
     {
         if (level >= getCurrentLogLevel())
         {
-#ifdef BMCWEB_ENABLE_LOGGING
             stringstream << std::endl;
             std::cerr << stringstream.str();
-#endif
         }
     }
 
@@ -68,9 +64,7 @@ class Logger
     {
         if (level >= getCurrentLogLevel())
         {
-#ifdef BMCWEB_ENABLE_LOGGING
             stringstream << value;
-#endif
         }
         return *this;
     }
