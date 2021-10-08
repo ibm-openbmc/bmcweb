@@ -510,6 +510,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
     {
         if ((state == ConnState::suspended) || (state == ConnState::terminated))
         {
+            BMCWEB_LOG_ERROR
+                << "sendData: ConnState is suspended or terminated";
             return;
         }
         requestDataQueue.push_back(data);
