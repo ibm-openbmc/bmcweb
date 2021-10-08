@@ -70,7 +70,13 @@ inline void setupSocket(crow::App& app)
 
 int main(int /*argc*/, char** /*argv*/)
 {
+    // If user has enabled logging, set level at debug so we get everything
+#ifdef BMCWEB_ENABLE_LOGGING
     crow::Logger::setLogLevel(crow::LogLevel::Debug);
+#else
+    // otherwise just enable the error logging
+    crow::Logger::setLogLevel(crow::LogLevel::Error);
+#endif
 
     auto io = std::make_shared<boost::asio::io_context>();
     App app(io);
