@@ -744,7 +744,6 @@ inline void requestRoutesBiosAttributeRegistry(App& app)
         });
 }
 
->>>>>>> 13a0ad6d7... Define Redfish interface "/Registries/Bios" and enable Attributes property
 /**
  * BiosReset class supports handle POST method for Reset bios.
  * The class retrieves and sends data directly to D-Bus.
