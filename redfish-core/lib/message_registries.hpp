@@ -75,8 +75,8 @@ inline void handleMessageRoutesMessageRegistryFileGet(
     }
     else if (registry == "BiosAttributeRegistry")
     {
-            header = &message_registries::bios::header;
-            dmtf.clear();
+        header = &message_registries::bios::header;
+        dmtf.clear();
     }
     else if (registry == "TaskEvent")
     {
