@@ -109,7 +109,6 @@ struct EthernetInterfaceData
     std::string default_gateway;
     std::string ipv6_default_gateway;
     std::string mac_address;
-    std::vector<std::uint32_t> vlan_id;
     std::vector<std::string> nameServers;
     std::vector<std::string> staticNameServers;
     std::vector<std::string> domainnames;
@@ -224,21 +223,6 @@ inline bool extractEthernetInterfaceData(const std::string& ethifaceId,
                             if (mac != nullptr)
                             {
                                 ethData.mac_address = *mac;
-                            }
-                        }
-                    }
-                }
-                else if (ifacePair.first == "xyz.openbmc_project.Network.VLAN")
-                {
-                    for (const auto& propertyPair : ifacePair.second)
-                    {
-                        if (propertyPair.first == "Id")
-                        {
-                            const uint32_t* id =
-                                std::get_if<uint32_t>(&propertyPair.second);
-                            if (id != nullptr)
-                            {
-                                ethData.vlan_id.push_back(*id);
                             }
                         }
                     }
@@ -584,27 +568,6 @@ inline void
             }
         }
     }
-}
-
-/**
- * @brief Sets given Id on the given VLAN interface through D-Bus
- *
- * @param[in] ifaceId       Id of VLAN interface that should be modified
- * @param[in] inputVlanId   New ID of the VLAN
- * @param[in] callback      Function that will be called after the operation
- *
- * @return None.
- */
-template <typename CallbackFunc>
-void changeVlanId(const std::string& ifaceId, const uint32_t& inputVlanId,
-                  CallbackFunc&& callback)
-{
-    crow::connections::systemBus->async_method_call(
-        callback, "xyz.openbmc_project.Network",
-        std::string("/xyz/openbmc_project/network/") + ifaceId,
-        "org.freedesktop.DBus.Properties", "Set",
-        "xyz.openbmc_project.Network.VLAN", "Id",
-        std::variant<uint32_t>(inputVlanId));
 }
 
 /**
@@ -1740,10 +1703,6 @@ inline void parseInterfaceData(
         jsonResponse["FQDN"] = fqdn;
     }
 
-    jsonResponse["VLANs"] = {
-        {"@odata.id",
-         "/redfish/v1/Managers/bmc/EthernetInterfaces/" + ifaceId + "/VLANs"}};
-
     jsonResponse["NameServers"] = ethData.nameServers;
     jsonResponse["StaticNameServers"] = ethData.staticNameServers;
 
@@ -1802,23 +1761,6 @@ inline void parseInterfaceData(
                  {"AddressOrigin", ipv6Config.origin},
                  {"AddressState", nullptr}});
         }
-    }
-}
-
-inline void parseInterfaceData(nlohmann::json& jsonResponse,
-                               const std::string& parentIfaceId,
-                               const std::string& ifaceId,
-                               const EthernetInterfaceData& ethData)
-{
-    // Fill out obvious data...
-    jsonResponse["Id"] = ifaceId;
-    jsonResponse["@odata.id"] = "/redfish/v1/Managers/bmc/EthernetInterfaces/" +
-                                parentIfaceId + "/VLANs/" + ifaceId;
-
-    jsonResponse["VLANEnable"] = true;
-    if (!ethData.vlan_id.empty())
-    {
-        jsonResponse["VLANId"] = ethData.vlan_id.back();
     }
 }
 
@@ -2068,286 +2010,6 @@ inline void requestEthernetInterfacesRoutes(App& app)
                                 asyncResp);
                         }
                     });
-            });
-
-    BMCWEB_ROUTE(
-        app, "/redfish/v1/Managers/bmc/EthernetInterfaces/<str>/VLANs/<str>/")
-        .privileges(redfish::privileges::getVLanNetworkInterface)
-
-        .methods(boost::beast::http::verb::get)(
-            [](const crow::Request& /* req */,
-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-               const std::string& parentIfaceId, const std::string& ifaceId) {
-                asyncResp->res.jsonValue["@odata.type"] =
-                    "#VLanNetworkInterface.v1_1_0.VLanNetworkInterface";
-                asyncResp->res.jsonValue["Name"] = "VLAN Network Interface";
-
-                if (!verifyNames(parentIfaceId, ifaceId))
-                {
-                    return;
-                }
-
-                // Get single eth interface data, and call the below callback
-                // for JSON preparation
-                getEthernetIfaceData(
-                    ifaceId,
-                    [asyncResp, parentIfaceId, ifaceId](
-                        const bool& success,
-                        const EthernetInterfaceData& ethData,
-                        const boost::container::flat_set<IPv4AddressData>&,
-                        const boost::container::flat_set<IPv6AddressData>&) {
-                        if (success && ethData.vlan_id.size() != 0)
-                        {
-                            parseInterfaceData(asyncResp->res.jsonValue,
-                                               parentIfaceId, ifaceId, ethData);
-                        }
-                        else
-                        {
-                            // ... otherwise return error
-                            // TODO(Pawel)consider distinguish between non
-                            // existing object, and other errors
-                            messages::resourceNotFound(asyncResp->res,
-                                                       "VLAN Network Interface",
-                                                       ifaceId);
-                        }
-                    });
-            });
-
-    BMCWEB_ROUTE(
-        app, "/redfish/v1/Managers/bmc/EthernetInterfaces/<str>/VLANs/<str>/")
-        .privileges(redfish::privileges::patchVLanNetworkInterface)
-        .methods(boost::beast::http::verb::patch)(
-            [](const crow::Request& req,
-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-               const std::string& parentIfaceId, const std::string& ifaceId) {
-                if (!verifyNames(parentIfaceId, ifaceId))
-                {
-                    messages::resourceNotFound(
-                        asyncResp->res, "VLAN Network Interface", ifaceId);
-                    return;
-                }
-
-                bool vlanEnable = false;
-                uint32_t vlanId = 0;
-
-                if (!json_util::readJson(req, asyncResp->res, "VLANEnable",
-                                         vlanEnable, "VLANId", vlanId))
-                {
-                    return;
-                }
-
-                // Get single eth interface data, and call the below callback
-                // for JSON preparation
-                getEthernetIfaceData(
-                    ifaceId,
-                    [asyncResp, parentIfaceId, ifaceId, &vlanEnable, &vlanId](
-                        const bool& success,
-                        const EthernetInterfaceData& ethData,
-                        const boost::container::flat_set<IPv4AddressData>&,
-                        const boost::container::flat_set<IPv6AddressData>&) {
-                        if (success && !ethData.vlan_id.empty())
-                        {
-                            auto callback =
-                                [asyncResp](
-                                    const boost::system::error_code ec) {
-                                    if (ec)
-                                    {
-                                        messages::internalError(asyncResp->res);
-                                    }
-                                };
-
-                            if (vlanEnable == true)
-                            {
-                                crow::connections::systemBus->async_method_call(
-                                    std::move(callback),
-                                    "xyz.openbmc_project.Network",
-                                    "/xyz/openbmc_project/network/" + ifaceId,
-                                    "org.freedesktop.DBus.Properties", "Set",
-                                    "xyz.openbmc_project.Network.VLAN", "Id",
-                                    std::variant<uint32_t>(vlanId));
-                            }
-                            else
-                            {
-                                BMCWEB_LOG_DEBUG
-                                    << "vlanEnable is false. Deleting the "
-                                       "vlan interface";
-                                crow::connections::systemBus->async_method_call(
-                                    std::move(callback),
-                                    "xyz.openbmc_project.Network",
-                                    std::string(
-                                        "/xyz/openbmc_project/network/") +
-                                        ifaceId,
-                                    "xyz.openbmc_project.Object.Delete",
-                                    "Delete");
-                            }
-                        }
-                        else
-                        {
-                            // TODO(Pawel)consider distinguish between non
-                            // existing object, and other errors
-                            messages::resourceNotFound(asyncResp->res,
-                                                       "VLAN Network Interface",
-                                                       ifaceId);
-                            return;
-                        }
-                    });
-            });
-
-    BMCWEB_ROUTE(
-        app, "/redfish/v1/Managers/bmc/EthernetInterfaces/<str>/VLANs/<str>/")
-        .privileges(redfish::privileges::deleteVLanNetworkInterface)
-        .methods(boost::beast::http::verb::delete_)(
-            [](const crow::Request& /* req */,
-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-               const std::string& parentIfaceId, const std::string& ifaceId) {
-                if (!verifyNames(parentIfaceId, ifaceId))
-                {
-                    messages::resourceNotFound(
-                        asyncResp->res, "VLAN Network Interface", ifaceId);
-                    return;
-                }
-
-                // Get single eth interface data, and call the below callback
-                // for JSON preparation
-                getEthernetIfaceData(
-                    ifaceId,
-                    [asyncResp, parentIfaceId, ifaceId](
-                        const bool& success,
-                        const EthernetInterfaceData& ethData,
-                        const boost::container::flat_set<IPv4AddressData>&,
-                        const boost::container::flat_set<IPv6AddressData>&) {
-                        if (success && !ethData.vlan_id.empty())
-                        {
-                            auto callback =
-                                [asyncResp](
-                                    const boost::system::error_code ec) {
-                                    if (ec)
-                                    {
-                                        messages::internalError(asyncResp->res);
-                                    }
-                                };
-                            crow::connections::systemBus->async_method_call(
-                                std::move(callback),
-                                "xyz.openbmc_project.Network",
-                                std::string("/xyz/openbmc_project/network/") +
-                                    ifaceId,
-                                "xyz.openbmc_project.Object.Delete", "Delete");
-                        }
-                        else
-                        {
-                            // ... otherwise return error
-                            // TODO(Pawel)consider distinguish between non
-                            // existing object, and other errors
-                            messages::resourceNotFound(asyncResp->res,
-                                                       "VLAN Network Interface",
-                                                       ifaceId);
-                        }
-                    });
-            });
-
-    BMCWEB_ROUTE(app,
-                 "/redfish/v1/Managers/bmc/EthernetInterfaces/<str>/VLANs/")
-
-        .privileges(redfish::privileges::getVLanNetworkInterfaceCollection)
-        .methods(
-            boost::beast::http::verb::
-                get)([](const crow::Request& /* req */,
-                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                        const std::string& rootInterfaceName) {
-            // Get eth interface list, and call the below callback for JSON
-            // preparation
-            getEthernetIfaceList([asyncResp, rootInterfaceName](
-                                     const bool& success,
-                                     const boost::container::flat_set<
-                                         std::string>& ifaceList) {
-                if (!success)
-                {
-                    messages::internalError(asyncResp->res);
-                    return;
-                }
-
-                if (ifaceList.find(rootInterfaceName) == ifaceList.end())
-                {
-                    messages::resourceNotFound(asyncResp->res,
-                                               "VLanNetworkInterfaceCollection",
-                                               rootInterfaceName);
-                    return;
-                }
-
-                asyncResp->res.jsonValue["@odata.type"] =
-                    "#VLanNetworkInterfaceCollection."
-                    "VLanNetworkInterfaceCollection";
-                asyncResp->res.jsonValue["Name"] =
-                    "VLAN Network Interface Collection";
-
-                nlohmann::json ifaceArray = nlohmann::json::array();
-
-                for (const std::string& ifaceItem : ifaceList)
-                {
-                    if (boost::starts_with(ifaceItem, rootInterfaceName + "_"))
-                    {
-                        std::string path =
-                            "/redfish/v1/Managers/bmc/EthernetInterfaces/";
-                        path += rootInterfaceName;
-                        path += "/VLANs/";
-                        path += ifaceItem;
-                        ifaceArray.push_back({{"@odata.id", std::move(path)}});
-                    }
-                }
-
-                asyncResp->res.jsonValue["Members@odata.count"] =
-                    ifaceArray.size();
-                asyncResp->res.jsonValue["Members"] = std::move(ifaceArray);
-                asyncResp->res.jsonValue["@odata.id"] =
-                    "/redfish/v1/Managers/bmc/EthernetInterfaces/" +
-                    rootInterfaceName + "/VLANs";
-            });
-        });
-
-    BMCWEB_ROUTE(app,
-                 "/redfish/v1/Managers/bmc/EthernetInterfaces/<str>/VLANs/")
-        .privileges(redfish::privileges::postVLanNetworkInterfaceCollection)
-        .methods(boost::beast::http::verb::post)(
-            [](const crow::Request& req,
-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-               const std::string& rootInterfaceName) {
-                bool vlanEnable = false;
-                uint32_t vlanId = 0;
-                if (!json_util::readJson(req, asyncResp->res, "VLANId", vlanId,
-                                         "VLANEnable", vlanEnable))
-                {
-                    return;
-                }
-                // Need both vlanId and vlanEnable to service this request
-                if (!vlanId)
-                {
-                    messages::propertyMissing(asyncResp->res, "VLANId");
-                }
-                if (!vlanEnable)
-                {
-                    messages::propertyMissing(asyncResp->res, "VLANEnable");
-                }
-                if (static_cast<bool>(vlanId) ^ vlanEnable)
-                {
-                    return;
-                }
-
-                auto callback =
-                    [asyncResp](const boost::system::error_code ec) {
-                        if (ec)
-                        {
-                            // TODO(ed) make more consistent error messages
-                            // based on phosphor-network responses
-                            messages::internalError(asyncResp->res);
-                            return;
-                        }
-                        messages::created(asyncResp->res);
-                    };
-                crow::connections::systemBus->async_method_call(
-                    std::move(callback), "xyz.openbmc_project.Network",
-                    "/xyz/openbmc_project/network",
-                    "xyz.openbmc_project.Network.VLAN.Create", "VLAN",
-                    rootInterfaceName, vlanId);
             });
 }
 
