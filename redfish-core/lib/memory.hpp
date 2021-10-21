@@ -15,8 +15,6 @@
 */
 #pragma once
 
-#include "health.hpp"
-
 #include <app.hpp>
 #include <boost/container/flat_map.hpp>
 #include <boost/format.hpp>
@@ -460,10 +458,6 @@ inline void getDimmDataByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
                                  const std::string& service,
                                  const std::string& objPath)
 {
-    auto health = std::make_shared<HealthPopulate>(aResp);
-    health->selfPath = objPath;
-    health->populate();
-
     BMCWEB_LOG_DEBUG << "Get available system components.";
     crow::connections::systemBus->async_method_call(
         [dimmId, aResp{std::move(aResp)}](const boost::system::error_code ec,
@@ -505,6 +499,18 @@ inline void getDimmDataByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
                         continue;
                     }
                     aResp->res.jsonValue["DataWidthBits"] = *value;
+                }
+                else if (property.first == "Functional")
+                {
+                    const bool* value = std::get_if<bool>(&property.second);
+                    if (value == nullptr)
+                    {
+                        continue;
+                    }
+                    if (*value == false)
+                    {
+                        aResp->res.jsonValue["Status"]["Health"] = "Critical";
+                    }
                 }
                 else if (property.first == "PartNumber")
                 {
