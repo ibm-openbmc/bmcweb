@@ -14,6 +14,7 @@
 #include <kvm_websocket.hpp>
 #include <login_routes.hpp>
 #include <obmc_console.hpp>
+#include <obmc_hypervisor.hpp>
 #include <openbmc_dbus_rest.hpp>
 
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
@@ -94,13 +95,20 @@ int main(int /*argc*/, char** /*argv*/)
 #endif
 
 #ifdef BMCWEB_ENABLE_DBUS_REST
-    crow::dbus_monitor::requestRoutes(app);
     crow::image_upload::requestRoutes(app);
     crow::openbmc_mapper::requestRoutes(app);
 #endif
 
+#ifdef BMCWEB_ENABLE_EVENT_SUBSCRIPTION_WEBSOCKET
+    crow::dbus_monitor::requestRoutes(app);
+#endif
+
 #ifdef BMCWEB_ENABLE_HOST_SERIAL_WEBSOCKET
     crow::obmc_console::requestRoutes(app);
+#endif
+
+#ifdef BMCWEB_ENABLE_HYPERVISOR_SERIAL_WEBSOCKET
+    crow::obmc_hypervisor::requestRoutes(app);
 #endif
 
 #ifdef BMCWEB_ENABLE_VM_WEBSOCKET

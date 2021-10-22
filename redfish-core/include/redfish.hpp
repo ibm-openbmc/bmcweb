@@ -115,6 +115,7 @@ class RedfishService
 
         requestRoutesSystemLogServiceCollection(app);
         requestRoutesEventLogService(app);
+        requestRoutesPostCodesEntryAdditionalData(app);
 
         requestRoutesPostCodesLogService(app);
         requestRoutesPostCodesClear(app);
@@ -179,10 +180,15 @@ class RedfishService
 #endif // BMCWEB_ENABLE_VM_NBDPROXY
 
 #ifdef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
+        requestRoutesCELogService(app);
         requestRoutesDBusLogServiceActionsClear(app);
+        requestRoutesDBusCELogServiceActionsClear(app);
         requestRoutesDBusEventLogEntryCollection(app);
+        requestRoutesDBusCELogEntryCollection(app);
         requestRoutesDBusEventLogEntry(app);
+        requestRoutesDBusCELogEntry(app);
         requestRoutesDBusEventLogEntryDownload(app);
+        requestRoutesDBusCELogEntryDownload(app);
 #endif
 
         requestRoutesMessageRegistryFileCollection(app);
@@ -224,6 +230,10 @@ class RedfishService
         requestRoutesMetricReportDefinition(app);
         requestRoutesMetricReportCollection(app);
         requestRoutesMetricReport(app);
+
+#ifdef BMCWEB_ENABLE_HW_ISOLATION
+        requestRoutesSystemHardwareIsolationLogService(app);
+#endif
     }
 };
 

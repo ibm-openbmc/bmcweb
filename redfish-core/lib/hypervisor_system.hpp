@@ -739,9 +739,10 @@ inline void requestRoutesHypervisorSystems(App& app)
                 });
         });
 
+    // Restrict the hypervisor ethernet interface PATCH to ConfigureManager
     BMCWEB_ROUTE(app,
                  "/redfish/v1/Systems/hypervisor/EthernetInterfaces/<str>/")
-        .privileges(redfish::privileges::patchEthernetInterface)
+        .privileges({{"ConfigureManager"}})
         .methods(
             boost::beast::http::verb::
                 patch)([](const crow::Request& req,

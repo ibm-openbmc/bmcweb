@@ -42,7 +42,6 @@ enum class ConnState
     initialized,
     resolveInProgress,
     resolveFailed,
-    resolved,
     connectInProgress,
     connectFailed,
     handshakeInProgress,
@@ -74,8 +73,9 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
     std::optional<
         boost::beast::http::response_parser<boost::beast::http::string_body>>
         parser;
+    std::vector<std::pair<std::string, std::string>> headers;
     boost::circular_buffer_space_optimized<std::string> requestDataQueue{};
-    std::vector<boost::asio::ip::tcp::endpoint> endPoints;
+
     ConnState state;
     std::string subId;
     std::string host;
@@ -105,15 +105,13 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                     return;
                 }
                 BMCWEB_LOG_DEBUG << "Resolved";
-                self->endPoints.assign(endpointList.begin(),
-                                       endpointList.end());
-                self->state = ConnState::resolved;
-                self->handleConnState();
+                self->doConnect(endpointList);
             };
         resolver.asyncResolve(host, port, std::move(respHandler));
     }
 
-    void doConnect()
+    void doConnect(
+        const std::vector<boost::asio::ip::tcp::endpoint>& endpointList)
     {
         state = ConnState::connectInProgress;
         sslConn.emplace(conn, ctx);
@@ -142,7 +140,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
             }
         };
         conn.expires_after(std::chrono::seconds(30));
-        conn.async_connect(endPoints, std::move(respHandler));
+        conn.async_connect(endpointList, std::move(respHandler));
     }
 
     void performHandshake()
@@ -225,26 +223,26 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
             boost::ignore_unused(bytesTransferred);
 
             // Check if the response and header are received
-            if (self->parser->is_done() && self->parser->is_header_done())
-            {
-                unsigned int respCode = self->parser->get().result_int();
-                BMCWEB_LOG_DEBUG << "recvMessage() Header Response Code: "
-                                 << respCode;
-                if (respCode != 200)
-                {
-                    // The listener failed to receive the Sent-Event
-                    BMCWEB_LOG_ERROR << "recvMessage() Listener Failed to "
-                                        "receive Sent-Event";
-                    self->state = ConnState::recvFailed;
-                    self->handleConnState();
-                    return;
-                }
-            }
-            else
+            if (!self->parser->is_done())
             {
                 // The parser failed to receive the response
                 BMCWEB_LOG_ERROR
                     << "recvMessage() parser failed to receive response";
+                self->state = ConnState::recvFailed;
+                self->handleConnState();
+                return;
+            }
+
+            unsigned int respCode = self->parser->get().result_int();
+            BMCWEB_LOG_DEBUG << "recvMessage() Header Response Code: "
+                             << respCode;
+
+            // 2XX response is considered to be successful
+            if ((respCode < 200) || (respCode >= 300))
+            {
+                // The listener failed to receive the Sent-Event
+                BMCWEB_LOG_ERROR << "recvMessage() Listener Failed to "
+                                    "receive Sent-Event";
                 self->state = ConnState::recvFailed;
                 self->handleConnState();
                 return;
@@ -396,7 +394,13 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
         timer.expires_after(std::chrono::seconds(retryIntervalSecs));
         timer.async_wait(
             [self = shared_from_this()](const boost::system::error_code ec) {
-                if (ec)
+                if (ec == boost::asio::error::operation_aborted)
+                {
+                    BMCWEB_LOG_DEBUG
+                        << "async_wait failed since the operation is aborted"
+                        << ec.message();
+                }
+                else if (ec)
                 {
                     BMCWEB_LOG_ERROR << "async_wait failed: " << ec.message();
                     // Ignore the error and continue the retry loop to attempt
@@ -433,11 +437,6 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                     return;
                 }
                 doResolve();
-                break;
-            }
-            case ConnState::resolved:
-            {
-                doConnect();
                 break;
             }
             case ConnState::suspended:
@@ -512,19 +511,24 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
         {
             return;
         }
-        requestDataQueue.push_back(data);
-        handleConnState();
+
+        if (requestDataQueue.size() <= maxRequestQueueSize)
+        {
+            requestDataQueue.push_back(data);
+            handleConnState();
+        }
+        else
+        {
+            BMCWEB_LOG_ERROR << "Request queue is full. So ignoring data.";
+        }
+
         return;
     }
 
-    void addHeaders(
+    void setHeaders(
         const std::vector<std::pair<std::string, std::string>>& httpHeaders)
     {
-        // Set custom headers
-        for (const auto& [key, value] : httpHeaders)
-        {
-            req.set(key, value);
-        }
+        headers = httpHeaders;
     }
 
     void setRetryConfig(const uint32_t retryAttempts,

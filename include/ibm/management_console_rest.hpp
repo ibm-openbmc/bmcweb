@@ -41,7 +41,7 @@ constexpr size_t maxSaveareaDirSize =
 constexpr size_t minSaveareaFileSize =
     100; // Allow save area file size of minimum 100B
 constexpr size_t maxSaveareaFileSize =
-    500000; // Allow save area file size upto 500KB
+    10000000; // Allow save area file size upto 10MB
 constexpr size_t maxBroadcastMsgSize =
     1000; // Allow Broadcast message size upto 1KB
 
@@ -138,7 +138,7 @@ inline void handleFilePut(const crow::Request& req,
     {
         asyncResp->res.result(boost::beast::http::status::bad_request);
         asyncResp->res.jsonValue["Description"] =
-            "File size exceeds maximum allowed size[500KB]";
+            "File size exceeds maximum allowed size[10MB]";
         return;
     }
 
@@ -759,6 +759,8 @@ inline void
                     "Empty Client Certificate";
                 return;
             }
+
+            BMCWEB_LOG_INFO << "Successfully got VMI client certificate";
             asyncResp->res.jsonValue["Certificate"] = *cert;
         },
         "xyz.openbmc_project.Certs.ca.authority.Manager",
@@ -833,7 +835,7 @@ void handleCsrRequest(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         std::make_shared<boost::asio::steady_timer>(
             crow::connections::systemBus->get_io_context());
 
-    timeout->expires_after(std::chrono::seconds(5));
+    timeout->expires_after(std::chrono::seconds(60));
     crow::connections::systemBus->async_method_call(
         [asyncResp, timeout](const boost::system::error_code ec,
                              sdbusplus::message::message& m) {
@@ -849,6 +851,7 @@ void handleCsrRequest(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 return;
             }
 
+            BMCWEB_LOG_INFO << "Created CSR Entry object";
             std::string entryId = objPath.filename();
             if (entryId.empty())
             {
@@ -879,10 +882,11 @@ void handleCsrRequest(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 }
 
                 timeout->cancel();
+                asyncResp->res.addHeader("Retry-After", "60");
                 asyncResp->res.result(
-                    boost::beast::http::status::internal_server_error);
-                asyncResp->res.jsonValue["Description"] =
-                    "Timed out waiting for HostInterface to serve request";
+                    boost::beast::http::status::service_unavailable);
+                BMCWEB_LOG_INFO
+                    << "Timed out waiting for HostInterface to serve request";
             };
 
             timeout->async_wait(timeoutHandler);
@@ -900,7 +904,8 @@ void handleCsrRequest(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                     auto findStatus = values.find("Status");
                     if (findStatus != values.end())
                     {
-                        BMCWEB_LOG_DEBUG << "found Status prop change";
+                        BMCWEB_LOG_INFO
+                            << "Found status prop change of VMI cert object";
                         getCSREntryAck(asyncResp, entryId);
                         timeout->cancel();
                     }
