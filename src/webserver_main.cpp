@@ -15,6 +15,7 @@
 #include <login_routes.hpp>
 #include <obmc_console.hpp>
 #include <obmc_hypervisor.hpp>
+#include <obmc_shell.hpp>
 #include <openbmc_dbus_rest.hpp>
 
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
@@ -109,6 +110,10 @@ int main(int /*argc*/, char** /*argv*/)
 
 #ifdef BMCWEB_ENABLE_HYPERVISOR_SERIAL_WEBSOCKET
     crow::obmc_hypervisor::requestRoutes(app);
+#endif
+
+#ifdef BMCWEB_ENABLE_BMC_SHELL_WEBSOCKET
+    crow::obmc_shell::requestRoutes(app);
 #endif
 
 #ifdef BMCWEB_ENABLE_VM_WEBSOCKET
