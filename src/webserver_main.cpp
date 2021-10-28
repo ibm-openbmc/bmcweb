@@ -15,6 +15,7 @@
 #include <login_routes.hpp>
 #include <nbd_proxy.hpp>
 #include <obmc_console.hpp>
+#include <obmc_shell.hpp>
 #include <openbmc_dbus_rest.hpp>
 #include <redfish.hpp>
 #include <redfish_aggregator.hpp>
@@ -107,6 +108,10 @@ static int run()
 
 #ifdef BMCWEB_ENABLE_HOST_SERIAL_WEBSOCKET
     crow::obmc_console::requestRoutes(app);
+#endif
+
+#ifdef BMCWEB_ENABLE_BMC_SHELL_WEBSOCKET
+    crow::obmc_shell::requestRoutes(app);
 #endif
 
 #ifdef BMCWEB_ENABLE_VM_WEBSOCKET

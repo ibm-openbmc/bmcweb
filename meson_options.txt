@@ -316,3 +316,12 @@ option(
                     enable on production systems at this time.  Other query
                     parameters such as only are not controlled by this option.'''
 )
+
+option(
+      'bmc-shell-socket',
+      type : 'feature',
+      value : 'disabled',
+      description : '''Enable BMC command shell WebSocket, which makes it
+                       possible to access secure shell. Path is
+                       \'/bmc-console\'.'''
+)
