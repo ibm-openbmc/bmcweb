@@ -3164,12 +3164,6 @@ inline void requestRoutesSystemActionsReset(App& app)
                 command = "xyz.openbmc_project.State.Chassis.Transition.Off";
                 hostCommand = false;
             }
-            else if (resetType == "ForceRestart")
-            {
-                command =
-                    "xyz.openbmc_project.State.Host.Transition.ForceWarmReboot";
-                hostCommand = true;
-            }
             else if (resetType == "GracefulShutdown")
             {
                 command = "xyz.openbmc_project.State.Host.Transition.Off";
