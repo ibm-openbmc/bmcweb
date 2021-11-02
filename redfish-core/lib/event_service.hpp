@@ -17,6 +17,7 @@
 #include "event_service_manager.hpp"
 
 #include <app.hpp>
+#include <boost/beast/http/fields.hpp>
 #include <registries/privilege_registry.hpp>
 
 #include <charconv>
@@ -57,7 +58,17 @@ inline void
 
     asyncResp->res.jsonValue["SubscriptionType"] = "SNMPTrap";
     asyncResp->res.jsonValue["EventFormatType"] = "Event";
-    asyncResp->res.jsonValue["Context"] = "";
+
+    std::shared_ptr<Subscription> subValue =
+        EventServiceManager::getInstance().getSubscription(id);
+    if (subValue != nullptr)
+    {
+        asyncResp->res.jsonValue["Context"] = subValue->customText;
+    }
+    else
+    {
+        asyncResp->res.jsonValue["Context"] = "";
+    }
 
     crow::connections::systemBus->async_method_call(
         [asyncResp](
@@ -162,6 +173,9 @@ inline void
             if (foundSnmpClient == false)
             {
                 messages::resourceNotFound(asyncResp->res, "Subscriptions", id);
+
+                EventServiceManager::getInstance().deleteSubscription(id);
+
                 return;
             }
         },
@@ -173,7 +187,8 @@ inline void
 inline void
     createSnmpTrapClient(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                          const std::string& host, const std::string& port,
-                         const std::string& destUrl)
+                         const std::string& destUrl,
+                         const std::shared_ptr<Subscription>& subValue)
 {
     uint16_t snmpTrapPort = 0;
     // Check the port
@@ -187,8 +202,8 @@ inline void
     }
 
     crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec,
-                    const std::string& dbusSNMPid) {
+        [asyncResp, subValue](const boost::system::error_code ec,
+                              const std::string& dbusSNMPid) {
             if (ec)
             {
                 messages::internalError(asyncResp->res);
@@ -206,10 +221,22 @@ inline void
             const std::string subscriptionId =
                 "snmp" + http_helpers::urlEncode(snmpId);
 
-            messages::created(asyncResp->res);
+            EventServiceManager::getInstance().setSnmpDbusId(subscriptionId);
+            std::string id =
+                EventServiceManager::getInstance().addSubscription(subValue);
+
+            EventServiceManager::getInstance().setSnmpDbusId("");
+
+            if (id.empty())
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
             asyncResp->res.addHeader("Location",
                                      "/redfish/v1/EventService/Subscriptions/" +
                                          subscriptionId);
+            messages::created(asyncResp->res);
         },
         "xyz.openbmc_project.Network.SNMP",
         "/xyz/openbmc_project/network/snmp/manager",
@@ -364,9 +391,12 @@ inline void requestRoutesEventDestinationCollection(App& app)
 
                 for (const std::string& id : subscripIds)
                 {
-                    memberArray.push_back(
-                        {{"@odata.id",
-                          "/redfish/v1/EventService/Subscriptions/" + id}});
+                    if (!boost::starts_with(id, "snmp"))
+                    {
+                        memberArray.push_back(
+                            {{"@odata.id",
+                              "/redfish/v1/EventService/Subscriptions/" + id}});
+                    }
                 }
 
                 crow::connections::systemBus->async_method_call(
@@ -433,6 +463,7 @@ inline void requestRoutesEventDestinationCollection(App& app)
                 std::optional<std::vector<std::string>> resTypes;
                 std::optional<std::vector<nlohmann::json>> headers;
                 std::optional<std::vector<nlohmann::json>> mrdJsonArray;
+                boost::beast::http::fields httpHeaders;
 
                 if (!json_util::readJson(
                         req, asyncResp->res, "Destination", destUrl, "Context",
@@ -456,21 +487,21 @@ inline void requestRoutesEventDestinationCollection(App& app)
                     }
                 }
 
-                try
+                boost::urls::error_code ec;
+                boost::urls::url_view urlview = boost::urls::parse_uri(
+                    boost::string_view(destUrl.c_str()), ec);
+                if (ec)
                 {
-                    auto urlview = boost::urls::url_view(destUrl.c_str());
-                    uriProto = urlview.scheme();
-                    host = urlview.host();
-                    port = urlview.port();
-                    path = urlview.encoded_path();
-                }
-                catch (std::exception& p)
-                {
-                    std::cerr << "Wrong url! Error:" << p.what() << "\n";
+                    std::cerr << "Wrong url! Error:" << ec << "\n";
                     messages::propertyValueFormatError(asyncResp->res, destUrl,
                                                        "Destination");
                     return;
                 }
+
+                uriProto = std::string(urlview.scheme());
+                host = std::string(urlview.host());
+                port = std::string(urlview.port());
+                path = std::string(urlview.encoded_path());
 
                 if (uriProto == "http")
                 {
@@ -501,8 +532,29 @@ inline void requestRoutesEventDestinationCollection(App& app)
                     path = "/";
                 }
 
+                if (headers)
+                {
+                    for (const nlohmann::json& headerChunk : *headers)
+                    {
+                        for (const auto& item : headerChunk.items())
+                        {
+                            const std::string* value =
+                                item.value().get_ptr<const std::string*>();
+                            if (value == nullptr)
+                            {
+                                messages::propertyValueFormatError(
+                                    asyncResp->res, item.value().dump(2, true),
+                                    "HttpHeaders/" + item.key());
+                                return;
+                            }
+                            httpHeaders.set(item.key(), *value);
+                        }
+                    }
+                }
+
                 std::shared_ptr<Subscription> subValue =
-                    std::make_shared<Subscription>(host, port, path, uriProto);
+                    std::make_shared<Subscription>(host, port, path, uriProto,
+                                                   httpHeaders);
 
                 subValue->destinationUrl = destUrl;
 
@@ -565,7 +617,7 @@ inline void requestRoutesEventDestinationCollection(App& app)
 
                 if (headers)
                 {
-                    subValue->httpHeaders = *headers;
+                    subValue->httpHeaders = httpHeaders;
                 }
 
                 if (regPrefixes)
@@ -697,7 +749,8 @@ inline void requestRoutesEventDestinationCollection(App& app)
                 if (protocol == "SNMPv2c")
                 {
                     // Create the snmp client
-                    createSnmpTrapClient(asyncResp, host, port, destUrl);
+                    createSnmpTrapClient(asyncResp, host, port, destUrl,
+                                         subValue);
                 }
                 else
                 {
@@ -815,7 +868,25 @@ inline void requestRoutesEventDestination(App& app)
 
                 if (headers)
                 {
-                    subValue->httpHeaders = *headers;
+                    boost::beast::http::fields fields;
+                    for (const nlohmann::json& headerChunk : *headers)
+                    {
+                        for (auto& it : headerChunk.items())
+                        {
+                            const std::string* value =
+                                it.value().get_ptr<const std::string*>();
+                            if (value == nullptr)
+                            {
+                                messages::propertyValueFormatError(
+                                    asyncResp->res,
+                                    it.value().dump(2, ' ', true),
+                                    "HttpHeaders/" + it.key());
+                                return;
+                            }
+                            fields.set(it.key(), *value);
+                        }
+                    }
+                    subValue->httpHeaders = fields;
                 }
 
                 if (retryPolicy)
@@ -847,12 +918,12 @@ inline void requestRoutesEventDestination(App& app)
                const std::string& param) {
                 if (boost::starts_with(param, "snmp"))
                 {
-                    std::string snmpId = param;
+                    std::string_view snmpTrapId = param;
 
                     // Erase "snmp" in the request to find the corresponding
                     // dbus snmp client id. For example, the snmpid in the
                     // request is "snmp1", which will be "1" after being erased.
-                    const std::string_view snmpTrapId = snmpId.erase(0, 4);
+                    snmpTrapId = snmpTrapId.substr(4, snmpTrapId.length() - 4);
 
                     const std::string snmpPath =
                         "/xyz/openbmc_project/network/snmp/manager/" +
@@ -876,6 +947,10 @@ inline void requestRoutesEventDestination(App& app)
                         },
                         "xyz.openbmc_project.Network.SNMP", snmpPath,
                         "xyz.openbmc_project.Object.Delete", "Delete");
+
+                    EventServiceManager::getInstance().deleteSubscription(
+                        param);
+
                     return;
                 }
 

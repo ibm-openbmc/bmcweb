@@ -15,6 +15,7 @@
 */
 #pragma once
 
+#include "http_utility.hpp"
 #include "registries.hpp"
 #include "registries/base_message_registry.hpp"
 #include "registries/openbmc_message_registry.hpp"
@@ -33,6 +34,7 @@
 #include <error_messages.hpp>
 #include <registries/privilege_registry.hpp>
 
+#include <charconv>
 #include <filesystem>
 #include <optional>
 #include <string_view>
@@ -215,8 +217,7 @@ inline static bool getEntryTimestamp(sd_journal* journal,
 static bool getSkipParam(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                          const crow::Request& req, uint64_t& skip)
 {
-    boost::urls::url_view::params_type::iterator it =
-        req.urlParams.find("$skip");
+    boost::urls::query_params_view::iterator it = req.urlParams.find("$skip");
     if (it != req.urlParams.end())
     {
         std::string skipParam = it->value();
@@ -237,8 +238,7 @@ static constexpr const uint64_t maxEntriesPerPage = 1000;
 static bool getTopParam(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                         const crow::Request& req, uint64_t& top)
 {
-    boost::urls::url_view::params_type::iterator it =
-        req.urlParams.find("$top");
+    boost::urls::query_params_view::iterator it = req.urlParams.find("$top");
     if (it != req.urlParams.end())
     {
         std::string topParam = it->value();
@@ -361,44 +361,18 @@ inline static bool
         tsStr.remove_suffix(tsStr.size() - underscorePos);
         std::string_view indexStr(entryID);
         indexStr.remove_prefix(underscorePos + 1);
-        std::size_t pos;
-        try
-        {
-            index = std::stoul(std::string(indexStr), &pos);
-        }
-        catch (std::invalid_argument&)
-        {
-            messages::resourceMissingAtURI(asyncResp->res, entryID);
-            return false;
-        }
-        catch (std::out_of_range&)
-        {
-            messages::resourceMissingAtURI(asyncResp->res, entryID);
-            return false;
-        }
-        if (pos != indexStr.size())
+        auto [ptr, ec] = std::from_chars(
+            indexStr.data(), indexStr.data() + indexStr.size(), index);
+        if (ec != std::errc())
         {
             messages::resourceMissingAtURI(asyncResp->res, entryID);
             return false;
         }
     }
     // Timestamp has no index
-    std::size_t pos;
-    try
-    {
-        timestamp = std::stoull(std::string(tsStr), &pos);
-    }
-    catch (std::invalid_argument&)
-    {
-        messages::resourceMissingAtURI(asyncResp->res, entryID);
-        return false;
-    }
-    catch (std::out_of_range&)
-    {
-        messages::resourceMissingAtURI(asyncResp->res, entryID);
-        return false;
-    }
-    if (pos != tsStr.size())
+    auto [ptr, ec] =
+        std::from_chars(tsStr.data(), tsStr.data() + tsStr.size(), timestamp);
+    if (ec != std::errc())
     {
         messages::resourceMissingAtURI(asyncResp->res, entryID);
         return false;
@@ -441,7 +415,8 @@ inline void
         dumpPath = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
     }
     else if (dumpType == "System" || dumpType == "Resource" ||
-             dumpType == "Hostboot" || dumpType == "Hardware")
+             dumpType == "Hostboot" || dumpType == "Hardware" ||
+             dumpType == "SBE")
     {
         dumpPath = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
     }
@@ -482,8 +457,7 @@ inline void
                 uint64_t size = 0;
                 std::string dumpStatus;
                 std::string clientId;
-                entriesArray.push_back({});
-                nlohmann::json& thisEntry = entriesArray.back();
+                nlohmann::json thisEntry;
 
                 std::string entryID = object.first.filename();
                 if (entryID.empty())
@@ -575,18 +549,16 @@ inline void
                 }
 
                 if (dumpStatus != "xyz.openbmc_project.Common.Progress."
-                                  "OperationStatus.Completed")
+                                  "OperationStatus.Completed" &&
+                    !dumpStatus.empty())
                 {
-                    // Dump status is not Complete
-                    // A new entry {} would be added to the json array
-                    // with no data in it (in this case) resulting in
-                    // validator failure. Hence, erasing that entry in
-                    // the json array
-                    entriesArray.erase(entriesArray.end());
+                    // Dump status is not Complete, no need to enumerate
                     continue;
                 }
 
-                thisEntry["@odata.type"] = "#LogEntry.v1_7_0.LogEntry";
+                thisEntry["@odata.type"] = "#LogEntry.v1_8_0.LogEntry";
+                thisEntry["@odata.id"] = dumpPath + entryID;
+                thisEntry["Id"] = entryID;
                 thisEntry["EntryType"] = "Event";
                 thisEntry["Created"] = crow::utility::getDateTime(timestamp);
 
@@ -610,7 +582,8 @@ inline void
                         entryID + "/attachment";
                 }
                 else if (dumpType == "System" || dumpType == "Resource" ||
-                         dumpType == "Hostboot" || dumpType == "Hardware")
+                         dumpType == "Hostboot" || dumpType == "Hardware" ||
+                         dumpType == "SBE")
                 {
                     std::string dumpEntryId(dumpType + "_");
                     dumpEntryId.append(entryID);
@@ -623,6 +596,7 @@ inline void
                     thisEntry["Name"] = "System Dump Entry";
                     thisEntry["OEMDiagnosticDataType"] = dumpType;
                 }
+                entriesArray.push_back(std::move(thisEntry));
             }
             asyncResp->res.jsonValue["Members@odata.count"] =
                 entriesArray.size();
@@ -643,7 +617,8 @@ inline void
         dumpId = entryID;
     }
     else if (dumpType == "System" || dumpType == "Resource" ||
-             dumpType == "Hostboot" || dumpType == "Hardware")
+             dumpType == "Hostboot" || dumpType == "Hardware" ||
+             dumpType == "SBE")
     {
         dumpPath = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
         std::size_t pos = entryID.find_first_of('_');
@@ -773,7 +748,8 @@ inline void
                 }
 
                 if (dumpStatus != "xyz.openbmc_project.Common.Progress."
-                                  "OperationStatus.Completed")
+                                  "OperationStatus.Completed" &&
+                    !dumpStatus.empty())
                 {
                     // Dump status is not Complete
                     // return not found until status is changed to Completed
@@ -783,7 +759,7 @@ inline void
                 }
 
                 asyncResp->res.jsonValue["@odata.type"] =
-                    "#LogEntry.v1_7_0.LogEntry";
+                    "#LogEntry.v1_8_0.LogEntry";
                 asyncResp->res.jsonValue["@odata.id"] = dumpPath + entryID;
                 asyncResp->res.jsonValue["Id"] = entryID;
                 asyncResp->res.jsonValue["EntryType"] = "Event";
@@ -808,7 +784,8 @@ inline void
                         entryID + "/attachment";
                 }
                 else if (dumpType == "System" || dumpType == "Resource" ||
-                         dumpType == "Hostboot" || dumpType == "Hardware")
+                         dumpType == "Hostboot" || dumpType == "Hardware" ||
+                         dumpType == "SBE")
                 {
                     std::string dumpAttachment(
                         "/redfish/v1/Systems/system/LogServices/Dump/Entries/");
@@ -1089,7 +1066,7 @@ inline void clearDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 {
     std::string dumpInterface;
     if (dumpType == "Resource" || dumpType == "Hostboot" ||
-        dumpType == "Hardware")
+        dumpType == "Hardware" || dumpType == "SBE")
     {
         dumpInterface = "com.ibm.Dump.Entry." + dumpType;
     }
@@ -1454,7 +1431,7 @@ static int fillEventLogEntryJson(const std::string& logEntryID,
 
     // Fill in the log entry with the gathered data
     logEntryJson = {
-        {"@odata.type", "#LogEntry.v1_4_0.LogEntry"},
+        {"@odata.type", "#LogEntry.v1_8_0.LogEntry"},
         {"@odata.id",
          "/redfish/v1/Systems/system/LogServices/EventLog/Entries/" +
              logEntryID},
@@ -1667,8 +1644,10 @@ inline void getDBusLogEntryCollection(
         std::time_t timestamp{};
         std::time_t updateTimestamp{};
         std::string* severity = nullptr;
-        std::string* message = nullptr;
+        std::string* subsystem = nullptr;
         std::string* filePath = nullptr;
+        std::string* eventId = nullptr;
+        std::string* resolution = nullptr;
         bool resolved = false;
         bool* hiddenProp = nullptr;
         bool serviceProviderNotified = false;
@@ -1725,10 +1704,20 @@ inline void getDBusLogEntryCollection(
                             return;
                         }
                     }
-                    else if (propertyMap.first == "Message")
+                    else if (propertyMap.first == "Resolution")
                     {
-                        message = std::get_if<std::string>(&propertyMap.second);
-                        if (message == nullptr)
+                        resolution =
+                            std::get_if<std::string>(&propertyMap.second);
+                        if (resolution == nullptr)
+                        {
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+                    }
+                    else if (propertyMap.first == "EventId")
+                    {
+                        eventId = std::get_if<std::string>(&propertyMap.second);
+                        if (eventId == nullptr)
                         {
                             messages::internalError(asyncResp->res);
                             return;
@@ -1757,7 +1746,7 @@ inline void getDBusLogEntryCollection(
                         serviceProviderNotified = *serviceProviderNotifiedptr;
                     }
                 }
-                if ((id == nullptr) || (message == nullptr) ||
+                if ((id == nullptr) || (resolution == nullptr) ||
                     (severity == nullptr))
                 {
                     messages::internalError(asyncResp->res);
@@ -1789,6 +1778,16 @@ inline void getDBusLogEntryCollection(
                             return;
                         }
                     }
+                    else if (propertyMap.first == "Subsystem")
+                    {
+                        subsystem =
+                            std::get_if<std::string>(&propertyMap.second);
+                        if (subsystem == nullptr)
+                        {
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+                    }
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
                     else if (propertyMap.first == "ManagementSystemAck")
                     {
@@ -1808,8 +1807,9 @@ inline void getDBusLogEntryCollection(
         // Object path without the
         // xyz.openbmc_project.Logging.Entry interface and/or
         // org.open_power.Logging.PEL.Entry ignore and continue.
-        if ((id == nullptr) || (message == nullptr) || (severity == nullptr) ||
-            (hiddenProp == nullptr))
+        if ((id == nullptr) || (severity == nullptr) ||
+            (hiddenProp == nullptr) || (eventId == nullptr) ||
+            (subsystem == nullptr))
         {
             continue;
         }
@@ -1829,8 +1829,14 @@ inline void getDBusLogEntryCollection(
         thisEntry["@odata.type"] = "#LogEntry.v1_9_0.LogEntry";
         thisEntry["EntryType"] = "Event";
         thisEntry["Id"] = entryID;
-        thisEntry["Message"] = *message;
+        thisEntry["EventId"] = *eventId;
+        thisEntry["Message"] =
+            (*eventId).substr(0, 8) + " event in subsystem: " + *subsystem;
         thisEntry["Resolved"] = resolved;
+        if (!(*resolution).empty())
+        {
+            thisEntry["Resolution"] = *resolution;
+        }
         thisEntry["ServiceProviderNotified"] = serviceProviderNotified;
         thisEntry["Severity"] = translateSeverityDbusToRedfish(*severity);
         thisEntry["Created"] = crow::utility::getDateTime(timestamp);
@@ -2071,8 +2077,10 @@ inline void getDBusLogEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     std::time_t timestamp{};
     std::time_t updateTimestamp{};
     std::string* severity = nullptr;
-    std::string* message = nullptr;
     std::string* filePath = nullptr;
+    std::string* eventId = nullptr;
+    std::string* subsystem = nullptr;
+    std::string* resolution = nullptr;
     bool resolved = false;
     bool* hiddenProp = nullptr;
     bool serviceProviderNotified = false;
@@ -2122,10 +2130,28 @@ inline void getDBusLogEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 return;
             }
         }
-        else if (propertyMap.first == "Message")
+        else if (propertyMap.first == "EventId")
         {
-            message = std::get_if<std::string>(&propertyMap.second);
-            if (message == nullptr)
+            eventId = std::get_if<std::string>(&propertyMap.second);
+            if (eventId == nullptr)
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+        }
+        else if (propertyMap.first == "Resolution")
+        {
+            resolution = std::get_if<std::string>(&propertyMap.second);
+            if (resolution == nullptr)
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+        }
+        else if (propertyMap.first == "Subsystem")
+        {
+            subsystem = std::get_if<std::string>(&propertyMap.second);
+            if (subsystem == nullptr)
             {
                 messages::internalError(asyncResp->res);
                 return;
@@ -2180,8 +2206,9 @@ inline void getDBusLogEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 #endif
     }
 
-    if ((id == nullptr) || (message == nullptr) || (severity == nullptr) ||
-        (hiddenProp == nullptr))
+    if ((id == nullptr) || (severity == nullptr) || (hiddenProp == nullptr) ||
+        (resolution == nullptr) || (eventId == nullptr) ||
+        (subsystem == nullptr))
     {
         messages::internalError(asyncResp->res);
         return;
@@ -2202,8 +2229,14 @@ inline void getDBusLogEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     asyncResp->res.jsonValue["@odata.type"] = "#LogEntry.v1_9_0.LogEntry";
     asyncResp->res.jsonValue["EntryType"] = "Event";
     asyncResp->res.jsonValue["Id"] = entryID;
-    asyncResp->res.jsonValue["Message"] = *message;
+    asyncResp->res.jsonValue["Message"] =
+        (*eventId).substr(0, 8) + " event in subsystem: " + *subsystem;
     asyncResp->res.jsonValue["Resolved"] = resolved;
+    asyncResp->res.jsonValue["EventId"] = *eventId;
+    if (!(*resolution).empty())
+    {
+        asyncResp->res.jsonValue["Resolution"] = *resolution;
+    }
     asyncResp->res.jsonValue["ServiceProviderNotified"] =
         serviceProviderNotified;
     asyncResp->res.jsonValue["Severity"] =
@@ -2512,24 +2545,8 @@ inline void requestRoutesDBusEventLogEntryDownload(App& app)
                const std::string& param)
 
             {
-                std::string_view acceptHeader = req.getHeaderValue("Accept");
-                // The iterators in boost/http/rfc7230.hpp end the string if '/'
-                // is found, so replace it with arbitrary character '|' which is
-                // not part of the Accept header syntax.
-                std::string acceptStr = boost::replace_all_copy(
-                    std::string(acceptHeader), "/", "|");
-                boost::beast::http::ext_list acceptTypes{acceptStr};
-                bool supported = false;
-                for (const auto& type : acceptTypes)
-                {
-                    if ((type.first == "*|*") ||
-                        (type.first == "application|octet-stream"))
-                    {
-                        supported = true;
-                        break;
-                    }
-                }
-                if (!supported)
+                if (!http_helpers::isOctetAccepted(
+                        req.getHeaderValue("Accept")))
                 {
                     asyncResp->res.result(
                         boost::beast::http::status::bad_request);
@@ -2723,7 +2740,7 @@ static int fillBMCJournalLogEntryJson(const std::string& bmcJournalLogEntryID,
 
     // Fill in the log entry with the gathered data
     bmcJournalLogEntryJson = {
-        {"@odata.type", "#LogEntry.v1_4_0.LogEntry"},
+        {"@odata.type", "#LogEntry.v1_8_0.LogEntry"},
         {"@odata.id", "/redfish/v1/Managers/bmc/LogServices/Journal/Entries/" +
                           bmcJournalLogEntryID},
         {"Name", "BMC Journal Entry"},
@@ -3054,23 +3071,25 @@ inline void requestRoutesSystemDumpEntryCollection(App& app)
      */
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/Dump/Entries/")
         .privileges(redfish::privileges::getLogEntryCollection)
-        .methods(boost::beast::http::verb::get)(
-            [](const crow::Request&,
-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
-                asyncResp->res.jsonValue["@odata.type"] =
-                    "#LogEntryCollection.LogEntryCollection";
-                asyncResp->res.jsonValue["@odata.id"] =
-                    "/redfish/v1/Systems/system/LogServices/Dump/Entries";
-                asyncResp->res.jsonValue["Name"] = "System Dump Entries";
-                asyncResp->res.jsonValue["Description"] =
-                    "Collection of System, Resource, Hostboot & Hardware Dump "
-                    "Entries";
+        .methods(
+            boost::beast::http::verb::
+                get)([](const crow::Request&,
+                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+            asyncResp->res.jsonValue["@odata.type"] =
+                "#LogEntryCollection.LogEntryCollection";
+            asyncResp->res.jsonValue["@odata.id"] =
+                "/redfish/v1/Systems/system/LogServices/Dump/Entries";
+            asyncResp->res.jsonValue["Name"] = "System Dump Entries";
+            asyncResp->res.jsonValue["Description"] =
+                "Collection of System, Resource, Hostboot, Hardware & SBE Dump "
+                "Entries";
 
-                getDumpEntryCollection(asyncResp, "System");
-                getDumpEntryCollection(asyncResp, "Resource");
-                getDumpEntryCollection(asyncResp, "Hostboot");
-                getDumpEntryCollection(asyncResp, "Hardware");
-            });
+            getDumpEntryCollection(asyncResp, "System");
+            getDumpEntryCollection(asyncResp, "Resource");
+            getDumpEntryCollection(asyncResp, "Hostboot");
+            getDumpEntryCollection(asyncResp, "Hardware");
+            getDumpEntryCollection(asyncResp, "SBE");
+        });
 }
 
 inline void requestRoutesSystemDumpEntry(App& app)
@@ -3098,6 +3117,10 @@ inline void requestRoutesSystemDumpEntry(App& app)
                 else if (boost::starts_with(param, "Hardware"))
                 {
                     getDumpEntryById(asyncResp, param, "Hardware");
+                }
+                else if (boost::starts_with(param, "SBE"))
+                {
+                    getDumpEntryById(asyncResp, param, "SBE");
                 }
                 else
                 {
@@ -3138,6 +3161,10 @@ inline void requestRoutesSystemDumpEntry(App& app)
                 {
                     deleteDumpEntry(asyncResp, dumpId, "hardware");
                 }
+                else if (boost::starts_with(param, "SBE"))
+                {
+                    deleteDumpEntry(asyncResp, dumpId, "SBE");
+                }
                 else
                 {
                     messages::invalidObject(asyncResp->res, "Dump Id");
@@ -3174,6 +3201,7 @@ inline void requestRoutesSystemDumpClear(App& app)
                 clearDump(asyncResp, "Resource");
                 clearDump(asyncResp, "Hostboot");
                 clearDump(asyncResp, "Hardware");
+                clearDump(asyncResp, "SBE");
             });
 }
 
@@ -3858,7 +3886,7 @@ static void fillPostCodeEntry(
         // add to AsyncResp
         logEntryArray.push_back({});
         nlohmann::json& bmcLogEntry = logEntryArray.back();
-        bmcLogEntry = {{"@odata.type", "#LogEntry.v1_4_0.LogEntry"},
+        bmcLogEntry = {{"@odata.type", "#LogEntry.v1_8_0.LogEntry"},
                        {"@odata.id", "/redfish/v1/Systems/system/LogServices/"
                                      "PostCodes/Entries/" +
                                          postcodeEntryID},
@@ -3870,6 +3898,12 @@ static void fillPostCodeEntry(
                        {"EntryType", "Event"},
                        {"Severity", std::move(severity)},
                        {"Created", entryTimeStr}};
+        if (!std::get<std::vector<uint8_t>>(code.second).empty())
+        {
+            bmcLogEntry["AdditionalDataURI"] =
+                "/redfish/v1/Systems/system/LogServices/PostCodes/Entries/" +
+                postcodeEntryID + "/attachment";
+        }
     }
 }
 
@@ -4027,6 +4061,127 @@ inline void requestRoutesPostCodesEntryCollection(App& app)
             });
 }
 
+/**
+ * @brief Parse post code ID and get the current value and index value
+ *        eg: postCodeID=B1-2, currentValue=1, index=2
+ *
+ * @param[in]  postCodeID     Post Code ID
+ * @param[out] currentValue   Current value
+ * @param[out] index          Index value
+ *
+ * @return bool true if the parsing is successful, false the parsing fails
+ */
+inline static bool parsePostCode(const std::string& postCodeID,
+                                 uint64_t& currentValue, uint16_t& index)
+{
+    std::vector<std::string> split;
+    boost::algorithm::split(split, postCodeID, boost::is_any_of("-"));
+    if (split.size() != 2 || split[0].length() < 2 || split[0].front() != 'B')
+    {
+        return false;
+    }
+
+    const char* start = split[0].data() + 1;
+    const char* end = split[0].data() + split[0].size();
+    auto [ptrIndex, ecIndex] = std::from_chars(start, end, index);
+
+    if (ptrIndex != end || ecIndex != std::errc())
+    {
+        return false;
+    }
+
+    start = split[1].data();
+    end = split[1].data() + split[1].size();
+    auto [ptrValue, ecValue] = std::from_chars(start, end, currentValue);
+    if (ptrValue != end || ecValue != std::errc())
+    {
+        return false;
+    }
+
+    return true;
+}
+
+inline void requestRoutesPostCodesEntryAdditionalData(App& app)
+{
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/PostCodes/"
+                      "Entries/<str>/attachment/")
+        .privileges(redfish::privileges::getLogEntry)
+        .methods(boost::beast::http::verb::get)(
+            [](const crow::Request& req,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+               const std::string& postCodeID) {
+                if (!http_helpers::isOctetAccepted(
+                        req.getHeaderValue("Accept")))
+                {
+                    asyncResp->res.result(
+                        boost::beast::http::status::bad_request);
+                    return;
+                }
+
+                uint64_t currentValue = 0;
+                uint16_t index = 0;
+                if (!parsePostCode(postCodeID, currentValue, index))
+                {
+                    messages::resourceNotFound(asyncResp->res, "LogEntry",
+                                               postCodeID);
+                    return;
+                }
+
+                crow::connections::systemBus->async_method_call(
+                    [asyncResp, postCodeID, currentValue](
+                        const boost::system::error_code ec,
+                        const std::vector<std::tuple<
+                            uint64_t, std::vector<uint8_t>>>& postcodes) {
+                        if (ec.value() == EBADR)
+                        {
+                            messages::resourceNotFound(asyncResp->res,
+                                                       "LogEntry", postCodeID);
+                            return;
+                        }
+                        if (ec)
+                        {
+                            BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+
+                        size_t value = static_cast<size_t>(currentValue) - 1;
+                        if (value == std::string::npos ||
+                            postcodes.size() < currentValue)
+                        {
+                            BMCWEB_LOG_ERROR << "Wrong currentValue value";
+                            messages::resourceNotFound(asyncResp->res,
+                                                       "LogEntry", postCodeID);
+                            return;
+                        }
+
+                        auto& [tID, code] = postcodes[value];
+                        if (code.empty())
+                        {
+                            BMCWEB_LOG_INFO << "No found post code data";
+                            messages::resourceNotFound(asyncResp->res,
+                                                       "LogEntry", postCodeID);
+                            return;
+                        }
+
+                        std::string_view strData(
+                            reinterpret_cast<const char*>(code.data()),
+                            code.size());
+
+                        asyncResp->res.addHeader("Content-Type",
+                                                 "application/octet-stream");
+                        asyncResp->res.addHeader("Content-Transfer-Encoding",
+                                                 "Base64");
+                        asyncResp->res.body() =
+                            crow::utility::base64encode(strData);
+                    },
+                    "xyz.openbmc_project.State.Boot.PostCode0",
+                    "/xyz/openbmc_project/State/Boot/PostCode0",
+                    "xyz.openbmc_project.State.Boot.PostCode", "GetPostCodes",
+                    index);
+            });
+}
+
 inline void requestRoutesPostCodesEntry(App& app)
 {
     BMCWEB_ROUTE(
@@ -4036,31 +4191,14 @@ inline void requestRoutesPostCodesEntry(App& app)
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                const std::string& targetID) {
-                size_t bootPos = targetID.find('B');
-                if (bootPos == std::string::npos)
+                uint16_t bootIndex = 0;
+                uint64_t codeIndex = 0;
+                if (!parsePostCode(targetID, codeIndex, bootIndex))
                 {
                     // Requested ID was not found
                     messages::resourceMissingAtURI(asyncResp->res, targetID);
                     return;
                 }
-                std::string_view bootIndexStr(targetID);
-                bootIndexStr.remove_prefix(bootPos + 1);
-                uint16_t bootIndex = 0;
-                uint64_t codeIndex = 0;
-                size_t dashPos = bootIndexStr.find('-');
-
-                if (dashPos == std::string::npos)
-                {
-                    return;
-                }
-                std::string_view codeIndexStr(bootIndexStr);
-                bootIndexStr.remove_suffix(dashPos);
-                codeIndexStr.remove_prefix(dashPos + 1);
-
-                bootIndex = static_cast<uint16_t>(
-                    strtoul(std::string(bootIndexStr).c_str(), nullptr, 0));
-                codeIndex =
-                    strtoul(std::string(codeIndexStr).c_str(), nullptr, 0);
                 if (bootIndex == 0 || codeIndex == 0)
                 {
                     BMCWEB_LOG_DEBUG << "Get Post Code invalid entry string "

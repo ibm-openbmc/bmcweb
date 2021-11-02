@@ -16,6 +16,7 @@
 #include <boost/beast/core/flat_static_buffer.hpp>
 #include <boost/beast/ssl/ssl_stream.hpp>
 #include <boost/beast/websocket.hpp>
+#include <boost/url/url_view.hpp>
 #include <json_html_serializer.hpp>
 #include <security_headers.hpp>
 #include <ssl_key_handler.hpp>
@@ -336,15 +337,18 @@ class Connection :
                         << "." << thisReq.version() % 10 << ' '
                         << thisReq.methodString() << " " << thisReq.target()
                         << " " << thisReq.ipAddress;
-        try
+
+        boost::urls::error_code ec;
+        req->urlView = boost::urls::parse_relative_ref(
+            boost::urls::string_view(req->target().data(),
+                                     req->target().size()),
+            ec);
+        if (ec)
         {
-            thisReq.urlView = boost::urls::url_view(thisReq.target());
-            thisReq.url = thisReq.urlView.encoded_path();
+            return;
         }
-        catch (std::exception& p)
-        {
-            BMCWEB_LOG_ERROR << p.what();
-        }
+        req->url = std::string_view(req->urlView.encoded_path().data(),
+                                    req->urlView.encoded_path().size());
 
         res.setCompleteRequestHandler(nullptr);
         res.isAliveHelper = [this]() -> bool { return isAlive(); };
@@ -357,6 +361,18 @@ class Connection :
             completeRequest();
             return;
         }
+
+        if (!crow::authorization::isOnWhitelist(req->url, req->method()) &&
+            thisReq.session == nullptr)
+        {
+            BMCWEB_LOG_WARNING << "[AuthMiddleware] authorization failed";
+            forward_unauthorized::sendUnauthorized(
+                req->url, req->getHeaderValue("User-Agent"),
+                req->getHeaderValue("Accept"), res);
+            completeRequest();
+            return;
+        }
+
         res.setCompleteRequestHandler([self(shared_from_this())] {
             boost::asio::post(self->adaptor.get_executor(),
                               [self] { self->completeRequest(); });
@@ -559,16 +575,21 @@ class Connection :
 
                 boost::beast::http::verb method = parser->get().method();
                 readClientIp();
-                try
+                boost::urls::error_code uriEc;
+                boost::urls::string_view uriStringView(
+                    parser->get().target().data(),
+                    parser->get().target().size());
+                BMCWEB_LOG_DEBUG << "Parsing URI: " << uriStringView;
+                req->urlView =
+                    boost::urls::parse_relative_ref(uriStringView, uriEc);
+                if (uriEc)
                 {
-                    req->urlView =
-                        boost::urls::url_view(parser->get().target());
-                    req->url = req->urlView.encoded_path();
+                    BMCWEB_LOG_ERROR << "Failed to parse URI "
+                                     << uriEc.message();
+                    return;
                 }
-                catch (std::exception& p)
-                {
-                    BMCWEB_LOG_ERROR << p.what();
-                }
+                req->url = std::string_view(req->urlView.encoded_path().data(),
+                                            req->urlView.encoded_path().size());
 
                 boost::asio::ip::address ip;
                 if (getClientIp(ip))
@@ -577,15 +598,14 @@ class Connection :
                 }
                 sessionIsFromTransport = false;
                 userSession = crow::authorization::authenticate(
-                    req->url, ip, res, method, parser->get().base(),
-                    userSession);
+                    ip, res, method, parser->get().base(), userSession);
                 bool loggedIn = userSession != nullptr;
                 if (loggedIn)
                 {
                     startDeadline(loggedInAttempts);
                     BMCWEB_LOG_DEBUG << "Starting slow deadline";
 
-                    req->urlParams = req->urlView.params();
+                    req->urlParams = req->urlView.query_params();
 
 #ifdef BMCWEB_ENABLE_DEBUG
                     std::string paramList = "";
@@ -716,7 +736,8 @@ class Connection :
                     userSession = nullptr;
                 }
 
-                req.emplace(parser->release());
+                // Destroy the Request via the std::optional
+                req.reset();
                 doReadHeaders();
             });
     }

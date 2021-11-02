@@ -41,7 +41,7 @@ constexpr size_t maxSaveareaDirSize =
 constexpr size_t minSaveareaFileSize =
     100; // Allow save area file size of minimum 100B
 constexpr size_t maxSaveareaFileSize =
-    500000; // Allow save area file size upto 500KB
+    10000000; // Allow save area file size upto 10MB
 constexpr size_t maxBroadcastMsgSize =
     1000; // Allow Broadcast message size upto 1KB
 
@@ -138,7 +138,7 @@ inline void handleFilePut(const crow::Request& req,
     {
         asyncResp->res.result(boost::beast::http::status::bad_request);
         asyncResp->res.jsonValue["Description"] =
-            "File size exceeds maximum allowed size[500KB]";
+            "File size exceeds maximum allowed size[10MB]";
         return;
     }
 

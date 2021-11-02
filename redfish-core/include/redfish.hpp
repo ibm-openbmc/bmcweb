@@ -29,6 +29,7 @@
 #include "../lib/managers.hpp"
 #include "../lib/memory.hpp"
 #include "../lib/message_registries.hpp"
+#include "../lib/metric_definition.hpp"
 #include "../lib/metric_report.hpp"
 #include "../lib/metric_report_definition.hpp"
 #include "../lib/network_protocol.hpp"
@@ -115,6 +116,7 @@ class RedfishService
 
         requestRoutesSystemLogServiceCollection(app);
         requestRoutesEventLogService(app);
+        requestRoutesPostCodesEntryAdditionalData(app);
 
         requestRoutesPostCodesLogService(app);
         requestRoutesPostCodesClear(app);
@@ -229,6 +231,8 @@ class RedfishService
         requestRoutesMetricReportDefinition(app);
         requestRoutesMetricReportCollection(app);
         requestRoutesMetricReport(app);
+        requestRoutesMetricDefinitionCollection(app);
+        requestRoutesMetricDefinition(app);
 
 #ifdef BMCWEB_ENABLE_HW_ISOLATION
         requestRoutesSystemHardwareIsolationLogService(app);
