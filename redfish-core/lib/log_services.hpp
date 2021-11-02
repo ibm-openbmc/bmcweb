@@ -877,7 +877,7 @@ inline void createDumpTaskCallback(
             createdObjPath.str +
             "',arg0='xyz.openbmc_project.Common.Progress'");
 
-    task->startTimer(std::chrono::minutes(3));
+    task->startTimer(std::chrono::minutes(6));
     task->populateResp(asyncResp->res);
     task->payload.emplace(req);
 }
