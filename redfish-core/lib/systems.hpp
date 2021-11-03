@@ -2190,12 +2190,6 @@ inline void requestRoutesSystemActionsReset(App& app)
             command = "xyz.openbmc_project.State.Chassis.Transition.Off";
             hostCommand = false;
         }
-        else if (resetType == "ForceRestart")
-        {
-            command =
-                "xyz.openbmc_project.State.Host.Transition.ForceWarmReboot";
-            hostCommand = true;
-        }
         else if (resetType == "GracefulShutdown")
         {
             command = "xyz.openbmc_project.State.Host.Transition.Off";
@@ -2620,7 +2614,6 @@ inline void requestRoutesSystemResetActionInfo(App& app)
         allowableValues.emplace_back("On");
         allowableValues.emplace_back("ForceOff");
         allowableValues.emplace_back("ForceOn");
-        allowableValues.emplace_back("ForceRestart");
         allowableValues.emplace_back("GracefulRestart");
         allowableValues.emplace_back("GracefulShutdown");
         allowableValues.emplace_back("PowerCycle");
