@@ -3584,9 +3584,8 @@ inline void requestRoutesSystemResetActionInfo(App& app)
                        {"Required", true},
                        {"DataType", "String"},
                        {"AllowableValues",
-                        {"On", "ForceOff", "ForceOn", "ForceRestart",
-                         "GracefulRestart", "GracefulShutdown", "PowerCycle",
-                         "Nmi"}}}}}};
+                        {"On", "ForceOff", "ForceOn", "GracefulRestart",
+                         "GracefulShutdown", "PowerCycle", "Nmi"}}}}}};
             });
 }
 } // namespace redfish
