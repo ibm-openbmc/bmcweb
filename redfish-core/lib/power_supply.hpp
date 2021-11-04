@@ -19,8 +19,6 @@ inline void
                         propertiesList) {
             if (ec)
             {
-                BMCWEB_LOG_ERROR << "Can't get PowerSupply asset!";
-                messages::internalError(asyncResp->res);
                 return;
             }
             for (const std::pair<std::string, std::variant<std::string>>&
