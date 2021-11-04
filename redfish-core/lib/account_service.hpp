@@ -2001,7 +2001,7 @@ inline void requestAccountServiceRoutes(App& app)
                     return;
                 }
                 // Can't modify properties other than password
-                if (newUserName || enabled || roleId || locked)
+                if (newUserName || enabled || roleId || locked || oem)
                 {
                     messages::insufficientPrivilege(asyncResp->res);
                     return;
