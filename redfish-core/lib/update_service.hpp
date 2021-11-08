@@ -384,6 +384,26 @@ static void monitorForSoftwareAvailable(
         });
 }
 
+inline void httpSoftwareUpdate(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                               const crow::Request& req, const std::string& uri)
+{
+    BMCWEB_LOG_DEBUG << "doPost...";
+
+    // Setup callback for when new software detected
+    monitorForSoftwareAvailable(aResp, req, uri);
+
+    std::string filepath(
+        "/tmp/images/" +
+        boost::uuids::to_string(boost::uuids::random_generator()()));
+
+    BMCWEB_LOG_DEBUG << "Writing file to " << filepath;
+    std::ofstream out(filepath, std::ofstream::out | std::ofstream::binary |
+                                    std::ofstream::trunc);
+    out << req.body;
+    out.close();
+    BMCWEB_LOG_DEBUG << "file upload complete!!";
+}
+
 /**
  * UpdateServiceActionsSimpleUpdate class supports handle POST method for
  * SimpleUpdate action.
@@ -508,6 +528,27 @@ inline void requestRoutesUpdateServiceActionsSimpleUpdate(App& app)
         });
 }
 
+/**
+ * UpdateServiceActionsOemConcurrentUpdate class supports handle POST method for
+ * concurrent update action.
+ */
+inline void requestRoutesUpdateServiceActionsOemConcurrentUpdate(App& app)
+{
+    BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/Actions/Oem/"
+                      "OemUpdateService.ConcurrentUpdate/")
+        .privileges(redfish::privileges::postUpdateService)
+        .methods(boost::beast::http::verb::post)(
+            [](const crow::Request& req,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+                BMCWEB_LOG_DEBUG
+                    << "Enter OemUpdateService.ConcurrentUpdate doPost";
+
+                httpSoftwareUpdate(asyncResp, req,
+                                   "/redfish/v1/UpdateService/Actions/Oem/"
+                                   "OemUpdateService.ConcurrentUpdate");
+            });
+}
+
 inline void requestRoutesUpdateService(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/")
@@ -532,6 +573,14 @@ inline void requestRoutesUpdateService(App& app)
             // Get the MaxImageSizeBytes
             asyncResp->res.jsonValue["MaxImageSizeBytes"] =
                 bmcwebHttpReqBodyLimitMb * 1024 * 1024;
+            // Concurrent update
+            nlohmann::json& updateSvcConUpdate =
+                asyncResp->res
+                    .jsonValue["Actions"]["Oem"]["#OemUpdateService.v1_0_0."
+                                                 "ConcurrentUpdate"];
+            updateSvcConUpdate["target"] =
+                "/redfish/v1/UpdateService/Actions/Oem/"
+                "OemUpdateService.ConcurrentUpdate";
 
 #ifdef BMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE
             // Update Actions object.
@@ -669,22 +718,7 @@ inline void requestRoutesUpdateService(App& app)
         .methods(boost::beast::http::verb::post)(
             [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
-                BMCWEB_LOG_DEBUG << "doPost...";
-
-                // Setup callback for when new software detected
-                monitorForSoftwareAvailable(asyncResp, req,
-                                            "/redfish/v1/UpdateService");
-
-                std::string filepath("/tmp/images/" +
-                                     boost::uuids::to_string(
-                                         boost::uuids::random_generator()()));
-                BMCWEB_LOG_DEBUG << "Writing file to " << filepath;
-                std::ofstream out(filepath, std::ofstream::out |
-                                                std::ofstream::binary |
-                                                std::ofstream::trunc);
-                out << req.body;
-                out.close();
-                BMCWEB_LOG_DEBUG << "file upload complete!!";
+                httpSoftwareUpdate(asyncResp, req, "/redfish/v1/UpdateService");
             });
 }
 
