@@ -499,7 +499,7 @@ inline void
 
     if (varAcquireLock.first)
     {
-        // Either validity failure of there is a conflict with itself
+        // Either validity failure or there is a conflict with itself
 
         auto validityStatus =
             std::get<std::pair<bool, int>>(varAcquireLock.second);
@@ -533,14 +533,47 @@ inline void
             asyncResp->res.jsonValue["TransactionID"] = var;
             return;
         }
-        BMCWEB_LOG_DEBUG << "There is a conflict with the lock table";
-        asyncResp->res.result(boost::beast::http::status::conflict);
+
+        // Check if the session is active. If active, send back the lock
+        // conflict, else clear the stale entry in the lock table.
         auto var =
             std::get<std::pair<uint32_t, LockRequest>>(conflictStatus.second);
+        std::string sessionId = std::get<0>(var.second);
+        auto session =
+            persistent_data::SessionStore::getInstance().getSessionByUid(
+                sessionId);
+
+        if (session == nullptr)
+        {
+            BMCWEB_LOG_ERROR << "Releasing lock of the session id(stale): "
+                             << sessionId;
+            // clear the stale entry
+            crow::ibm_mc_lock::Lock::getInstance().releaseLock(sessionId);
+
+            // create the new lock record for the session
+            varAcquireLock =
+                crow::ibm_mc_lock::Lock::getInstance().acquireLock(t);
+            conflictStatus =
+                std::get<crow::ibm_mc_lock::Rc>(varAcquireLock.second);
+            if (!conflictStatus.first)
+            {
+                asyncResp->res.result(boost::beast::http::status::ok);
+
+                auto var = std::get<uint32_t>(conflictStatus.second);
+                nlohmann::json returnJson;
+                returnJson["id"] = var;
+                asyncResp->res.jsonValue["TransactionID"] = var;
+                return;
+            }
+        }
+
+        BMCWEB_LOG_ERROR << "There is a conflict with the lock table";
+
+        asyncResp->res.result(boost::beast::http::status::conflict);
         nlohmann::json returnJson, segments;
         nlohmann::json myarray = nlohmann::json::array();
         returnJson["TransactionID"] = var.first;
-        returnJson["SessionID"] = std::get<0>(var.second);
+        returnJson["SessionID"] = sessionId;
         returnJson["HMCID"] = std::get<1>(var.second);
         returnJson["LockType"] = std::get<2>(var.second);
         returnJson["ResourceID"] = std::get<3>(var.second);
