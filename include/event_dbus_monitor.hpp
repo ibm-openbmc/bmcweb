@@ -212,7 +212,8 @@ inline void postCodePropertyChange(sdbusplus::message::message& msg)
                 if (ec)
                 {
                     BMCWEB_LOG_ERROR
-                        << "DBUS GetPostCodesWithTimeStamp method failed";
+                        << "DBUS GetPostCodesWithTimeStamp method failed: "
+                        << ec;
                     return;
                 }
 
