@@ -33,6 +33,10 @@
               <Annotation Term="OData.LongDescription" String="A true value says external interface acked error log, false says otherwise."/>
             </Property>
 
+            <Property Name="GeneratorId" Type="Edm.String">
+              <Annotation Term="OData.Description" String="Id of the user who created the LogEntry."/>
+              <Annotation Term="OData.LongDescription" String="Unique id of the user who has caused the creation of the LogEntry. Eg: ip address, session id, client id."/>
+            </Property>
       </EntityType>
     </Schema>
   </edmx:DataServices>
