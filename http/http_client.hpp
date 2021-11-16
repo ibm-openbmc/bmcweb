@@ -241,7 +241,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
             {
                 // The listener failed to receive the Sent-Event
                 BMCWEB_LOG_ERROR << "recvMessage() Listener Failed to "
-                                    "receive Sent-Event";
+                                    "receive Sent-Event. Header Response Code: "
+                                 << respCode;
                 self->state = ConnState::recvFailed;
                 self->handleConnState();
                 return;
