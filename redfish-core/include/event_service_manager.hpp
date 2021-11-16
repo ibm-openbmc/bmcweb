@@ -380,14 +380,11 @@ class Subscription : public persistent_data::UserSubscription
     Subscription& operator=(Subscription&&) = delete;
 
     Subscription(const std::string& inHost, const std::string& inPort,
-                 const std::string& inPath, const std::string& inUriProto,
-                 const boost::beast::http::fields& httpHeaders) :
+                 const std::string& inPath, const std::string& inUriProto) :
         eventSeqNum(1),
         host(inHost), port(inPort), path(inPath), uriProto(inUriProto)
     {
-        conn = std::make_shared<crow::HttpClient>(
-            crow::connections::systemBus->get_io_context(), id, host, port,
-            path, uriProto, httpHeaders);
+        // Subscription constructor
     }
 
     Subscription(const std::shared_ptr<boost::beast::tcp_stream>& adaptor) :
@@ -405,7 +402,15 @@ class Subscription : public persistent_data::UserSubscription
             conn->sendData(msg);
             this->eventSeqNum++;
         }
-
+        if (conn == nullptr)
+        {
+            // create the HttpClient connection
+            conn = std::make_shared<crow::HttpClient>(
+                crow::connections::systemBus->get_io_context(), id, host, port,
+                path, uriProto, httpHeaders);
+            conn->sendData(msg);
+            this->eventSeqNum++;
+        }
         if (sseConn != nullptr)
         {
             sseConn->sendData(eventSeqNum, msg);
@@ -621,7 +626,6 @@ class EventServiceManager
             std::string urlProto;
             std::string port;
             std::string path;
-            boost::beast::http::fields httpHeaders;
             bool status = validateAndSplitUrl(newSub->destinationUrl, urlProto,
                                               host, port, path);
 
@@ -632,8 +636,7 @@ class EventServiceManager
                 continue;
             }
             std::shared_ptr<Subscription> subValue =
-                std::make_shared<Subscription>(host, port, path, urlProto,
-                                               httpHeaders);
+                std::make_shared<Subscription>(host, port, path, urlProto);
 
             subValue->id = newSub->id;
             subValue->destinationUrl = newSub->destinationUrl;
