@@ -16,6 +16,9 @@
 #pragma once
 
 #include "health.hpp"
+#ifdef BMCWEB_ENABLE_IBM_USB_CODE_UPDATE
+#include "oem/ibm/usb_code_update.hpp"
+#endif
 #include "redfish_util.hpp"
 
 #include <app.hpp>
@@ -2028,6 +2031,10 @@ inline void requestRoutesManager(App& app)
 
             managerGetLastResetTime(asyncResp);
 
+#ifdef BMCWEB_ENABLE_IBM_USB_CODE_UPDATE
+            getUSBCodeUpdateState(asyncResp);
+#endif
+
             auto pids = std::make_shared<GetPIDValues>(asyncResp);
             pids->run();
 
@@ -2206,8 +2213,14 @@ inline void requestRoutesManager(App& app)
             if (oem)
             {
                 std::optional<nlohmann::json> openbmc;
+                std::optional<nlohmann::json> ibmOem;
                 if (!redfish::json_util::readJson(*oem, asyncResp->res,
-                                                  "OpenBmc", openbmc))
+                                                  "OpenBmc", openbmc
+#ifdef BMCWEB_ENABLE_IBM_USB_CODE_UPDATE
+                                                  ,
+                                                  "IBM", ibmOem
+#endif
+                                                  ))
                 {
                     BMCWEB_LOG_ERROR
                         << "Illegal Property "
@@ -2235,6 +2248,23 @@ inline void requestRoutesManager(App& app)
                         pid->run();
                     }
                 }
+#ifdef BMCWEB_ENABLE_IBM_USB_CODE_UPDATE
+                if (ibmOem)
+                {
+                    std::optional<bool> usbCodeUpdateEnabled;
+                    if (!json_util::readJson(*ibmOem, asyncResp->res,
+                                             "USBCodeUpdateEnabled",
+                                             usbCodeUpdateEnabled))
+                    {
+                        return;
+                    }
+
+                    if (usbCodeUpdateEnabled)
+                    {
+                        setUSBCodeUpdateState(asyncResp, *usbCodeUpdateEnabled);
+                    }
+                }
+#endif
             }
             if (links)
             {
