@@ -3,6 +3,7 @@
 #include "led.hpp"
 
 #include <utils/json_utils.hpp>
+#include <utils/name_utils.hpp>
 
 #include <variant>
 
@@ -57,6 +58,11 @@ inline void
                     messages::internalError(aResp->res);
                     return;
                 }
+
+                nlohmann::json_pointer<nlohmann::json> ptr(
+                    "/Assemblies/" + std::to_string(assemblyIndex) + "/Name");
+
+                name_util::getPrettyName(aResp, assembly, object, ptr);
 
                 for (const auto& [serviceName, interfaceList] : object)
                 {
