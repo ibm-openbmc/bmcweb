@@ -456,9 +456,7 @@ inline void getLocationIndicatorActive(std::shared_ptr<bmcweb::AsyncResp> aResp,
  *
  * @param[in] aResp     Shared pointer for generating response message.
  * @param[in] objPath   Object path
-=======
  * @param[in] isIndicatorLedState Need to get indicator LED status
->>>>>>> c799d9c... Update get/setLocationIndicatorActive method
  *
  * @return None.
  */
