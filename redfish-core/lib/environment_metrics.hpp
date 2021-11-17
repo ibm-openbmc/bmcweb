@@ -332,7 +332,7 @@ inline void
                         const std::string& controlMode)
 {
     BMCWEB_LOG_DEBUG << "Set Power Limit Watts Control Mode";
-    bool powerCapEnable;
+    bool powerCapEnable = false;
     if (controlMode == "disabled")
     {
         powerCapEnable = false;

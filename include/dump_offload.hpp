@@ -165,6 +165,11 @@ class Handler : public std::enable_shared_from_this<Handler>
                     return;
                 }
                 const uint64_t* dumpsize = std::get_if<uint64_t>(&size);
+                if (dumpsize == nullptr)
+                {
+                    BMCWEB_LOG_ERROR << "Failed to get a dump size value ";
+                    return;
+                }
                 this->dumpSize = *dumpsize;
                 this->initiateOffload();
                 this->doConnect();
