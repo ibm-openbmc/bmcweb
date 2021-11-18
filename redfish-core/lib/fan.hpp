@@ -393,8 +393,8 @@ inline void getFanInfo(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 }
 
 inline void getFanSpeed(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                       const std::string& chassisId, const std::string& fanId,
-                       const std::string& connectionName)
+                        const std::string& chassisId, const std::string& fanId,
+                        const std::string& connectionName)
 {
     BMCWEB_LOG_DEBUG << "Get properties for getFan associated to chassis = "
                      << chassisId << " fan = " << fanId;
@@ -481,7 +481,6 @@ inline void getFanSpeed(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
             "/xyz/openbmc_project/sensors", 0, sensorInterfaces);
     }
-
 }
 
 inline void
@@ -497,9 +496,8 @@ inline void
 }
 
 inline void getFan(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                        const std::string& chassisId, const std::string& fanId,
-                        const std::string& path,
-                        const std::string& connectionName)
+                   const std::string& chassisId, const std::string& fanId,
+                   const std::string& path, const std::string& connectionName)
 {
     BMCWEB_LOG_DEBUG << "Get inventory Item for getFan associated to chassis = "
                      << chassisId << " fan = " << fanId;
@@ -554,7 +552,7 @@ inline void getValidFan(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
                 if (connectionName == "xyz.openbmc_project.PLDM")
                 {
-    
+
                     // 5 below comes from
                     // /xyz/openbmc_project/inventory/system/chassisName/fanName
                     // 0      1             2        3        4         5
@@ -581,7 +579,7 @@ inline void getValidFan(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 {
                     // 6 below comes from
                     // /xyz/openbmc_project/inventory/system/chassisName/motherboard/fanName
-                    //  0      1             2         3         4         5 6 
+                    //  0      1             2         3         4         5 6
                     if (!dbus::utility::getNthStringFromPath(validPath, 4,
                                                              chassisName))
                     {
