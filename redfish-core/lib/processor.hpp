@@ -1822,7 +1822,7 @@ inline void setProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
             // Ignore any objects which don't end with our desired cpu name
             sdbusplus::message::object_path path(objectPath);
             std::string name = path.filename();
-            if (name.empty() || name != processorId)
+            if (name.empty() || !isProcObjectMatched(processorId, path))
             {
                 continue;
             }
