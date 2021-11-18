@@ -405,82 +405,77 @@ inline void getFanSpeed(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             << chassisId << " fan = " << fanId;
         return;
     }
-    else
-    {
-        const std::array<std::string, 1> sensorInterfaces = {
-            "xyz.openbmc_project.Sensor.Value"};
-        crow::connections::systemBus->async_method_call(
-            [asyncResp, fanId,
-             chassisId](const boost::system::error_code ec,
-                        const std::vector<std::string>& sensorpaths) {
-                if (ec)
+    const std::array<std::string, 1> sensorInterfaces = {
+        "xyz.openbmc_project.Sensor.Value"};
+    crow::connections::systemBus->async_method_call(
+        [asyncResp, fanId,
+         chassisId](const boost::system::error_code ec,
+                    const std::vector<std::string>& sensorpaths) {
+            if (ec)
+            {
+                BMCWEB_LOG_DEBUG << "DBUS response error";
+                if (ec.value() == boost::system::errc::io_error)
                 {
-                    BMCWEB_LOG_DEBUG << "DBUS response error";
-                    if (ec.value() == boost::system::errc::io_error)
-                    {
-                        messages::resourceNotFound(
-                            asyncResp->res,
-                            "fan inventory item,fanId = ", fanId);
-                        return;
-                    }
-                    messages::internalError(asyncResp->res);
+                    messages::resourceNotFound(
+                        asyncResp->res, "fan inventory item,fanId = ", fanId);
                     return;
                 }
+                messages::internalError(asyncResp->res);
+                return;
+            }
 
-                for (const auto& tempsensorpath : sensorpaths)
+            for (const auto& tempsensorpath : sensorpaths)
+            {
+                sdbusplus::message::object_path path(tempsensorpath);
+                const std::string& leaf = path.filename();
+                if (leaf.empty())
                 {
-                    sdbusplus::message::object_path path(tempsensorpath);
-                    const std::string& leaf = path.filename();
-                    if (leaf.empty())
-                    {
-                        continue;
-                    }
-                    if (leaf != fanId)
-                    {
-                        continue;
-                    }
-                    const std::string& fanAssociationPath =
-                        tempsensorpath + "/inventory";
-
-                    crow::connections::systemBus->async_method_call(
-                        [asyncResp,
-                         fanId](const boost::system::error_code ec,
-                                const std::variant<std::vector<std::string>>&
-                                    property) {
-                            if (ec)
-                            {
-                                BMCWEB_LOG_DEBUG << "DBUS response error";
-                                messages::internalError(asyncResp->res);
-                                return;
-                            }
-                            auto* values =
-                                std::get_if<std::vector<std::string>>(
-                                    &property);
-                            if (values == nullptr)
-                            {
-                                // illegal property
-                                BMCWEB_LOG_DEBUG
-                                    << "No endpoints, skipping get fan ";
-                                messages::internalError(asyncResp->res);
-                                return;
-                            }
-                            for (const auto& fanPath : *values)
-                            {
-                                // Add this function to make the code easy to
-                                // read
-                                getFanSpecificInfo(asyncResp, fanPath);
-                            }
-                        },
-                        "xyz.openbmc_project.ObjectMapper", fanAssociationPath,
-                        "org.freedesktop.DBus.Properties", "Get",
-                        "xyz.openbmc_project.Association", "endpoints");
+                    continue;
                 }
-            },
-            "xyz.openbmc_project.ObjectMapper",
-            "/xyz/openbmc_project/object_mapper",
-            "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
-            "/xyz/openbmc_project/sensors", 0, sensorInterfaces);
-    }
+                if (leaf != fanId)
+                {
+                    continue;
+                }
+                const std::string& fanAssociationPath =
+                    tempsensorpath + "/inventory";
+
+                crow::connections::systemBus->async_method_call(
+                    [asyncResp,
+                     fanId](const boost::system::error_code ec,
+                            const std::variant<std::vector<std::string>>&
+                                property) {
+                        if (ec)
+                        {
+                            BMCWEB_LOG_DEBUG << "DBUS response error";
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+                        auto* values =
+                            std::get_if<std::vector<std::string>>(&property);
+                        if (values == nullptr)
+                        {
+                            // illegal property
+                            BMCWEB_LOG_DEBUG
+                                << "No endpoints, skipping get fan ";
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+                        for (const auto& fanPath : *values)
+                        {
+                            // Add this function to make the code easy to
+                            // read
+                            getFanSpecificInfo(asyncResp, fanPath);
+                        }
+                    },
+                    "xyz.openbmc_project.ObjectMapper", fanAssociationPath,
+                    "org.freedesktop.DBus.Properties", "Get",
+                    "xyz.openbmc_project.Association", "endpoints");
+            }
+        },
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
+        "/xyz/openbmc_project/sensors", 0, sensorInterfaces);
 }
 
 inline void
