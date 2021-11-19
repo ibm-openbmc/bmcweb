@@ -165,6 +165,16 @@ class Handler : public std::enable_shared_from_this<Handler>
                     return;
                 }
                 const uint64_t* dumpsize = std::get_if<uint64_t>(&size);
+                if (dumpsize == nullptr)
+                {
+                    BMCWEB_LOG_ERROR << "DBUS response error: Unable to get "
+                                        "the dump size value"
+                                     << ec;
+                    this->connection->sendStreamErrorStatus(
+                        boost::beast::http::status::internal_server_error);
+                    this->connection->close();
+                    return;
+                }
                 this->dumpSize = *dumpsize;
                 this->initiateOffload();
                 this->doConnect();

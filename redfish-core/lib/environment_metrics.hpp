@@ -347,6 +347,7 @@ inline void
                          << controlMode;
         messages::propertyValueNotInList(asyncResp->res, controlMode,
                                          "ControlMode");
+        return;
     }
 
     const std::array<std::string, 1> powerCapInterfaces = {
