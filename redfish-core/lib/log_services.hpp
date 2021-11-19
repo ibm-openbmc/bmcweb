@@ -4862,6 +4862,13 @@ inline void getSystemHardwareIsolationLogEntryCollection(
         for (auto dbusObjIt = mgtObjs.begin(); dbusObjIt != mgtObjs.end();
              dbusObjIt++)
         {
+            if (dbusObjIt->second.find(
+                    "xyz.openbmc_project.HardwareIsolation.Entry") ==
+                dbusObjIt->second.end())
+            {
+                // The retrieved object is not hardware isolation entry
+                continue;
+            }
             entriesArray.push_back(nlohmann::json::object());
 
             fillSystemHardwareIsolationLogEntry(asyncResp, entriesArray.size(),
