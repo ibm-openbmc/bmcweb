@@ -519,16 +519,17 @@ inline void requestRoutesUpdateServiceActionsSimpleUpdate(App& app)
 
 inline void
     handleUpdateServicePost(App& app, const crow::Request& req,
-                            const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+                            const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                            const std::string& url)
 {
     if (!redfish::setUpRedfishRoute(app, req, asyncResp))
     {
         return;
     }
-    BMCWEB_LOG_DEBUG << "doPost...";
+    BMCWEB_LOG_DEBUG << url << " doPost...";
 
     // Setup callback for when new software detected
-    monitorForSoftwareAvailable(asyncResp, req, "/redfish/v1/UpdateService");
+    monitorForSoftwareAvailable(asyncResp, req, url);
 
     std::string filepath(
         "/tmp/images/" +
@@ -539,6 +540,25 @@ inline void
     out << req.body;
     out.close();
     BMCWEB_LOG_DEBUG << "file upload complete!!";
+}
+
+/**
+ * UpdateServiceActionsOemConcurrentUpdate class supports handle POST method for
+ * concurrent update action.
+ */
+inline void requestRoutesUpdateServiceActionsOemConcurrentUpdate(App& app)
+{
+    BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/Actions/Oem/"
+                      "OemUpdateService.ConcurrentUpdate/")
+        .privileges(redfish::privileges::postUpdateService)
+        .methods(boost::beast::http::verb::post)(std::bind_front(
+            [&app](App&, const crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+        handleUpdateServicePost(app, req, asyncResp,
+                                "/redfish/v1/UpdateService/Actions/Oem/"
+                                "OemUpdateService.ConcurrentUpdate");
+            },
+            std::ref(app)));
 }
 
 inline void requestRoutesUpdateService(App& app)
@@ -578,6 +598,12 @@ inline void requestRoutesUpdateService(App& app)
         // Get the MaxImageSizeBytes
         asyncResp->res.jsonValue["MaxImageSizeBytes"] =
             bmcwebHttpReqBodyLimitMb * 1024 * 1024;
+        nlohmann::json& updateSvcConUpdate =
+            asyncResp->res
+                .jsonValue["Actions"]["Oem"]["#OemUpdateService.v1_0_0."
+                                             "ConcurrentUpdate"];
+        updateSvcConUpdate["target"] = "/redfish/v1/UpdateService/Actions/Oem/"
+                                       "OemUpdateService.ConcurrentUpdate";
 
 #ifdef BMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE
         // Update Actions object.
@@ -717,13 +743,19 @@ inline void requestRoutesUpdateService(App& app)
             boost::beast::http::field::warning,
             "299 - \"POST to /redfish/v1/UpdateService is deprecated. Use "
             "the value contained within HttpPushUri.\"");
-        handleUpdateServicePost(app, req, asyncResp);
+        handleUpdateServicePost(app, req, asyncResp,
+                                "/redfish/v1/UpdateService");
         });
 #endif
     BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/update/")
         .privileges(redfish::privileges::postUpdateService)
-        .methods(boost::beast::http::verb::post)(
-            std::bind_front(handleUpdateServicePost, std::ref(app)));
+        .methods(boost::beast::http::verb::post)(std::bind_front(
+            [&app](App&, const crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+        handleUpdateServicePost(app, req, asyncResp,
+                                "/redfish/v1/UpdateService");
+            },
+            std::ref(app)));
 }
 
 inline void requestRoutesSoftwareInventoryCollection(App& app)
