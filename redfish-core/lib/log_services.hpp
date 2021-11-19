@@ -33,6 +33,7 @@
 #include <boost/system/linux_error.hpp>
 #include <error_messages.hpp>
 #include <registries/privilege_registry.hpp>
+#include <utils/error_log_utils.hpp>
 
 #include <charconv>
 #include <filesystem>
@@ -4790,10 +4791,22 @@ inline void fillSystemHardwareIsolationLogEntry(
                         {
                             sdbusplus::message::object_path errPath =
                                 std::get<2>(assoc);
-                            entryJson["AdditionalDataURI"] =
-                                "/redfish/v1/Systems/system/"
-                                "LogServices/EventLog/Entries/" +
-                                errPath.filename() + "/attachment";
+
+                            if (entryJsonIdx > 0)
+                            {
+                                auto errorLogPropPath = "/Members"_json_pointer;
+                                errorLogPropPath /= entryJsonIdx - 1;
+                                errorLogPropPath /= "AdditionalDataURI";
+                                error_log_utils::setErrorLogUri(
+                                    asyncResp, errPath, errorLogPropPath,
+                                    false);
+                            }
+                            else
+                            {
+                                error_log_utils::setErrorLogUri(
+                                    asyncResp, errPath,
+                                    "/AdditionalDataURI"_json_pointer, false);
+                            }
                         }
                     }
                 }
