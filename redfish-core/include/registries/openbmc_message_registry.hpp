@@ -563,6 +563,17 @@ constexpr std::array<MessageEntry, 190> registry = {
             {"string"},
             "None.",
         }},
+    MessageEntry{
+        "HardwareIsolationReason",
+        {
+            "Indicates the condition that affects the health of this resource.",
+            "The reason for the resource isolation: %1",
+            "OK",
+            "OK",
+            1,
+            {"string"},
+            "None.",
+        }},
     MessageEntry{"InvalidLoginAttempted",
                  {
                      "Indicates that a login was attempted on the specified "
@@ -2430,17 +2441,6 @@ constexpr std::array<MessageEntry, 190> registry = {
             "%1 Voltage Regulator Overheated.",
             "Critical",
             "Critical",
-            1,
-            {"string"},
-            "None.",
-        }},
-    MessageEntry{
-        "HardwareIsolationReason",
-        {
-            "Indicates the condition that affects the health of this resource.",
-            "The reason for the resource isolation: %1",
-            "OK",
-            "OK",
             1,
             {"string"},
             "None.",
