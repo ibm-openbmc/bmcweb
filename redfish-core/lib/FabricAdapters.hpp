@@ -2,6 +2,7 @@
 
 #include <utils/collection.hpp>
 #include <utils/json_utils.hpp>
+#include <utils/name_utils.hpp>
 
 namespace redfish
 {
@@ -12,6 +13,134 @@ using MapperGetSubTreeResponse = std::vector<
 
 using ServiceMap =
     std::vector<std::pair<std::string, std::vector<std::string>>>;
+
+using VariantType = std::variant<bool, std::string, uint64_t, uint32_t>;
+using PropertyType = std::pair<std::string, VariantType>;
+using PropertyListType = std::vector<PropertyType>;
+
+/**
+ * @brief Api to fetch properties of given adapter.
+ *
+ * @param[in,out]   aResp       Async HTTP response.
+ * @param[in]       objPath     Adapter Dbus object path.
+ * @param[in]       serviceMap  Map to hold service and interface.
+ */
+inline void
+    getAdapterProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                         const std::string& objPath,
+                         const ServiceMap& serviceMap)
+{
+    name_util::getPrettyName(aResp, objPath, serviceMap, "/Name"_json_pointer);
+
+    for (const auto& [serviceName, interfaceList] : serviceMap)
+    {
+        for (const auto& interface : interfaceList)
+        {
+            if (interface == "xyz.openbmc_project.Inventory.Decorator.Asset")
+            {
+                crow::connections::systemBus->async_method_call(
+                    [aResp, objPath](const boost::system::error_code ec,
+                                     const PropertyListType& propertiesList) {
+                        if (ec)
+                        {
+                            BMCWEB_LOG_DEBUG << "DBUS response error";
+                            messages::internalError(aResp->res);
+                            return;
+                        }
+
+                        for (const PropertyType& property : propertiesList)
+                        {
+                            if (property.first == "PartNumber")
+                            {
+                                const std::string* value =
+                                    std::get_if<std::string>(&property.second);
+                                if (value == nullptr)
+                                {
+                                    messages::internalError(aResp->res);
+                                    return;
+                                }
+                                aResp->res.jsonValue["PartNumber"] = *value;
+                            }
+                            else if (property.first == "SerialNumber")
+                            {
+                                const std::string* value =
+                                    std::get_if<std::string>(&property.second);
+                                if (value == nullptr)
+                                {
+                                    messages::internalError(aResp->res);
+                                    return;
+                                }
+                                aResp->res.jsonValue["SerialNumber"] = *value;
+                            }
+                            else if (property.first == "SparePartNumber")
+                            {
+                                const std::string* value =
+                                    std::get_if<std::string>(&property.second);
+                                if (value == nullptr)
+                                {
+                                    messages::internalError(aResp->res);
+                                    return;
+                                }
+
+                                if (!(*value).empty())
+                                {
+                                    aResp->res.jsonValue["SparePartNumber"] =
+                                        *value;
+                                }
+                            }
+                            else if (property.first == "Model")
+                            {
+                                const std::string* value =
+                                    std::get_if<std::string>(&property.second);
+                                if (value == nullptr)
+                                {
+                                    messages::internalError(aResp->res);
+                                    return;
+                                }
+                                aResp->res.jsonValue["Model"] = *value;
+                            }
+                        }
+                    },
+                    serviceName, objPath, "org.freedesktop.DBus.Properties",
+                    "GetAll",
+                    "xyz.openbmc_project.Inventory.Decorator."
+                    "Asset");
+            }
+            else if (interface == "xyz.openbmc_project.Inventory."
+                                  "Decorator.LocationCode")
+            {
+                crow::connections::systemBus->async_method_call(
+                    [aResp,
+                     objPath](const boost::system::error_code ec,
+                              const std::variant<std::string>& property) {
+                        if (ec)
+                        {
+                            BMCWEB_LOG_DEBUG << "DBUS response error";
+                            messages::internalError(aResp->res);
+                            return;
+                        }
+
+                        const std::string* value =
+                            std::get_if<std::string>(&property);
+
+                        if (value == nullptr)
+                        {
+                            // illegal value
+                            messages::internalError(aResp->res);
+                            return;
+                        }
+                        aResp->res.jsonValue["Location"]["PartLocation"]
+                                            ["ServiceLabel"] = *value;
+                    },
+                    serviceName, objPath, "org.freedesktop.DBus.Properties",
+                    "Get",
+                    "xyz.openbmc_project.Inventory.Decorator."
+                    "LocationCode",
+                    "LocationCode");
+            }
+        }
+    }
+}
 
 /**
  * @brief Api to look for specific fabric adapter among
@@ -75,6 +204,7 @@ inline void getAdapter(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 // with PrettyName incase one is found.
                 aResp->res.jsonValue["Name"] = adapterId;
 
+                getAdapterProperties(aResp, objectPath, serviceMap);
                 return;
             }
             BMCWEB_LOG_ERROR << "Adapter not found";
