@@ -1,6 +1,5 @@
 #pragma once
 
-#include "sensors.hpp"
 #include "utils/telemetry_utils.hpp"
 
 #include <app.hpp>
@@ -16,82 +15,49 @@ using Readings =
     std::vector<std::tuple<std::string, std::string, double, uint64_t>>;
 using TimestampReadings = std::tuple<uint64_t, Readings>;
 
-inline bool fillMetricValues(nlohmann::json& metricValues,
-                             const Readings& readings)
+inline nlohmann::json toMetricValues(const Readings& readings)
 {
-    for (auto& [id, metadataStr, sensorValue, timestamp] : readings)
+    nlohmann::json metricValues = nlohmann::json::array_t();
+
+    for (auto& [id, metadata, sensorValue, timestamp] : readings)
     {
-        std::optional<nlohmann::json> readingMetadataJson =
-            getMetadataJson(metadataStr);
-        if (!readingMetadataJson)
-        {
-            return false;
-        }
-
-        std::optional<std::string> sensorDbusPath =
-            readStringFromMetadata(*readingMetadataJson, "SensorDbusPath");
-        if (!sensorDbusPath)
-        {
-            return false;
-        }
-
-        std::optional<std::string> sensorRedfishUri =
-            readStringFromMetadata(*readingMetadataJson, "SensorRedfishUri");
-        if (!sensorRedfishUri)
-        {
-            return false;
-        }
-
-        std::string metricDefinition =
-            std::string(metricDefinitionUri) +
-            sensors::toReadingType(
-                sdbusplus::message::object_path(*sensorDbusPath)
-                    .parent_path()
-                    .filename());
-
         metricValues.push_back({
-            {"MetricDefinition",
-             nlohmann::json{{"@odata.id", metricDefinition}}},
             {"MetricId", id},
-            {"MetricProperty", *sensorRedfishUri},
+            {"MetricProperty", metadata},
             {"MetricValue", std::to_string(sensorValue)},
             {"Timestamp",
              crow::utility::getDateTime(static_cast<time_t>(timestamp))},
         });
     }
 
-    return true;
+    return metricValues;
 }
 
-inline bool fillReport(nlohmann::json& json, const std::string& id,
+inline void fillReport(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                       const std::string& id,
                        const std::variant<TimestampReadings>& var)
 {
+    asyncResp->res.jsonValue["@odata.type"] =
+        "#MetricReport.v1_3_0.MetricReport";
+    asyncResp->res.jsonValue["@odata.id"] = telemetry::metricReportUri + id;
+    asyncResp->res.jsonValue["Id"] = id;
+    asyncResp->res.jsonValue["Name"] = id;
+    asyncResp->res.jsonValue["MetricReportDefinition"]["@odata.id"] =
+        telemetry::metricReportDefinitionUri + id;
+
     const TimestampReadings* timestampReadings =
         std::get_if<TimestampReadings>(&var);
     if (!timestampReadings)
     {
         BMCWEB_LOG_ERROR << "Property type mismatch or property is missing";
-        return false;
+        messages::internalError(asyncResp->res);
+        return;
     }
 
     const auto& [timestamp, readings] = *timestampReadings;
-    nlohmann::json metricValues = nlohmann::json::array();
-    if (!fillMetricValues(metricValues, readings))
-    {
-        return false;
-    }
-
-    json["@odata.type"] = "#MetricReport.v1_3_0.MetricReport";
-    json["@odata.id"] = telemetry::metricReportUri + id;
-    json["Id"] = id;
-    json["Name"] = id;
-    json["MetricReportDefinition"]["@odata.id"] =
-        telemetry::metricReportDefinitionUri + id;
-    json["Timestamp"] =
+    asyncResp->res.jsonValue["Timestamp"] =
         crow::utility::getDateTime(static_cast<time_t>(timestamp));
-    json["MetricValues"] = metricValues;
-
-    return true;
+    asyncResp->res.jsonValue["MetricValues"] = toMetricValues(readings);
 }
 } // namespace telemetry
 
@@ -152,11 +118,7 @@ inline void requestRoutesMetricReport(App& app)
                                     return;
                                 }
 
-                                if (!telemetry::fillReport(
-                                        asyncResp->res.jsonValue, id, ret))
-                                {
-                                    messages::internalError(asyncResp->res);
-                                }
+                                telemetry::fillReport(asyncResp, id, ret);
                             },
                             telemetry::service, reportPath,
                             "org.freedesktop.DBus.Properties", "Get",

@@ -368,8 +368,6 @@ srcfiles_unittest = [
   'http/ut/utility_test.cpp'
 ]
 
-srcfiles_unittest_dependencies = ['redfish-core/src/error_messages.cpp']
-
 # Gather the Configuration data
 
 conf_data = configuration_data()
@@ -427,9 +425,9 @@ executable('bmcweb',srcfiles_bmcweb,
 if(get_option('tests').enabled())
   foreach src_test : srcfiles_unittest
     testname = src_test.split('/')[-1].split('.')[0]
-    test(testname,executable(testname,
+    test(testname,executable(testname, 
         [src_test,
-        'src/boost_url.cpp'] + srcfiles_unittest_dependencies,
+        'src/boost_url.cpp'],
                 include_directories : incdir,
                 install_dir: bindir,
                 dependencies: [
