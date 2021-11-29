@@ -208,7 +208,7 @@ inline bool extractHypervisorInterfaceData(
                         }
                         else
                         {
-                            BMCWEB_LOG_ERROR
+                            BMCWEB_LOG_DEBUG
                                 << "Got extra property: " << property.first
                                 << " on the " << objpath.first.str << " object";
                         }
