@@ -10,11 +10,6 @@ namespace redfish
 namespace hw_isolation_utils
 {
 
-using AssociationsValType =
-    std::vector<std::tuple<std::string, std::string, std::string>>;
-using HwStausEventPropertiesType = boost::container::flat_map<
-    std::string, std::variant<std::string, uint64_t, AssociationsValType>>;
-
 /**
  * @brief API used to isolate the given resource
  *
@@ -433,6 +428,13 @@ inline void
                         messages::internalError(aResp->res);
                         return;
                     }
+
+                    using AssociationsValType = std::vector<
+                        std::tuple<std::string, std::string, std::string>>;
+                    using HwStausEventPropertiesType =
+                        boost::container::flat_map<
+                            std::string, std::variant<std::string, uint64_t,
+                                                      AssociationsValType>>;
 
                     // Get event properties and fill into status conditions
                     crow::connections::systemBus->async_method_call(
