@@ -300,6 +300,10 @@ class Connection :
                                         const boost::system::error_code& ec) {
                                         if (ec)
                                         {
+                                            BMCWEB_LOG_ERROR
+                                                << this
+                                                << "async_handshake failed: "
+                                                << ec.message();
                                             return;
                                         }
                                         doReadHeaders();
