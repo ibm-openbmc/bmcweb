@@ -301,6 +301,8 @@ void eventLogCreatedSignal(sdbusplus::message::message& msg)
 {
     BMCWEB_LOG_DEBUG << "Event Log Created - match fired";
 
+    constexpr auto pelEntryInterface = "org.open_power.Logging.PEL.Entry";
+
     if (msg.is_method_error())
     {
         BMCWEB_LOG_ERROR << "Event Log Created signal error";
@@ -308,31 +310,57 @@ void eventLogCreatedSignal(sdbusplus::message::message& msg)
     }
 
     sdbusplus::message::object_path objPath;
-    std::map<std::string, std::map<std::string, std::variant<std::string>>>
+    std::map<std::string,
+             std::map<std::string, std::variant<std::string, bool>>>
         interfaces;
 
     msg.read(objPath, interfaces);
 
-    if (interfaces.find("xyz.openbmc_project.Logging.Entry") ==
-        interfaces.end())
+    std::string logID;
+    dbus::utility::getNthStringFromPath(objPath, 4, logID);
+
+    const auto pelProperties = interfaces.find(pelEntryInterface);
+    if (pelProperties == interfaces.end())
     {
         return;
     }
 
-    std::string logID;
-    dbus::utility::getNthStringFromPath(objPath, 4, logID);
+    const auto hiddenProperty = pelProperties->second.find("Hidden");
+    if (hiddenProperty == pelProperties->second.end())
+    {
+        return;
+    }
 
-    std::string eventOrigin{
-        "/redfish/v1/Systems/system/LogServices/EventLog/Entries/" + logID};
+    const bool* hiddenPropertyPtr =
+        std::get_if<bool>(&(hiddenProperty->second));
+    if (hiddenPropertyPtr == nullptr)
+    {
+        BMCWEB_LOG_ERROR << "Failed to get Hidden property";
+        return;
+    }
+
+    std::string eventOrigin;
+    if (*hiddenPropertyPtr)
+    {
+        eventOrigin =
+            "/redfish/v1/Systems/system/LogServices/CELog/Entries/" + logID;
+        BMCWEB_LOG_DEBUG << "CELog path: " << eventOrigin;
+    }
+    else
+    {
+        eventOrigin =
+            "/redfish/v1/Systems/system/LogServices/EventLog/Entries/" + logID;
+        BMCWEB_LOG_DEBUG << "EventLog path: " << eventOrigin;
+    }
 
     BMCWEB_LOG_DEBUG << "Sending event for log ID " << logID;
-
     redfish::EventServiceManager::getInstance().sendEvent(
         redfish::messages::resourceCreated(), eventOrigin, "LogEntry");
 }
 
 void registerEventLogCreatedSignal()
 {
+    BMCWEB_LOG_DEBUG << "Register EventLog Created Signal";
     matchEventLogCreated = std::make_unique<sdbusplus::bus::match::match>(
         *crow::connections::systemBus,
         "type='signal',member='InterfacesAdded',interface='org.freedesktop."
