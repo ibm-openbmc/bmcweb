@@ -90,6 +90,55 @@ inline std::string analysisSlotType(const std::string& slotType)
     return "";
 }
 
+inline void
+    addLinkedPcieDevices(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                         const std::string& slotPath, size_t index)
+{
+    // Collect device associated with this slot and
+    // populate it here
+    crow::connections::systemBus->async_method_call(
+        [asyncResp, index](
+            const boost::system::error_code ec,
+            const std::vector<std::pair<
+                std::string,
+                std::vector<std::pair<std::string, std::vector<std::string>>>>>&
+                subtree) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "D-Bus response error on GetSubTree " << ec;
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            if (subtree.size() == 0)
+            {
+                BMCWEB_LOG_DEBUG
+                    << "Can't find PCIeDevice D-Bus object for given slot";
+                return;
+            }
+
+            // Assuming only one device path per slot.
+            const std::string& pcieDevciePath = std::get<0>(subtree[0]);
+            const std::string pcieDevice =
+                sdbusplus::message::object_path(pcieDevciePath).filename();
+
+            if (pcieDevice.empty())
+            {
+                BMCWEB_LOG_ERROR << "Failed to find / in pcie device path";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            asyncResp->res.jsonValue["Slots"][index]["Links"]["PCIeDevice"] = {
+                {{"@odata.id",
+                  "/redfish/v1/Systems/system/PCIeDevices/" + pcieDevice}}};
+        },
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetSubTree", slotPath, 0,
+        std::array<const char*, 1>{
+            "xyz.openbmc_project.Inventory.Item.PCIeDevice"});
+}
+
 inline void getPCIeSlots(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                          const std::string& chassisID)
 {
@@ -324,6 +373,8 @@ inline void getPCIeSlots(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                                             "Get", locationInterface,
                                             "LocationCode");
                                 }
+                                addLinkedPcieDevices(asyncResp, pcieSlotPath,
+                                                     index);
                             },
                             connectionName, pcieSlotPath,
                             "org.freedesktop.DBus.Properties", "GetAll",
