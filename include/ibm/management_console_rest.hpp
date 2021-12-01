@@ -1,9 +1,10 @@
 #pragma once
-#include <tinyxml2.h>
+#include "multipart_parser.hpp"
 
 #include <app.hpp>
 #include <async_resp.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/beast/http/rfc7230.hpp>
 #include <boost/container/flat_map.hpp>
 #include <boost/container/flat_set.hpp>
 #include <error_messages.hpp>
@@ -33,8 +34,11 @@ constexpr const char* methodNotAllowedMsg = "Method Not Allowed";
 constexpr const char* resourceNotFoundMsg = "Resource Not Found";
 constexpr const char* contentNotAcceptableMsg = "Content Not Acceptable";
 constexpr const char* internalServerError = "Internal Server Error";
+constexpr const char* propertyMissing = "Required Property Missing";
 constexpr uint32_t maxCSRLength = 4096;
 std::filesystem::path rootCertPath = "/var/lib/ibm/bmcweb/RootCert";
+constexpr char const* configFilePath =
+    "/var/lib/bmcweb/ibm-management-console/configfiles";
 
 constexpr size_t maxSaveareaDirSize =
     10000000; // Allow save area dir size to be max 10MB
@@ -49,26 +53,154 @@ static boost::container::flat_map<std::string,
                                   std::unique_ptr<sdbusplus::bus::match::match>>
     ackMatches;
 
-inline void handleFilePut(const crow::Request& req,
-                          const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                          const std::string& fileID)
+inline void saveConfigFile(const std::string& data, const std::string& fileID,
+                           const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                           std::uintmax_t saveAreaDirSize)
+{
+    std::error_code ec;
+    // Get the file size getting uploaded
+    BMCWEB_LOG_DEBUG << "data length: " << data.length()
+                     << "fileID: " << fileID;
+
+    if (data.length() < minSaveareaFileSize)
+    {
+        asyncResp->res.result(boost::beast::http::status::bad_request);
+        asyncResp->res.jsonValue["Description"] =
+            "File size is less than minimum allowed size[100B]";
+        return;
+    }
+    if (data.length() > maxSaveareaFileSize)
+    {
+        asyncResp->res.result(boost::beast::http::status::bad_request);
+        asyncResp->res.jsonValue["Description"] =
+            "File size exceeds maximum allowed size[10MB]";
+        return;
+    }
+    std::ofstream file;
+    std::filesystem::path loc(configFilePath);
+
+    // Form the file path
+    loc /= fileID;
+    BMCWEB_LOG_DEBUG << "Writing to the file: " << loc;
+
+    // Check if the same file exists in the directory
+    bool fileExists = std::filesystem::exists(loc, ec);
+    if (ec)
+    {
+        asyncResp->res.result(
+            boost::beast::http::status::internal_server_error);
+        asyncResp->res.jsonValue["Description"] = internalServerError;
+        BMCWEB_LOG_DEBUG << "handleIbmPut: Failed to find if file exists. ec : "
+                         << ec;
+        return;
+    }
+    std::uintmax_t newSizeToWrite = 0;
+    if (fileExists)
+    {
+        // File exists. Get the current file size
+        std::uintmax_t currentFileSize = std::filesystem::file_size(loc, ec);
+        if (ec)
+        {
+            asyncResp->res.result(
+                boost::beast::http::status::internal_server_error);
+            asyncResp->res.jsonValue["Description"] = internalServerError;
+            BMCWEB_LOG_DEBUG << "handleIbmPut: Failed to find file size. ec : "
+                             << ec;
+            return;
+        }
+        // Calculate the difference in the file size.
+        // If the data.length is greater than the existing file size, then
+        // calculate the difference. Else consider the delta size as zero -
+        // because there is no increase in the total directory size.
+        // We need to add the diff only if the incoming data is larger than the
+        // existing filesize
+        if (data.length() > currentFileSize)
+        {
+            newSizeToWrite = data.length() - currentFileSize;
+        }
+        BMCWEB_LOG_DEBUG << "newSizeToWrite: " << newSizeToWrite;
+    }
+    else
+    {
+        // This is a new file upload
+        newSizeToWrite = data.length();
+    }
+
+    // Calculate the total dir size before writing the new file
+    BMCWEB_LOG_DEBUG << "total new size: " << saveAreaDirSize + newSizeToWrite;
+    if ((saveAreaDirSize + newSizeToWrite) > maxSaveareaDirSize)
+    {
+        asyncResp->res.result(boost::beast::http::status::bad_request);
+        asyncResp->res.jsonValue["Description"] =
+            "File size does not fit in the savearea "
+            "directory maximum allowed size[10MB]";
+        return;
+    }
+
+    file.open(loc, std::ofstream::out);
+
+    // set the permission of the file to 600
+    std::filesystem::perms permission = std::filesystem::perms::owner_write |
+                                        std::filesystem::perms::owner_read;
+    std::filesystem::permissions(loc, permission);
+
+    if (file.fail())
+    {
+        BMCWEB_LOG_DEBUG << "Error while opening the file for writing";
+        asyncResp->res.result(
+            boost::beast::http::status::internal_server_error);
+        asyncResp->res.jsonValue["Description"] =
+            "Error while creating the file";
+        return;
+    }
+    file << data;
+    std::string origin = "/ibm/v1/Host/ConfigFiles/" + fileID;
+    // Push an event
+    if (fileExists)
+    {
+        BMCWEB_LOG_DEBUG << "config file is updated";
+        asyncResp->res.jsonValue["Description"] = "File Updated";
+
+        redfish::EventServiceManager::getInstance().sendEvent(
+            redfish::messages::resourceChanged(), origin, "IBMConfigFile");
+    }
+    else
+    {
+        BMCWEB_LOG_DEBUG << "config file is created";
+        asyncResp->res.jsonValue["Description"] = "File Created";
+
+        redfish::EventServiceManager::getInstance().sendEvent(
+            redfish::messages::resourceCreated(), origin, "IBMConfigFile");
+    }
+    return;
+}
+
+inline void
+    handleFileUpload(const crow::Request& req,
+                     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                     const std::string& fileID)
 {
     std::error_code ec;
     // Check the content-type of the request
     boost::beast::string_view contentType = req.getHeaderValue("content-type");
-    if (!boost::iequals(contentType, "application/octet-stream"))
+    BMCWEB_LOG_DEBUG << "Content Type: " << contentType;
+    if ((req.method() == boost::beast::http::verb::put) &&
+        (!boost::iequals(contentType, "application/octet-stream")))
+    {
+        asyncResp->res.result(boost::beast::http::status::not_acceptable);
+        asyncResp->res.jsonValue["Description"] = contentNotAcceptableMsg;
+    }
+    if ((req.method() == boost::beast::http::verb::post) &&
+        (!boost::istarts_with(contentType, "multipart/form-data")))
     {
         asyncResp->res.result(boost::beast::http::status::not_acceptable);
         asyncResp->res.jsonValue["Description"] = contentNotAcceptableMsg;
         return;
     }
-    BMCWEB_LOG_DEBUG
-        << "File upload in application/octet-stream format. Continue..";
 
     BMCWEB_LOG_DEBUG
         << "handleIbmPut: Request to create/update the save-area file";
-    std::string_view path =
-        "/var/lib/bmcweb/ibm-management-console/configfiles";
+    std::string_view path = configFilePath;
     if (!crow::ibm_utils::createDirectory(path))
     {
         asyncResp->res.result(boost::beast::http::status::not_found);
@@ -76,9 +208,7 @@ inline void handleFilePut(const crow::Request& req,
         return;
     }
 
-    std::ofstream file;
-    std::filesystem::path loc(
-        "/var/lib/bmcweb/ibm-management-console/configfiles");
+    std::filesystem::path loc(configFilePath);
 
     // Get the current size of the savearea directory
     std::filesystem::recursive_directory_iterator iter(loc, ec);
@@ -123,129 +253,84 @@ inline void handleFilePut(const crow::Request& req,
     }
     BMCWEB_LOG_DEBUG << "saveAreaDirSize: " << saveAreaDirSize;
 
-    // Get the file size getting uploaded
-    const std::string& data = req.body;
-    BMCWEB_LOG_DEBUG << "data length: " << data.length();
-
-    if (data.length() < minSaveareaFileSize)
+    // Logic to parse the data if its multipart form
+    if (boost::istarts_with(contentType, "multipart/form-data"))
     {
-        asyncResp->res.result(boost::beast::http::status::bad_request);
-        asyncResp->res.jsonValue["Description"] =
-            "File size is less than minimum allowed size[100B]";
-        return;
-    }
-    if (data.length() > maxSaveareaFileSize)
-    {
-        asyncResp->res.result(boost::beast::http::status::bad_request);
-        asyncResp->res.jsonValue["Description"] =
-            "File size exceeds maximum allowed size[10MB]";
-        return;
-    }
-
-    // Form the file path
-    loc /= fileID;
-    BMCWEB_LOG_DEBUG << "Writing to the file: " << loc;
-
-    // Check if the same file exists in the directory
-    bool fileExists = std::filesystem::exists(loc, ec);
-    if (ec)
-    {
-        asyncResp->res.result(
-            boost::beast::http::status::internal_server_error);
-        asyncResp->res.jsonValue["Description"] = internalServerError;
-        BMCWEB_LOG_DEBUG << "handleIbmPut: Failed to find if file exists. ec : "
-                         << ec;
-        return;
-    }
-
-    std::uintmax_t newSizeToWrite = 0;
-    if (fileExists)
-    {
-        // File exists. Get the current file size
-        std::uintmax_t currentFileSize = std::filesystem::file_size(loc, ec);
+        BMCWEB_LOG_DEBUG << "This is a multipart upload";
+        MultipartParser parser(req, ec);
         if (ec)
         {
+            // handle error
+            BMCWEB_LOG_ERROR << "MIME parse failed, ec : " << ec.value()
+                             << " , ec message : " << ec.message();
             asyncResp->res.result(
                 boost::beast::http::status::internal_server_error);
             asyncResp->res.jsonValue["Description"] = internalServerError;
-            BMCWEB_LOG_DEBUG << "handleIbmPut: Failed to find file size. ec : "
-                             << ec;
             return;
         }
-        // Calculate the difference in the file size.
-        // If the data.length is greater than the existing file size, then
-        // calculate the difference. Else consider the delta size as zero -
-        // because there is no increase in the total directory size.
-        // We need to add the diff only if the incoming data is larger than the
-        // existing filesize
-        if (data.length() > currentFileSize)
+        const std::string* uploadData = nullptr;
+        std::string fileName;
+        for (const FormPart& formpart : parser.mime_fields)
         {
-            newSizeToWrite = data.length() - currentFileSize;
+            boost::beast::http::fields::const_iterator it =
+                formpart.fields.find("Content-Disposition");
+            if (it == formpart.fields.end())
+            {
+                BMCWEB_LOG_ERROR << "Couldn't find Content-Disposition";
+                asyncResp->res.result(
+                    boost::beast::http::status::internal_server_error);
+                asyncResp->res.jsonValue["Description"] = internalServerError;
+                return;
+            }
+            BMCWEB_LOG_DEBUG << "Parsing value " << it->value();
+            // The construction parameters of param_list must start with
+            // `;`
+            size_t index = it->value().find(';');
+            if (index == std::string::npos)
+            {
+                BMCWEB_LOG_ERROR << "Parsing value failed" << it->value();
+                continue;
+            }
+            for (auto const& param :
+                 boost::beast::http::param_list{it->value().substr(index)})
+            {
+                BMCWEB_LOG_DEBUG << "param.first: " << param.first
+                                 << " param.second: " << param.second;
+                if (param.first == "name")
+                {
+                    fileName = param.second;
+                    BMCWEB_LOG_DEBUG << "file name : " << fileName;
+                }
+                uploadData = &(formpart.content);
+                BMCWEB_LOG_DEBUG << "uploadData : " << uploadData;
+            }
+            if ((!uploadData) || (fileName == ""))
+            {
+                BMCWEB_LOG_ERROR << "Upload data or filename is NULL";
+                asyncResp->res.result(boost::beast::http::status::bad_request);
+                asyncResp->res.jsonValue["Description"] = propertyMissing;
+                return;
+            }
+            saveConfigFile(*uploadData, fileName, asyncResp, saveAreaDirSize);
+            BMCWEB_LOG_INFO << "ConfigFile " << fileName
+                            << " upload complete!!";
         }
-        BMCWEB_LOG_DEBUG << "newSizeToWrite: " << newSizeToWrite;
     }
     else
     {
-        // This is a new file upload
-        newSizeToWrite = data.length();
+        // Single file upload
+        const std::string& data = req.body;
+        saveConfigFile(data, fileID, asyncResp, saveAreaDirSize);
+        BMCWEB_LOG_INFO << "ConfigFile " << fileID << " upload complete!!";
     }
-
-    // Calculate the total dir size before writing the new file
-    BMCWEB_LOG_DEBUG << "total new size: " << saveAreaDirSize + newSizeToWrite;
-
-    if ((saveAreaDirSize + newSizeToWrite) > maxSaveareaDirSize)
-    {
-        asyncResp->res.result(boost::beast::http::status::bad_request);
-        asyncResp->res.jsonValue["Description"] =
-            "File size does not fit in the savearea "
-            "directory maximum allowed size[10MB]";
-        return;
-    }
-
-    file.open(loc, std::ofstream::out);
-
-    // set the permission of the file to 600
-    std::filesystem::perms permission = std::filesystem::perms::owner_write |
-                                        std::filesystem::perms::owner_read;
-    std::filesystem::permissions(loc, permission);
-
-    if (file.fail())
-    {
-        BMCWEB_LOG_DEBUG << "Error while opening the file for writing";
-        asyncResp->res.result(
-            boost::beast::http::status::internal_server_error);
-        asyncResp->res.jsonValue["Description"] =
-            "Error while creating the file";
-        return;
-    }
-    file << data;
-
-    std::string origin = "/ibm/v1/Host/ConfigFiles/" + fileID;
-    // Push an event
-    if (fileExists)
-    {
-        BMCWEB_LOG_DEBUG << "config file is updated";
-        asyncResp->res.jsonValue["Description"] = "File Updated";
-
-        redfish::EventServiceManager::getInstance().sendEvent(
-            redfish::messages::resourceChanged(), origin, "IBMConfigFile");
-    }
-    else
-    {
-        BMCWEB_LOG_DEBUG << "config file is created";
-        asyncResp->res.jsonValue["Description"] = "File Created";
-
-        redfish::EventServiceManager::getInstance().sendEvent(
-            redfish::messages::resourceCreated(), origin, "IBMConfigFile");
-    }
+    return;
 }
 
 inline void
     handleConfigFileList(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     std::vector<std::string> pathObjList;
-    std::filesystem::path loc(
-        "/var/lib/bmcweb/ibm-management-console/configfiles");
+    std::filesystem::path loc(configFilePath);
     if (std::filesystem::exists(loc) && std::filesystem::is_directory(loc))
     {
         for (const auto& file : std::filesystem::directory_iterator(loc))
@@ -273,8 +358,7 @@ inline void
 {
     std::vector<std::string> pathObjList;
     std::error_code ec;
-    std::filesystem::path loc(
-        "/var/lib/bmcweb/ibm-management-console/configfiles");
+    std::filesystem::path loc(configFilePath);
     if (std::filesystem::exists(loc) && std::filesystem::is_directory(loc))
     {
         std::filesystem::remove_all(loc, ec);
@@ -409,11 +493,12 @@ inline void
 
 inline void handleFileUrl(const crow::Request& req,
                           const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                          const std::string& fileID)
+                          const std::string& fileID = "")
 {
-    if (req.method() == boost::beast::http::verb::put)
+    if ((req.method() == boost::beast::http::verb::put) ||
+        (req.method() == boost::beast::http::verb::post))
     {
-        handleFilePut(req, asyncResp, fileID);
+        handleFileUpload(req, asyncResp, fileID);
         return;
     }
     if (req.method() == boost::beast::http::verb::get)
@@ -1073,6 +1158,14 @@ inline void requestRoutes(App& app)
                     return;
                 }
                 handleFileUrl(req, asyncResp, fileName);
+            });
+
+    BMCWEB_ROUTE(app, "/ibm/v1/Host/ConfigFiles")
+        .privileges({{"ConfigureComponents", "ConfigureManager"}})
+        .methods(boost::beast::http::verb::post)(
+            [](const crow::Request& req,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+                handleFileUrl(req, asyncResp);
             });
 
     BMCWEB_ROUTE(app, "/ibm/v1/Host/Certificate")
