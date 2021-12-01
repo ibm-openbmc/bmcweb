@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/ProcessorMetrics.v1_3_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/ProcessorMetrics.v1_4_0.json",
     "$ref": "#/definitions/ProcessorMetrics",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -583,6 +583,12 @@
                     "units": "MHz",
                     "versionAdded": "v1_1_0"
                 },
+                "PCIeErrors": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/PCIeDevice.json#/definitions/PCIeErrors",
+                    "description": "The PCIe errors associated with this processor.",
+                    "longDescription": "This property shall contain the PCIe errors associated with this processor.",
+                    "versionAdded": "v1_4_0"
+                },
                 "RemoteMemoryBandwidthBytes": {
                     "description": "The remote memory bandwidth usage in bytes.",
                     "longDescription": "This property shall contain the remote memory bandwidth usage of this processor in bytes.  When this resource is subordinate to the ProcessorSummary object, this property shall be the sum of RemoteMemoryBandwidthBytes over all processors.",
@@ -637,6 +643,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.2",
-    "title": "#ProcessorMetrics.v1_3_0.ProcessorMetrics"
+    "release": "2021.3",
+    "title": "#ProcessorMetrics.v1_4_0.ProcessorMetrics"
 }

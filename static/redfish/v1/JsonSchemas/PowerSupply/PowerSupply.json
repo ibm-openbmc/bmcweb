@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/PowerSupply.v1_1_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/PowerSupply.v1_2_0.json",
     "$ref": "#/definitions/PowerSupply",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -155,6 +155,19 @@
                     "description": "A link to the outlet connected to this power supply.",
                     "longDescription": "This property shall contain a link to a resource of type Outlet that represents the outlet connected to this power supply.",
                     "readonly": false
+                },
+                "PowerOutlets": {
+                    "description": "An array of links to the outlets that provide power to this power supply.",
+                    "items": {
+                        "$ref": "http://redfish.dmtf.org/schemas/v1/Outlet.json#/definitions/Outlet"
+                    },
+                    "longDescription": "This property shall contain an array of links to resources of type Outlet that represent the outlets that provide power to this power supply.",
+                    "readonly": false,
+                    "type": "array",
+                    "versionAdded": "v1_2_0"
+                },
+                "PowerOutlets@odata.count": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
                 }
             },
             "type": "object"
@@ -284,6 +297,33 @@
                     },
                     "longDescription": "This property shall contain an array of efficiency ratings for this power supply.",
                     "type": "array"
+                },
+                "ElectricalSourceManagerURIs": {
+                    "description": "The URIs of the management interfaces for the upstream electrical source connections for this power supply.",
+                    "format": "uri-reference",
+                    "items": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "longDescription": "This property shall contain an array of URIs to the management applications or devices that provide monitoring or control of the upstream electrical sources that provide power to this power supply.",
+                    "readonly": false,
+                    "type": "array",
+                    "versionAdded": "v1_2_0"
+                },
+                "ElectricalSourceNames": {
+                    "description": "The names of the upstream electrical sources, such as circuits or outlets, connected to this power supply.",
+                    "items": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "longDescription": "This property shall contain an arrays of strings that identify the upstream electrical sources, such as the names of circuits or outlets, that provide power to this power supply.",
+                    "readonly": false,
+                    "type": "array",
+                    "versionAdded": "v1_2_0"
                 },
                 "FirmwareVersion": {
                     "description": "The firmware version for this power supply.",
@@ -553,6 +593,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.1",
-    "title": "#PowerSupply.v1_1_0.PowerSupply"
+    "release": "2021.3",
+    "title": "#PowerSupply.v1_2_0.PowerSupply"
 }

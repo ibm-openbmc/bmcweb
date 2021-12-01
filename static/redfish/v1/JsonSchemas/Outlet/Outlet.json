@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Outlet.v1_2_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Outlet.v1_3_0.json",
     "$ref": "#/definitions/Outlet",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -143,10 +143,49 @@
                     "longDescription": "This property shall contain a link to a resource of type Circuit that represent the branch circuit associated with this outlet.",
                     "readonly": true
                 },
+                "Chassis": {
+                    "description": "Any array of links to chassis connected to this outlet.",
+                    "items": {
+                        "$ref": "http://redfish.dmtf.org/schemas/v1/Chassis.json#/definitions/Chassis"
+                    },
+                    "longDescription": "This property shall contain an array of links to resources of type Chassis that represent the chassis connected to this outlet.",
+                    "readonly": false,
+                    "type": "array",
+                    "versionAdded": "v1_3_0"
+                },
+                "Chassis@odata.count": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
+                },
+                "DistributionCircuits": {
+                    "description": "An array of links to mains or input circuits powered by this outlet.",
+                    "items": {
+                        "$ref": "http://redfish.dmtf.org/schemas/v1/Circuit.json#/definitions/Circuit"
+                    },
+                    "longDescription": "This property shall contain an array of links to resources of type Circuit that represent the circuits powered by this outlet.  This property is used to show a connection to an input circuit downstream in a power distribution chain.",
+                    "readonly": false,
+                    "type": "array",
+                    "versionAdded": "v1_3_0"
+                },
+                "DistributionCircuits@odata.count": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
+                },
                 "Oem": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Oem",
                     "description": "The OEM extension property.",
                     "longDescription": "This property shall contain the OEM extensions.  All values for properties contained in this object shall conform to the Redfish Specification-described requirements."
+                },
+                "PowerSupplies": {
+                    "description": "An array of links to the power supplies connected to this outlet.",
+                    "items": {
+                        "$ref": "http://redfish.dmtf.org/schemas/v1/PowerSupply.json#/definitions/PowerSupply"
+                    },
+                    "longDescription": "This property shall contain an array of links to resources of type PowerSupply that represent the power supplies connected to this outlet.",
+                    "readonly": false,
+                    "type": "array",
+                    "versionAdded": "v1_3_0"
+                },
+                "PowerSupplies@odata.count": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
                 }
             },
             "type": "object"
@@ -231,6 +270,19 @@
                         }
                     ],
                     "readonly": true
+                },
+                "ElectricalConsumerNames": {
+                    "description": "An array of names of downstream devices that are powered by this outlet.",
+                    "items": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "longDescription": "This property shall contain an array of user-assigned identifying strings that describe downstream devices that are powered by this outlet.",
+                    "readonly": false,
+                    "type": "array",
+                    "versionAdded": "v1_3_0"
                 },
                 "ElectricalContext": {
                     "anyOf": [
@@ -484,6 +536,13 @@
                     "description": "The status and health of the resource and its subordinate or dependent resources.",
                     "longDescription": "This property shall contain any status or health properties of the resource."
                 },
+                "UserLabel": {
+                    "description": "A user-assigned label.",
+                    "longDescription": "This property shall contain a user-assigned label used to identify this resource.  If a value has not been assigned by a user, the value of this property shall be an empty string.",
+                    "readonly": false,
+                    "type": "string",
+                    "versionAdded": "v1_3_0"
+                },
                 "Voltage": {
                     "anyOf": [
                         {
@@ -702,6 +761,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.2",
-    "title": "#Outlet.v1_2_0.Outlet"
+    "release": "2021.3",
+    "title": "#Outlet.v1_3_0.Outlet"
 }

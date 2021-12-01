@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Cable.v1_0_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Cable.v1_1_0.json",
     "$ref": "#/definitions/Cable",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -248,6 +248,13 @@
                         "null"
                     ]
                 },
+                "UserLabel": {
+                    "description": "A user-assigned label.",
+                    "longDescription": "This property shall contain a user-assigned label used to identify this resource.  If a value has not been assigned by a user, the value of this property shall be an empty string.",
+                    "readonly": false,
+                    "type": "string",
+                    "versionAdded": "v1_1_0"
+                },
                 "Vendor": {
                     "description": "The manufacturer of this cable.",
                     "longDescription": "This property shall contain the name of the company that provides the final product that includes this cable.",
@@ -485,6 +492,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.2",
-    "title": "#Cable.v1_0_0.Cable"
+    "release": "2021.3",
+    "title": "#Cable.v1_1_0.Cable"
 }

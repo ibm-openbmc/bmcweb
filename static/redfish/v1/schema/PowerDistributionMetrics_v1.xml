@@ -57,6 +57,8 @@
             <String>/redfish/v1/PowerEquipment/FloorPDUs/{PowerDistributionId}/Metrics</String>
             <String>/redfish/v1/PowerEquipment/TransferSwitches/{PowerDistributionId}/Metrics</String>
             <String>/redfish/v1/PowerEquipment/PowerShelves/{PowerDistributionId}/Metrics</String>
+            <String>/redfish/v1/PowerEquipment/Switchgear/{PowerDistributionId}/Metrics</String>
+            <String>/redfish/v1/PowerEquipment/ElectricalBuses/{PowerDistributionId}/Metrics</String>
           </Collection>
         </Annotation>
       </EntityType>

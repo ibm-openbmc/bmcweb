@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Switch.v1_6_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Switch.v1_7_0.json",
     "$ref": "#/definitions/Switch",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -356,6 +356,13 @@
                     "type": "array",
                     "versionAdded": "v1_5_0"
                 },
+                "Metrics": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/SwitchMetrics.json#/definitions/SwitchMetrics",
+                    "description": "The link to the metrics associated with this switch.",
+                    "longDescription": "This property shall contain a link to the metrics associated with this switch.",
+                    "readonly": true,
+                    "versionAdded": "v1_7_0"
+                },
                 "Model": {
                     "description": "The product model number of this switch.",
                     "longDescription": "This property shall contain the manufacturer-provided model information of this switch.",
@@ -494,6 +501,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.1",
-    "title": "#Switch.v1_6_0.Switch"
+    "release": "2021.3",
+    "title": "#Switch.v1_7_0.Switch"
 }
