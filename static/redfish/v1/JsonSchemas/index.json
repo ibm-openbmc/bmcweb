@@ -4,7 +4,7 @@
   "@odata.type": "#JsonSchemaFileCollection.JsonSchemaFileCollection",
   "Name": "JsonSchemaFile Collection",
   "Description": "Collection of JsonSchemaFiles",
-  "Members@odata.count": 132,
+  "Members@odata.count": 135,
   "Members": [
     {
       "@odata.id": "/redfish/v1/JsonSchemas/AccelerationFunction"
@@ -152,6 +152,12 @@
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/KeyService"
+    },
+    {
+      "@odata.id": "/redfish/v1/JsonSchemas/License"
+    },
+    {
+      "@odata.id": "/redfish/v1/JsonSchemas/LicenseService"
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/LogEntry"
@@ -347,6 +353,9 @@
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/Switch"
+    },
+    {
+      "@odata.id": "/redfish/v1/JsonSchemas/SwitchMetrics"
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/Task"

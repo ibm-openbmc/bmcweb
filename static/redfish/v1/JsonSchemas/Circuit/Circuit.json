@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Circuit.v1_3_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Circuit.v1_4_0.json",
     "$ref": "#/definitions/Circuit",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -173,6 +173,19 @@
                     ],
                     "readonly": true
                 },
+                "ElectricalConsumerNames": {
+                    "description": "An array of names of downstream devices that are powered by this circuit.",
+                    "items": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "longDescription": "This property shall contain an array of user-assigned identifying strings that describe downstream devices that are powered by this circuit.",
+                    "readonly": false,
+                    "type": "array",
+                    "versionAdded": "v1_4_0"
+                },
                 "ElectricalContext": {
                     "anyOf": [
                         {
@@ -185,6 +198,21 @@
                     "description": "The combination of current-carrying conductors.",
                     "longDescription": "This property shall contain the combination of current-carrying conductors that distribute power.",
                     "readonly": true
+                },
+                "ElectricalSourceManagerURI": {
+                    "description": "The URI of the management interface for the upstream electrical source connection for this circuit.",
+                    "format": "uri-reference",
+                    "longDescription": "This property shall contain a URI to the management application or device that provides monitoring or control of the upstream electrical source that provide power to this circuit.  If a value has not been assigned by a user, the value of this property shall be an empty string.",
+                    "readonly": false,
+                    "type": "string",
+                    "versionAdded": "v1_4_0"
+                },
+                "ElectricalSourceName": {
+                    "description": "The name of the upstream electrical source, such as a circuit or outlet, connected to this circuit.",
+                    "longDescription": "This property shall contain a string that identifies the upstream electrical source, such as the name of a circuit or outlet, that provides power to this circuit.  If a value has not been assigned by a user, the value of this property shall be an empty string.",
+                    "readonly": false,
+                    "type": "string",
+                    "versionAdded": "v1_4_0"
                 },
                 "EnergykWh": {
                     "anyOf": [
@@ -449,6 +477,13 @@
                     "description": "The status and health of the resource and its subordinate or dependent resources.",
                     "longDescription": "This property shall contain any status or health properties of the resource."
                 },
+                "UserLabel": {
+                    "description": "A user-assigned label.",
+                    "longDescription": "This property shall contain a user-assigned label used to identify this resource.  If a value has not been assigned by a user, the value of this property shall be an empty string.",
+                    "readonly": false,
+                    "type": "string",
+                    "versionAdded": "v1_4_0"
+                },
                 "Voltage": {
                     "anyOf": [
                         {
@@ -489,13 +524,18 @@
                 "Mains",
                 "Branch",
                 "Subfeed",
-                "Feeder"
+                "Feeder",
+                "Bus"
             ],
             "enumDescriptions": {
                 "Branch": "A branch (output) circuit.",
+                "Bus": "An electrical bus circuit.",
                 "Feeder": "A feeder (output) circuit.",
                 "Mains": "A mains input or utility circuit.",
                 "Subfeed": "A subfeed (output) circuit."
+            },
+            "enumVersionAdded": {
+                "Bus": "v1_3_0"
             },
             "type": "string"
         },
@@ -705,6 +745,19 @@
                     "longDescription": "This property shall contain a link to a resource of type Circuit that represents the branch circuit associated with this circuit.",
                     "readonly": true
                 },
+                "DistributionCircuits": {
+                    "description": "An array of links to the circuits powered by this circuit.",
+                    "items": {
+                        "$ref": "http://redfish.dmtf.org/schemas/v1/Circuit.json#/definitions/Circuit"
+                    },
+                    "longDescription": "This property shall contain an array of links to resources of type Circuit that represent the circuits powered by this circuit.",
+                    "readonly": false,
+                    "type": "array",
+                    "versionAdded": "v1_4_0"
+                },
+                "DistributionCircuits@odata.count": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
+                },
                 "Oem": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Oem",
                     "description": "The OEM extension property.",
@@ -721,6 +774,34 @@
                 },
                 "Outlets@odata.count": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
+                },
+                "PowerOutlet": {
+                    "anyOf": [
+                        {
+                            "$ref": "http://redfish.dmtf.org/schemas/v1/Outlet.json#/definitions/Outlet"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "A link to the power outlet that provides power to this circuit.",
+                    "longDescription": "This property shall contain a link to a resource of type Outlet that represents the outlet that provides power to this circuit.",
+                    "readonly": false,
+                    "versionAdded": "v1_4_0"
+                },
+                "SourceCircuit": {
+                    "anyOf": [
+                        {
+                            "$ref": "http://redfish.dmtf.org/schemas/v1/Circuit.json#/definitions/Circuit"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "A link to the circuit that provides power to this circuit.",
+                    "longDescription": "This property shall contain a link to a resource of type Circuit that represents the circuit that provides power to this circuit.  This property should be used when the power source is not represented by an Outlet resource, such as a feeder circuit.",
+                    "readonly": false,
+                    "versionAdded": "v1_4_0"
                 }
             },
             "type": "object"
@@ -1029,6 +1110,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.2",
-    "title": "#Circuit.v1_3_0.Circuit"
+    "release": "2021.3",
+    "title": "#Circuit.v1_4_0.Circuit"
 }

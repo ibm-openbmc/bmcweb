@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/AddressPool.v1_2_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/AddressPool.v1_2_1.json",
     "$ref": "#/definitions/AddressPool",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -461,8 +461,8 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The VLAN tag range for the fabric.",
-                    "longDescription": "This property shall contain Virtual LAN (VLAN) tag range for host addresses.",
+                    "description": "Virtual LAN (VLAN) tag related address range applicable to this Ethernet fabric or for end host subnets.",
+                    "longDescription": "This property shall contain Virtual LAN (VLAN) tag related address range applicable to this Ethernet fabric or for endpoint host subnets.  VLAN tags can be used for the purpose of identifying packets belonging to different networks.",
                     "versionAdded": "v1_1_0"
                 }
             },
@@ -1529,7 +1529,7 @@
                         }
                     ],
                     "description": "External BGP (eBGP) related addressing for this Ethernet fabric.",
-                    "longDescription": "This property shall contain the range of IPv4 addresses assigned to External BGP (eBGP).",
+                    "longDescription": "This property shall contain the range of IPv4 addresses assigned to External BGP (eBGP) neighbors belonging to different ASes (Autonomous Systems).",
                     "versionAdded": "v1_1_0"
                 },
                 "FabricLinkAddressRange": {
@@ -1541,8 +1541,8 @@
                             "type": "null"
                         }
                     ],
-                    "description": "Link related addressing for this Ethernet fabric.",
-                    "longDescription": "This property shall contain the range of link IPv4 addressing between Ethernet switches.",
+                    "description": "Link related IPv4 addressing for this Ethernet fabric typically applied to connections between spine and leaf Ethernet switches.",
+                    "longDescription": "This property shall contain link related IPv4 addressing for this Ethernet fabric typically applied to connections between spine and leaf Ethernet switches.",
                     "versionAdded": "v1_1_0"
                 },
                 "GatewayIPAddress": {
@@ -1565,8 +1565,8 @@
                             "type": "null"
                         }
                     ],
-                    "description": "IPv4 related end host subnet addressing for this Ethernet fabric.",
-                    "longDescription": "This property shall contain the range of IP subnets used for host addressing.",
+                    "description": "IPv4 related host subnet addressing for physical device endpoints that connect to this Ethernet fabric.",
+                    "longDescription": "This property shall contain the IP subnet range for host addressing for physical device endpoints that connect to this Ethernet fabric.  An endpoint shall be allocated an IP address from this host address range.  The Ethernet fabric should provide IP unicast or multicast connectivity for host device endpoints belonging to this host address range.",
                     "versionAdded": "v1_1_0"
                 },
                 "IBGPAddressRange": {
@@ -1579,7 +1579,7 @@
                         }
                     ],
                     "description": "Internal BGP (iBGP) related addressing for this Ethernet fabric.",
-                    "longDescription": "This property shall contain the range of IPv4 addresses assigned to Internal BGP (iBGP).",
+                    "longDescription": "This property shall contain the range of IPv4 addresses assigned to Internal BGP (iBGP) neighbors belonging to the same AS (Autonomous System).",
                     "versionAdded": "v1_1_0"
                 },
                 "LoopbackAddressRange": {
@@ -1591,8 +1591,8 @@
                             "type": "null"
                         }
                     ],
-                    "description": "Loopback related addressing for this Ethernet fabric.",
-                    "longDescription": "This property shall contain the range of loopback addresses assigned to Ethernet switches.",
+                    "description": "Loopback related IPv4 addressing for this Ethernet fabric.",
+                    "longDescription": "This property shall contain the range of loopback related IPv4 addresses assigned to this Ethernet fabric's Ethernet switches.  A loopback interface provides a stable interface to which a IP address is then assigned.  This address can be configured as the source address when the networking device needs to send data for control plane protocols such as BGP and OSPF.",
                     "versionAdded": "v1_1_0"
                 },
                 "ManagementAddressRange": {
@@ -1605,7 +1605,7 @@
                         }
                     ],
                     "description": "Management related addressing for this Ethernet fabric.",
-                    "longDescription": "This property shall contain the range of management IPv4 addresses assigned to Ethernet switches.",
+                    "longDescription": "This property shall contain the range of management IPv4 addresses assigned to manage this Ethernet fabric's Ethernet switches.",
                     "versionAdded": "v1_1_0"
                 },
                 "NTPOffsetHoursMinutes": {
@@ -2076,5 +2076,5 @@
     },
     "owningEntity": "DMTF",
     "release": "2021.2",
-    "title": "#AddressPool.v1_2_0.AddressPool"
+    "title": "#AddressPool.v1_2_1.AddressPool"
 }

@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/PowerDistribution.v1_1_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/PowerDistribution.v1_2_0.json",
     "$ref": "#/definitions/PowerDistribution",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -387,10 +387,12 @@
                 "ManualTransferSwitch",
                 "AutomaticTransferSwitch",
                 "Switchgear",
-                "PowerShelf"
+                "PowerShelf",
+                "Bus"
             ],
             "enumDescriptions": {
                 "AutomaticTransferSwitch": "An automatic power transfer switch.",
+                "Bus": "An electrical bus.",
                 "FloorPDU": "A power distribution unit providing feeder circuits for further power distribution.",
                 "ManualTransferSwitch": "A manual power transfer switch.",
                 "PowerShelf": "A power shelf.",
@@ -398,6 +400,7 @@
                 "Switchgear": "Electrical switchgear."
             },
             "enumVersionAdded": {
+                "Bus": "v1_2_0",
                 "PowerShelf": "v1_1_0"
             },
             "type": "string"
@@ -627,6 +630,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.2",
-    "title": "#PowerDistribution.v1_1_0.PowerDistribution"
+    "release": "2021.3",
+    "title": "#PowerDistribution.v1_2_0.PowerDistribution"
 }

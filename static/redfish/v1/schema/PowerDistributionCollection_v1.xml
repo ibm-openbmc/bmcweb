@@ -57,6 +57,7 @@
             <String>/redfish/v1/PowerEquipment/Switchgear</String>
             <String>/redfish/v1/PowerEquipment/TransferSwitches</String>
             <String>/redfish/v1/PowerEquipment/PowerShelves</String>
+            <String>/redfish/v1/PowerEquipment/ElectricalBuses</String>
           </Collection>
         </Annotation>
         <NavigationProperty Name="Members" Type="Collection(PowerDistribution.PowerDistribution)">

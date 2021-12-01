@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!---->
 <!--################################################################################       -->
-<!--# Redfish Schema:  ProcessorMetrics v1.3.0                                             -->
+<!--# Redfish Schema:  ProcessorMetrics v1.4.0                                             -->
 <!--#                                                                                      -->
 <!--# For a detailed change log, see the README file contained in the DSP8010 bundle,      -->
 <!--# available at http://www.dmtf.org/standards/redfish                                   -->
@@ -29,6 +29,9 @@
   </edmx:Reference>
   <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Sensor_v1.xml">
     <edmx:Include Namespace="Sensor"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/PCIeDevice_v1.xml">
+    <edmx:Include Namespace="PCIeDevice"/>
   </edmx:Reference>
 
   <edmx:DataServices>
@@ -458,6 +461,18 @@
           <Annotation Term="OData.LongDescription" String="The value of this property shall contain the sensor measuring the core voltage of this processor in Volts.  The core voltage of the processor may change more frequently than the manager is able to monitor."/>
           <Annotation Term="Redfish.ExcerptCopy" String="Voltage"/>
         </NavigationProperty>
+      </EntityType>
+    </Schema>
+
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="ProcessorMetrics.v1_4_0">
+      <Annotation Term="Redfish.OwningEntity" String="DMTF"/>
+      <Annotation Term="Redfish.Release" String="2021.3"/>
+
+      <EntityType Name="ProcessorMetrics" BaseType="ProcessorMetrics.v1_3_0.ProcessorMetrics">
+        <Property Name="PCIeErrors" Type="PCIeDevice.PCIeErrors" Nullable="false">
+          <Annotation Term="OData.Description" String="The PCIe errors associated with this processor."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the PCIe errors associated with this processor."/>
+        </Property>
       </EntityType>
     </Schema>
 

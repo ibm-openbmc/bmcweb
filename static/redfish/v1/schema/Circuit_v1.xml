@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!---->
 <!--################################################################################       -->
-<!--# Redfish Schema:  Circuit v1.3.0                                                      -->
+<!--# Redfish Schema:  Circuit v1.4.0                                                      -->
 <!--#                                                                                      -->
 <!--# For a detailed change log, see the README file contained in the DSP8010 bundle,      -->
 <!--# available at http://www.dmtf.org/standards/redfish                                   -->
@@ -71,6 +71,12 @@
             <String>/redfish/v1/PowerEquipment/TransferSwitches/{PowerDistributionId}/Feeders/{CircuitId}</String>
             <String>/redfish/v1/PowerEquipment/PowerShelves/{PowerDistributionId}/Mains/{CircuitId}</String>
             <String>/redfish/v1/PowerEquipment/PowerShelves/{PowerDistributionId}/Branches/{CircuitId}</String>
+            <String>/redfish/v1/PowerEquipment/Switchgear/{PowerDistributionId}/Mains/{CircuitId}</String>
+            <String>/redfish/v1/PowerEquipment/Switchgear/{PowerDistributionId}/Subfeeds/{CircuitId}</String>
+            <String>/redfish/v1/PowerEquipment/Switchgear/{PowerDistributionId}/Feeders/{CircuitId}</String>
+            <String>/redfish/v1/PowerEquipment/Switchgear/{PowerDistributionId}/Branches/{CircuitId}</String>
+            <String>/redfish/v1/PowerEquipment/ElectricalBuses/{PowerDistributionId}/Mains/{CircuitId}</String>
+            <String>/redfish/v1/PowerEquipment/ElectricalBuses/{PowerDistributionId}/Branches/{CircuitId}</String>
           </Collection>
         </Annotation>
       </EntityType>
@@ -691,6 +697,17 @@
         <Member Name="Feeder">
           <Annotation Term="OData.Description" String="A feeder (output) circuit."/>
         </Member>
+        <Member Name="Bus">
+          <Annotation Term="OData.Description" String="An electrical bus circuit."/>
+          <Annotation Term="Redfish.Revisions">
+            <Collection>
+              <Record>
+                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
+                <PropertyValue Property="Version" String="v1_3_0"/>
+              </Record>
+            </Collection>
+          </Annotation>
+        </Member>
       </EnumType>
 
       <EnumType Name="VoltageType">
@@ -754,6 +771,56 @@
           <Annotation Term="OData.LongDescription" String="This property shall contain the power load, measured in percent, for this circuit, that represents the `Total` ElectricalContext for this circuit."/>
         </NavigationProperty>
       </EntityType>
+    </Schema>
+
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="Circuit.v1_4_0">
+      <Annotation Term="Redfish.OwningEntity" String="DMTF"/>
+      <Annotation Term="Redfish.Release" String="2021.3"/>
+
+      <EntityType Name="Circuit" BaseType="Circuit.v1_3_0.Circuit">
+        <Property Name="UserLabel" Type="Edm.String" Nullable="false">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/ReadWrite"/>
+          <Annotation Term="OData.Description" String="A user-assigned label."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain a user-assigned label used to identify this resource.  If a value has not been assigned by a user, the value of this property shall be an empty string."/>
+        </Property>
+        <Property Name="ElectricalSourceManagerURI" Type="Edm.String" Nullable="false">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/ReadWrite"/>
+          <Annotation Term="OData.Description" String="The URI of the management interface for the upstream electrical source connection for this circuit."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain a URI to the management application or device that provides monitoring or control of the upstream electrical source that provide power to this circuit.  If a value has not been assigned by a user, the value of this property shall be an empty string."/>
+          <Annotation Term="OData.IsURL"/>
+        </Property>
+        <Property Name="ElectricalSourceName" Type="Edm.String" Nullable="false">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/ReadWrite"/>
+          <Annotation Term="OData.Description" String="The name of the upstream electrical source, such as a circuit or outlet, connected to this circuit."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain a string that identifies the upstream electrical source, such as the name of a circuit or outlet, that provides power to this circuit.  If a value has not been assigned by a user, the value of this property shall be an empty string."/>
+        </Property>
+        <Property Name="ElectricalConsumerNames" Type="Collection(Edm.String)">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/ReadWrite"/>
+          <Annotation Term="OData.Description" String="An array of names of downstream devices that are powered by this circuit."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain an array of user-assigned identifying strings that describe downstream devices that are powered by this circuit."/>
+        </Property>
+      </EntityType>
+
+      <ComplexType Name="Links" BaseType="Circuit.v1_0_0.Links">
+        <NavigationProperty Name="SourceCircuit" Type="Circuit.Circuit">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/ReadWrite"/>
+          <Annotation Term="OData.Description" String="A link to the circuit that provides power to this circuit."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain a link to a resource of type Circuit that represents the circuit that provides power to this circuit.  This property should be used when the power source is not represented by an Outlet resource, such as a feeder circuit."/>
+          <Annotation Term="OData.AutoExpandReferences"/>
+        </NavigationProperty>
+        <NavigationProperty Name="PowerOutlet" Type="Outlet.Outlet">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/ReadWrite"/>
+          <Annotation Term="OData.Description" String="A link to the power outlet that provides power to this circuit."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain a link to a resource of type Outlet that represents the outlet that provides power to this circuit."/>
+          <Annotation Term="OData.AutoExpandReferences"/>
+        </NavigationProperty>
+        <NavigationProperty Name="DistributionCircuits" Type="Collection(Circuit.Circuit)">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/ReadWrite"/>
+          <Annotation Term="OData.Description" String="An array of links to the circuits powered by this circuit."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain an array of links to resources of type Circuit that represent the circuits powered by this circuit."/>
+          <Annotation Term="OData.AutoExpandReferences"/>
+        </NavigationProperty>
+      </ComplexType>
     </Schema>
 
   </edmx:DataServices>

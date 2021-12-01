@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Facility.v1_2_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Facility.v1_3_0.json",
     "$ref": "#/definitions/Facility",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -206,6 +206,19 @@
                 "ContainsFacilities@odata.count": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
                 },
+                "ElectricalBuses": {
+                    "description": "An array of links to the electrical buses in this facility.",
+                    "items": {
+                        "$ref": "http://redfish.dmtf.org/schemas/v1/PowerDistribution.json#/definitions/PowerDistribution"
+                    },
+                    "longDescription": "The value of this property shall contain an array of links to resources of type PowerDistribution that represent the electrical buses in this facility.",
+                    "readonly": false,
+                    "type": "array",
+                    "versionAdded": "v1_3_0"
+                },
+                "ElectricalBuses@odata.count": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
+                },
                 "FloorPDUs": {
                     "description": "An array of links to the floor power distribution units in this facility.",
                     "items": {
@@ -310,6 +323,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.2",
-    "title": "#Facility.v1_2_0.Facility"
+    "release": "2021.3",
+    "title": "#Facility.v1_3_0.Facility"
 }
