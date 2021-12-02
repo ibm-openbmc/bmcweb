@@ -26,6 +26,7 @@
 #include "../lib/event_service.hpp"
 #include "../lib/fan.hpp"
 #include "../lib/hypervisor_system.hpp"
+#include "../lib/license_service.hpp"
 #include "../lib/log_services.hpp"
 #include "../lib/managers.hpp"
 #include "../lib/memory.hpp"
@@ -241,6 +242,12 @@ class RedfishService
 
 #ifdef BMCWEB_ENABLE_HW_ISOLATION
         requestRoutesSystemHardwareIsolationLogService(app);
+#endif
+
+#ifdef BMCWEB_ENABLE_REDFISH_LICENSE
+        requestRoutesLicenseService(app);
+        requestRoutesLicenseEntryCollection(app);
+        requestRoutesLicenseEntry(app);
 #endif
     }
 };
