@@ -337,6 +337,60 @@ inline void
         "/xyz/openbmc_project/inventory", 0, resourceIfaces);
 }
 
+/*
+ * @brief The helper API to set the Redfish severity level base on
+ *        the given severity.
+ *
+ * @param[in] aResp - The redfish response to return.
+ * @param[in] objPath - The D-Bus object path of the given severity.
+ * @param[in] severityPropPath - The Redfish severity property json path.
+ * @param[in] severityVal - The D-Bus object severity.
+ *
+ * @return True on success
+ *         False on failure and set the error in the redfish response.
+ */
+inline bool
+    setSeverity(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                const sdbusplus::message::object_path& objPath,
+                const nlohmann::json_pointer<nlohmann::json>& severityPropPath,
+                const std::string& severityVal)
+{
+    if (severityVal == "xyz.openbmc_project.Logging.Event."
+                       "SeverityLevel.Critical")
+    {
+        aResp->res.jsonValue[severityPropPath] = "Critical";
+    }
+    else if ((severityVal == "xyz.openbmc_project.Logging."
+                             "Event.SeverityLevel.Warning") ||
+             (severityVal == "xyz.openbmc_project.Logging."
+                             "Event.SeverityLevel.Unknown"))
+    {
+        aResp->res.jsonValue[severityPropPath] = "Warning";
+    }
+    else if (severityVal == "xyz.openbmc_project.Logging."
+                            "Event.SeverityLevel.Ok")
+    {
+        aResp->res.jsonValue[severityPropPath] = "OK";
+    }
+    else
+    {
+        BMCWEB_LOG_ERROR << "Unsupported Severity[ " << severityVal
+                         << "] from object: " << objPath.str;
+        messages::internalError(aResp->res);
+        return false;
+    }
+    return true;
+}
+
+/*
+ * @brief The helper API to set the Redfish Status conditions based on
+ *        the given resource event log association.
+ *
+ * @param[in] aResp - The redfish response to return.
+ * @param[in] resourceObjPath - The resource D-Bus object object.
+ *
+ * @return NULL
+ */
 inline void
     getHwIsolationStatus(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                          const sdbusplus::message::object_path& resourceObjPath)
@@ -481,14 +535,14 @@ inline void
                                         break;
                                     }
 
-                                    for (auto& assoc : *associations)
+                                    for (const auto& assoc : *associations)
                                     {
                                         if (std::get<0>(assoc) == "error_log")
                                         {
                                             sdbusplus::message::object_path
                                                 errPath = std::get<2>(assoc);
                                             // we have only one condition
-                                            auto logEntryPropPath =
+                                            nlohmann::json_pointer logEntryPropPath =
                                                 "/Status/Conditions/0/LogEntry"_json_pointer;
                                             error_log_utils::setErrorLogUri(
                                                 aResp, errPath,
@@ -588,34 +642,14 @@ inline void
                                         break;
                                     }
 
-                                    if (*severity ==
-                                        "xyz.openbmc_project.Logging.Event."
-                                        "SeverityLevel.Critical")
+                                    // we have only one condition
+                                    nlohmann::json_pointer severityPropPath =
+                                        "/Status/Conditions/0/Severity"_json_pointer;
+                                    if (!setSeverity(aResp, hwStatusEventObj,
+                                                     severityPropPath,
+                                                     *severity))
                                     {
-                                        condition["Severity"] = "Critical";
-                                    }
-                                    else if ((*severity ==
-                                              "xyz.openbmc_project.Logging."
-                                              "Event.SeverityLevel.Warning") ||
-                                             (*severity ==
-                                              "xyz.openbmc_project.Logging."
-                                              "Event.SeverityLevel.Unknown"))
-                                    {
-                                        condition["Severity"] = "Warning";
-                                    }
-                                    else if (*severity ==
-                                             "xyz.openbmc_project.Logging."
-                                             "Event.SeverityLevel.Ok")
-                                    {
-                                        condition["Severity"] = "OK";
-                                    }
-                                    else
-                                    {
-                                        BMCWEB_LOG_ERROR
-                                            << "Unsupported Severity[ "
-                                            << *severity << "] from object: "
-                                            << hwStatusEventObj;
-                                        messages::internalError(aResp->res);
+                                        // Failed to set the severity
                                         break;
                                     }
                                 }
