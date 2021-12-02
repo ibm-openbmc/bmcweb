@@ -138,6 +138,32 @@ inline void
                     "LocationCode",
                     "LocationCode");
             }
+            else if (interface ==
+                     "xyz.openbmc_project.Inventory.Item.PCIeDevice")
+            {
+                // if the adapter also implements this interface, link the
+                // adapter schema to PCIeDevice schema for this adapter.
+                const std::string pcieDevice =
+                    sdbusplus::message::object_path(objPath).filename();
+
+                if (pcieDevice.empty())
+                {
+                    BMCWEB_LOG_ERROR << "Failed to find / in pcie device path";
+                    messages::internalError(aResp->res);
+                    return;
+                }
+
+                nlohmann::json& deviceArray =
+                    aResp->res.jsonValue["Links"]["PCIeDevices"];
+                deviceArray = nlohmann::json::array();
+
+                deviceArray.push_back(
+                    {{"@odata.id",
+                      "/redfish/v1/Systems/system/PCIeDevices/" + pcieDevice}});
+
+                aResp->res.jsonValue["Links"]["PCIeDevices@odata.count"] =
+                    deviceArray.size();
+            }
         }
     }
 }
