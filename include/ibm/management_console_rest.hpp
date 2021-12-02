@@ -34,6 +34,8 @@ constexpr const char* methodNotAllowedMsg = "Method Not Allowed";
 constexpr const char* resourceNotFoundMsg = "Resource Not Found";
 constexpr const char* contentNotAcceptableMsg = "Content Not Acceptable";
 constexpr const char* internalServerError = "Internal Server Error";
+constexpr const char* internalFileSystemError = "Internal FileSystem Error";
+constexpr const char* badRequestMsg = "Bad Request";
 constexpr const char* propertyMissing = "Required Property Missing";
 constexpr uint32_t maxCSRLength = 4096;
 std::filesystem::path rootCertPath = "/var/lib/ibm/bmcweb/RootCert";
@@ -89,7 +91,7 @@ inline void saveConfigFile(const std::string& data, const std::string& fileID,
     {
         asyncResp->res.result(
             boost::beast::http::status::internal_server_error);
-        asyncResp->res.jsonValue["Description"] = internalServerError;
+        asyncResp->res.jsonValue["Description"] = internalFileSystemError;
         BMCWEB_LOG_DEBUG << "handleIbmPut: Failed to find if file exists. ec : "
                          << ec;
         return;
@@ -103,7 +105,7 @@ inline void saveConfigFile(const std::string& data, const std::string& fileID,
         {
             asyncResp->res.result(
                 boost::beast::http::status::internal_server_error);
-            asyncResp->res.jsonValue["Description"] = internalServerError;
+            asyncResp->res.jsonValue["Description"] = internalFileSystemError;
             BMCWEB_LOG_DEBUG << "handleIbmPut: Failed to find file size. ec : "
                              << ec;
             return;
@@ -216,7 +218,7 @@ inline void
     {
         asyncResp->res.result(
             boost::beast::http::status::internal_server_error);
-        asyncResp->res.jsonValue["Description"] = internalServerError;
+        asyncResp->res.jsonValue["Description"] = internalFileSystemError;
         BMCWEB_LOG_DEBUG << "handleIbmPut: Failed to prepare save-area "
                             "directory iterator. ec : "
                          << ec;
@@ -231,7 +233,8 @@ inline void
             {
                 asyncResp->res.result(
                     boost::beast::http::status::internal_server_error);
-                asyncResp->res.jsonValue["Description"] = internalServerError;
+                asyncResp->res.jsonValue["Description"] =
+                    internalFileSystemError;
                 BMCWEB_LOG_DEBUG << "handleIbmPut: Failed to find save-area "
                                     "directory . ec : "
                                  << ec;
@@ -242,7 +245,8 @@ inline void
             {
                 asyncResp->res.result(
                     boost::beast::http::status::internal_server_error);
-                asyncResp->res.jsonValue["Description"] = internalServerError;
+                asyncResp->res.jsonValue["Description"] =
+                    internalFileSystemError;
                 BMCWEB_LOG_DEBUG << "handleIbmPut: Failed to find save-area "
                                     "file size inside the directory . ec : "
                                  << ec;
@@ -263,9 +267,8 @@ inline void
             // handle error
             BMCWEB_LOG_ERROR << "MIME parse failed, ec : " << ec.value()
                              << " , ec message : " << ec.message();
-            asyncResp->res.result(
-                boost::beast::http::status::internal_server_error);
-            asyncResp->res.jsonValue["Description"] = internalServerError;
+            asyncResp->res.result(boost::beast::http::status::bad_request);
+            asyncResp->res.jsonValue["Description"] = badRequestMsg;
             return;
         }
         const std::string* uploadData = nullptr;
@@ -277,9 +280,8 @@ inline void
             if (it == formpart.fields.end())
             {
                 BMCWEB_LOG_ERROR << "Couldn't find Content-Disposition";
-                asyncResp->res.result(
-                    boost::beast::http::status::internal_server_error);
-                asyncResp->res.jsonValue["Description"] = internalServerError;
+                asyncResp->res.result(boost::beast::http::status::bad_request);
+                asyncResp->res.jsonValue["Description"] = badRequestMsg;
                 return;
             }
             BMCWEB_LOG_DEBUG << "Parsing value " << it->value();
