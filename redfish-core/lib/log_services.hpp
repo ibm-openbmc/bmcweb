@@ -4792,9 +4792,12 @@ inline void fillSystemHardwareIsolationLogEntry(
                             sdbusplus::message::object_path errPath =
                                 std::get<2>(assoc);
 
+                            // Set error log uri based on the error log hidden
+                            // property
                             if (entryJsonIdx > 0)
                             {
-                                auto errorLogPropPath = "/Members"_json_pointer;
+                                nlohmann::json_pointer errorLogPropPath =
+                                    "/Members"_json_pointer;
                                 errorLogPropPath /= entryJsonIdx - 1;
                                 errorLogPropPath /= "AdditionalDataURI";
                                 error_log_utils::setErrorLogUri(
