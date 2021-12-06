@@ -265,6 +265,60 @@ inline void requestRoutesLicenseEntryCollection(App& app)
         });
 }
 
+inline void translateLicenseTypeDbusToRedfish(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& licenseType)
+{
+    if (licenseType == "com.ibm.License.Entry.LicenseEntry.Type.Purchased")
+    {
+        asyncResp->res.jsonValue["LicenseType"] = "Production";
+    }
+    else if (licenseType == "com.ibm.License.Entry.LicenseEntry.Type.Prototype")
+    {
+        asyncResp->res.jsonValue["LicenseType"] = "Prototype";
+    }
+    else if (licenseType == "com.ibm.License.Entry.LicenseEntry.Type.Trial")
+    {
+        asyncResp->res.jsonValue["LicenseType"] = "Trial";
+    }
+    else
+    {
+        // Any other values would be invalid
+        BMCWEB_LOG_ERROR << "LicenseType value was not valid: " << licenseType;
+        messages::internalError(asyncResp->res);
+    }
+    return;
+}
+
+inline void translateAuthorizationTypeDbusToRedfish(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& authorizationType)
+{
+    if (authorizationType ==
+        "com.ibm.License.Entry.LicenseEntry.AuthorizationType.Unlimited")
+    {
+        asyncResp->res.jsonValue["AuthorizationScope"] = "Service";
+    }
+    else if (authorizationType ==
+             "com.ibm.License.Entry.LicenseEntry.AuthorizationType.Device")
+    {
+        asyncResp->res.jsonValue["AuthorizationScope"] = "Device";
+    }
+    else if (authorizationType ==
+             "com.ibm.License.Entry.LicenseEntry.AuthorizationType.Capacity")
+    {
+        asyncResp->res.jsonValue["AuthorizationScope"] = "Capacity";
+    }
+    else
+    {
+        // Any other values would be invalid
+        BMCWEB_LOG_ERROR << "AuthorizationType value is not valid: "
+                         << authorizationType;
+        messages::internalError(asyncResp->res);
+    }
+    return;
+}
+
 inline void
     getLicenseEntryById(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                         const std::string& licenseEntryID)
@@ -409,17 +463,18 @@ inline void
                     }
                 }
                 asyncResp->res.jsonValue["@odata.type"] =
-                    "#LicenseEntry.v1_0_0.LicenseEntry";
-                asyncResp->res.jsonValue["@odata.id"] = licenseEntryPath;
+                    "#License.v1_0_0.License";
+                asyncResp->res.jsonValue["@odata.id"] =
+                    "/redfish/v1/LicenseService/Licenses/" + licenseEntryID;
                 asyncResp->res.jsonValue["Id"] = licenseEntryID;
-                asyncResp->res.jsonValue["LicenseType"] = *licenseTypePtr;
                 asyncResp->res.jsonValue["SerialNumber"] = *serialNumPtr;
                 asyncResp->res.jsonValue["Name"] = *licenseNamePtr;
                 asyncResp->res.jsonValue["ExpirationDate"] =
                     crow::utility::getDateTime(expirationTime);
-                asyncResp->res.jsonValue["LicenseScope"]["AuthorizationType"] =
-                    *authorizationTypePtr;
-                asyncResp->res.jsonValue["LicenseScope"]["MaxNumberOfDevices"] =
+                translateLicenseTypeDbusToRedfish(asyncResp, *licenseTypePtr);
+                translateAuthorizationTypeDbusToRedfish(asyncResp,
+                                                        *authorizationTypePtr);
+                asyncResp->res.jsonValue["MaxAuthorizedDevices"] =
                     *deviceNumPtr;
 
                 if (available)
@@ -438,7 +493,8 @@ inline void
                 else
                 {
                     asyncResp->res.jsonValue["Status"]["Health"] = "Critical";
-                    asyncResp->res.jsonValue["Status"]["State"] = "Unavailable";
+                    asyncResp->res.jsonValue["Status"]["State"] =
+                        "UnavailableOffline";
                 }
             }
         },
