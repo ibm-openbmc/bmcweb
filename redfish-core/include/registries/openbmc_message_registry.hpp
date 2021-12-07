@@ -2350,7 +2350,16 @@ constexpr std::array registry =
             },
             "None.",
         }},
-
+    MessageEntry{
+        "HardwareIsolationReason",
+        {
+            "Indicates the condition that affects the health of this resource.",
+            "The reason for the resource isolation: %1",
+            "OK",
+            1,
+            {"string"},
+            "None.",
+        }},
 };
 
 enum class Index
