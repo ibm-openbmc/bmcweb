@@ -457,27 +457,27 @@ inline void requestRoutesChassis(App& app)
                                     {"@odata.id", "/redfish/v1/Chassis/" +
                                                       chassisId + "/Thermal"}};
 
-                                asyncResp->res.jsonValue["EnvironmentMetrics"] =
-                                    {{"@odata.id", "/redfish/v1/Chassis/" +
-                                                       chassisId +
-                                                       "/EnvironmentMetrics"}};
-
                                 // Power object
                                 asyncResp->res.jsonValue["Power"] = {
                                     {"@odata.id", "/redfish/v1/Chassis/" +
                                                       chassisId + "/Power"}};
 #endif
 
-                                asyncResp->res.jsonValue["ThermalSubsystem"] = {
-                                    {"@odata.id", "/redfish/v1/Chassis/" +
-                                                      chassisId +
-                                                      "/ThermalSubsystem"}};
-
 #ifdef BMCWEB_NEW_POWERSUBSYSTEM_THERMALSUBSYSTEM
+                                asyncResp->res.jsonValue["EnvironmentMetrics"] =
+                                    {{"@odata.id", "/redfish/v1/Chassis/" +
+                                                       chassisId +
+                                                       "/EnvironmentMetrics"}};
+
                                 asyncResp->res.jsonValue["PowerSubsystem"] = {
                                     {"@odata.id", "/redfish/v1/Chassis/" +
                                                       chassisId +
                                                       "/PowerSubsystem"}};
+
+                                asyncResp->res.jsonValue["ThermalSubsystem"] = {
+                                    {"@odata.id", "/redfish/v1/Chassis/" +
+                                                      chassisId +
+                                                      "/ThermalSubsystem"}};
 #endif
 
                                 // SensorCollection

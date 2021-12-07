@@ -85,6 +85,7 @@ class RedfishService
         requestRoutesPower(app);
 #endif
 #ifdef BMCWEB_NEW_POWERSUBSYSTEM_THERMALSUBSYSTEM
+        requestRoutesEnvironmentMetrics(app);
         requestRoutesThermalSubsystem(app);
         requestRoutesThermalMetrics(app);
         requestRoutesPowerSubsystem(app);
@@ -99,7 +100,6 @@ class RedfishService
         requestRoutesManagerResetActionInfo(app);
         requestRoutesManagerResetToDefaultsAction(app);
         requestRoutesPCIeSlots(app);
-        requestRoutesEnvironmentMetrics(app);
         requestRoutesChassisCollection(app);
         requestRoutesChassis(app);
         requestRoutesChassisResetAction(app);
