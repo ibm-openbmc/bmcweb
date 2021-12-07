@@ -44,6 +44,7 @@
 #include <utils/dbus_utils.hpp>
 #include <utils/time_utils.hpp>
 #include <utils/name_utils.hpp>
+#include <utils/error_log_utils.hpp>
 
 #include <charconv>
 #include <filesystem>
@@ -5939,10 +5940,25 @@ inline void fillSystemHardwareIsolationLogEntry(
                         {
                             sdbusplus::message::object_path errPath =
                                 std::get<2>(assoc);
-                            entryJson["AdditionalDataURI"] =
-                                "/redfish/v1/Systems/system/"
-                                "LogServices/EventLog/Entries/" +
-                                errPath.filename() + "/attachment";
+
+                            // Set error log uri based on the error log hidden
+                            // property
+                            if (entryJsonIdx > 0)
+                            {
+                                nlohmann::json_pointer errorLogPropPath =
+                                    "/Members"_json_pointer;
+                                errorLogPropPath /= entryJsonIdx - 1;
+                                errorLogPropPath /= "AdditionalDataURI";
+                                error_log_utils::setErrorLogUri(
+                                    asyncResp, errPath, errorLogPropPath,
+                                    false);
+                            }
+                            else
+                            {
+                                error_log_utils::setErrorLogUri(
+                                    asyncResp, errPath,
+                                    "/AdditionalDataURI"_json_pointer, false);
+                            }
                         }
                     }
                 }
@@ -5995,6 +6011,13 @@ inline void getSystemHardwareIsolationLogEntryCollection(
         for (auto dbusObjIt = mgtObjs.begin(); dbusObjIt != mgtObjs.end();
              dbusObjIt++)
         {
+            if (dbusObjIt->second.find(
+                    "xyz.openbmc_project.HardwareIsolation.Entry") ==
+                dbusObjIt->second.end())
+            {
+                // The retrieved object is not hardware isolation entry
+                continue;
+            }
             entriesArray.push_back(nlohmann::json::object());
 
             fillSystemHardwareIsolationLogEntry(asyncResp, entriesArray.size(),
