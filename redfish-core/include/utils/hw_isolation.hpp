@@ -532,7 +532,7 @@ inline void
                                             << "from object: "
                                             << hwStatusEventObj;
                                         messages::internalError(aResp->res);
-                                        break;
+                                        return;
                                     }
 
                                     for (const auto& assoc : *associations)
@@ -561,7 +561,7 @@ inline void
                                             << "from object: "
                                             << hwStatusEventObj;
                                         messages::internalError(aResp->res);
-                                        break;
+                                        return;
                                     }
                                     condition["Timestamp"] =
                                         crow::utility::getDateTime(
@@ -580,7 +580,7 @@ inline void
                                             << "from object: "
                                             << hwStatusEventObj;
                                         messages::internalError(aResp->res);
-                                        break;
+                                        return;
                                     }
 
                                     const message_registries::Message* msgReg =
@@ -596,7 +596,7 @@ inline void
                                             << "message registry to add "
                                             << "in the condition";
                                         messages::internalError(aResp->res);
-                                        break;
+                                        return;
                                     }
 
                                     // Prepare MessageArgs as per defined in the
@@ -639,7 +639,7 @@ inline void
                                             << "from object: "
                                             << hwStatusEventObj;
                                         messages::internalError(aResp->res);
-                                        break;
+                                        return;
                                     }
 
                                     // we have only one condition
@@ -650,7 +650,7 @@ inline void
                                                      *severity))
                                     {
                                         // Failed to set the severity
-                                        break;
+                                        return;
                                     }
                                 }
                             }
