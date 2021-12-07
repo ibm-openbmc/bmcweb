@@ -1050,6 +1050,11 @@ inline void
                         aResp->res.jsonValue["Status"]["Health"] = "Critical";
                     }
                 }
+
+#ifdef BMCWEB_ENABLE_HW_ISOLATION
+                // Check for the hardware status event
+                hw_isolation_utils::getHwIsolationStatus(aResp, objPath);
+#endif // end of BMCWEB_ENABLE_HW_ISOLATION
             }
         },
         service, "/xyz/openbmc_project/inventory",
