@@ -29,7 +29,7 @@ const Header header = {
     "0.2.0",
     "OpenBMC",
 };
-constexpr std::array<MessageEntry, 189> registry = {
+constexpr std::array<MessageEntry, 190> registry = {
     MessageEntry{
         "ADDDCCorrectable",
         {
@@ -559,6 +559,17 @@ constexpr std::array<MessageEntry, 189> registry = {
             "Firmware security violation: %1.",
             "Critical",
             "Critical",
+            1,
+            {"string"},
+            "None.",
+        }},
+    MessageEntry{
+        "HardwareIsolationReason",
+        {
+            "Indicates the condition that affects the health of this resource.",
+            "The reason for the resource isolation: %1",
+            "OK",
+            "OK",
             1,
             {"string"},
             "None.",

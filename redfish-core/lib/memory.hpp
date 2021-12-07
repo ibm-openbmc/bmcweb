@@ -460,8 +460,9 @@ inline void getDimmDataByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
 {
     BMCWEB_LOG_DEBUG << "Get available system components.";
     crow::connections::systemBus->async_method_call(
-        [dimmId, aResp{std::move(aResp)}](const boost::system::error_code ec,
-                                          const DimmProperties& properties) {
+        [dimmId, aResp{std::move(aResp)},
+         objPath](const boost::system::error_code ec,
+                  const DimmProperties& properties) {
             if (ec)
             {
                 BMCWEB_LOG_DEBUG << "DBUS response error";
@@ -752,6 +753,11 @@ inline void getDimmDataByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
                     getPersistentMemoryProperties(aResp, properties);
                 }
             }
+
+#ifdef BMCWEB_ENABLE_HW_ISOLATION
+            // Check for the hardware status event
+            hw_isolation_utils::getHwIsolationStatus(aResp, objPath);
+#endif // end of BMCWEB_ENABLE_HW_ISOLATION
         },
         service, objPath, "org.freedesktop.DBus.Properties", "GetAll", "");
 }
