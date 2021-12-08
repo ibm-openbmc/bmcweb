@@ -209,7 +209,15 @@ inline RcGetLockList Lock::getLockList(const ListOfSessionIds& listSessionId)
 inline RcReleaseLockApi Lock::releaseLock(const ListOfTransactionIds& p,
                                           const SessionFlags& ids)
 {
-    // Check if the locks are owned by the
+    bool status = validateRids(p);
+
+    if (!status)
+    {
+        // Validation of rids failed
+        BMCWEB_LOG_ERROR << "releaseLock: Contains invalid request id";
+        return std::make_pair(false, status);
+    }
+    // Validation passed, check if all the locks are owned by the
     // requesting HMC
     auto status2 = isItMyLock(p, ids);
     if (!status2.first)
@@ -333,7 +341,8 @@ inline bool Lock::validateRids(const ListOfTransactionIds& refRids)
         }
         else
         {
-            BMCWEB_LOG_DEBUG << "At least 1 inValid Request id";
+            BMCWEB_LOG_ERROR << "validateRids: At least 1 inValid Request id: "
+                             << id;
             return false;
         }
     }
