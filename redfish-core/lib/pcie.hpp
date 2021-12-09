@@ -16,25 +16,39 @@
 
 #pragma once
 
+#include "pcie_slots.hpp"
+
 #include <app.hpp>
 #include <boost/system/linux_error.hpp>
 #include <registries/privilege_registry.hpp>
 
+#include <map>
+
 namespace redfish
 {
 
-static constexpr char const* pcieService = "xyz.openbmc_project.PCIe";
-static constexpr char const* pciePath = "/xyz/openbmc_project/PCIe";
+static constexpr char const* pcieRootPath = "/xyz/openbmc_project/inventory";
 static constexpr char const* pcieDeviceInterface =
-    "xyz.openbmc_project.PCIe.Device";
+    "xyz.openbmc_project.Inventory.Item.PCIeDevice";
+
+using PCIeDevice = std::string;
+using PCIeDevicePath = std::string;
+using ServiceName = std::string;
+using MapperGetSubTreeResponse = std::vector<
+    std::pair<std::string,
+              std::vector<std::pair<std::string, std::vector<std::string>>>>>;
+
+// will be used when we need to fetch single PCIeDevice properties.
+std::map<PCIeDevice, std::pair<ServiceName, PCIeDevicePath>>
+    mapOfPcieDevicePaths;
 
 static inline void
     getPCIeDeviceList(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                       const std::string& name)
 {
-    auto getPCIeMapCallback = [asyncResp, name](
-                                  const boost::system::error_code ec,
-                                  std::vector<std::string>& pcieDevicePaths) {
+    auto getPCIeMapCallback = [asyncResp,
+                               name](const boost::system::error_code ec,
+                                     const MapperGetSubTreeResponse& subTree) {
         if (ec)
         {
             BMCWEB_LOG_DEBUG << "no PCIe device paths found ec: "
@@ -42,32 +56,39 @@ static inline void
             // Not an error, system just doesn't have PCIe info
             return;
         }
+
         nlohmann::json& pcieDeviceList = asyncResp->res.jsonValue[name];
         pcieDeviceList = nlohmann::json::array();
-        for (const std::string& pcieDevicePath : pcieDevicePaths)
-        {
-            size_t devStart = pcieDevicePath.rfind('/');
-            if (devStart == std::string::npos)
-            {
-                continue;
-            }
 
-            std::string devName = pcieDevicePath.substr(devStart + 1);
-            if (devName.empty())
+        for (const auto& [pcieDevicePath, serviceMap] : subTree)
+        {
+            for (const auto& [serviceName, interfaceList] : serviceMap)
             {
-                continue;
+                std::string devName =
+                    sdbusplus::message::object_path(pcieDevicePath).filename();
+
+                if (devName.empty())
+                {
+                    BMCWEB_LOG_DEBUG << "Invalid Name";
+                    continue;
+                }
+
+                mapOfPcieDevicePaths.emplace(
+                    devName, std::make_pair(serviceName, pcieDevicePath));
+                pcieDeviceList.push_back(
+                    {{"@odata.id",
+                      "/redfish/v1/Systems/system/PCIeDevices/" + devName}});
             }
-            pcieDeviceList.push_back(
-                {{"@odata.id",
-                  "/redfish/v1/Systems/system/PCIeDevices/" + devName}});
         }
+
         asyncResp->res.jsonValue[name + "@odata.count"] = pcieDeviceList.size();
     };
     crow::connections::systemBus->async_method_call(
         std::move(getPCIeMapCallback), "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
-        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
-        std::string(pciePath) + "/", 1, std::array<std::string, 0>());
+        "xyz.openbmc_project.ObjectMapper", "GetSubTree",
+        std::string(pcieRootPath), 0,
+        std::array<const char*, 1>{pcieDeviceInterface});
 }
 
 inline void requestRoutesSystemPCIeDeviceCollection(App& app)
@@ -79,9 +100,7 @@ inline void requestRoutesSystemPCIeDeviceCollection(App& app)
         .privileges(redfish::privileges::getPCIeDeviceCollection)
         .methods(boost::beast::http::verb::get)(
             [](const crow::Request&,
-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
-
-            {
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
                 asyncResp->res.jsonValue = {
                     {"@odata.type",
                      "#PCIeDeviceCollection.PCIeDeviceCollection"},
@@ -90,6 +109,7 @@ inline void requestRoutesSystemPCIeDeviceCollection(App& app)
                     {"Description", "Collection of PCIe Devices"},
                     {"Members", nlohmann::json::array()},
                     {"Members@odata.count", 0}};
+
                 getPCIeDeviceList(asyncResp, "Members");
             });
 }
@@ -150,17 +170,41 @@ inline void requestRoutesSystemPCIeDevice(App& app)
                         asyncResp->res.jsonValue["DeviceType"] = *property;
                     }
 
+                    if (std::string* property = std::get_if<std::string>(
+                            &pcieDevProperties["GenerationInUse"]);
+                        property)
+                    {
+                        std::string generation = analysisGeneration(*property);
+                        if (!generation.empty())
+                        {
+                            asyncResp->res
+                                .jsonValue["PCIeInterface"]["PCIeType"] =
+                                generation;
+                        }
+                    }
+
                     asyncResp->res.jsonValue["PCIeFunctions"] = {
                         {"@odata.id",
                          "/redfish/v1/Systems/system/PCIeDevices/" + device +
                              "/PCIeFunctions"}};
                 };
-                std::string escapedPath = std::string(pciePath) + "/" + device;
-                dbus::utility::escapePathForDbus(escapedPath);
-                crow::connections::systemBus->async_method_call(
-                    std::move(getPCIeDeviceCallback), pcieService, escapedPath,
-                    "org.freedesktop.DBus.Properties", "GetAll",
-                    pcieDeviceInterface);
+
+                auto it = mapOfPcieDevicePaths.find(device);
+                if (it != mapOfPcieDevicePaths.end())
+                {
+                    std::string& serviceName = std::get<0>(it->second);
+                    std::string& path = std::get<1>(it->second);
+                    crow::connections::systemBus->async_method_call(
+                        std::move(getPCIeDeviceCallback), serviceName, path,
+                        "org.freedesktop.DBus.Properties", "GetAll",
+                        std::string(pcieDeviceInterface));
+                }
+                else
+                {
+                    messages::resourceNotFound(asyncResp->res, "PCIeDevice",
+                                               device);
+                    return;
+                }
             });
 }
 
@@ -238,12 +282,23 @@ inline void requestRoutesSystemPCIeFunctionCollection(App& app)
                     asyncResp->res.jsonValue["PCIeFunctions@odata.count"] =
                         pcieFunctionList.size();
                 };
-                std::string escapedPath = std::string(pciePath) + "/" + device;
-                dbus::utility::escapePathForDbus(escapedPath);
-                crow::connections::systemBus->async_method_call(
-                    std::move(getPCIeDeviceCallback), pcieService, escapedPath,
-                    "org.freedesktop.DBus.Properties", "GetAll",
-                    pcieDeviceInterface);
+
+                auto it = mapOfPcieDevicePaths.find(device);
+                if (it != mapOfPcieDevicePaths.end())
+                {
+                    std::string& serviceName = std::get<0>(it->second);
+                    std::string& path = std::get<1>(it->second);
+                    crow::connections::systemBus->async_method_call(
+                        std::move(getPCIeDeviceCallback), serviceName, path,
+                        "org.freedesktop.DBus.Properties", "GetAll",
+                        std::string(pcieDeviceInterface));
+                }
+                else
+                {
+                    messages::resourceNotFound(asyncResp->res, "PCIeDevice",
+                                               device);
+                    return;
+                }
             });
 }
 
@@ -369,12 +424,23 @@ inline void requestRoutesSystemPCIeFunction(App& app)
                     asyncResp->res.jsonValue["SubsystemVendorId"] = *property;
                 }
             };
-            std::string escapedPath = std::string(pciePath) + "/" + device;
-            dbus::utility::escapePathForDbus(escapedPath);
-            crow::connections::systemBus->async_method_call(
-                std::move(getPCIeDeviceCallback), pcieService, escapedPath,
-                "org.freedesktop.DBus.Properties", "GetAll",
-                pcieDeviceInterface);
+
+            auto it = mapOfPcieDevicePaths.find(device);
+            if (it != mapOfPcieDevicePaths.end())
+            {
+                std::string& serviceName = std::get<0>(it->second);
+                std::string& path = std::get<1>(it->second);
+                crow::connections::systemBus->async_method_call(
+                    std::move(getPCIeDeviceCallback), serviceName, path,
+                    "org.freedesktop.DBus.Properties", "GetAll",
+                    std::string(pcieDeviceInterface));
+            }
+            else
+            {
+                messages::resourceNotFound(asyncResp->res, "PCIeDevice",
+                                           device);
+                return;
+            }
         });
 }
 
