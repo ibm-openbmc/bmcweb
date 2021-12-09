@@ -139,13 +139,75 @@ inline void
             "xyz.openbmc_project.Inventory.Item.PCIeDevice"});
 }
 
+inline void
+    linkAssociatedProcessor(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                            const std::string& pcieSlotPath, size_t index)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp, pcieSlotPath,
+         index](const boost::system::error_code ec,
+                const std::variant<std::vector<std::string>>& endpoints) {
+            if (ec)
+            {
+                if (ec.value() == EBADR)
+                {
+                    // This PCIeSlot have no processor association.
+                    BMCWEB_LOG_DEBUG << "No processor association found";
+                    return;
+                }
+                BMCWEB_LOG_ERROR << "DBUS response error" << ec.message();
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            const std::vector<std::string>* value =
+                std::get_if<std::vector<std::string>>(&(endpoints));
+
+            if (value == nullptr)
+            {
+                BMCWEB_LOG_DEBUG << "Error getting processor association!";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            if ((*value).size() < 1)
+            {
+                BMCWEB_LOG_DEBUG << "No association found for processor";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            const std::vector<std::string>& processorPath = *value;
+            std::string cpuName =
+                sdbusplus::message::object_path(processorPath[0]).filename();
+            sdbusplus::message::object_path parentPath =
+                sdbusplus::message::object_path(processorPath[0]).parent_path();
+            std::string dcmName = parentPath.filename();
+            std::string processorName = dcmName + '-' + cpuName;
+
+            nlohmann::json& processorArray =
+                asyncResp->res.jsonValue["Slots"][index]["Links"]["Processors"];
+            processorArray = nlohmann::json::array();
+
+            processorArray.push_back(
+                {{"@odata.id",
+                  "/redfish/v1/Systems/system/Processors/" + processorName}});
+            asyncResp->res
+                .jsonValue["Slots"][index]["Links"]["Processors@odata.count"] =
+                processorArray.size();
+        },
+        "xyz.openbmc_project.ObjectMapper",
+        pcieSlotPath + "/upstream_processor", "org.freedesktop.DBus.Properties",
+        "Get", "xyz.openbmc_project.Association", "endpoints");
+}
+
 inline void getPCIeSlots(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                          const std::string& chassisID)
 {
     BMCWEB_LOG_DEBUG << "Get properties for PCIeSlots associated to chassis = "
                      << chassisID;
 
-    asyncResp->res.jsonValue = {{"@odata.type", "#PCIeSlots.v1_4_1.PCIeSlots"},
+    asyncResp->res.jsonValue = {{"@odata.type", "#PCIeSlots.v1_5_0.PCIeSlots"},
                                 {"Name", "PCIe Slot Information"}};
     asyncResp->res.jsonValue["@odata.id"] =
         "/redfish/v1/Chassis/" + chassisID + "/PCIeSlots";
@@ -375,6 +437,8 @@ inline void getPCIeSlots(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                                 }
                                 addLinkedPcieDevices(asyncResp, pcieSlotPath,
                                                      index);
+                                linkAssociatedProcessor(asyncResp, pcieSlotPath,
+                                                        index);
                             },
                             connectionName, pcieSlotPath,
                             "org.freedesktop.DBus.Properties", "GetAll",
