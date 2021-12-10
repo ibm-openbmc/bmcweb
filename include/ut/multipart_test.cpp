@@ -22,7 +22,7 @@ TEST(MultipartTest, TestGoodMultipartParser)
                  "-----------------------------d74496d66958873e--\r\n";
 
     std::error_code ec;
-    crow::Request reqIn(req);
+    crow::Request reqIn(req, ec);
     MultipartParser parser(reqIn, ec);
     ASSERT_FALSE(ec);
 
@@ -56,7 +56,7 @@ TEST(MultipartTest, TestBadMultipartParser)
                  "-----------------------------d74496d66958873e--\r\n";
 
     std::error_code ec;
-    crow::Request reqIn(req);
+    crow::Request reqIn(req, ec);
     MultipartParser parser(reqIn, ec);
     ASSERT_EQ(ec.value(), static_cast<int>(ParserError::ERROR_EMPTY_HEADER));
 }
