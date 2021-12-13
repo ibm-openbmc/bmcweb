@@ -178,7 +178,7 @@ inline void
 inline void getAdapter(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                        const std::string& adapter)
 {
-    aResp->res.jsonValue["@odata.type"] = "#FabricAdapter.v1_1_0.FabricAdapter";
+    aResp->res.jsonValue["@odata.type"] = "#FabricAdapter.v1_2_0.FabricAdapter";
     aResp->res.jsonValue["@odata.id"] =
         "/redfish/v1/Systems/system/FabricAdapters/" + adapter;
 
@@ -194,7 +194,7 @@ inline void getAdapter(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 if (ec.value() == boost::system::errc::io_error)
                 {
                     messages::resourceNotFound(
-                        aResp->res, "#FabricAdapter.v1_1_0.FabricAdapter",
+                        aResp->res, "#FabricAdapter.v1_2_0.FabricAdapter",
                         adapter);
                     return;
                 }
