@@ -216,7 +216,8 @@ inline void requestRoutesChassis(App& app)
                             std::pair<std::string, std::vector<std::string>>>&
                             connectionNames = object.second;
 
-                        if (!boost::ends_with(path, chassisId))
+                        sdbusplus::message::object_path objPath(path);
+                        if (objPath.filename() != chassisId)
                         {
                             continue;
                         }
@@ -322,10 +323,11 @@ inline void requestRoutesChassis(App& app)
 
                         const std::vector<std::string>& interfaces2 =
                             connectionNames[0].second;
-                        const std::array<const char*, 2> hasIndicatorLed = {
+                        const std::array<const char*, 3> hasIndicatorLed = {
                             "xyz.openbmc_project.Inventory.Item.Panel",
                             "xyz.openbmc_project.Inventory.Item.Board."
-                            "Motherboard"};
+                            "Motherboard",
+                            "xyz.openbmc_project.Inventory.Item.Chassis"};
 
                         const std::string assetTagInterface =
                             "xyz.openbmc_project.Inventory.Decorator."
@@ -370,8 +372,8 @@ inline void requestRoutesChassis(App& app)
                                           interfaces2.end(),
                                           interface) != interfaces2.end())
                             {
-                                getIndicatorLedState(asyncResp);
-                                getLocationIndicatorActive(asyncResp);
+                                getLocationIndicatorActive(asyncResp, path,
+                                                           true);
                                 break;
                             }
                         }
@@ -621,7 +623,8 @@ inline void requestRoutesChassis(App& app)
                             std::pair<std::string, std::vector<std::string>>>&
                             connectionNames = object.second;
 
-                        if (!boost::ends_with(path, chassisId))
+                        sdbusplus::message::object_path objPath(path);
+                        if (objPath.filename() != chassisId)
                         {
                             continue;
                         }
@@ -635,10 +638,11 @@ inline void requestRoutesChassis(App& app)
                         const std::vector<std::string>& interfaces3 =
                             connectionNames[0].second;
 
-                        const std::array<const char*, 2> hasIndicatorLed = {
+                        const std::array<const char*, 3> hasIndicatorLed = {
                             "xyz.openbmc_project.Inventory.Item.Panel",
                             "xyz.openbmc_project.Inventory.Item.Board."
-                            "Motherboard"};
+                            "Motherboard",
+                            "xyz.openbmc_project.Inventory.Item.Chassis"};
                         bool indicatorChassis = false;
                         for (const char* interface : hasIndicatorLed)
                         {
@@ -655,7 +659,7 @@ inline void requestRoutesChassis(App& app)
                             if (indicatorChassis)
                             {
                                 setLocationIndicatorActive(
-                                    asyncResp, *locationIndicatorActive);
+                                    asyncResp, path, *locationIndicatorActive);
                             }
                             else
                             {
@@ -667,7 +671,8 @@ inline void requestRoutesChassis(App& app)
                         {
                             if (indicatorChassis)
                             {
-                                setIndicatorLedState(asyncResp, *indicatorLed);
+                                setLocationIndicatorActive(
+                                    asyncResp, path, false, *indicatorLed);
                             }
                             else
                             {
