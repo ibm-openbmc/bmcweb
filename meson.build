@@ -93,6 +93,7 @@ feature_map = {
   'hw-isolation'                    : '-DBMCWEB_ENABLE_HW_ISOLATION',
   'redfish-license'                 : '-DBMCWEB_ENABLE_REDFISH_LICENSE',
   'fan-oem-data'                    : '-DBMCWEB_ENABLE_FAN_OEM_DATA',
+  'ibm-sai'                         : '-DBMCWEB_ENABLE_SAI',
 }
 
 # Get the options status and build a project summary to show which flags are

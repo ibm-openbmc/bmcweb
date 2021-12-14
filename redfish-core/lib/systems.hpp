@@ -21,6 +21,9 @@
 #ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
 #include "oem/ibm/lamp_test.hpp"
 #endif
+#ifdef BMCWEB_ENABLE_SAI
+#include "oem/ibm/system_attention_indicator.hpp"
+#endif
 #include <app.hpp>
 #include <boost/container/flat_map.hpp>
 #include <registries/privilege_registry.hpp>
@@ -2732,6 +2735,10 @@ inline void requestRoutesSystems(App& app)
 #ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
             getLampTestState(asyncResp);
 #endif
+#ifdef BMCWEB_ENABLE_SAI
+            getSAI(asyncResp, "PartitionSystemAttentionIndicator");
+            getSAI(asyncResp, "PlatformSystemAttentionIndicator");
+#endif
 #ifdef BMCWEB_ENABLE_REDFISH_PROVISIONING_FEATURE
             getProvisioningStatus(asyncResp);
 #endif
@@ -2854,6 +2861,7 @@ inline void requestRoutesSystems(App& app)
 
                     if (ibmOem)
                     {
+#ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
                         std::optional<bool> lampTest;
                         if (!json_util::readJson(*ibmOem, asyncResp->res,
                                                  "LampTest", lampTest))
@@ -2863,10 +2871,36 @@ inline void requestRoutesSystems(App& app)
 
                         if (lampTest)
                         {
-#ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
                             setLampTestState(asyncResp, *lampTest);
-#endif
                         }
+#endif
+
+#ifdef BMCWEB_ENABLE_SAI
+                        std::optional<bool> partitionSAI;
+                        std::optional<bool> platformSAI;
+                        if (!json_util::readJson(
+                                *ibmOem, asyncResp->res,
+                                "PartitionSystemAttentionIndicator",
+                                partitionSAI,
+                                "PlatformSystemAttentionIndicator",
+                                platformSAI))
+                        {
+                            return;
+                        }
+
+                        if (partitionSAI)
+                        {
+                            setSAI(asyncResp,
+                                   "PartitionSystemAttentionIndicator",
+                                   *partitionSAI);
+                        }
+                        if (platformSAI)
+                        {
+                            setSAI(asyncResp,
+                                   "PlatformSystemAttentionIndicator",
+                                   *platformSAI);
+                        }
+#endif
                     }
                 }
 

@@ -133,7 +133,26 @@
                     ]
                 }
             },
-            "properties": {},
+            "properties": {
+                "PartitionSystemAttentionIndicator": {
+                    "description": "An indicator allowing an operator to operate partition system attention.",
+                    "longDescription": "This property shall contain the state of the partition system attention of this resource.",
+                    "readonly": false,
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "PlatformSystemAttentionIndicator": {
+                    "description": "An indicator allowing an operator to operate platform system attention.",
+                    "longDescription": "This property shall contain the state of the platform system attention of this resource.",
+                    "readonly": false,
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                }
+            },
             "type": "object"
         }
     },
