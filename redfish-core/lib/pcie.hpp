@@ -167,7 +167,10 @@ inline void requestRoutesSystemPCIeDevice(App& app)
                             &pcieDevProperties["DeviceType"]);
                         property)
                     {
-                        asyncResp->res.jsonValue["DeviceType"] = *property;
+                        if (!property->empty())
+                        {
+                            asyncResp->res.jsonValue["DeviceType"] = *property;
+                        }
                     }
 
                     if (std::string* property = std::get_if<std::string>(
@@ -381,7 +384,10 @@ inline void requestRoutesSystemPCIeFunction(App& app)
                                            "FunctionType"]);
                     property)
                 {
-                    asyncResp->res.jsonValue["FunctionType"] = *property;
+                    if (!property->empty())
+                    {
+                        asyncResp->res.jsonValue["FunctionType"] = *property;
+                    }
                 }
 
                 if (std::string* property = std::get_if<std::string>(
@@ -389,7 +395,10 @@ inline void requestRoutesSystemPCIeFunction(App& app)
                                            "DeviceClass"]);
                     property)
                 {
-                    asyncResp->res.jsonValue["DeviceClass"] = *property;
+                    if (!property->empty())
+                    {
+                        asyncResp->res.jsonValue["DeviceClass"] = *property;
+                    }
                 }
 
                 if (std::string* property = std::get_if<std::string>(
