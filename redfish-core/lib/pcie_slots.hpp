@@ -697,17 +697,21 @@ inline void requestRoutesPCIeSlots(App& app)
                 unsigned int total = 0;
                 for (auto& slot : slots)
                 {
-                    bool locationIndicatorActive;
-
                     slotIndex++;
-                    if (!json_util::readJson(slot, asyncResp->res,
-                                             "LocationIndicatorActive",
-                                             locationIndicatorActive))
+
+                    if (slot.empty())
                     {
-                        return;
+                        continue;
                     }
-                    locationIndicatorActiveMap[slotIndex] =
-                        locationIndicatorActive;
+
+                    bool locationIndicatorActive;
+                    if (json_util::readJson(slot, asyncResp->res,
+                                            "LocationIndicatorActive",
+                                            locationIndicatorActive))
+                    {
+                        locationIndicatorActiveMap[slotIndex] =
+                            locationIndicatorActive;
+                    }
                 }
 
                 total = slotIndex;
