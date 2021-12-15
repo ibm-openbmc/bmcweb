@@ -276,8 +276,6 @@ inline void
             asyncResp->res
                 .jsonValue["Actions"]["#Chassis.Reset"]["@Redfish.ActionInfo"] =
                 "/redfish/v1/Chassis/" + chassisId + "/ResetActionInfo";
-            asyncResp->res.jsonValue["PCIeDevices"]["@odata.id"] =
-                "/redfish/v1/Systems/system/PCIeDevices";
             asyncResp->res.jsonValue["PCIeSlots"]["@odata.id"] =
                 "/redfish/v1/Chassis/" + chassisId + "/PCIeSlots";
 
