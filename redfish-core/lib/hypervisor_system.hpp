@@ -590,11 +590,6 @@ inline void handleHypervisorIPv4StaticPatch(
                              asyncResp);
         // Set the DHCPEnabled to false since the Static IPv4 is set
         setDHCPEnabled(ifaceId, false, asyncResp);
-
-        // Set this interface to disabled/inactive. This will be set
-        // to enabled/active by the pldm once the hypervisor
-        // consumes the updated settings from the user.
-        setIPv4InterfaceEnabled(ifaceId, false, asyncResp);
     }
     else
     {
