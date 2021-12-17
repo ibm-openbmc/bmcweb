@@ -15,7 +15,7 @@ constexpr const size_t timerQueueTimeoutSeconds = 5;
 namespace detail
 {
 
-constexpr const size_t maxSize = 300;
+constexpr const size_t maxSize = 100;
 // fast timer queue for fixed tick value.
 class TimerQueue
 {
@@ -43,7 +43,6 @@ class TimerQueue
     {
         if (dq.size() == maxSize)
         {
-            BMCWEB_LOG_ERROR << "timer add: dq.size has hit maxSize";
             return std::nullopt;
         }
 
