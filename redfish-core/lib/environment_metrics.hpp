@@ -47,24 +47,22 @@ inline void
                 }
                 const std::string& validPath = objectPath;
                 const std::string& connectionName = serviceName[0].first;
-                std::vector<std::string> split;
-                // Reserve space for
-                // /xyz/openbmc_project/sensors/<name>/<subname>
-                split.reserve(6);
-                boost::algorithm::split(split, validPath,
-                                        boost::is_any_of("/"));
-                if (split.size() < 6)
+                std::string sensorType;
+                std::string sensorName;
+
+                // 4 below comes from
+                // /xyz/openbmc_project/sensors/sensorType/sensorName
+                //   0      1             2        3        4
+                if (!dbus::utility::getNthStringFromPath(validPath, 3,
+                                                         sensorType) ||
+                    !dbus::utility::getNthStringFromPath(validPath, 4,
+                                                         sensorName))
                 {
-                    BMCWEB_LOG_ERROR << "Got path that isn't long enough "
-                                     << validPath;
-                    continue;
+                    BMCWEB_LOG_ERROR << "Got invalid path " << validPath;
+                    messages::invalidObject(asyncResp->res, validPath);
+                    return;
                 }
-                // These indexes aren't intuitive, as boost::split puts an empty
-                // string at the beginning
-                const std::string& sensorType = split[4];
-                const std::string& sensorName = split[5];
-                BMCWEB_LOG_DEBUG << "sensorName " << sensorName
-                                 << " sensorType " << sensorType;
+
                 if (sensorType == "fan" || sensorType == "fan_tach" ||
                     sensorType == "fan_pwm")
                 {
@@ -117,58 +115,100 @@ inline void
 inline void getPowerWatts(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                           const std::string& chassisID)
 {
-    const std::array<const char*, 1> totalPowerInterfaces = {
+    const std::string sensorPath = "/xyz/openbmc_project/sensors";
+    const std::array<std::string, 1> sensorInterfaces = {
         "xyz.openbmc_project.Sensor.Value"};
-    const std::string& totalPowerPath =
-        "/xyz/openbmc_project/sensors/power/total_power";
     crow::connections::systemBus->async_method_call(
-        [asyncResp, chassisID, totalPowerPath](
-            const boost::system::error_code ec,
-            const std::vector<std::pair<std::string, std::vector<std::string>>>&
-                object) {
+        [asyncResp, chassisID](const boost::system::error_code ec,
+                               const std::vector<std::string>& paths) {
             if (ec)
             {
                 BMCWEB_LOG_DEBUG << "DBUS response error";
                 messages::internalError(asyncResp->res);
                 return;
             }
-            for (const auto& tempObject : object)
+            bool judgment = false;
+            for (const auto& tempPath : paths)
             {
-                const std::string& connectionName = tempObject.first;
+                sdbusplus::message::object_path path(tempPath);
+                std::string leaf = path.filename();
+                if (!leaf.compare("total_power"))
+                {
+                    judgment = true;
+                    break;
+                }
+            }
+            if (judgment)
+            {
+                const std::array<const char*, 1> totalPowerInterfaces = {
+                    "xyz.openbmc_project.Sensor.Value"};
+                const std::string& totalPowerPath =
+                    "/xyz/openbmc_project/sensors/power/total_power";
                 crow::connections::systemBus->async_method_call(
-                    [asyncResp, chassisID](const boost::system::error_code ec,
-                                           const std::variant<double>& value) {
+                    [asyncResp, chassisID, totalPowerPath](
+                        const boost::system::error_code ec,
+                        const std::vector<std::pair<
+                            std::string, std::vector<std::string>>>& object) {
                         if (ec)
                         {
-                            BMCWEB_LOG_DEBUG << "Can't get Power Watts!";
+                            BMCWEB_LOG_DEBUG << "DBUS response error";
                             messages::internalError(asyncResp->res);
                             return;
                         }
-
-                        const double* attributeValue =
-                            std::get_if<double>(&value);
-                        if (attributeValue == nullptr)
+                        for (const auto& tempObject : object)
                         {
-                            // illegal property
-                            messages::internalError(asyncResp->res);
-                            return;
+                            const std::string& connectionName =
+                                tempObject.first;
+                            crow::connections::systemBus->async_method_call(
+                                [asyncResp,
+                                 chassisID](const boost::system::error_code ec,
+                                            const std::variant<double>& value) {
+                                    if (ec)
+                                    {
+                                        BMCWEB_LOG_DEBUG
+                                            << "Can't get Power Watts!";
+                                        messages::internalError(asyncResp->res);
+                                        return;
+                                    }
+
+                                    const double* attributeValue =
+                                        std::get_if<double>(&value);
+                                    if (attributeValue == nullptr)
+                                    {
+                                        // illegal property
+                                        messages::internalError(asyncResp->res);
+                                        return;
+                                    }
+                                    std::string tempPath =
+                                        "/redfish/v1/Chassis/" + chassisID +
+                                        "/Sensors/";
+                                    asyncResp->res.jsonValue["PowerWatts"] = {
+                                        {"Reading", *attributeValue},
+                                        {"DataSourceUri",
+                                         tempPath + "total_power"},
+                                        {"@odata.id",
+                                         tempPath + "total_power"}};
+                                },
+                                connectionName, totalPowerPath,
+                                "org.freedesktop.DBus.Properties", "Get",
+                                "xyz.openbmc_project.Sensor.Value", "Value");
                         }
-                        std::string tempPath =
-                            "/redfish/v1/Chassis/" + chassisID + "/Sensors/";
-                        asyncResp->res.jsonValue["PowerWatts"] = {
-                            {"Reading", *attributeValue},
-                            {"DataSourceUri", tempPath + "total_power"},
-                            {"@odata.id", tempPath + "total_power"}};
                     },
-                    connectionName, totalPowerPath,
-                    "org.freedesktop.DBus.Properties", "Get",
-                    "xyz.openbmc_project.Sensor.Value", "Value");
+                    "xyz.openbmc_project.ObjectMapper",
+                    "/xyz/openbmc_project/object_mapper",
+                    "xyz.openbmc_project.ObjectMapper", "GetObject",
+                    totalPowerPath, totalPowerInterfaces);
+            }
+            else
+            {
+                BMCWEB_LOG_DEBUG << "There is not total_power";
+                return;
             }
         },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
-        "xyz.openbmc_project.ObjectMapper", "GetObject", totalPowerPath,
-        totalPowerInterfaces);
+        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", sensorPath, 0,
+        sensorInterfaces);
 }
 
 inline void
