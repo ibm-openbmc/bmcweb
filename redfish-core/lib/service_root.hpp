@@ -67,6 +67,7 @@ inline void
     asyncResp->res.jsonValue["LicenseService"] = {
         {"@odata.id", "/redfish/v1/LicenseService"}};
 #endif
+    asyncResp->res.jsonValue["Cables"] = {{"@odata.id", "/redfish/v1/Cables"}};
 }
 
 inline void requestRoutesServiceRoot(App& app)
