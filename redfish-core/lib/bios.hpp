@@ -451,59 +451,62 @@ inline void requestRoutesBiosSettings(App& app)
                             mapAttrTypeToRedfish(biosAttrType);
                         if (biosRedfishAttrType == "Integer")
                         {
-                            try
-                            {
-                                int64_t attrValue = attrItr.value();
-                                pendingAttributes.emplace_back(std::make_pair(
-                                    attrName,
-                                    std::make_tuple(biosAttrType, attrValue)));
-                            }
-                            catch (nlohmann::detail::type_error& e)
+                            if (attrItr.value().type() !=
+                                nlohmann::json::value_t::number_unsigned)
                             {
                                 BMCWEB_LOG_ERROR
                                     << "The value must be of type int";
-                                messages::propertyValueTypeError(
-                                    asyncResp->res, attrItr.value(), attrName);
+                                std::string val =
+                                    boost::lexical_cast<std::string>(
+                                        attrItr.value());
+                                messages::propertyValueTypeError(asyncResp->res,
+                                                                 val, attrName);
                                 return;
                             }
+                            int64_t attrValue = attrItr.value();
+                            pendingAttributes.emplace_back(std::make_pair(
+                                attrName,
+                                std::make_tuple(biosAttrType, attrValue)));
                         }
                         else if (biosRedfishAttrType == "String" ||
                                  biosRedfishAttrType == "Enumeration" ||
                                  biosRedfishAttrType == "Password")
                         {
-                            try
-                            {
-                                std::string attrValue = attrItr.value();
-                                pendingAttributes.emplace_back(std::make_pair(
-                                    attrName,
-                                    std::make_tuple(biosAttrType, attrValue)));
-                            }
-                            catch (nlohmann::detail::type_error& e)
+                            if (attrItr.value().type() !=
+                                nlohmann::json::value_t::string)
                             {
                                 BMCWEB_LOG_ERROR
                                     << "The value must be of type string";
+                                std::string val =
+                                    boost::lexical_cast<std::string>(
+                                        attrItr.value());
                                 messages::propertyValueTypeError(asyncResp->res,
-                                                                 "", attrName);
+                                                                 val, attrName);
                                 return;
                             }
+                            std::string attrValue = attrItr.value();
+                            pendingAttributes.emplace_back(std::make_pair(
+                                attrName,
+                                std::make_tuple(biosAttrType, attrValue)));
                         }
                         else if (biosRedfishAttrType == "Boolean")
                         {
-                            try
-                            {
-                                bool attrValue = attrItr.value();
-                                pendingAttributes.emplace_back(std::make_pair(
-                                    attrName,
-                                    std::make_tuple(biosAttrType, attrValue)));
-                            }
-                            catch (nlohmann::detail::type_error& e)
+                            if (attrItr.value().type() !=
+                                nlohmann::json::value_t::boolean)
                             {
                                 BMCWEB_LOG_ERROR
                                     << "The value must be of type bool";
+                                std::string val =
+                                    boost::lexical_cast<std::string>(
+                                        attrItr.value());
                                 messages::propertyValueTypeError(asyncResp->res,
-                                                                 "", attrName);
+                                                                 val, attrName);
                                 return;
                             }
+                            bool attrValue = attrItr.value();
+                            pendingAttributes.emplace_back(std::make_pair(
+                                attrName,
+                                std::make_tuple(biosAttrType, attrValue)));
                         }
                         else
                         {
