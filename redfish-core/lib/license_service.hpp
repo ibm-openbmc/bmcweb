@@ -5,7 +5,7 @@
 #include <app.hpp>
 #include <error_messages.hpp>
 #include <registries/privilege_registry.hpp>
-
+#include <license_messages.hpp>
 #include <filesystem>
 #include <string_view>
 #include <variant>
@@ -99,38 +99,34 @@ inline void
 
     if (status == "com.ibm.License.LicenseManager.Status.ActivationFailed")
     {
-        // TODO: Need to return appropriate redfish error
         BMCWEB_LOG_ERROR << "LicenseActivationStatus: ActivationFailed";
-        messages::internalError(asyncResp->res);
+        messages::installFailed(asyncResp->res);
     }
     else if (status == "com.ibm.License.LicenseManager.Status.InvalidLicense")
     {
-        // TODO: Need to return appropriate redfish error
         BMCWEB_LOG_ERROR << "LicenseActivationStatus: InvalidLicense";
-        messages::internalError(asyncResp->res);
+        messages::invalidLicense(asyncResp->res);
     }
     else if (status == "com.ibm.License.LicenseManager.Status.IncorrectSystem")
     {
-        // TODO: Need to return appropriate redfish error
         BMCWEB_LOG_ERROR << "LicenseActivationStatus: IncorrectSystem";
-        messages::internalError(asyncResp->res);
+        messages::notApplicableToTarget(asyncResp->res);
     }
     else if (status ==
              "com.ibm.License.LicenseManager.Status.IncorrectSequence")
     {
-        // TODO: Need to return appropriate redfish error
         BMCWEB_LOG_ERROR << "LicenseActivationStatus: IncorrectSequence";
-        messages::internalError(asyncResp->res);
+        messages::notApplicableToTarget(asyncResp->res);
     }
     else if (status == "com.ibm.License.LicenseManager.Status.InvalidHostState")
     {
-        // TODO: Need to return appropriate redfish error
         BMCWEB_LOG_ERROR << "LicenseActivationStatus: InvalidHostState";
         messages::internalError(asyncResp->res);
     }
     else if (status == "com.ibm.License.LicenseManager.Status.Activated")
     {
         BMCWEB_LOG_INFO << "License Activated";
+        messages::licenseInstalled(asyncResp->res);
     }
     else
     {
