@@ -5,6 +5,7 @@
 #include "http_response.hpp"
 #include "http_utility.hpp"
 #include "logging.hpp"
+#include "timer_queue.hpp"
 #include "utility.hpp"
 
 #include <boost/algorithm/string.hpp>
@@ -12,7 +13,6 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ssl/stream.hpp>
-#include <boost/asio/steady_timer.hpp>
 #include <boost/beast/core/flat_static_buffer.hpp>
 #include <boost/beast/ssl/ssl_stream.hpp>
 #include <boost/beast/websocket.hpp>
@@ -35,7 +35,9 @@ inline void prettyPrintJson(crow::Response& res)
     res.addHeader("Content-Type", "text/html;charset=UTF-8");
 }
 
-static int connectionCount = 0;
+#ifdef BMCWEB_ENABLE_DEBUG
+static std::atomic<int> connectionCount;
+#endif
 
 // request body limit size set by the bmcwebHttpReqBodyLimitMb option
 constexpr unsigned int httpReqBodyLimit =
@@ -45,17 +47,25 @@ constexpr uint64_t loggedOutPostBodyLimit = 4096;
 
 constexpr uint32_t httpHeaderLimit = 8192;
 
+// drop all connections after 1 minute, this time limit was chosen
+// arbitrarily and can be adjusted later if needed
+static constexpr const size_t loggedInAttempts =
+    (60 / timerQueueTimeoutSeconds);
+
+static constexpr const size_t loggedOutAttempts =
+    (15 / timerQueueTimeoutSeconds);
+
 template <typename Adaptor, typename Handler>
 class Connection :
     public std::enable_shared_from_this<Connection<Adaptor, Handler>>
 {
   public:
-    Connection(Handler* handlerIn, boost::asio::steady_timer&& timerIn,
+    Connection(Handler* handlerIn,
                std::function<std::string()>& getCachedDateStrF,
-               Adaptor adaptorIn) :
+               detail::TimerQueue& timerQueueIn, Adaptor adaptorIn) :
         adaptor(std::move(adaptorIn)),
-        handler(handlerIn), timer(std::move(timerIn)),
-        getCachedDateStr(getCachedDateStrF)
+        handler(handlerIn), getCachedDateStr(getCachedDateStrF),
+        timerQueue(timerQueueIn)
     {
         parser.emplace(std::piecewise_construct, std::make_tuple());
         parser->body_limit(httpReqBodyLimit);
@@ -65,20 +75,22 @@ class Connection :
         prepareMutualTls();
 #endif // BMCWEB_ENABLE_MUTUAL_TLS_AUTHENTICATION
 
+#ifdef BMCWEB_ENABLE_DEBUG
         connectionCount++;
-
         BMCWEB_LOG_DEBUG << this << " Connection open, total "
                          << connectionCount;
+#endif
     }
 
     ~Connection()
     {
         res.setCompleteRequestHandler(nullptr);
         cancelDeadlineTimer();
-
+#ifdef BMCWEB_ENABLE_DEBUG
         connectionCount--;
         BMCWEB_LOG_DEBUG << this << " Connection closed, total "
                          << connectionCount;
+#endif
     }
 
     void prepareMutualTls()
@@ -274,13 +286,8 @@ class Connection :
 
     void start()
     {
-        if (connectionCount >= 100)
-        {
-            BMCWEB_LOG_CRITICAL << this << "Max connection count exceeded.";
-            return;
-        }
 
-        startDeadline();
+        startDeadline(0);
 
         // TODO(ed) Abstract this to a more clever class with the idea of an
         // asynchronous "start"
@@ -310,6 +317,7 @@ class Connection :
 
     void handle()
     {
+        cancelDeadlineTimer();
         std::error_code reqEc;
         crow::Request& thisReq = req.emplace(parser->release(), reqEc);
         if (reqEc)
@@ -577,9 +585,13 @@ class Connection :
                 sessionIsFromTransport = false;
                 userSession = crow::authorization::authenticate(
                     ip, res, method, parser->get().base(), userSession);
-
                 bool loggedIn = userSession != nullptr;
-                if (!loggedIn)
+                if (loggedIn)
+                {
+                    startDeadline(loggedInAttempts);
+                    BMCWEB_LOG_DEBUG << "Starting slow deadline";
+                }
+                else
                 {
                     const boost::optional<uint64_t> contentLength =
                         parser->content_length();
@@ -592,9 +604,9 @@ class Connection :
                         return;
                     }
 
+                    startDeadline(loggedOutAttempts);
                     BMCWEB_LOG_DEBUG << "Starting quick deadline";
                 }
-
                 doRead();
             });
     }
@@ -602,7 +614,7 @@ class Connection :
     void doRead()
     {
         BMCWEB_LOG_DEBUG << this << " doRead";
-        startDeadline();
+
         boost::beast::http::async_read(
             adaptor, buffer, *parser,
             [this,
@@ -610,11 +622,36 @@ class Connection :
                                        std::size_t bytesTransferred) {
                 BMCWEB_LOG_DEBUG << this << " async_read " << bytesTransferred
                                  << " Bytes";
-                cancelDeadlineTimer();
+
+                bool errorWhileReading = false;
                 if (ec)
                 {
                     BMCWEB_LOG_ERROR
                         << this << " Error while reading: " << ec.message();
+                    errorWhileReading = true;
+                }
+                else
+                {
+                    if (isAlive())
+                    {
+                        cancelDeadlineTimer();
+                        if (userSession != nullptr)
+                        {
+                            startDeadline(loggedInAttempts);
+                        }
+                        else
+                        {
+                            startDeadline(loggedOutAttempts);
+                        }
+                    }
+                    else
+                    {
+                        errorWhileReading = true;
+                    }
+                }
+                if (errorWhileReading)
+                {
+                    cancelDeadlineTimer();
                     close();
                     BMCWEB_LOG_DEBUG << this << " from read(1)";
                     return;
@@ -625,10 +662,18 @@ class Connection :
 
     void doWrite()
     {
+        bool loggedIn = req && req->session;
+        if (loggedIn)
+        {
+            startDeadline(loggedInAttempts);
+        }
+        else
+        {
+            startDeadline(loggedOutAttempts);
+        }
         BMCWEB_LOG_DEBUG << this << " doWrite";
         res.preparePayload();
         serializer.emplace(*res.stringResponse);
-        startDeadline();
         boost::beast::http::async_write(
             adaptor, *serializer,
             [this,
@@ -674,51 +719,64 @@ class Connection :
 
     void cancelDeadlineTimer()
     {
-        timer.cancel();
+        if (timerCancelKey)
+        {
+            BMCWEB_LOG_DEBUG << this << " timer cancelled: " << &timerQueue
+                             << ' ' << *timerCancelKey;
+            timerQueue.cancel(*timerCancelKey);
+            timerCancelKey.reset();
+        }
     }
 
-    void startDeadline()
+    void startDeadline(size_t timerIterations)
     {
         cancelDeadlineTimer();
 
-        std::chrono::seconds timeout(15);
-        // allow slow uploads for logged in users
-        bool loggedIn = req && req->session;
-        if (loggedIn)
+        if (timerIterations)
         {
-            timeout = std::chrono::seconds(60);
-            return;
+            timerIterations--;
         }
 
-        std::weak_ptr<Connection<Adaptor, Handler>> weakSelf = weak_from_this();
-        timer.expires_after(timeout);
-        timer.async_wait([weakSelf](const boost::system::error_code ec) {
-            // Note, we are ignoring other types of errors here;  If the timer
-            // failed for any reason, we should still close the connection
+        timerCancelKey =
+            timerQueue.add([self(shared_from_this()), timerIterations,
+                            readCount{parser->get().body().size()}] {
+                // Mark timer as not active to avoid canceling it during
+                // Connection destructor which leads to double free issue
+                self->timerCancelKey.reset();
+                if (!self->isAlive())
+                {
+                    return;
+                }
 
-            std::shared_ptr<Connection<Adaptor, Handler>> self =
-                weakSelf.lock();
-            if (!self)
-            {
-                BMCWEB_LOG_CRITICAL << self << " Failed to capture connection";
-                return;
-            }
-            if (ec == boost::asio::error::operation_aborted)
-            {
-                // Canceled wait means the path succeeeded.
-                return;
-            }
-            if (ec)
-            {
-                BMCWEB_LOG_CRITICAL << self << " timer failed " << ec;
-            }
+                bool loggedIn = self->req && self->req->session;
+                // allow slow uploads for logged in users
+                if (loggedIn && self->parser->get().body().size() > readCount)
+                {
+                    BMCWEB_LOG_DEBUG << self.get()
+                                     << " restart timer - read in progress";
+                    self->startDeadline(timerIterations);
+                    return;
+                }
 
-            BMCWEB_LOG_WARNING << self << "Connection timed out, closing";
+                // Threshold can be used to drop slow connections
+                // to protect against slow-rate DoS attack
+                if (timerIterations)
+                {
+                    BMCWEB_LOG_DEBUG << self.get() << " restart timer";
+                    self->startDeadline(timerIterations);
+                    return;
+                }
 
-            self->close();
-        });
+                self->close();
+            });
 
-        BMCWEB_LOG_DEBUG << this << " timer started";
+        if (!timerCancelKey)
+        {
+            close();
+            return;
+        }
+        BMCWEB_LOG_DEBUG << this << " timer added: " << &timerQueue << ' '
+                         << *timerCancelKey;
     }
 
   private:
@@ -742,14 +800,12 @@ class Connection :
     bool sessionIsFromTransport = false;
     std::shared_ptr<persistent_data::UserSession> userSession;
 
-    boost::asio::steady_timer timer;
+    std::optional<size_t> timerCancelKey;
 
     std::function<std::string()>& getCachedDateStr;
+    detail::TimerQueue& timerQueue;
 
     using std::enable_shared_from_this<
         Connection<Adaptor, Handler>>::shared_from_this;
-
-    using std::enable_shared_from_this<
-        Connection<Adaptor, Handler>>::weak_from_this;
 };
 } // namespace crow
