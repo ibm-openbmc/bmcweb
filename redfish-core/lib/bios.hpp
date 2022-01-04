@@ -259,7 +259,8 @@ inline void requestRoutesBiosSettings(App& app)
                 asyncResp->res.jsonValue["Id"] = "BiosSettings";
                 asyncResp->res.jsonValue["AttributeRegistry"] =
                     "BiosAttributeRegistry";
-                asyncResp->res.jsonValue["Attributes"] = {};
+                nlohmann::json attributes(nlohmann::json::value_t::object);
+                asyncResp->res.jsonValue["Attributes"] = attributes;
 
                 crow::connections::systemBus->async_method_call(
                     [asyncResp](const boost::system::error_code ec,
