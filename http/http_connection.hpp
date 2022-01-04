@@ -35,7 +35,9 @@ inline void prettyPrintJson(crow::Response& res)
     res.addHeader("Content-Type", "text/html;charset=UTF-8");
 }
 
-static int connectionCount = 0;
+#ifdef BMCWEB_ENABLE_DEBUG
+static std::atomic<int> connectionCount;
+#endif
 
 // request body limit size set by the bmcwebHttpReqBodyLimitMb option
 constexpr unsigned int httpReqBodyLimit =
@@ -65,20 +67,22 @@ class Connection :
         prepareMutualTls();
 #endif // BMCWEB_ENABLE_MUTUAL_TLS_AUTHENTICATION
 
+#ifdef BMCWEB_ENABLE_DEBUG
         connectionCount++;
-
         BMCWEB_LOG_DEBUG << this << " Connection open, total "
                          << connectionCount;
+#endif
     }
 
     ~Connection()
     {
         res.setCompleteRequestHandler(nullptr);
         cancelDeadlineTimer();
-
+#ifdef BMCWEB_ENABLE_DEBUG
         connectionCount--;
         BMCWEB_LOG_DEBUG << this << " Connection closed, total "
                          << connectionCount;
+#endif
     }
 
     void prepareMutualTls()
@@ -274,12 +278,6 @@ class Connection :
 
     void start()
     {
-        if (connectionCount >= 100)
-        {
-            BMCWEB_LOG_CRITICAL << this << "Max connection count exceeded.";
-            return;
-        }
-
         startDeadline();
 
         // TODO(ed) Abstract this to a more clever class with the idea of an
