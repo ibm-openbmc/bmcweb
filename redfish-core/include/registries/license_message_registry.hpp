@@ -73,7 +73,7 @@ constexpr std::array<MessageEntry, 8> registry = {
             "Critical",
             1,
             {
-                "String",
+                "string",
             },
             "None.",
         }},
@@ -98,7 +98,7 @@ constexpr std::array<MessageEntry, 8> registry = {
                      "OK",
                      1,
                      {
-                         "String",
+                         "string",
                      },
                      "None.",
                  }},

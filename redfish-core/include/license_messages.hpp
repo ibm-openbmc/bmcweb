@@ -1,5 +1,6 @@
 
 #include "http_response.hpp"
+
 #include <nlohmann/json.hpp>
 
 namespace redfish
@@ -67,21 +68,20 @@ inline nlohmann::json licenseInstalled(const std::string& arg1)
 
 void licenseInstalled(crow::Response& res)
 {
-    res.result(boost::beast::http::status::internal_server_error);
-    addMessageToErrorJson(res.jsonValue,
-                          licenseInstalled("Host license installed"));
+    res.result(boost::beast::http::status::ok);
+    addMessageToErrorJson(res.jsonValue, licenseInstalled("LicenseInstalled"));
 }
 
 inline nlohmann::json invalidLicense()
 {
-    return nlohmann::json{
-        {"@odata.type", "#Message.v1_0_0.Message"},
-        {"MessageId", "License.1.0.0.InvalidLicense"},
-        {"Message", "The content of the license was not recognized, is "
-                    "corrupted, or is invalid."},
-        {"MessageArgs", {}},
-        {"Severity", "Critical"},
-        {"Resolution", "None."}};
+    return nlohmann::json{{"@odata.type", "#Message.v1_0_0.Message"},
+                          {"MessageId", "License.1.0.0.InvalidLicense"},
+                          {"Message",
+                           "The content of the license was not recognized, is "
+                           "corrupted, or is invalid."},
+                          {"MessageArgs", {}},
+                          {"Severity", "Critical"},
+                          {"Resolution", "None."}};
 }
 
 void invalidLicense(crow::Response& res)
@@ -101,11 +101,10 @@ inline nlohmann::json installFailed(const std::string& arg1)
         {"Resolution", "None."}};
 }
 
-void installFailed(crow::Response& res)
+void installFailed(crow::Response& res, const std::string& reason)
 {
     res.result(boost::beast::http::status::internal_server_error);
-    addMessageToErrorJson(res.jsonValue,
-                          installFailed("Server failed to install"));
+    addMessageToErrorJson(res.jsonValue, installFailed(reason));
 }
 
 inline nlohmann::json notApplicableToTarget()

@@ -4,8 +4,9 @@
 
 #include <app.hpp>
 #include <error_messages.hpp>
-#include <registries/privilege_registry.hpp>
 #include <license_messages.hpp>
+#include <registries/privilege_registry.hpp>
+
 #include <filesystem>
 #include <string_view>
 #include <variant>
@@ -100,7 +101,7 @@ inline void
     if (status == "com.ibm.License.LicenseManager.Status.ActivationFailed")
     {
         BMCWEB_LOG_ERROR << "LicenseActivationStatus: ActivationFailed";
-        messages::installFailed(asyncResp->res);
+        messages::installFailed(asyncResp->res, "ActivationFailed");
     }
     else if (status == "com.ibm.License.LicenseManager.Status.InvalidLicense")
     {
@@ -121,7 +122,7 @@ inline void
     else if (status == "com.ibm.License.LicenseManager.Status.InvalidHostState")
     {
         BMCWEB_LOG_ERROR << "LicenseActivationStatus: InvalidHostState";
-        messages::internalError(asyncResp->res);
+        messages::installFailed(asyncResp->res, "InvalidHostState");
     }
     else if (status == "com.ibm.License.LicenseManager.Status.Activated")
     {
