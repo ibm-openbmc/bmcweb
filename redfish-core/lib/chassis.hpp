@@ -303,7 +303,7 @@ inline void requestRoutesChassis(App& app)
                         }
 
                         asyncResp->res.jsonValue["@odata.type"] =
-                            "#Chassis.v1_15_0.Chassis";
+                            "#Chassis.v1_16_0.Chassis";
                         asyncResp->res.jsonValue["@odata.id"] =
                             "/redfish/v1/Chassis/" + chassisId;
                         asyncResp->res.jsonValue["Name"] = "Chassis Collection";
@@ -563,7 +563,7 @@ inline void requestRoutesChassis(App& app)
 
                     // Couldn't find an object with that name.  return an error
                     messages::resourceNotFound(
-                        asyncResp->res, "#Chassis.v1_15_0.Chassis", chassisId);
+                        asyncResp->res, "#Chassis.v1_16_0.Chassis", chassisId);
                 },
                 "xyz.openbmc_project.ObjectMapper",
                 "/xyz/openbmc_project/object_mapper",
