@@ -891,6 +891,12 @@ inline void getBootProgress(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
             }
             else if (*bootProgressStr ==
                      "xyz.openbmc_project.State.Boot.Progress.ProgressStages."
+                     "SystemSetup")
+            {
+                rfBpLastState = "SetupEntered";
+            }
+            else if (*bootProgressStr ==
+                     "xyz.openbmc_project.State.Boot.Progress.ProgressStages."
                      "SystemInitComplete")
             {
                 rfBpLastState = "SystemHardwareInitializationComplete";
