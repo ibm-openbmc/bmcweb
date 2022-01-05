@@ -95,7 +95,8 @@ inline void requestRoutesLicenseService(App& app)
 
 inline void
     getLicenseActivationAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                            const std::string& status)
+                            const std::string& status,
+                            const std::string& licenseString)
 {
 
     if (status == "com.ibm.License.LicenseManager.Status.ActivationFailed")
@@ -127,7 +128,7 @@ inline void
     else if (status == "com.ibm.License.LicenseManager.Status.Activated")
     {
         BMCWEB_LOG_INFO << "License Activated";
-        messages::licenseInstalled(asyncResp->res);
+        messages::licenseInstalled(asyncResp->res, licenseString);
     }
     else
     {
@@ -182,7 +183,8 @@ inline void requestRoutesLicenseEntryCollection(App& app)
                     crow::connections::systemBus->get_io_context());
             timeout->expires_after(std::chrono::seconds(10));
             crow::connections::systemBus->async_method_call(
-                [timeout, asyncResp](const boost::system::error_code ec) {
+                [timeout, asyncResp,
+                 licenseString](const boost::system::error_code ec) {
                     if (ec)
                     {
                         BMCWEB_LOG_ERROR
@@ -218,8 +220,8 @@ inline void requestRoutesLicenseEntryCollection(App& app)
 
                     timeout->async_wait(timeoutHandler);
 
-                    auto callback = [asyncResp,
-                                     timeout](sdbusplus::message::message& m) {
+                    auto callback = [asyncResp, timeout, licenseString](
+                                        sdbusplus::message::message& m) {
                         BMCWEB_LOG_DEBUG << "Response Matched " << m.get();
                         boost::container::flat_map<std::string,
                                                    std::variant<std::string>>
@@ -241,7 +243,8 @@ inline void requestRoutesLicenseEntryCollection(App& app)
                                     messages::internalError(asyncResp->res);
                                     return;
                                 }
-                                getLicenseActivationAck(asyncResp, *status);
+                                getLicenseActivationAck(asyncResp, *status,
+                                                        licenseString);
                                 timeout->cancel();
                             }
                         }

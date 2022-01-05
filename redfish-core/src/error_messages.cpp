@@ -22,8 +22,8 @@ namespace redfish
 namespace messages
 {
 
-static void addMessageToErrorJson(nlohmann::json& target,
-                                  const nlohmann::json& message)
+void addMessageToErrorJson(nlohmann::json& target,
+                           const nlohmann::json& message)
 {
     auto& error = target["error"];
 
@@ -81,9 +81,8 @@ static void addMessageToJsonRoot(nlohmann::json& target,
     target[messages::messageAnnotation].push_back(message);
 }
 
-static void addMessageToJson(nlohmann::json& target,
-                             const nlohmann::json& message,
-                             const std::string& fieldPath)
+void addMessageToJson(nlohmann::json& target, const nlohmann::json& message,
+                      const std::string& fieldPath)
 {
     std::string extendedInfo(fieldPath + messages::messageAnnotation);
 

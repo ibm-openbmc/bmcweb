@@ -64,7 +64,7 @@ files.append(make_getter('ResourceEvent.1.0.3.json',
                          'resource_event_message_registry.hpp',
                          'resource_event'))
 files.append(make_getter('License.1.0.0',
-                          'license_message_registry.hpp', 'license'))
+                         'license_message_registry.hpp', 'license'))
 
 # Remove the old files
 for file, json_dict, namespace, url in files:

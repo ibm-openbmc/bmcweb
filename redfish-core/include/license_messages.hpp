@@ -1,6 +1,7 @@
 
 #include "http_response.hpp"
 
+#include <error_messages.hpp>
 #include <nlohmann/json.hpp>
 
 namespace redfish
@@ -9,67 +10,21 @@ namespace redfish
 namespace messages
 {
 
-static void addMessageToErrorJson(nlohmann::json& target,
-                                  const nlohmann::json& message)
-{
-    auto& error = target["error"];
-
-    // If this is the first error message, fill in the information from the
-    // first error message to the top level struct
-    if (!error.is_object())
-    {
-        auto messageIdIterator = message.find("MessageId");
-        if (messageIdIterator == message.end())
-        {
-            BMCWEB_LOG_CRITICAL
-                << "Attempt to add error message without MessageId";
-            return;
-        }
-
-        auto messageFieldIterator = message.find("Message");
-        if (messageFieldIterator == message.end())
-        {
-            BMCWEB_LOG_CRITICAL
-                << "Attempt to add error message without Message";
-            return;
-        }
-        error = {{"code", *messageIdIterator},
-                 {"message", *messageFieldIterator}};
-    }
-    else
-    {
-        // More than 1 error occurred, so the message has to be generic
-        error["code"] = std::string(messageVersionPrefix) + "GeneralError";
-        error["message"] = "A general error has occurred. See Resolution for "
-                           "information on how to resolve the error.";
-    }
-
-    // This check could technically be done in in the default construction
-    // branch above, but because we need the pointer to the extended info field
-    // anyway, it's more efficient to do it here.
-    auto& extendedInfo = error[messages::messageAnnotation];
-    if (!extendedInfo.is_array())
-    {
-        extendedInfo = nlohmann::json::array();
-    }
-
-    extendedInfo.push_back(message);
-}
-
 inline nlohmann::json licenseInstalled(const std::string& arg1)
 {
     return nlohmann::json{{"@odata.type", "#Message.v1_0_0.Message"},
                           {"MessageId", "License.1.0.0.LicenseInstalled"},
-                          {"Message", "The license has been installed."},
+                          {"Message", "The license has been installed " + arg1},
                           {"MessageArgs", {arg1}},
                           {"Severity", "OK"},
                           {"Resolution", "None."}};
 }
 
-void licenseInstalled(crow::Response& res)
+void licenseInstalled(crow::Response& res, const std::string& licenseString)
 {
     res.result(boost::beast::http::status::ok);
-    addMessageToErrorJson(res.jsonValue, licenseInstalled("LicenseInstalled"));
+    addMessageToJson(res.jsonValue, licenseInstalled(licenseString),
+                     "LicenseInstalled");
 }
 
 inline nlohmann::json invalidLicense()
@@ -95,7 +50,7 @@ inline nlohmann::json installFailed(const std::string& arg1)
     return nlohmann::json{
         {"@odata.type", "#Message.v1_0_0.Message"},
         {"MessageId", "License.1.0.0.InstallFailed"},
-        {"Message", "Failed to install the license.  Reason: %1."},
+        {"Message", "Failed to install the license.  Reason: " + arg1},
         {"MessageArgs", {arg1}},
         {"Severity", "Critical"},
         {"Resolution", "None."}};
@@ -121,7 +76,7 @@ inline nlohmann::json notApplicableToTarget()
 
 void notApplicableToTarget(crow::Response& res)
 {
-    res.result(boost::beast::http::status::internal_server_error);
+    res.result(boost::beast::http::status::bad_request);
     addMessageToErrorJson(res.jsonValue, notApplicableToTarget());
 }
 
