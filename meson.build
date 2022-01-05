@@ -89,6 +89,7 @@ feature_map = {
   #'vm-nbdproxy'                     : '-DBMCWEB_ENABLE_VM_NBDPROXY',
   'vm-websocket'                    : '-DBMCWEB_ENABLE_VM_WEBSOCKET',
   'ibm-lamp-test'                   : '-DBMCWEB_ENABLE_IBM_LAMP_TEST',
+  'ibm-usb-code-update'             : '-DBMCWEB_ENABLE_IBM_USB_CODE_UPDATE',
   'hw-isolation'                    : '-DBMCWEB_ENABLE_HW_ISOLATION',
   'redfish-license'                 : '-DBMCWEB_ENABLE_REDFISH_LICENSE',
 }
