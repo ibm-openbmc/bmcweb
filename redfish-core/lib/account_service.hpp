@@ -1484,7 +1484,7 @@ inline void requestAccountServiceRoutes(App& app)
         });
 
     BMCWEB_ROUTE(app, "/redfish/v1/AccountService/")
-        .privileges(redfish::privileges::getAccountService)
+        .privileges(redfish::privileges::patchAccountService)
         .methods(boost::beast::http::verb::patch)(
             [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) -> void {
