@@ -372,8 +372,7 @@ inline void
                 BMCWEB_LOG_DEBUG
                     << "createHypervisorIPv4 failed: ec: " << ec.message()
                     << " ec.value= " << ec.value();
-                if ((ec == boost::system::errc::io_error) ||
-                    (ec == boost::system::errc::invalid_argument) ||
+                if ((ec == boost::system::errc::invalid_argument) ||
                     (ec == boost::system::errc::argument_list_too_long))
                 {
                     messages::invalidObject(asyncResp->res,
