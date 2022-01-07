@@ -220,14 +220,18 @@ inline void requestRoutesSession(App& app)
                         userRolePtr =
                             std::get_if<std::string>(&userInfoIter->second);
                     }
-
                     std::string userRole{};
                     if (userRolePtr != nullptr)
                     {
                         userRole = *userRolePtr;
                         BMCWEB_LOG_DEBUG << "userName = " << username
                                          << " userRole = " << *userRolePtr;
-                        if (*userRolePtr == "priv-noaccess")
+                        redfish::Privileges userPrivileges =
+                            redfish::getUserPrivileges(userRole);
+                        static const char* requiredPrivilegeString = "Login";
+                        const ::redfish::Privileges requiredPrivileges{
+                            requiredPrivilegeString};
+                        if (!userPrivileges.isSupersetOf(requiredPrivileges))
                         {
                             BMCWEB_LOG_ERROR
                                 << "Create session failed. User: " << username
@@ -262,8 +266,7 @@ inline void requestRoutesSession(App& app)
                     fillSessionObject(asyncResp->res, *session);
                 },
                 "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
-                "xyz.openbmc_project.User.Manager", "GetUserInfo",
-                std::move(username));
+                "xyz.openbmc_project.User.Manager", "GetUserInfo", username);
         });
 
     BMCWEB_ROUTE(app, "/redfish/v1/SessionService/")
