@@ -369,7 +369,20 @@ inline void
         [asyncResp](const boost::system::error_code ec) {
             if (ec)
             {
-                messages::internalError(asyncResp->res);
+                BMCWEB_LOG_DEBUG
+                    << "createHypervisorIPv4 failed: ec: " << ec.message()
+                    << " ec.value= " << ec.value();
+                if ((ec == boost::system::errc::invalid_argument) ||
+                    (ec == boost::system::errc::argument_list_too_long))
+                {
+                    messages::invalidObject(asyncResp->res,
+                                            "IPv4StaticAddresses");
+                }
+                else
+                {
+                    messages::internalError(asyncResp->res);
+                }
+
                 return;
             }
         },
