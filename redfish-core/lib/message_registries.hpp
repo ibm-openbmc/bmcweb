@@ -18,6 +18,7 @@
 #include "registries.hpp"
 #include "registries/base_message_registry.hpp"
 #include "registries/bios_registry.hpp"
+#include "registries/license_message_registry.hpp"
 #include "registries/openbmc_message_registry.hpp"
 #include "registries/resource_event_message_registry.hpp"
 #include "registries/task_event_message_registry.hpp"
@@ -40,12 +41,13 @@ inline void handleMessageRegistryFileCollectionGet(
         {"@odata.id", "/redfish/v1/Registries"},
         {"Name", "MessageRegistryFile Collection"},
         {"Description", "Collection of MessageRegistryFiles"},
-        {"Members@odata.count", 5},
+        {"Members@odata.count", 6},
         {"Members",
          {{{"@odata.id", "/redfish/v1/Registries/Base"}},
           {{"@odata.id", "/redfish/v1/Registries/BiosAttributeRegistry"}},
           {{"@odata.id", "/redfish/v1/Registries/TaskEvent"}},
           {{"@odata.id", "/redfish/v1/Registries/ResourceEvent"}},
+          {{"@odata.id", "/redfish/v1/Registries/License"}},
           {{"@odata.id", "/redfish/v1/Registries/OpenBMC"}}}}};
 }
 
@@ -92,6 +94,11 @@ inline void handleMessageRoutesMessageRegistryFileGet(
     {
         header = &message_registries::resource_event::header;
         url = message_registries::resource_event::url;
+    }
+    else if (registry == "License")
+    {
+        header = &message_registries::license::header;
+        url = message_registries::license::url;
     }
     else
     {
@@ -167,6 +174,15 @@ inline void handleMessageRegistryGet(
         header = &message_registries::resource_event::header;
         for (const message_registries::MessageEntry& entry :
              message_registries::resource_event::registry)
+        {
+            registryEntries.emplace_back(&entry);
+        }
+    }
+    else if (registry == "License")
+    {
+        header = &message_registries::license::header;
+        for (const message_registries::MessageEntry& entry :
+             message_registries::license::registry)
         {
             registryEntries.emplace_back(&entry);
         }

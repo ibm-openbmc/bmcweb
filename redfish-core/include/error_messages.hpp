@@ -971,6 +971,10 @@ nlohmann::json mutualExclusiveProperties(const std::string& arg1,
 void mutualExclusiveProperties(crow::Response& res, const std::string& arg1,
                                const std::string& arg2);
 
+void addMessageToErrorJson(nlohmann::json& target,
+                           const nlohmann::json& message);
+void addMessageToJson(nlohmann::json& target, const nlohmann::json& message,
+                      const std::string& fieldPath);
 } // namespace messages
 
 } // namespace redfish
