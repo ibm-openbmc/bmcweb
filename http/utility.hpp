@@ -584,7 +584,7 @@ inline std::string convertToAscii(const uint64_t& element)
     {
         return {};
     }
-    return std::string(bytearray.begin(), bytearray.end());
+    return {bytearray.begin(), bytearray.end()};
 }
 
 /**
