@@ -82,7 +82,7 @@
                     "longDescription": "This property indicates if the ACF is installed or not.",
                     "readonly": true,
                     "type": [
-                        "boolean",
+                        "boolean"
                     ],
                     "versionAdded": "v1_0_0"
                 }
