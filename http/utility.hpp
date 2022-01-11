@@ -595,35 +595,43 @@ inline std::string convertToAscii(const uint64_t& element)
  *
  * @return Date Time in the ISO extended format
  */
-inline std::string getDateTime(boost::posix_time::seconds secondsSinceEpoch)
+constexpr uint64_t maxMilliSeconds = 253402300799999;
+constexpr uint64_t maxSeconds = 253402300799;
+inline std::string getDateTime(boost::posix_time::milliseconds timeSinceEpoch)
 {
-    boost::posix_time::ptime epoch(boost::gregorian::date(1970, 1, 1));
-    boost::posix_time::ptime time = epoch + secondsSinceEpoch;
-    // append zero offset to the end according to the Redfish spec for Date-Time
-    return boost::posix_time::to_iso_extended_string(time) + 'Z';
-}
-
-inline std::string getDateTimeUint(uint64_t secondsSinceEpoch)
-{
-    return getDateTime(boost::posix_time::seconds(secondsSinceEpoch));
-}
-
-inline std::string getDateTimeStdtime(std::time_t secondsSinceEpoch)
-{
-    return getDateTime(boost::posix_time::seconds(secondsSinceEpoch));
-}
-
-inline std::string getDateTimeUintMs(uint64_t millisSecondsSinceEpoch)
-{
-
-    boost::posix_time::milliseconds timeSinceEpoch =
-        boost::posix_time::milliseconds(millisSecondsSinceEpoch);
     boost::posix_time::ptime epoch(boost::gregorian::date(1970, 1, 1));
     boost::posix_time::ptime time = epoch + timeSinceEpoch;
-
+    // append zero offset to the end according to the Redfish spec for Date-Time
     return boost::posix_time::to_iso_extended_string(time) + "+00:00";
 }
 
+// Returns the formatted date time string.
+// Note that the maximum supported date is 9999-12-31T23:59:59+00:00, if
+// the given |secondsSinceEpoch| is too large, we return the maximum supported
+// date. This behavior is to avoid exceptions throwed by Boost.
+inline std::string getDateTimeUint(uint64_t secondsSinceEpoch)
+{
+    boost::posix_time::seconds boostSeconds(
+        std::min(secondsSinceEpoch, maxSeconds));
+    return getDateTime(
+        boost::posix_time::milliseconds(boostSeconds.total_milliseconds()));
+}
+
+// Returns the formatted date time string.
+// Note that the maximum supported date is 9999-12-31T23:59:59.999+00:00, if
+// the given |millisSecondsSinceEpoch| is too large, we return the maximum
+// supported date.
+inline std::string getDateTimeUintMs(uint64_t milliSecondsSinceEpoch)
+{
+    return getDateTime(boost::posix_time::milliseconds(
+        std::min(maxMilliSeconds, milliSecondsSinceEpoch)));
+}
+inline std::string getDateTimeStdtime(std::time_t secondsSinceEpoch)
+{
+    boost::posix_time::ptime time = boost::posix_time::from_time_t(
+        std::min(secondsSinceEpoch, std::time_t{maxSeconds}));
+    return boost::posix_time::to_iso_extended_string(time) + "+00:00";
+}
 /**
  * Returns the current Date, Time & the local Time Offset
  * infromation in a pair
