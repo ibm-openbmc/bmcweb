@@ -243,11 +243,7 @@ inline void
 
                 asyncResp->res.jsonValue["PowerLimitWatts"]["SetPoint"] = 0;
                 asyncResp->res.jsonValue["PowerLimitWatts"]["ControlMode"] =
-                    "automatic";
-                asyncResp->res
-                    .jsonValue["PowerLimitWatts"]
-                              ["ControlMode@Redfish.AllowableValues"] = {
-                    "automatic", "disabled"};
+                    "Automatic";
 
                 crow::connections::systemBus->async_method_call(
                     [asyncResp](const boost::system::error_code ec2,
@@ -296,7 +292,7 @@ inline void
                                 {
                                     asyncResp->res.jsonValue["PowerLimitWatts"]
                                                             ["ControlMode"] =
-                                        "disabled";
+                                        "Disabled";
                                 }
                             }
                         }
@@ -373,11 +369,11 @@ inline void
 {
     BMCWEB_LOG_DEBUG << "Set Power Limit Watts Control Mode";
     bool powerCapEnable = false;
-    if (controlMode == "disabled")
+    if (controlMode == "Disabled")
     {
         powerCapEnable = false;
     }
-    else if (controlMode == "automatic")
+    else if (controlMode == "Automatic")
     {
         powerCapEnable = true;
     }
