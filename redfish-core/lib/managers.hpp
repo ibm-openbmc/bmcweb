@@ -1963,8 +1963,8 @@ inline void getBMCState(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
             else if (*state == "xyz.openbmc_project.State.BMC.BMCState."
                                "NotReady")
             {
-                aResp->res.jsonValue["PowerState"] = "Starting";
-                aResp->res.jsonValue["Status"]["State"] = "Disabled";
+                aResp->res.jsonValue["PowerState"] = "PoweringOn";
+                aResp->res.jsonValue["Status"]["State"] = "Starting";
                 aResp->res.jsonValue["Status"]["Health"] = "OK";
             }
             else if (*state == "xyz.openbmc_project.State.BMC.BMCState."
@@ -1976,9 +1976,9 @@ inline void getBMCState(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
             }
             else
             {
-                aResp->res.jsonValue["PowerState"] = "Off";
-                aResp->res.jsonValue["Status"]["State"] = "Disabled";
-                aResp->res.jsonValue["Status"]["Health"] = "OK";
+                BMCWEB_LOG_ERROR << "Unsupported D-Bus CurrentBMCState "
+                                 << *state;
+                messages::internalError(aResp->res);
             }
         },
         "xyz.openbmc_project.State.BMC", "/xyz/openbmc_project/state/bmc0",
