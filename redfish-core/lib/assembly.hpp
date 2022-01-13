@@ -51,6 +51,17 @@ inline void
         tempyArray.at(assemblyIndex)["Status"]["Health"] = "OK";
         tempyArray.at(assemblyIndex)["Status"]["State"] = "Enabled";
 
+	// Handle special case for tod_battery assembly OEM ReadyToRemove property
+	// NOTE: The following method for the special case of the tod_battery
+	// ReadyToRemove property only works when there is only ONE adcsensor
+	// handled by the adcsensor application.
+	if (sdbusplus::message::object_path(assembly).filename() == "EBMC")
+	{
+	    //TODO: Call systemd to check if adcsensor is started or stopped.
+
+	    //TODO: Setup redfish output (asyncResp->res.jsonValue["Oem"]["OpenBMC"]["ReadyToRemove"])
+	}
+
         crow::connections::systemBus->async_method_call(
             [aResp, assemblyIndex, assembly](
                 const boost::system::error_code ec,
@@ -321,6 +332,80 @@ inline void setAssemblylocationIndicators(
         {
             setLocationIndicatorActive(asyncResp, assembly, iter->second);
         }
+
+	// Handle special case for tod_battery assembly OEM ReadyToRemove property
+	// NOTE: The following method for the special case of the tod_battery
+	// ReadyToRemove property only works when there is only ONE adcsensor
+	// handled by the adcsensor application.
+	if (sdbusplus::message::object_path(assembly).filename() == "EBMC")
+	{
+	    std::optional<nlohmann::json> oem;
+	    if (!json_util::readJson(req, asyncResp->res, "Oem", oem))
+            {
+	        return;
+	    }
+	    if (oem)
+	    {
+	        std::optional<nlohmann::json> openbmc;
+		if (!json_util::readJson(*oem, asyncResp->res, "OpenBMC", openbmc))
+		{
+		    BMCWEB_LOG_ERROR << "Property Missing ";
+		    messages::propertyMissing(asyncResp->res, "OpenBMC");
+		    return;
+		}
+		if (openbmc)
+		{
+		    std::optional<bool> readytoremove;
+		    if (!json_util::readJson(*openbmc, asyncResp->res,
+					    "ReadyToRemove", readytoremove))
+		    {
+		        BMCWEB_LOG_ERROR << "Property Missing ";
+			messages::propertyMissing(asyncResp->res, "ReadyToRemove");
+			return;
+		    }
+		    
+                    // SetUp call to systemd to start or stop adcsensor
+		    const std::string service = {"adcsensor.service"};
+		    auto bus = sdbusplus::bus::new_default();
+
+		    if (readytoremove)
+		    {
+		        // Call systemd to turn off adcsensor
+		        auto method = bus.new_method_call("org.freedesktop.systemd1",
+	                              		       	"/org/freedesktop/systemd1",
+			                 		"org.freedesktop.systemd1.Manager", 
+						       	"StopUnit");
+	                method.append(service, "replace");
+		        // Ignore errors if the service is not found
+		        try
+		        {
+		            bus.call_noreply(method);
+		        }
+		        catch (const std::exception& e)
+		        { 
+		        }
+		    }
+		    else
+		    {
+		        // Call systemd to turn on adcsensor
+	                auto method = bus.new_method_call("org.freedesktop.systemd1",
+	                          		       	"/org/freedesktop/systemd1",
+			                 		"org.freedesktop.systemd1.Manager",
+						       	"StartUnit");
+	                method.append(service, "replace");
+		        // Ignore errors if the service is not found
+		        try
+		        {
+		            bus.call_noreply(method);
+		        }
+		        catch (const std::exception& e)
+		        { 
+		        }
+	            }
+                }                
+            }	
+	}
+	
         assemblyIndex++;
     }
 
