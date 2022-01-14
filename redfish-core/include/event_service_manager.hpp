@@ -859,6 +859,7 @@ class EventServiceManager
     }
 
     std::string addSubscription(const std::shared_ptr<Subscription>& subValue,
+                                const std::string& subscriptionId = "",
                                 const bool updateFile = true)
     {
 
@@ -870,9 +871,9 @@ class EventServiceManager
         int retry = 3;
         while (retry)
         {
-            if (!snmpDbusId.empty())
+            if (!subscriptionId.empty())
             {
-                id = snmpDbusId;
+                id = subscriptionId;
             }
             else
             {
@@ -958,11 +959,6 @@ class EventServiceManager
             updateNoOfSubscribersCount();
             updateSubscriptionData();
         }
-    }
-
-    void setSnmpDbusId(const std::string& snmpId)
-    {
-        snmpDbusId = snmpId;
     }
 
     size_t getNumberOfSubscriptions()
