@@ -51,7 +51,7 @@ inline std::string getRoleFromPrivileges(std::string_view priv)
 inline bool getAssignedPrivFromRole(std::string_view role,
                                     nlohmann::json& privArray)
 {
-    if (role == "Administrator")
+    if ((role == "Administrator") || (role == "OemIBMServiceAgent"))
     {
         privArray = {"Login", "ConfigureManager", "ConfigureUsers",
                      "ConfigureSelf", "ConfigureComponents"};
@@ -68,11 +68,6 @@ inline bool getAssignedPrivFromRole(std::string_view role,
     {
         privArray = nlohmann::json::array();
     }
-    else if (role == "OemIBMServiceAgent")
-    {
-        privArray = {"Login", "ConfigureManager", "ConfigureUsers",
-                     "ConfigureSelf", "ConfigureComponents"};
-    }
     else
     {
         return false;
@@ -82,19 +77,8 @@ inline bool getAssignedPrivFromRole(std::string_view role,
 
 inline bool getOemPrivFromRole(std::string_view role, nlohmann::json& privArray)
 {
-    if (role == "Administrator")
-    {
-        privArray = nlohmann::json::array();
-    }
-    else if (role == "Operator")
-    {
-        privArray = nlohmann::json::array();
-    }
-    else if (role == "ReadOnly")
-    {
-        privArray = nlohmann::json::array();
-    }
-    else if (role == "NoAccess")
+    if ((role == "Administrator") || (role == "Operator") ||
+        (role == "ReadOnly") || (role == "NoAccess"))
     {
         privArray = nlohmann::json::array();
     }
