@@ -80,8 +80,7 @@ inline bool getAssignedPrivFromRole(std::string_view role,
     return true;
 }
 
-inline bool getOemPrivFromRole(std::string_view role,
-                               nlohmann::json& privArray)
+inline bool getOemPrivFromRole(std::string_view role, nlohmann::json& privArray)
 {
     if (role == "Administrator")
     {

@@ -21,11 +21,10 @@
 #include <openbmc_dbus_rest.hpp>
 #include <persistent_data.hpp>
 #include <registries/privilege_registry.hpp>
+#include <roles.hpp>
 #include <utils/json_utils.hpp>
 
 #include <string>
-#include <roles.hpp>
-
 #include <variant>
 #include <vector>
 
@@ -1711,7 +1710,8 @@ inline void requestAccountServiceRoutes(App& app)
             // phosphor-user-manager is added. In order to avoid dependency
             // issues, this is added in bmcweb, which will removed, once
             // phosphor-user-manager supports priv-noaccess.
-            // WARNING: roleId changes from Redfish Role to Phosphor privilege role.
+            // WARNING: roleId changes from Redfish Role to Phosphor privilege
+            // role.
             if (priv == "priv-noaccess")
             {
                 roleId = "";
@@ -2027,16 +2027,16 @@ inline void requestAccountServiceRoutes(App& app)
                     return;
                 }
             }
-            
-            // For accounts which have a Restricted Role, restrict which properties
-            // can be patched.  Allow only Locked, Enabled, and Oem.
+
+            // For accounts which have a Restricted Role, restrict which
+            // properties can be patched.  Allow only Locked, Enabled, and Oem.
             // Do not even allow the service user to change these properties.
             // Implementation note: Ideally this would get the user's RoleId
             // but that would take an additional D-Bus operation.
-            if ((username == "service") &&
-                (newUserName || password || roleId))
+            if ((username == "service") && (newUserName || password || roleId))
             {
-                BMCWEB_LOG_ERROR << "Attempt to PATCH user who has a Restricted Role";
+                BMCWEB_LOG_ERROR
+                    << "Attempt to PATCH user who has a Restricted Role";
                 messages::restrictedRole(asyncResp->res, "OemIBMServiceAgent");
                 return;
             }
@@ -2044,7 +2044,8 @@ inline void requestAccountServiceRoutes(App& app)
             // Don't allow PATCHing an account to have a Restricted role.
             if (roleId && redfish::isRestrictedRole(*roleId))
             {
-                BMCWEB_LOG_ERROR << "Attempt to PATCH user to have a Restricted Role";
+                BMCWEB_LOG_ERROR
+                    << "Attempt to PATCH user to have a Restricted Role";
                 messages::restrictedRole(asyncResp->res, *roleId);
                 return;
             }
@@ -2195,13 +2196,16 @@ inline void requestAccountServiceRoutes(App& app)
                 const std::string userPath =
                     "/xyz/openbmc_project/user/" + username;
 
-                // Don't DELETE accounts which have a Restricted Role (the service account).
-                // Implementation note: Ideally this would get the user's RoleId
-                // but that would take an additional D-Bus operation.
+                // Don't DELETE accounts which have a Restricted Role (the
+                // service account). Implementation note: Ideally this would get
+                // the user's RoleId but that would take an additional D-Bus
+                // operation.
                 if (username == "service")
                 {
-                    BMCWEB_LOG_ERROR << "Attempt to DELETE user who has a Restricted Role";
-                    messages::restrictedRole(asyncResp->res, "OemIBMServiceAgent");
+                    BMCWEB_LOG_ERROR
+                        << "Attempt to DELETE user who has a Restricted Role";
+                    messages::restrictedRole(asyncResp->res,
+                                             "OemIBMServiceAgent");
                     return;
                 }
 

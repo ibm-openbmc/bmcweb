@@ -45,8 +45,8 @@ constexpr const size_t maxPrivilegeCount = 32;
 
 /** @brief A vector of all privilege names and their indexes */
 static const std::array<std::string, maxPrivilegeCount> privilegeNames{
-    "Login", "ConfigureManager", "ConfigureComponents", "ConfigureSelf",
-    "ConfigureUsers", "OemIBMPerformService"};
+    "Login",         "ConfigureManager", "ConfigureComponents",
+    "ConfigureSelf", "ConfigureUsers",   "OemIBMPerformService"};
 
 /**
  * @brief Redfish privileges
@@ -226,9 +226,9 @@ inline const Privileges& getUserPrivileges(const std::string& userRole)
     }
     if (userRole == "priv-oemibmserviceagent")
     {
-        static Privileges admin{"Login", "ConfigureManager", "ConfigureSelf",
-                                "ConfigureUsers", "ConfigureComponents",
-                                "OemIBMPerformService"};
+        static Privileges admin{
+            "Login",          "ConfigureManager",    "ConfigureSelf",
+            "ConfigureUsers", "ConfigureComponents", "OemIBMPerformService"};
         return admin;
     }
     // Redfish privilege : NoAccess

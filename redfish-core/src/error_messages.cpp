@@ -2184,11 +2184,13 @@ nlohmann::json restrictedRole(const std::string& arg1)
     return nlohmann::json{
         {"@odata.type", "#Message.v1_1_1.Message"},
         {"MessageId", "Base.1.9.0.RestrictedRole"},
-        {"Message", "The operation was not successful because the role '" + arg1 + "' is restricted."},
+        {"Message", "The operation was not successful because the role '" +
+                        arg1 + "' is restricted."},
         {"MessageArgs", {arg1}},
         {"MessageSeverity", "Warning"},
         {"Resolution",
-         "No resolution is required.  For standard roles, consider using the role "
+         "No resolution is required.  For standard roles, consider using the "
+         "role "
          "specified in the AlternateRoleId property in the Role resource."}};
 }
 
