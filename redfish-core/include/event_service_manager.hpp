@@ -397,7 +397,8 @@ class Subscription : public persistent_data::UserSubscription
 
     void sendEvent(const std::string& msg)
     {
-        if (conn != nullptr)
+        if ((conn != nullptr) &&
+            (conn->getConnState() != crow::ConnState::terminated))
         {
             conn->sendData(msg);
             this->eventSeqNum++;
@@ -405,9 +406,12 @@ class Subscription : public persistent_data::UserSubscription
         if (conn == nullptr)
         {
             // create the HttpClient connection
+            BMCWEB_LOG_ERROR
+                << "HttpClient connection is null. Create a conn for id:"
+                << subId << " destination: " << host << ":" << port;
             conn = std::make_shared<crow::HttpClient>(
-                crow::connections::systemBus->get_io_context(), id, host, port,
-                path, uriProto, httpHeaders);
+                crow::connections::systemBus->get_io_context(), subId, host,
+                port, path, uriProto, httpHeaders);
             conn->sendData(msg);
             this->eventSeqNum++;
         }
@@ -559,8 +563,14 @@ class Subscription : public persistent_data::UserSubscription
         return eventSeqNum;
     }
 
+    void setSubId(const std::string& id)
+    {
+        subId = id;
+    }
+
   private:
     uint64_t eventSeqNum;
+    std::string subId;
     std::string host;
     std::string port;
     std::string path;
