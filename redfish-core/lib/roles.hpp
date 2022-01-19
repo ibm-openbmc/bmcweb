@@ -125,7 +125,7 @@ inline void requestRoutesRoles(App& app)
                 }
 
                 asyncResp->res.jsonValue = {
-                    {"@odata.type", "#Role.v1_2_2.Role"},
+                    {"@odata.type", "#Role.v1_3_0.Role"},
                     {"Name", "User Role"},
                     {"Description", roleId + " User Role"},
                     {"OemPrivileges", std::move(oemPrivArray)},
