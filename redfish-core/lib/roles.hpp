@@ -123,7 +123,7 @@ inline void requestRoutesRoles(App& app)
             return;
         }
 
-        asyncResp->res.jsonValue["@odata.type"] = "#Role.v1_2_2.Role";
+        asyncResp->res.jsonValue["@odata.type"] = "#Role.v1_3_0.Role";
         asyncResp->res.jsonValue["Name"] = "User Role";
         asyncResp->res.jsonValue["Description"] = roleId + " User Role";
         asyncResp->res.jsonValue["OemPrivileges"] = std::move(oemPrivArray);
