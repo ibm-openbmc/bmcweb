@@ -975,6 +975,18 @@ void addMessageToErrorJson(nlohmann::json& target,
                            const nlohmann::json& message);
 void addMessageToJson(nlohmann::json& target, const nlohmann::json& message,
                       const std::string& fieldPath);
+
+/**
+ * RestrictedRole is new in
+ * https://github.com/DMTF/Redfish/blob/master/registries/Base.1.9.0.json
+ * @brief Formats RestrictedRole message into JSON
+ * Message body: "The operation was not successful because the role '<arg1>' is
+ * restricted."
+ *
+ * @returns Message RestrictedRole formatted to JSON */
+nlohmann::json restrictedRole(const std::string& arg1);
+void restrictedRole(crow::Response& res, const std::string& arg1);
+
 } // namespace messages
 
 } // namespace redfish
