@@ -18,7 +18,7 @@ inline void
     asyncResp->res.jsonValue = {
         {"@odata.type", "#PowerSubsystem.v1_0_0.PowerSubsystem"},
         {"Name", "Power Subsystem for Chassis"}};
-    asyncResp->res.jsonValue["Id"] = "1";
+    asyncResp->res.jsonValue["Id"] = "PowerSubsystem";
     asyncResp->res.jsonValue["@odata.id"] =
         "/redfish/v1/Chassis/" + chassisID + "/PowerSubsystem";
     asyncResp->res.jsonValue["PowerSupplies"]["@odata.id"] =
