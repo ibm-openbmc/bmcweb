@@ -109,6 +109,7 @@ inline bool verifyOpensslKeyCert(const std::string& filepath)
         EVP_PKEY* pkey = PEM_read_PrivateKey(file, nullptr, nullptr, nullptr);
         if (pkey != nullptr)
         {
+#if (OPENSSL_VERSION_NUMBER < 0x30000000L)
             RSA* rsa = EVP_PKEY_get1_RSA(pkey);
             if (rsa != nullptr)
             {
@@ -142,6 +143,26 @@ inline bool verifyOpensslKeyCert(const std::string& filepath)
                     EC_KEY_free(ec);
                 }
             }
+#else
+            EVP_PKEY_CTX* pkeyCtx =
+                EVP_PKEY_CTX_new_from_pkey(nullptr, pkey, nullptr);
+
+            if (!pkeyCtx)
+            {
+                std::cerr << "Unable to allocate pkeyCtx " << ERR_get_error()
+                          << "\n";
+            }
+            else if (EVP_PKEY_check(pkeyCtx) == 1)
+            {
+                privateKeyValid = true;
+            }
+            else
+            {
+
+                std::cerr << "Key not valid error number " << ERR_get_error()
+                          << "\n";
+            }
+#endif
 
             if (privateKeyValid)
             {
@@ -164,6 +185,9 @@ inline bool verifyOpensslKeyCert(const std::string& filepath)
                 }
             }
 
+#if (OPENSSL_VERSION_NUMBER > 0x30000000L)
+            EVP_PKEY_CTX_free(pkeyCtx);
+#endif
             EVP_PKEY_free(pkey);
         }
         fclose(file);
@@ -308,6 +332,8 @@ inline void generateSslCertificate(const std::string& filepath,
 EVP_PKEY* createEcKey()
 {
     EVP_PKEY* pKey = nullptr;
+
+#if (OPENSSL_VERSION_NUMBER < 0x30000000L)
     int eccgrp = 0;
     eccgrp = OBJ_txt2nid("secp384r1");
 
@@ -329,6 +355,45 @@ EVP_PKEY* createEcKey()
             }
         }
     }
+#else
+    // Create context for curve parameter generation.
+    std::unique_ptr<EVP_PKEY_CTX, decltype(&::EVP_PKEY_CTX_free)> ctx{
+        EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr), &::EVP_PKEY_CTX_free};
+    if (!ctx)
+    {
+        return nullptr;
+    }
+
+    // Set up curve parameters.
+    EVP_PKEY* params = nullptr;
+    if ((EVP_PKEY_paramgen_init(ctx.get()) <= 0) ||
+        (EVP_PKEY_CTX_set_ec_param_enc(ctx.get(), OPENSSL_EC_NAMED_CURVE) <=
+         0) ||
+        (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx.get(), NID_secp384r1) <=
+         0) ||
+        (EVP_PKEY_paramgen(ctx.get(), &params) <= 0))
+    {
+        return nullptr;
+    }
+
+    // Set up RAII holder for params.
+    std::unique_ptr<EVP_PKEY, decltype(&::EVP_PKEY_free)> pparams{
+        params, &::EVP_PKEY_free};
+
+    // Set new context for key generation, using curve parameters.
+    ctx.reset(EVP_PKEY_CTX_new_from_pkey(nullptr, params, nullptr));
+    if (!ctx || (EVP_PKEY_keygen_init(ctx.get()) <= 0))
+    {
+        return nullptr;
+    }
+
+    // Generate key.
+    if (EVP_PKEY_keygen(ctx.get(), &pKey) <= 0)
+    {
+        return nullptr;
+    }
+#endif
+
     return pKey;
 }
 
