@@ -228,8 +228,11 @@ nlohmann::json internalError(void)
                        "consider resetting the service."}};
 }
 
-void internalError(crow::Response& res)
+void internalError(crow::Response& res, const bmcweb::source_location location)
 {
+    BMCWEB_LOG_CRITICAL << "Internal Error " << location.file_name() << "("
+                        << location.line() << ":" << location.column() << ") `"
+                        << location.function_name() << "`: ";
     res.result(boost::beast::http::status::internal_server_error);
     addMessageToErrorJson(res.jsonValue, internalError());
 }
@@ -2170,6 +2173,34 @@ void mutualExclusiveProperties(crow::Response& res, const std::string& arg1,
 {
     res.result(boost::beast::http::status::bad_request);
     addMessageToErrorJson(res.jsonValue, mutualExclusiveProperties(arg1, arg2));
+}
+
+/**
+ * @internal
+ * @brief Formats RestrictedRole into JSON
+ *
+ * See header file for more information
+ * @endinternal
+ */
+nlohmann::json restrictedRole(const std::string& arg1)
+{
+    return nlohmann::json{
+        {"@odata.type", "#Message.v1_1_1.Message"},
+        {"MessageId", "Base.1.9.0.RestrictedRole"},
+        {"Message", "The operation was not successful because the role '" +
+                        arg1 + "' is restricted."},
+        {"MessageArgs", {arg1}},
+        {"MessageSeverity", "Warning"},
+        {"Resolution",
+         "No resolution is required.  For standard roles, consider using the "
+         "role "
+         "specified in the AlternateRoleId property in the Role resource."}};
+}
+
+void restrictedRole(crow::Response& res, const std::string& arg1)
+{
+    res.result(boost::beast::http::status::bad_request);
+    addMessageToErrorJson(res.jsonValue, restrictedRole(arg1));
 }
 
 } // namespace messages
