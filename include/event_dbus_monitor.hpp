@@ -18,6 +18,8 @@ static std::shared_ptr<sdbusplus::bus::match::match> matchBootProgressChange;
 static std::shared_ptr<sdbusplus::bus::match::match> matchEventLogCreated;
 static std::shared_ptr<sdbusplus::bus::match::match> matchPostCodeChange;
 
+static uint64_t postCodeCounter = 0;
+
 void registerHostStateChangeSignal();
 void registerBMCStateChangeSignal();
 void registerVMIIPChangeSignal();
@@ -143,6 +145,14 @@ inline void HostStatePropertyChange(sdbusplus::message::message& msg)
     if (type != nullptr)
     {
         BMCWEB_LOG_DEBUG << *type;
+        if (*type == "xyz.openbmc_project.State.Host.HostState.Off")
+        {
+            // reset the postCodeCounter
+            postCodeCounter = 0;
+            BMCWEB_LOG_DEBUG
+                << "Host is powered off. Reset the postcode counter to "
+                << postCodeCounter;
+        }
         // Push an event
         std::string origin = "/redfish/v1/Systems/system";
         redfish::EventServiceManager::getInstance().sendEvent(
@@ -188,65 +198,15 @@ inline void postCodePropertyChange(sdbusplus::message::message& msg)
         BMCWEB_LOG_ERROR << "PostCode property changed Signal error";
         return;
     }
-    std::string iface;
-    using PostCode = std::tuple<uint64_t, std::vector<uint8_t>>;
+    std::string postcodeEntryID = "B1-" + std::to_string(++postCodeCounter);
 
-    std::map<std::string, std::variant<PostCode>> values;
-    std::string objName;
-    msg.read(objName, values);
-
-    const auto it = values.find("Value");
-    if (it != values.end())
-    {
-        std::vector<uint8_t> secondaryPostCode =
-            std::get<1>(std::get<PostCode>(it->second));
-
-        // Boot index one will have updated postcodes for the current boot.
-        const uint16_t bootIndex = 1;
-        crow::connections::systemBus->async_method_call(
-            [secondaryPostCode](
-                const boost::system::error_code ec,
-                const boost::container::flat_map<
-                    uint64_t, std::tuple<uint64_t, std::vector<uint8_t>>>&
-                    postcode) {
-                if (ec)
-                {
-                    BMCWEB_LOG_ERROR
-                        << "DBUS GetPostCodesWithTimeStamp method failed: "
-                        << ec;
-                    return;
-                }
-
-                uint64_t currentCodeIndex = 0;
-                for (const std::pair<
-                         uint64_t, std::tuple<uint64_t, std::vector<uint8_t>>>&
-                         code : postcode)
-                {
-                    currentCodeIndex++;
-                    std::vector<uint8_t> postCode = std::get<1>(code.second);
-                    if (secondaryPostCode == postCode)
-                    {
-                        std::string postcodeEntryID =
-                            "B1-" + std::to_string(currentCodeIndex);
-                        BMCWEB_LOG_DEBUG << "sending post code event for "
-                                         << postcodeEntryID;
-                        // Push an event
-                        std::string eventOrigin =
-                            "/redfish/v1/Systems/system/"
-                            "LogServices/PostCodes/Entries/" +
-                            postcodeEntryID;
-                        redfish::EventServiceManager::getInstance().sendEvent(
-                            redfish::messages::resourceCreated(), eventOrigin,
-                            "ComputerSystem");
-                        break;
-                    }
-                }
-            },
-            "xyz.openbmc_project.State.Boot.PostCode0",
-            "/xyz/openbmc_project/State/Boot/PostCode0",
-            "xyz.openbmc_project.State.Boot.PostCode",
-            "GetPostCodesWithTimeStamp", bootIndex);
-    }
+    BMCWEB_LOG_DEBUG << "Current post code: " << postcodeEntryID;
+    // Push an event
+    std::string eventOrigin = "/redfish/v1/Systems/system/"
+                              "LogServices/PostCodes/Entries/" +
+                              postcodeEntryID;
+    redfish::EventServiceManager::getInstance().sendEvent(
+        redfish::messages::resourceCreated(), eventOrigin, "ComputerSystem");
 }
 
 void registerHostStateChangeSignal()
