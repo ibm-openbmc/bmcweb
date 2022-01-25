@@ -92,6 +92,7 @@ feature_map = {
   'ibm-usb-code-update'             : '-DBMCWEB_ENABLE_IBM_USB_CODE_UPDATE',
   'hw-isolation'                    : '-DBMCWEB_ENABLE_HW_ISOLATION',
   'redfish-license'                 : '-DBMCWEB_ENABLE_REDFISH_LICENSE',
+  'fan-oem-data'                    : '-DBMCWEB_ENABLE_FAN_OEM_DATA',
 }
 
 # Get the options status and build a project summary to show which flags are

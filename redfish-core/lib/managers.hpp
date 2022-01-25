@@ -2097,8 +2097,10 @@ inline void requestRoutesManager(App& app)
             getUSBCodeUpdateState(asyncResp);
 #endif
 
+#ifdef BMCWEB_ENABLE_FAN_OEM_DATA
             auto pids = std::make_shared<GetPIDValues>(asyncResp);
             pids->run();
+#endif
 
             getMainChassisId(
                 asyncResp, [](const std::string& chassisId,
@@ -2272,12 +2274,17 @@ inline void requestRoutesManager(App& app)
                 return;
             }
 
+#if defined(BMCWEB_ENABLE_FAN_OEM_DATA) ||                                     \
+    defined(BMCWEB_ENABLE_IBM_USB_CODE_UPDATE)
             if (oem)
             {
                 std::optional<nlohmann::json> openbmc;
                 std::optional<nlohmann::json> ibmOem;
-                if (!redfish::json_util::readJson(*oem, asyncResp->res,
+                if (!redfish::json_util::readJson(*oem, asyncResp->res
+#ifdef BMCWEB_ENABLE_FAN_OEM_DATA
+                                                  ,
                                                   "OpenBmc", openbmc
+#endif
 #ifdef BMCWEB_ENABLE_IBM_USB_CODE_UPDATE
                                                   ,
                                                   "IBM", ibmOem
@@ -2290,6 +2297,7 @@ inline void requestRoutesManager(App& app)
                                      nlohmann::json::error_handler_t::replace);
                     return;
                 }
+#ifdef BMCWEB_ENABLE_FAN_OEM_DATA
                 if (openbmc)
                 {
                     std::optional<nlohmann::json> fan;
@@ -2310,6 +2318,7 @@ inline void requestRoutesManager(App& app)
                         pid->run();
                     }
                 }
+#endif
 #ifdef BMCWEB_ENABLE_IBM_USB_CODE_UPDATE
                 if (ibmOem)
                 {
@@ -2328,6 +2337,7 @@ inline void requestRoutesManager(App& app)
                 }
 #endif
             }
+#endif
             if (links)
             {
                 std::optional<nlohmann::json> activeSoftwareImage;
