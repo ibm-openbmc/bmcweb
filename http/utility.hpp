@@ -611,8 +611,8 @@ inline std::string getDateTime(boost::posix_time::milliseconds timeSinceEpoch)
 // date. This behavior is to avoid exceptions throwed by Boost.
 inline std::string getDateTimeUint(uint64_t secondsSinceEpoch)
 {
-    boost::posix_time::seconds boostSeconds(
-        std::min(secondsSinceEpoch, maxSeconds));
+    secondsSinceEpoch = std::min(secondsSinceEpoch, maxSeconds);
+    boost::posix_time::seconds boostSeconds(secondsSinceEpoch);
     return getDateTime(
         boost::posix_time::milliseconds(boostSeconds.total_milliseconds()));
 }
@@ -623,13 +623,17 @@ inline std::string getDateTimeUint(uint64_t secondsSinceEpoch)
 // supported date.
 inline std::string getDateTimeUintMs(uint64_t milliSecondsSinceEpoch)
 {
-    return getDateTime(boost::posix_time::milliseconds(
-        std::min(maxMilliSeconds, milliSecondsSinceEpoch)));
+    milliSecondsSinceEpoch = std::min(maxMilliSeconds, milliSecondsSinceEpoch);
+    return getDateTime(boost::posix_time::milliseconds(milliSecondsSinceEpoch));
 }
 inline std::string getDateTimeStdtime(std::time_t secondsSinceEpoch)
 {
-    boost::posix_time::ptime time = boost::posix_time::from_time_t(
-        std::min(secondsSinceEpoch, std::time_t{maxSeconds}));
+    if (secondsSinceEpoch > static_cast<int64_t>(maxSeconds))
+    {
+        secondsSinceEpoch = static_cast<std::time_t>(maxSeconds);
+    }
+    boost::posix_time::ptime time =
+        boost::posix_time::from_time_t(secondsSinceEpoch);
     return boost::posix_time::to_iso_extended_string(time) + "+00:00";
 }
 /**
