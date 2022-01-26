@@ -15,7 +15,6 @@
 */
 #pragma once
 
-#include "health.hpp"
 #ifdef BMCWEB_ENABLE_IBM_USB_CODE_UPDATE
 #include "oem/ibm/usb_code_update.hpp"
 #endif
@@ -2139,10 +2138,6 @@ inline void requestRoutesManager(App& app)
                 1;
             asyncResp->res.jsonValue["Links"]["ManagerForServers"] = {
                 {{"@odata.id", "/redfish/v1/Systems/system"}}};
-
-            auto health = std::make_shared<HealthPopulate>(asyncResp);
-            health->isManagersHealth = true;
-            health->populate();
 
             fw_util::populateFirmwareInformation(asyncResp, fw_util::bmcPurpose,
                                                  "FirmwareVersion", true);
