@@ -15,7 +15,6 @@
 */
 #pragma once
 
-#include "health.hpp"
 #include "openbmc_dbus_rest.hpp"
 
 #include <app.hpp>
@@ -57,13 +56,9 @@ inline void requestRoutesStorage(App& app)
             asyncResp->res.jsonValue["Id"] = "1";
             asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
 
-            auto health = std::make_shared<HealthPopulate>(asyncResp);
-            health->populate();
-
             crow::connections::systemBus->async_method_call(
-                [asyncResp,
-                 health](const boost::system::error_code ec,
-                         const std::vector<std::string>& storageList) {
+                [asyncResp](const boost::system::error_code ec,
+                            const std::vector<std::string>& storageList) {
                     nlohmann::json& storageArray =
                         asyncResp->res.jsonValue["Drives"];
                     storageArray = nlohmann::json::array();
@@ -77,10 +72,6 @@ inline void requestRoutesStorage(App& app)
                         messages::internalError(asyncResp->res);
                         return;
                     }
-
-                    health->inventory.insert(health->inventory.end(),
-                                             storageList.begin(),
-                                             storageList.end());
 
                     for (const std::string& objpath : storageList)
                     {
@@ -109,9 +100,9 @@ inline void requestRoutesStorage(App& app)
                     "xyz.openbmc_project.Inventory.Item.Drive"});
 
             crow::connections::systemBus->async_method_call(
-                [asyncResp,
-                 health](const boost::system::error_code ec,
-                         const crow::openbmc_mapper::GetSubTreeType& subtree) {
+                [asyncResp](
+                    const boost::system::error_code ec,
+                    const crow::openbmc_mapper::GetSubTreeType& subtree) {
                     if (ec || !subtree.size())
                     {
                         // doesn't have to be there
@@ -247,20 +238,6 @@ inline void requestRoutesStorage(App& app)
                             "org.freedesktop.DBus.Properties", "GetAll",
                             "xyz.openbmc_project.Inventory.Decorator.Asset");
                     }
-
-                    // this is done after we know the json array will no longer
-                    // be resized, as json::array uses vector underneath and we
-                    // need references to its members that won't change
-                    size_t count = 0;
-                    for (const auto& [path, interfaceDict] : subtree)
-                    {
-                        auto subHealth = std::make_shared<HealthPopulate>(
-                            asyncResp, root[count]["Status"]);
-                        subHealth->inventory.emplace_back(path);
-                        health->inventory.emplace_back(path);
-                        health->children.emplace_back(subHealth);
-                        count++;
-                    }
                 },
                 "xyz.openbmc_project.ObjectMapper",
                 "/xyz/openbmc_project/object_mapper",
@@ -395,10 +372,6 @@ inline void requestRoutesDrive(App& app)
 
                     // default it to Enabled
                     asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
-
-                    auto health = std::make_shared<HealthPopulate>(asyncResp);
-                    health->inventory.emplace_back(path);
-                    health->populate();
 
                     crow::connections::systemBus->async_method_call(
                         [asyncResp, path](const boost::system::error_code ec2,
