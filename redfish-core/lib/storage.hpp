@@ -15,7 +15,6 @@
 */
 #pragma once
 
-#include "health.hpp"
 #include "openbmc_dbus_rest.hpp"
 
 #include <app.hpp>
@@ -61,11 +60,10 @@ inline void requestRoutesStorageCollection(App& app)
         });
 }
 
-inline void getDrives(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                      const std::shared_ptr<HealthPopulate>& health)
+inline void getDrives(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     crow::connections::systemBus->async_method_call(
-        [asyncResp, health](
+        [asyncResp](
             const boost::system::error_code ec,
             const dbus::utility::MapperGetSubTreePathsResponse& driveList) {
         if (ec)
@@ -79,9 +77,6 @@ inline void getDrives(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         driveArray = nlohmann::json::array();
         auto& count = asyncResp->res.jsonValue["Drives@odata.count"];
         count = 0;
-
-        health->inventory.insert(health->inventory.end(), driveList.begin(),
-                                 driveList.end());
 
         for (const std::string& drive : driveList)
         {
@@ -109,13 +104,11 @@ inline void getDrives(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 }
 
 inline void
-    getStorageControllers(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                          const std::shared_ptr<HealthPopulate>& health)
+    getStorageControllers(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     crow::connections::systemBus->async_method_call(
-        [asyncResp,
-         health](const boost::system::error_code ec,
-                 const dbus::utility::MapperGetSubTreeResponse& subtree) {
+        [asyncResp](const boost::system::error_code ec,
+                    const dbus::utility::MapperGetSubTreeResponse& subtree) {
         if (ec || subtree.empty())
         {
             // doesn't have to be there
@@ -229,23 +222,6 @@ inline void
                 }
                 });
         }
-
-        // this is done after we know the json array will no longer
-        // be resized, as json::array uses vector underneath and we
-        // need references to its members that won't change
-        size_t count = 0;
-        // Pointer based on |asyncResp->res.jsonValue|
-        nlohmann::json::json_pointer rootPtr =
-            "/StorageControllers"_json_pointer;
-        for (const auto& [path, interfaceDict] : subtree)
-        {
-            auto subHealth = std::make_shared<HealthPopulate>(
-                asyncResp, rootPtr / count / "Status");
-            subHealth->inventory.emplace_back(path);
-            health->inventory.emplace_back(path);
-            health->children.emplace_back(subHealth);
-            count++;
-        }
         },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
@@ -273,11 +249,8 @@ inline void requestRoutesStorage(App& app)
         asyncResp->res.jsonValue["Id"] = "1";
         asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
 
-        auto health = std::make_shared<HealthPopulate>(asyncResp);
-        health->populate();
-
-        getDrives(asyncResp, health);
-        getStorageControllers(asyncResp, health);
+        getDrives(asyncResp);
+        getStorageControllers(asyncResp);
         });
 }
 
@@ -624,10 +597,6 @@ inline void requestRoutesDrive(App& app)
 
             // default it to Enabled
             asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
-
-            auto health = std::make_shared<HealthPopulate>(asyncResp);
-            health->inventory.emplace_back(path);
-            health->populate();
 
             addAllDriveInfo(asyncResp, connectionNames[0].first, path,
                             connectionNames[0].second);

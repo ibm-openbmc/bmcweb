@@ -16,7 +16,6 @@
 #pragma once
 
 #include "dbus_singleton.hpp"
-#include "health.hpp"
 #include "led.hpp"
 #include "pcie.hpp"
 #include "query.hpp"
@@ -234,16 +233,13 @@ inline void getProcessorSummary(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
  *
  * @return None.
  */
-inline void
-    getComputerSystem(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-                      const std::shared_ptr<HealthPopulate>& systemHealth)
+inline void getComputerSystem(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
 {
     BMCWEB_LOG_DEBUG << "Get available system components.";
 
     crow::connections::systemBus->async_method_call(
-        [aResp,
-         systemHealth](const boost::system::error_code ec,
-                       const dbus::utility::MapperGetSubTreeResponse& subtree) {
+        [aResp](const boost::system::error_code ec,
+                const dbus::utility::MapperGetSubTreeResponse& subtree) {
         if (ec)
         {
             BMCWEB_LOG_DEBUG << "DBUS response error";
@@ -264,15 +260,6 @@ inline void
             {
                 continue;
             }
-
-            auto memoryHealth = std::make_shared<HealthPopulate>(
-                aResp, "/MemorySummary/Status"_json_pointer);
-
-            auto cpuHealth = std::make_shared<HealthPopulate>(
-                aResp, "/ProcessorSummary/Status"_json_pointer);
-
-            systemHealth->children.emplace_back(memoryHealth);
-            systemHealth->children.emplace_back(cpuHealth);
 
             // This is not system, so check if it's cpu, dimm, UUID or
             // BiosVer
@@ -365,8 +352,6 @@ inline void
                                                     ["State"] = "Enabled";
                             }
                             });
-
-                        memoryHealth->inventory.emplace_back(path);
                     }
                     else if (interfaceName ==
                              "xyz.openbmc_project.Inventory.Item.Cpu")
@@ -375,8 +360,6 @@ inline void
                             << "Found Cpu, now get its properties.";
 
                         getProcessorSummary(aResp, connection.first, path);
-
-                        cpuHealth->inventory.emplace_back(path);
                     }
                     else if (interfaceName == "xyz.openbmc_project.Common.UUID")
                     {
@@ -2400,32 +2383,7 @@ inline void requestRoutesSystems(App& app)
             4;
         asyncResp->res.jsonValue["GraphicalConsole"]["ConnectTypesSupported"] =
             nlohmann::json::array_t({"KVMIP"});
-
 #endif // BMCWEB_ENABLE_KVM
-        constexpr const std::array<const char*, 4> inventoryForSystems = {
-            "xyz.openbmc_project.Inventory.Item.Dimm",
-            "xyz.openbmc_project.Inventory.Item.Cpu",
-            "xyz.openbmc_project.Inventory.Item.Drive",
-            "xyz.openbmc_project.Inventory.Item.StorageController"};
-
-        auto health = std::make_shared<HealthPopulate>(asyncResp);
-        crow::connections::systemBus->async_method_call(
-            [health](const boost::system::error_code ec,
-                     const std::vector<std::string>& resp) {
-            if (ec)
-            {
-                // no inventory
-                return;
-            }
-
-            health->inventory = resp;
-            },
-            "xyz.openbmc_project.ObjectMapper",
-            "/xyz/openbmc_project/object_mapper",
-            "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", "/",
-            int32_t(0), inventoryForSystems);
-
-        health->populate();
 
         getMainChassisId(asyncResp,
                          [](const std::string& chassisId,
@@ -2439,7 +2397,7 @@ inline void requestRoutesSystems(App& app)
         getLocationIndicatorActive(asyncResp);
         // TODO (Gunnar): Remove IndicatorLED after enough time has passed
         getIndicatorLedState(asyncResp);
-        getComputerSystem(asyncResp, health);
+        getComputerSystem(asyncResp);
         getHostState(asyncResp);
         getBootProgress(asyncResp);
         getBootProgressLastStateTime(asyncResp);
