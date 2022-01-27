@@ -804,7 +804,8 @@ inline void
             if (foundDumpEntry == false)
             {
                 BMCWEB_LOG_ERROR << "Can't find Dump Entry";
-                messages::internalError(asyncResp->res);
+                messages::resourceNotFound(asyncResp->res, dumpType + " dump",
+                                           entryID);
                 return;
             }
         },

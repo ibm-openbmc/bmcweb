@@ -97,8 +97,16 @@ class Handler : public std::enable_shared_from_this<Handler>
                 if (ec)
                 {
                     BMCWEB_LOG_ERROR << "DBUS response error: " << ec;
-                    this->connection->sendStreamErrorStatus(
-                        boost::beast::http::status::internal_server_error);
+                    if (ec.value() == EBADR)
+                    {
+                        this->connection->sendStreamErrorStatus(
+                            boost::beast::http::status::not_found);
+                    }
+                    else
+                    {
+                        this->connection->sendStreamErrorStatus(
+                            boost::beast::http::status::internal_server_error);
+                    }
                     this->connection->close();
                     return;
                 }
@@ -159,8 +167,17 @@ class Handler : public std::enable_shared_from_this<Handler>
                     BMCWEB_LOG_ERROR
                         << "DBUS response error: Unable to get the dump size "
                         << ec;
-                    this->connection->sendStreamErrorStatus(
-                        boost::beast::http::status::internal_server_error);
+
+                    if (ec.value() == EBADR)
+                    {
+                        this->connection->sendStreamErrorStatus(
+                            boost::beast::http::status::not_found);
+                    }
+                    else
+                    {
+                        this->connection->sendStreamErrorStatus(
+                            boost::beast::http::status::internal_server_error);
+                    }
                     this->connection->close();
                     return;
                 }
