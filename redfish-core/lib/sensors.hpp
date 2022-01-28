@@ -3287,8 +3287,6 @@ inline void getThermalSensorData(
 
                 if (sensorType != "temperature")
                 {
-                    BMCWEB_LOG_ERROR << "Unsure how to handle sensorType "
-                                     << sensorType;
                     continue;
                 }
 
