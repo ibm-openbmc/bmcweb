@@ -5562,15 +5562,55 @@ inline void getRedfishUriByDbusObjPath(
             // Fill the all parents Redfish URI id.
             // For example, the processors id for the core.
             // "/redfish/v1/Systems/system/Processors/<str>/SubProcessors/core0"
+            std::vector<std::pair<RedfishResourceDBusInterfaces, size_t>>
+                ancestorsIfaces;
+            while (uriIdPos != std::string::npos)
+            {
+                std::string parentRedfishUri =
+                    redfishUri.substr(0, uriIdPos - 1);
+                RedfishUriListType::const_iterator parentRedfishUriIt =
+                    std::find_if(redfishUriList.begin(), redfishUriList.end(),
+                                 [parentRedfishUri](const auto& ele) {
+                                     return parentRedfishUri == ele.second;
+                                 });
+
+                if (parentRedfishUriIt == redfishUriList.end())
+                {
+                    BMCWEB_LOG_ERROR
+                        << "Failed to fill Links:OriginOfCondition "
+                        << "because unable to get parent Redfish URI "
+                        << "[" << parentRedfishUri << "]"
+                        << "DBus interface for the identified "
+                        << "Redfish URI: " << redfishUri
+                        << " of the given DBus object path: "
+                        << dbusObjPath.str;
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                ancestorsIfaces.emplace_back(
+                    std::make_pair(parentRedfishUriIt->first, uriIdPos));
+                uriIdPos = redfishUri.rfind(uriIdPattern,
+                                            uriIdPos - uriIdPattern.length());
+            }
+
+            // GetAncestors only accepts "as" for the interface list
+            std::vector<RedfishResourceDBusInterfaces> ancestorsIfacesOnly;
+            std::transform(
+                ancestorsIfaces.begin(), ancestorsIfaces.end(),
+                std::back_inserter(ancestorsIfacesOnly),
+                [](const std::pair<RedfishResourceDBusInterfaces, size_t>& p) {
+                    return p.first;
+                });
+
             crow::connections::systemBus->async_method_call(
                 [asyncResp, dbusObjPath, entryJsonIdx, redfishUri, uriIdPos,
-                 uriIdPattern](
+                 uriIdPattern, ancestorsIfaces](
                     const boost::system::error_code ec1,
                     const boost::container::flat_map<
                         std::string,
                         boost::container::flat_map<std::string,
                                                    std::vector<std::string>>>&
-                        subtree) mutable {
+                        ancestors) mutable {
                     if (ec1)
                     {
                         BMCWEB_LOG_ERROR
@@ -5583,83 +5623,50 @@ inline void getRedfishUriByDbusObjPath(
                         return;
                     }
 
-                    while (uriIdPos != std::string::npos)
+                    for (const auto& ancestorIface : ancestorsIfaces)
                     {
-                        std::string parentRedfishUri =
-                            redfishUri.substr(0, uriIdPos - 1);
-                        RedfishUriListType::const_iterator parentRedfishUriIt =
-                            std::find_if(
-                                redfishUriList.begin(), redfishUriList.end(),
-                                [parentRedfishUri](const auto& ele) {
-                                    return parentRedfishUri == ele.second;
-                                });
-
-                        if (parentRedfishUriIt == redfishUriList.end())
+                        bool foundAncestor = false;
+                        for (const auto& obj : ancestors)
                         {
-                            BMCWEB_LOG_ERROR
-                                << "Failed to fill Links:OriginOfCondition "
-                                << "because unable to get parent Redfish URI "
-                                << "[" << parentRedfishUri << "]"
-                                << "DBus interface for the identified "
-                                << "Redfish URI: " << redfishUri
-                                << " of the given DBus object path: "
-                                << dbusObjPath.str;
-                            messages::internalError(asyncResp->res);
-                            return;
-                        }
-
-                        std::string parentObj;
-                        for (const auto& obj : subtree)
-                        {
-                            if (dbusObjPath.str.find(
-                                    sdbusplus::message::object_path(obj.first)
-                                        .filename()) == std::string::npos)
-                            {
-                                // The object is not found in the isolated
-                                // hardware object path
-                                continue;
-                            }
-
                             for (const auto& service : obj.second)
                             {
                                 for (const auto& interface : service.second)
                                 {
-                                    if (interface == parentRedfishUriIt->first)
+                                    if (interface == ancestorIface.first)
                                     {
-                                        parentObj = obj.first;
+                                        foundAncestor = true;
+                                        redfishUri.replace(
+                                            ancestorIface.second,
+                                            uriIdPattern.length(),
+                                            getIsolatedHwItemId(
+                                                sdbusplus::message::object_path(
+                                                    obj.first)));
                                         break;
                                     }
                                 }
-                                if (!parentObj.empty())
+                                if (foundAncestor)
                                 {
                                     break;
                                 }
                             }
-                            if (!parentObj.empty())
+                            if (foundAncestor)
                             {
                                 break;
                             }
                         }
 
-                        if (parentObj.empty())
+                        if (!foundAncestor)
                         {
                             BMCWEB_LOG_ERROR
                                 << "Failed to fill Links:OriginOfCondition "
                                 << "because unable to get parent DBus path "
-                                << "for the identified parent Redfish URI: "
-                                << parentRedfishUri
+                                << "for the identified parent interface : "
+                                << ancestorIface.first
                                 << " of the given DBus object path: "
                                 << dbusObjPath.str;
                             messages::internalError(asyncResp->res);
                             return;
                         }
-
-                        redfishUri.replace(
-                            uriIdPos, uriIdPattern.length(),
-                            getIsolatedHwItemId(
-                                sdbusplus::message::object_path(parentObj)));
-
-                        uriIdPos = redfishUri.rfind(uriIdPattern);
                     }
 
                     if (entryJsonIdx > 0)
@@ -5676,9 +5683,8 @@ inline void getRedfishUriByDbusObjPath(
                 },
                 "xyz.openbmc_project.ObjectMapper",
                 "/xyz/openbmc_project/object_mapper",
-                "xyz.openbmc_project.ObjectMapper", "GetSubTree",
-                "/xyz/openbmc_project/inventory", 0,
-                std::array<const char*, 0>{});
+                "xyz.openbmc_project.ObjectMapper", "GetAncestors",
+                dbusObjPath.str, ancestorsIfacesOnly);
         },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
