@@ -28,6 +28,11 @@ inline void getLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                 getObjectType) {
             if (ec)
             {
+                if (ec.value() == 5) // generic:5 error
+                {
+                    BMCWEB_LOG_DEBUG << "lamp test not available yet!!";
+                    return;
+                }
                 BMCWEB_LOG_ERROR << "ObjectMapper::GetObject call failed: "
                                  << ec;
                 messages::internalError(aResp->res);
