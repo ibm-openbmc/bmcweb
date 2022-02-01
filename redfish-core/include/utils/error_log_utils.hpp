@@ -20,6 +20,11 @@ namespace error_log_utils
  * @note The "isLink" parameter is used to add the URI as a link (i.e with
  *       "@odata.id"). If passed as "false" then, the suffix will be added
  *       as "/attachment" along with the URI.
+ *
+ *       This API won't fill the given "errorLogPropPath" property if unable
+ *       to process the given error log D-Bus object since the error log
+ *       might delete by the user via Redfish but, we should not throw
+ *       internal error in that case, just log trace and return.
  */
 inline void setErrorLogUri(
     const std::shared_ptr<bmcweb::AsyncResp>& aResp,
@@ -39,7 +44,6 @@ inline void setErrorLogUri(
                                  << "] when tried to get the Hidden property "
                                  << "from the given error log object "
                                  << errorLogObjPath.str;
-                messages::internalError(aResp->res);
                 return;
             }
             bool* hiddenPropVal = std::get_if<bool>(&hiddenProperty);
@@ -48,7 +52,6 @@ inline void setErrorLogUri(
                 BMCWEB_LOG_ERROR << "Failed to get the Hidden property value "
                                  << "from the given error log object "
                                  << errorLogObjPath.str;
-                messages::internalError(aResp->res);
                 return;
             }
 
