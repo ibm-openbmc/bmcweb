@@ -18,9 +18,9 @@
         </Schema>
 
         <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemChassis.v1_0_0">
-            <Action Name="ReadyToRemove" IsBound="true">
-                <Annotation Term="OData.Description" String="An indication of whether the system is prepared for the Chassis to be changed."/>
-                <Annotation Term="OData.LongDescription" String="This property shall indicate whether the system is ready for the assmebly to be changed.  Setting the value to `true` shall cause the service to perform appropriate actions to stop monitoring the battery voltage.  Setting the value to `false` shall cause the service to perform appropriate actions to resume monitoring the battery voltage."/>
+            <Action Name="FirmwareVersion" IsBound="true">
+                <Annotation Term="OData.Description" String="The firmware version of this chassis."/>
+                <Annotation Term="OData.LongDescription" String="This property shall contain the firmware version as defined by the manufacturer for the associated chassis."/>
                 <Parameter Name="OemChassis" Type="OemChassis.v1_0_0.OemActions"/>
             </Action>
         </Schema>

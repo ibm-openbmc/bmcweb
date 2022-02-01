@@ -441,8 +441,12 @@ inline void requestRoutesChassis(App& app)
                                         messages::internalError(asyncResp->res);
                                         return;
                                     }
+                                    asyncResp->res.jsonValue["Oem"]["OpenBMC"]
+                                                            ["@odata.type"] =
+                                        "#OemChassis.v1_0_0.Chassis";
                                     asyncResp->res
-                                        .jsonValue["FirmwareVersion"] = *value;
+                                        .jsonValue["Oem"]["OpenBMC"]
+                                                  ["FirmwareVersion"] = *value;
                                 },
                                 connectionName, path,
                                 "org.freedesktop.DBus.Properties", "Get",
