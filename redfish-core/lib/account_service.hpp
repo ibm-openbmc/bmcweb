@@ -230,7 +230,6 @@ inline bool getUserGroupFromAccountType(
     {
         userGroup.emplace_back("web");
     }
-
     if ((isHostConsole) && (isManagerConsole))
     {
         userGroup.emplace_back("ssh");
