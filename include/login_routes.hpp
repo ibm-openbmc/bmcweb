@@ -182,55 +182,109 @@ inline void requestRoutes(App& app)
                 {
                     asyncResp->res.result(
                         boost::beast::http::status::unauthorized);
+                    return;
                 }
-                else
-                {
-                    std::string unsupportedClientId = "";
-                    auto session =
-                        persistent_data::SessionStore::getInstance()
-                            .generateUserSession(
-                                username, req.ipAddress.to_string(),
-                                unsupportedClientId,
-                                persistent_data::PersistenceType::TIMEOUT,
-                                isConfigureSelfOnly);
+                // Check the user info before creating session
+                crow::connections::systemBus->async_method_call(
+                    [&req, asyncResp, username, password, looksLikePhosphorRest,
+                     isConfigureSelfOnly](
+                        const boost::system::error_code ec,
+                        std::map<std::string,
+                                 std::variant<bool, std::string,
+                                              std::vector<std::string>>>
+                            userInfo) {
+                        if (ec)
+                        {
+                            BMCWEB_LOG_ERROR << "GetUserInfo failed...";
+                            asyncResp->res.result(boost::beast::http::status::
+                                                      internal_server_error);
 
-                    if (looksLikePhosphorRest)
-                    {
-                        // Phosphor-Rest requires a very specific login
-                        // structure, and doesn't actually look at the status
-                        // code.
-                        // TODO(ed).... Fix that upstream
-                        asyncResp->res.jsonValue = {
-                            {"data",
-                             "User '" + std::string(username) + "' logged in"},
-                            {"message", "200 OK"},
-                            {"status", "ok"}};
+                            return;
+                        }
+                        const std::string* userRolePtr = nullptr;
+                        auto userInfoIter = userInfo.find("UserPrivilege");
+                        if (userInfoIter != userInfo.end())
+                        {
+                            userRolePtr =
+                                std::get_if<std::string>(&userInfoIter->second);
+                        }
+                        std::string userRole{};
+                        if (userRolePtr != nullptr)
+                        {
+                            userRole = *userRolePtr;
+                            BMCWEB_LOG_DEBUG << "userName = " << username
+                                             << " userRole = " << *userRolePtr;
+                            redfish::Privileges userPrivileges =
+                                redfish::getUserPrivileges(userRole);
+                            static const char* requiredPrivilegeString =
+                                "Login";
+                            const ::redfish::Privileges requiredPrivileges{
+                                requiredPrivilegeString};
+                            if (!userPrivileges.isSupersetOf(
+                                    requiredPrivileges))
+                            {
+                                BMCWEB_LOG_ERROR
+                                    << "Create session failed. User: "
+                                    << username
+                                    << " has prev: " << *userRolePtr;
+                                asyncResp->res.result(
+                                    boost::beast::http::status::forbidden);
+                                return;
+                            }
+                        }
+                        std::string unsupportedClientId = "";
+                        auto session =
+                            persistent_data::SessionStore::getInstance()
+                                .generateUserSession(
+                                    username, req.ipAddress.to_string(),
+                                    unsupportedClientId,
+                                    persistent_data::PersistenceType::TIMEOUT,
+                                    isConfigureSelfOnly);
 
-                        // Hack alert.  Boost beast by default doesn't let you
-                        // declare multiple headers of the same name, and in
-                        // most cases this is fine.  Unfortunately here we need
-                        // to set the Session cookie, which requires the
-                        // httpOnly attribute, as well as the XSRF cookie, which
-                        // requires it to not have an httpOnly attribute. To get
-                        // the behavior we want, we simply inject the second
-                        // "set-cookie" string into the value header, and get
-                        // the result we want, even though we are technicaly
-                        // declaring two headers here.
-                        asyncResp->res.addHeader(
-                            "Set-Cookie",
-                            "XSRF-TOKEN=" + session->csrfToken +
-                                "; SameSite=Strict; Secure\r\nSet-Cookie: "
-                                "SESSION=" +
-                                session->sessionToken +
-                                "; SameSite=Strict; Secure; HttpOnly");
-                    }
-                    else
-                    {
-                        // if content type is json, assume json token
-                        asyncResp->res.jsonValue = {
-                            {"token", session->sessionToken}};
-                    }
-                }
+                        if (looksLikePhosphorRest)
+                        {
+                            // Phosphor-Rest requires a very specific login
+                            // structure, and doesn't actually look at the
+                            // status code.
+                            // TODO(ed).... Fix that upstream
+                            asyncResp->res.jsonValue = {
+                                {"data", "User '" + std::string(username) +
+                                             "' logged in"},
+                                {"message", "200 OK"},
+                                {"status", "ok"}};
+
+                            // Hack alert.  Boost beast by default doesn't
+                            // let you declare multiple headers of the same
+                            // name, and in most cases this is fine.
+                            // Unfortunately here we need to set the Session
+                            // cookie, which requires the httpOnly
+                            // attribute, as well as the XSRF cookie, which
+                            // requires it to not have an httpOnly
+                            // attribute. To get the behavior we want, we
+                            // simply inject the second "set-cookie" string
+                            // into the value header, and get the result we
+                            // want, even though we are technicaly declaring
+                            // two headers here.
+                            asyncResp->res.addHeader(
+                                "Set-Cookie",
+                                "XSRF-TOKEN=" + session->csrfToken +
+                                    "; SameSite=Strict; "
+                                    "Secure\r\nSet-Cookie: "
+                                    "SESSION=" +
+                                    session->sessionToken +
+                                    "; SameSite=Strict; Secure; HttpOnly");
+                        }
+                        else
+                        {
+                            // if content type is json, assume json token
+                            asyncResp->res.jsonValue = {
+                                {"token", session->sessionToken}};
+                        }
+                    },
+                    "xyz.openbmc_project.User.Manager",
+                    "/xyz/openbmc_project/user",
+                    "xyz.openbmc_project.User.Manager", "GetUserInfo",
+                    static_cast<std::string>(username));
             }
             else
             {
