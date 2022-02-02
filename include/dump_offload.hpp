@@ -9,13 +9,14 @@
 #include <boost/beast/core/flat_static_buffer.hpp>
 #include <boost/beast/http.hpp>
 #include <http_stream.hpp>
+#include <ibm/utils.hpp>
 
 namespace crow
 {
 namespace obmc_dump
 {
 
-std::string unixSocketPathDir = "/var/lib/phosphor-debug-collector/";
+std::string unixSocketPathDir = "/tmp/DumpOffloadSockets/";
 
 inline void handleDumpOffloadUrl(const crow::Request& req, crow::Response& res,
                                  const std::string& entryId,
@@ -124,7 +125,7 @@ class Handler : public std::enable_shared_from_this<Handler>
      */
     void retrySocketConnect()
     {
-        waitTimer.expires_after(std::chrono::milliseconds(500));
+        waitTimer.expires_after(std::chrono::milliseconds(1000));
 
         waitTimer.async_wait([this, self(shared_from_this())](
                                  const boost::system::error_code& ec) {
@@ -289,6 +290,14 @@ inline void requestRoutes(App& app)
             handlers[&conn] = std::make_shared<Handler>(
                 *ioCon, dumpId, dumpType, unixSocketPath);
             handlers[&conn]->connection = &conn;
+
+            if (!crow::ibm_utils::createDirectory(unixSocketPathDir))
+            {
+                handlers[&conn]->connection->sendStreamErrorStatus(
+                    boost::beast::http::status::not_found);
+                return;
+            }
+
             handlers[&conn]->getDumpSize(dumpId, dumpType);
         })
         .onclose([](crow::streaming_response::Connection& conn) {
@@ -348,6 +357,14 @@ inline void requestRoutes(App& app)
             handlers[&conn] = std::make_shared<Handler>(
                 *ioCon, dumpId, dumpType, unixSocketPath);
             handlers[&conn]->connection = &conn;
+
+            if (!crow::ibm_utils::createDirectory(unixSocketPathDir))
+            {
+                handlers[&conn]->connection->sendStreamErrorStatus(
+                    boost::beast::http::status::not_found);
+                return;
+            }
+
             handlers[&conn]->getDumpSize(dumpId, dumpType);
         })
         .onclose([](crow::streaming_response::Connection& conn) {
