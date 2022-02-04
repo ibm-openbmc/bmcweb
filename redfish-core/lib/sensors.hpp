@@ -3006,7 +3006,8 @@ inline void metricsObjectInterfacesToJson(
     auto valueIt = interfacesDict.find("xyz.openbmc_project.Sensor.Value");
     if (valueIt == interfacesDict.end())
     {
-        BMCWEB_LOG_ERROR << "Sensor doesn't have a value interface";
+        BMCWEB_LOG_ERROR << "Sensor doesn't have a value interface: "
+                         << sensorName;
         return;
     }
 
