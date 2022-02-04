@@ -22,6 +22,7 @@
 #include <app.hpp>
 #include <registries/privilege_registry.hpp>
 #include <utils/json_utils.hpp>
+#include <utils/stl_utils.hpp>
 
 #include <optional>
 #include <variant>
@@ -43,33 +44,32 @@ inline void
     {
         for (const auto& ifacePair : obj.second)
         {
-            if (obj.first == "/xyz/openbmc_project/network/eth0")
+            if (ifacePair.first !=
+                "xyz.openbmc_project.Network.EthernetInterface")
             {
-                if (ifacePair.first ==
-                    "xyz.openbmc_project.Network.EthernetInterface")
+                continue;
+            }
+
+            for (const auto& propertyPair : ifacePair.second)
+            {
+                if (propertyPair.first == "NTPServers")
                 {
-                    for (const auto& propertyPair : ifacePair.second)
+                    const std::vector<std::string>* ntpServers =
+                        std::get_if<std::vector<std::string>>(
+                            &propertyPair.second);
+                    if (ntpServers != nullptr)
                     {
-                        if (propertyPair.first == "NTPServers")
-                        {
-                            const std::vector<std::string>* ntpServers =
-                                std::get_if<std::vector<std::string>>(
-                                    &propertyPair.second);
-                            if (ntpServers != nullptr)
-                            {
-                                ntpData = *ntpServers;
-                            }
-                        }
-                        else if (propertyPair.first == "DomainName")
-                        {
-                            const std::vector<std::string>* domainNames =
-                                std::get_if<std::vector<std::string>>(
-                                    &propertyPair.second);
-                            if (domainNames != nullptr)
-                            {
-                                dnData = *domainNames;
-                            }
-                        }
+                        ntpData = *ntpServers;
+                    }
+                }
+                else if (propertyPair.first == "DomainName")
+                {
+                    const std::vector<std::string>* domainNames =
+                        std::get_if<std::vector<std::string>>(
+                            &propertyPair.second);
+                    if (domainNames != nullptr)
+                    {
+                        dnData = *domainNames;
                     }
                 }
             }
@@ -129,30 +129,28 @@ inline void getNetworkData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
     getNTPProtocolEnabled(asyncResp);
 
-    // TODO Get eth0 interface data, and call the below callback for JSON
-    // preparation
-    getEthernetIfaceData(
-        [hostName, asyncResp](const bool& success,
-                              const std::vector<std::string>& ntpServers,
-                              const std::vector<std::string>& domainNames) {
-            if (!success)
+    getEthernetIfaceData([hostName, asyncResp](
+                             const bool& success,
+                             const std::vector<std::string>& ntpServers,
+                             const std::vector<std::string>& domainNames) {
+        if (!success)
+        {
+            messages::resourceNotFound(asyncResp->res, "ManagerNetworkProtocol",
+                                       "NetworkProtocol");
+            return;
+        }
+        asyncResp->res.jsonValue["NTP"]["NTPServers"] = ntpServers;
+        if (hostName.empty() == false)
+        {
+            std::string fqdn = hostName;
+            if (domainNames.empty() == false)
             {
-                messages::resourceNotFound(asyncResp->res, "EthernetInterface",
-                                           "eth0");
-                return;
+                fqdn += ".";
+                fqdn += domainNames[0];
             }
-            asyncResp->res.jsonValue["NTP"]["NTPServers"] = ntpServers;
-            if (hostName.empty() == false)
-            {
-                std::string fqdn = hostName;
-                if (domainNames.empty() == false)
-                {
-                    fqdn += ".";
-                    fqdn += domainNames[0];
-                }
-                asyncResp->res.jsonValue["FQDN"] = std::move(fqdn);
-            }
-        });
+            asyncResp->res.jsonValue["FQDN"] = std::move(fqdn);
+        }
+    });
 
     Privileges effectiveUserPrivileges =
         redfish::getUserPrivileges(req.userRole);
@@ -237,21 +235,71 @@ inline void handleNTPProtocolEnabled(
 }
 
 inline void
-    handleNTPServersPatch(const std::vector<std::string>& ntpServers,
-                          const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+    handleNTPServersPatch(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                          std::vector<std::string>& ntpServers)
 {
+    auto iter = stl_utils::firstDuplicate(ntpServers.begin(), ntpServers.end());
+    if (iter != ntpServers.end())
+    {
+        std::string pointer =
+            "NTPServers/" +
+            std::to_string(std::distance(ntpServers.begin(), iter));
+        messages::propertyValueIncorrect(asyncResp->res, pointer, *iter);
+        return;
+    }
+
+    // Removing empty element
+    ntpServers.erase(
+        std::remove_if(ntpServers.begin(), ntpServers.end(),
+                       [](const std::string& s) { return s.empty(); }),
+        ntpServers.end());
+
     crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
+        [asyncResp,
+         ntpServers](boost::system::error_code ec,
+                     const crow::openbmc_mapper::GetSubTreeType& subtree) {
             if (ec)
             {
+                BMCWEB_LOG_WARNING << "D-Bus error: " << ec << ", "
+                                   << ec.message();
                 messages::internalError(asyncResp->res);
                 return;
             }
+
+            for (const auto& [objectPath, serviceMap] : subtree)
+            {
+                for (const auto& [service, interfaces] : serviceMap)
+                {
+                    for (const auto& interface : interfaces)
+                    {
+                        if (interface !=
+                            "xyz.openbmc_project.Network.EthernetInterface")
+                        {
+                            continue;
+                        }
+
+                        crow::connections::systemBus->async_method_call(
+                            [asyncResp](const boost::system::error_code ec) {
+                                if (ec)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                            },
+                            service, objectPath,
+                            "org.freedesktop.DBus.Properties", "Set", interface,
+                            "NTPServers",
+                            std::variant<std::vector<std::string>>{ntpServers});
+                    }
+                }
+            }
         },
-        "xyz.openbmc_project.Network", "/xyz/openbmc_project/network/eth0",
-        "org.freedesktop.DBus.Properties", "Set",
-        "xyz.openbmc_project.Network.EthernetInterface", "NTPServers",
-        std::variant<std::vector<std::string>>{ntpServers});
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetSubTree",
+        "/xyz/openbmc_project", 0,
+        std::array<const char*, 1>{
+            "xyz.openbmc_project.Network.EthernetInterface"});
 }
 
 inline void
@@ -393,12 +441,8 @@ inline void requestRoutesNetworkProtocol(App& app)
 
                     if (ntpServers)
                     {
-                        std::sort((*ntpServers).begin(), (*ntpServers).end());
-                        (*ntpServers)
-                            .erase(std::unique((*ntpServers).begin(),
-                                               (*ntpServers).end()),
-                                   (*ntpServers).end());
-                        handleNTPServersPatch(*ntpServers, asyncResp);
+                        stl_utils::removeDuplicate(*ntpServers);
+                        handleNTPServersPatch(asyncResp, *ntpServers);
                     }
                 }
 
