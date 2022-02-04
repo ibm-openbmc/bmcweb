@@ -413,6 +413,46 @@ inline void requestRoutesChassis(App& app)
                                 locationInterface, "LocationCode");
                         }
 
+                        const std::string versionInterface =
+                            "xyz.openbmc_project.Software.Version";
+                        if (std::find(interfaces2.begin(), interfaces2.end(),
+                                      versionInterface) != interfaces2.end())
+                        {
+                            crow::connections::systemBus->async_method_call(
+                                [asyncResp, chassisId(std::string(chassisId))](
+                                    const boost::system::error_code ec,
+                                    const std::variant<std::string>& property) {
+                                    if (ec)
+                                    {
+                                        BMCWEB_LOG_DEBUG
+                                            << "DBUS response error for "
+                                               "Version";
+                                        messages::internalError(asyncResp->res);
+                                        return;
+                                    }
+
+                                    const std::string* value =
+                                        std::get_if<std::string>(&property);
+                                    if (value == nullptr)
+                                    {
+                                        BMCWEB_LOG_DEBUG
+                                            << "Null value returned "
+                                               "for Version";
+                                        messages::internalError(asyncResp->res);
+                                        return;
+                                    }
+                                    asyncResp->res.jsonValue["Oem"]["OpenBMC"]
+                                                            ["@odata.type"] =
+                                        "#OemChassis.v1_0_0.Chassis";
+                                    asyncResp->res
+                                        .jsonValue["Oem"]["OpenBMC"]
+                                                  ["FirmwareVersion"] = *value;
+                                },
+                                connectionName, path,
+                                "org.freedesktop.DBus.Properties", "Get",
+                                versionInterface, "Version");
+                        }
+
                         crow::connections::systemBus->async_method_call(
                             [asyncResp, chassisId(std::string(chassisId)), path,
                              connectionNames](
