@@ -338,6 +338,31 @@ inline void
                 }
             }
 
+            const std::string versionInterface =
+                "xyz.openbmc_project.Software.Version";
+            if (std::find(interfaces2.begin(), interfaces2.end(),
+                          versionInterface) != interfaces2.end())
+            {
+                sdbusplus::asio::getProperty<std::string>(
+                    *crow::connections::systemBus, connectionName, path,
+                    versionInterface, "Version",
+                    [asyncResp, chassisId(std::string(chassisId))](
+                        const boost::system::error_code ec2,
+                        const std::string& property) {
+                    if (ec2)
+                    {
+                        BMCWEB_LOG_DEBUG << "DBus response error for Version";
+                        messages::internalError(asyncResp->res);
+                        return;
+                    }
+                    asyncResp->res.jsonValue["Oem"]["OpenBMC"]["@odata.type"] =
+                        "#OemChassis.v1_0_0.Chassis";
+                    asyncResp->res
+                        .jsonValue["Oem"]["OpenBMC"]["FirmwareVersion"] =
+                        property;
+                    });
+            }
+
             sdbusplus::asio::getAllProperties(
                 *crow::connections::systemBus, connectionName, path,
                 "xyz.openbmc_project.Inventory.Decorator.Asset",
