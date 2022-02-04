@@ -355,7 +355,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
     {
         if (retryCount >= maxRetryAttempts)
         {
-            BMCWEB_LOG_ERROR << "Maximum number of retries reached.";
+            BMCWEB_LOG_ERROR
+                << "Maximum number of retries reached for Subscriber:" << subId;
 
             // Clear queue.
             while (!requestDataQueue.empty())
@@ -366,12 +367,20 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
             BMCWEB_LOG_DEBUG << "Retry policy: " << retryPolicyAction;
             if (retryPolicyAction == "TerminateAfterRetries")
             {
-                // TODO: delete subscription
                 state = ConnState::terminated;
+                // Remove the subscription
+                BMCWEB_LOG_DEBUG << "TerminateAfterRetries is set. retryCount: "
+                                 << retryCount << " .Subscriber: " << subId
+                                 << " deleted";
+                persistent_data::EventServiceStore::getInstance()
+                    .removeSubscription(subId);
             }
             if (retryPolicyAction == "SuspendRetries")
             {
                 state = ConnState::suspended;
+                BMCWEB_LOG_ERROR
+                    << "SuspendRetries is set. retryCount: " << retryCount
+                    << " .Subscriber: " << this->subId << "suspended";
             }
             // Reset the retrycount to zero so that client can try connecting
             // again if needed
@@ -440,9 +449,13 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                 break;
             }
             case ConnState::suspended:
-            case ConnState::terminated:
             {
                 doClose();
+                break;
+            }
+            case ConnState::terminated:
+            {
+                BMCWEB_LOG_ERROR << "Subscriber connection terminated. Stop";
                 break;
             }
             case ConnState::resolveFailed:
@@ -508,8 +521,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
     {
         if ((state == ConnState::suspended) || (state == ConnState::terminated))
         {
-            BMCWEB_LOG_ERROR
-                << "sendData: ConnState is suspended or terminated";
+            BMCWEB_LOG_ERROR << "sendData: " << subId
+                             << " ConnState is suspended or terminated. Stop";
             return;
         }
 
@@ -536,6 +549,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
     void setRetryPolicy(const std::string& retryPolicy)
     {
         retryPolicyAction = retryPolicy;
+    }
+
+    ConnState getConnState()
+    {
+        return state;
     }
 };
 
