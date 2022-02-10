@@ -36,6 +36,65 @@ void registerBootProgressChangeSignal();
 void registerEventLogCreatedSignal();
 void registerPostCodeChangeSignal();
 
+inline void sendEventOnEthIntf(std::string origin)
+{
+    redfish::EventServiceManager::getInstance().sendEvent(
+        redfish::messages::resourceChanged(), origin, "EthernetInterface");
+}
+
+inline void sendEventIfStaticIP(std::string intf)
+{
+    std::string ethIntfObjPath =
+        "/xyz/openbmc_project/network/hypervisor/" + intf;
+    crow::connections::systemBus->async_method_call(
+        [intf](const boost::system::error_code ec,
+               const std::variant<std::string>& isDhcpEnabled) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "Get DHCPEnabled: DBUS response error "
+                                 << ec;
+                return;
+            }
+
+            const std::string* method =
+                std::get_if<std::string>(&isDhcpEnabled);
+            if (*method ==
+                "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.none")
+            {
+                // send event only if it is static
+                // as the enabled property will be enabled
+                // only after the ip configuration is applied
+                // on the hypervisor networkd dbus object.
+                // In case of dhcp configuration, the enabled
+                // property will be set to true before the host
+                // sends down the dhcp ip details, in that case
+                // events will be sent for each property change
+                // on the dbus object.
+                std::string origin =
+                    "/redfish/v1/Systems/hypervisor/EthernetInterfaces/" + intf;
+                if (intf == "eth0" && isIPEnabledOnIntfEth0)
+                {
+                    BMCWEB_LOG_DEBUG
+                        << "Pushing the VMI IP property change event for "
+                           "static IP configuration on eth0";
+                    sendEventOnEthIntf(origin);
+                    return;
+                }
+                else if (intf == "eth1" && isIPEnabledOnIntfEth1)
+                {
+                    BMCWEB_LOG_DEBUG
+                        << "Pushing the VMI IP property change event for "
+                           "static IP configuration on eth1";
+                    sendEventOnEthIntf(origin);
+                    return;
+                }
+            }
+        },
+        "xyz.openbmc_project.Network.Hypervisor", ethIntfObjPath,
+        "org.freedesktop.DBus.Properties", "Get",
+        "xyz.openbmc_project.Network.EthernetInterface", "DHCPEnabled");
+}
+
 inline void setVMIIPEnabledValue(std::string intf)
 {
     std::string objPath =
@@ -50,7 +109,6 @@ inline void setVMIIPEnabledValue(std::string intf)
             }
 
             const bool* isEnabled = std::get_if<bool>(&enabled);
-            BMCWEB_LOG_DEBUG << "isEnabled: " << *isEnabled;
             if (intf == "eth0")
             {
                 isIPEnabledOnIntfEth0 = *isEnabled;
@@ -103,22 +161,20 @@ inline void VMIIPEnabledPropChange(sdbusplus::message::message& msg)
         }
 
         const bool* propValue = std::get_if<bool>(&(find->second));
+        std::string intf;
 
         if (objPath.find("/eth0") != std::string::npos)
         {
             isIPEnabledOnIntfEth0 = *propValue;
+            intf = "eth0";
         }
         else if (objPath.find("/eth1") != std::string::npos)
         {
             isIPEnabledOnIntfEth1 = *propValue;
+            intf = "eth1";
         }
+        sendEventIfStaticIP(intf);
     }
-}
-
-inline void sendEventOnEthIntf(std::string origin)
-{
-    redfish::EventServiceManager::getInstance().sendEvent(
-        redfish::messages::resourceChanged(), origin, "EthernetInterface");
 }
 
 inline void VMIIPPropertyChange(sdbusplus::message::message& msg)
@@ -175,6 +231,7 @@ inline void VMIIPPropertyChange(sdbusplus::message::message& msg)
                 << "Pushing the VMI IP property change event for Address: "
                 << propValue << " with origin : " << origin;
             sendEventOnEthIntf(origin);
+            return;
         }
     }
 
@@ -188,6 +245,7 @@ inline void VMIIPPropertyChange(sdbusplus::message::message& msg)
                 << "Pushing the VMI IP property change event for Gateway: "
                 << propValue << " with origin : " << origin;
             sendEventOnEthIntf(origin);
+            return;
         }
     }
 
@@ -481,7 +539,7 @@ void registerStateChangeSignal()
     registerBMCStateChangeSignal();
 
     // Get vmi ip enabled property and set it to the local variable
-    setVMIIPEnabledValue();
+    // setVMIIPEnabledValue();
 
     registerVMIIPEnabledPropChangeSignal();
     registerVMIIPChangeSignal();
