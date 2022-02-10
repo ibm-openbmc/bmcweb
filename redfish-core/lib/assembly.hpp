@@ -49,7 +49,6 @@ inline void
 
         // Set the default Status
         tempyArray.at(assemblyIndex)["Status"]["Health"] = "OK";
-        tempyArray.at(assemblyIndex)["Status"]["State"] = "Enabled";
 
         crow::connections::systemBus->async_method_call(
             [aResp, assemblyIndex, assembly](
@@ -239,6 +238,51 @@ inline void
                                 "xyz.openbmc_project.State.Decorator."
                                 "OperationalStatus",
                                 "Functional");
+                        }
+                        else if (interface ==
+                                 "xyz.openbmc_project.Inventory.Item")
+                        {
+                            crow::connections::systemBus->async_method_call(
+                                [aResp, assemblyIndex](
+                                    const boost::system::error_code ec,
+                                    const std::variant<bool>& property) {
+                                    if (ec)
+                                    {
+                                        BMCWEB_LOG_DEBUG
+                                            << "DBUS response error";
+                                        messages::internalError(aResp->res);
+                                        return;
+                                    }
+
+                                    nlohmann::json& assemblyArray =
+                                        aResp->res.jsonValue["Assemblies"];
+                                    nlohmann::json& assemblyData =
+                                        assemblyArray.at(assemblyIndex);
+
+                                    const bool* value =
+                                        std::get_if<bool>(&property);
+
+                                    if (value == nullptr)
+                                    {
+                                        // illegal value
+                                        messages::internalError(aResp->res);
+                                        return;
+                                    }
+                                    if (*value == false)
+                                    {
+                                        assemblyData["Status"]["State"] =
+                                            "Absent";
+                                    }
+                                    else
+                                    {
+                                        assemblyData["Status"]["State"] =
+                                            "Enabled";
+                                    }
+                                },
+                                serviceName, assembly,
+                                "org.freedesktop.DBus.Properties", "Get",
+                                "xyz.openbmc_project.Inventory.Item",
+                                "Present");
                         }
                     }
                 }
