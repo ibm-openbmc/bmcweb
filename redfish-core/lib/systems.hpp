@@ -17,6 +17,7 @@
 
 #include "led.hpp"
 #include "pcie.hpp"
+#include "query.hpp"
 #include "redfish_util.hpp"
 #ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
 #include "oem/ibm/lamp_test.hpp"
@@ -2439,8 +2440,9 @@ inline void requestRoutesSystemsCollection(App& app)
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/")
         .privileges(redfish::privileges::getComputerSystemCollection)
         .methods(boost::beast::http::verb::get)(
-            [](const crow::Request& /*req*/,
-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+            [&app](const crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+                redfish::setUpRedfishRoute(app, req, asyncResp->res);
                 asyncResp->res.jsonValue["@odata.type"] =
                     "#ComputerSystemCollection.ComputerSystemCollection";
                 asyncResp->res.jsonValue["@odata.id"] = "/redfish/v1/Systems";

@@ -68,6 +68,15 @@ inline void
         {"@odata.id", "/redfish/v1/LicenseService"}};
 #endif
     asyncResp->res.jsonValue["Cables"] = {{"@odata.id", "/redfish/v1/Cables"}};
+    asyncResp->res.jsonValue["ProtocolFeaturesSupported"] = {
+        {"OnlyMemberQuery", true},
+        {"ExpandQuery",
+         {{"ExpandAll", false},
+          {"Levels", false},
+          {"MaxLevels", 0},
+          {"Links", false},
+          {"NoLinks", false}}},
+        {"SelectQuery", false}};
 }
 
 inline void requestRoutesServiceRoot(App& app)
