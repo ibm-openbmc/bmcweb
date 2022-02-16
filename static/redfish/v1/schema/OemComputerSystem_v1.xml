@@ -24,6 +24,23 @@
                 <Annotation Term="OData.AutoExpand"/>
                 <Property Name="OpenBmc" Type="OemComputerSystem.OpenBmc"/>
                 <Property Name="IBM" Type="OemComputerSystem.IBM"/>
+                <Property Name="IBMOem" Type="OemComputerSystem.IBMOem"/>
+            </ComplexType>
+
+            <ComplexType Name="IBMOem" BaseType="Resource.OemObject">
+                <Annotation Term="OData.AdditionalProperties" Bool="true" />
+                <Annotation Term="OData.Description" String="Oem properties for IBM." />
+                <Annotation Term="OData.AutoExpand"/>
+                <Property Name="PartitionSystemAttentionIndicator" Type="OemComputerSystem.IBMOem">
+                    <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+                    <Annotation Term="OData.Description" String="An indicator allowing an operator to operate partition system attention."/>
+                    <Annotation Term="OData.LongDescription" String="This property shall contain the state of the partition system attention of this resource."/>
+                </Property>
+                <Property Name="PlatformSystemAttentionIndicator" Type="OemComputerSystem.IBMOem">
+                    <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+                    <Annotation Term="OData.Description" String="An indicator allowing an operator to operate platform system attention."/>
+                    <Annotation Term="OData.LongDescription" String="This property shall contain the state of the platform system attention of this resource."/>
+                </Property>
             </ComplexType>
 
             <ComplexType Name="IBM" BaseType="Resource.OemObject">

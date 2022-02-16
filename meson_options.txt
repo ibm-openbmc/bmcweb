@@ -39,6 +39,7 @@ option('redfish-new-powersubsystem-thermalsubsystem', type : 'feature', value : 
 option('redfish-allow-deprecated-power-thermal', type : 'feature', value : 'enabled', description : 'Enable/disable the old Power / Thermal. The default condition is allowing the old Power / Thermal.')
 option ('https_port', type : 'integer', min : 1, max : 65535, value : 443, description : 'HTTPS Port number.')
 option('fan-oem-data', type : 'feature', value : 'disabled', description : 'Enable additional fan properties for Pid and Stepwise controllers. These OEM properties are under the Manager resource.')
+option('ibm-sai', type : 'feature', value : 'disabled', description : 'Enable the IBM system attention indicator functionality')
 
 # Insecure options. Every option that starts with a `insecure` flag should
 # not be enabled by default for any platform, unless the author fully comprehends
