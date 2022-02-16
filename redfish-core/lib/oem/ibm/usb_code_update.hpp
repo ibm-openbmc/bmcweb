@@ -63,8 +63,7 @@ inline void getServiceName(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 return;
             }
 
-            BMCWEB_LOG_ERROR << "Can't find usb code update service!";
-            messages::internalError(aResp->res);
+            BMCWEB_LOG_DEBUG << "Can't find usb code update service!";
             return;
         },
         "xyz.openbmc_project.ObjectMapper",
