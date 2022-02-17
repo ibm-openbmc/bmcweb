@@ -173,6 +173,8 @@ int main(int /*argc*/, char** /*argv*/)
     crow::dbus_monitor::registerEventLogCreatedSignal();
     // Start PostCode change signal
     crow::dbus_monitor::registerPostCodeChangeSignal();
+    // Start VMI Confuguration change dbus monitor
+    crow::dbus_monitor::registerVMIConfigChangeSignal();
 #endif
 
 #ifdef BMCWEB_ENABLE_REDFISH_DUMP_LOG
