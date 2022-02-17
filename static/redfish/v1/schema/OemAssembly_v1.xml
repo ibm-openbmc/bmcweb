@@ -10,7 +10,11 @@
     <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/RedfishExtensions_v1.xml">
         <edmx:Include Namespace="RedfishExtensions.v1_0_0" Alias="Redfish"/>
     </edmx:Reference>
-
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Resource_v1.xml">
+        <edmx:Include Namespace="Resource"/>
+        <edmx:Include Namespace="Resource.v1_0_0"/>
+    </edmx:Reference>
+    
     <edmx:DataServices>
 
         <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemAssembly">
@@ -18,11 +22,21 @@
         </Schema>
 
         <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemAssembly.v1_0_0">
-            <Action Name="ReadyToRemove" IsBound="true">
-                <Annotation Term="OData.Description" String="An indication of whether the system is prepared for the assembly to be changed."/>
-                <Annotation Term="OData.LongDescription" String="This property shall indicate whether the system is ready for the assmebly to be removed.  Setting the value to `true` shall cause the service to perform appropriate actions to allow the assembly to be removed.  Setting the value to `false` shall cause the service to perform appropriate actions to allow the assembly to be installed."/>
-                <Parameter Name="OemAssembly" Type="OemAssembly.v1_0_0.OemActions"/>
-            </Action>
+            <ComplexType Name="Oem" BaseType="Resource.OemObject">
+                <Annotation Term="OData.AdditionalProperties" Bool="true" />
+                <Annotation Term="OData.Description" String="OemAssembly Oem properties." />
+                <Annotation Term="OData.AutoExpand" />
+                <Property Name="OpenBMC" Type="OemAssembly.v1_0_0.OpenBMC" />
+            </ComplexType>
+        
+            <ComplexType Name="OpenBMC">
+                <Annotation Term="OData.AdditionalProperties" Bool="true" />
+                <Annotation Term="OData.Description" String="Oem properties for OpenBMC." />
+                <Annotation Term="OData.AutoExpand" />
+                <Property Name="ReadyToRemove" Type="Edm.Boolean" />
+                    <Annotation Term="OData.Description" String="Indicates if the assembly is ready to be removed." />
+                    <Annotation Term="OData.LongDescription" String="Indicates if the system is prepared for the assembly to be removed." />
+            </ComplexType>
         </Schema>
 
     </edmx:DataServices>

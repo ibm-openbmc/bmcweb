@@ -1,4 +1,3 @@
-#pragma once
 
 #include "led.hpp"
 
@@ -55,38 +54,46 @@ inline void
         // NOTE: The following method for the special case of the tod_battery
         // ReadyToRemove property only works when there is only ONE adcsensor
         // handled by the adcsensor application.
-        if (sdbusplus::message::object_path(assembly).filename() == "EBMC")
+        if (sdbusplus::message::object_path(assembly).filename() == "tod_battery")
         {
-            auto bus = sdbusplus::bus::new_default();
-            constexpr auto adcSensorBatteryPath =
-                           "/xyz/openbmc_project/sensors/voltage/Battery_Voltage";
+            tempyArray.at(assemblyIndex)["Oem"]["OpenBMC"]["@odata.type"] =
+                                                "#OemAssembly.v1_0_0.Assembly";
 
-            auto method = bus.new_method_call("xyz.openbmc_project.ObjectMapper",
-                                              "/xyz/openbmc_project/object_mapper",
-                                              "xyz.openbmc_project.ObjectMapper",
-                                               "GetObject");
-            method.append(adcSensorBatteryPath);
-            std::vector<std::string> interface;
-            method.append(interface);
+            crow::connections::systemBus->async_method_call(
+                [aResp, assemblyIndex](
+                    const boost::system::error_code ec,
+                    const std::vector<std::pair<std::string, std::vector<std::string>>>&
+                          object) {
+                    if (ec)
+                    {
+                        if (!((std::strcmp(ec.category().name(), "generic") == 0) 
+                                                            && ( ec.value() == 5))) 
+                        {
+                            BMCWEB_LOG_DEBUG << "DBUS response error";
+                            messages::internalError(aResp->res);
+                            return;
+                        }
+                    }
 
-            std::vector<std::pair<std::string, std::vector<std::string>>> response;
+                    nlohmann::json& assemblyArray = 
+                                      aResp->res.jsonValue["Assemblies"];
 
-            try
-            {
-                auto reply = bus.call(method);
-                reply.read(response);
-                if (response.empty())
-                {
-                    aResp->res.jsonValue["Oem"]["OpenBMC"]["ReadyToRemove"] = true;
-                }
-                else
-                {
-                    aResp->res.jsonValue["Oem"]["OpenBMC"]["ReadyToRemove"] = false;
-                }
-            }
-            catch (const sdbusplus::exception::exception& e)
-            {
-            }
+                    if (object.size() == 0)
+                    {
+                          assemblyArray.at(assemblyIndex) 
+                              ["Oem"]["OpenBMC"]["ReadyToRemove"] = true;
+                    }
+                    else
+                    {
+                          assemblyArray.at(assemblyIndex) 
+                              ["Oem"]["OpenBMC"]["ReadyToRemove"] = false;
+                    }
+                 },
+                 "xyz.openbmc_project.ObjectMapper",
+                 "/xyz/openbmc_project/object_mapper",
+                 "xyz.openbmc_project.ObjectMapper", "GetObject",
+                 "/xyz/openbmc_project/sensors/voltage/Battery_Voltage",
+                 std::array<const char*, 0>{});
         }
 
         crow::connections::systemBus->async_method_call(
@@ -334,6 +341,8 @@ inline void setAssemblylocationIndicators(
 
     std::vector<nlohmann::json> items = std::move(*assemblyData);
     std::map<std::string, bool> locationIndicatorActiveMap;
+    std::optional<nlohmann::json> Assemblies;
+    std::optional<nlohmann::json> oem;
 
     for (auto& item : items)
     {
@@ -341,8 +350,8 @@ inline void setAssemblylocationIndicators(
         std::string memberId;
 
         if (!json_util::readJson(item, asyncResp->res,
-                                 "LocationIndicatorActive",
-                                 locationIndicatorActive, "MemberId", memberId))
+                                 "LocationIndicatorActive", locationIndicatorActive,
+                                 "MemberId", memberId, "Assemblies", Assemblies, "Oem", oem))
         {
             return;
         }
@@ -364,10 +373,9 @@ inline void setAssemblylocationIndicators(
         // NOTE: The following method for the special case of the tod_battery
         // ReadyToRemove property only works when there is only ONE adcsensor
         // handled by the adcsensor application.
-        if (sdbusplus::message::object_path(assembly).filename() == "EBMC")
+        if (sdbusplus::message::object_path(assembly).filename() == "tod_battery")
         {
-            std::optional<nlohmann::json> oem;
-            if (!json_util::readJson(req, asyncResp->res, "Oem", oem))
+            if (!json_util::readJson(req, asyncResp->res, "Assemblies", Assemblies, "Oem", oem))
             {
                 return;
             }
@@ -390,44 +398,45 @@ inline void setAssemblylocationIndicators(
                         messages::propertyMissing(asyncResp->res, "ReadyToRemove");
                         return;
                     }
-
-                    // SetUp call to systemd to start or stop adcsensor
-                    const std::string service = {"adcsensor.service"};
-                    auto bus = sdbusplus::bus::new_default();
-
-                    if (readytoremove)
+                    if (readytoremove.value() == true)
                     {
-                        // Call systemd to turn off adcsensor
-                        auto method = bus.new_method_call("org.freedesktop.systemd1",
-                                               "/org/freedesktop/systemd1",
-                                               "org.freedesktop.systemd1.Manager", 
-                                               "StopUnit");
-                        method.append(service, "replace");
-                        // Ignore errors if the service is not found
-                        try
-                        {
-                             bus.call_noreply(method);
-                        }
-                        catch (const std::exception& e)
-                        { 
-                        }
+                        // Call systemd to stop ADCSensor
+                        crow::connections::systemBus->async_method_call(
+                            [asyncResp](const boost::system::error_code ec) {
+                                if (ec)
+                                {
+                                    BMCWEB_LOG_ERROR << "Failed to Stop ADCSensor:"
+                                                 << ec;
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                                messages::success(asyncResp->res);
+                            },
+                        "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
+                        "org.freedesktop.systemd1.Manager", "StopUnit",
+                        "xyz.openbmc_project.adcsensor.service", "replace");
+                    }
+                    else if (readytoremove.value() == false)
+                    {
+                        // Call systemd to start ADCSensor
+                        crow::connections::systemBus->async_method_call(
+                            [asyncResp](const boost::system::error_code ec) {
+                                if (ec)
+                                {
+                                    BMCWEB_LOG_ERROR << "Failed to Start ADCSensor:"
+                                                 << ec;
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                                messages::success(asyncResp->res);
+                            },
+                        "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
+                        "org.freedesktop.systemd1.Manager", "StartUnit",
+                        "xyz.openbmc_project.adcsensor.service", "replace");
                     }
                     else
                     {
-                        // Call systemd to turn on adcsensor
-                        auto method = bus.new_method_call("org.freedesktop.systemd1",
-                                                "/org/freedesktop/systemd1",
-                                                "org.freedesktop.systemd1.Manager",
-                                                "StartUnit");
-                        method.append(service, "replace");
-                        // Ignore errors if the service is not found
-                        try
-                        {
-                            bus.call_noreply(method);
-                        }
-                        catch (const std::exception& e)
-                        { 
-                        }
+                        return;
                     }
                 }
             }
