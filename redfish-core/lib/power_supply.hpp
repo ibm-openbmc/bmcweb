@@ -53,6 +53,33 @@ inline void
         "xyz.openbmc_project.Inventory.Decorator.Asset");
 }
 
+inline void getPowerSupplyFirmwareVersion(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& connectionName, const std::string& path)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code ec,
+                    const std::variant<std::string> state) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "Can't get PowerSupply firmware version!";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            const std::string* value = std::get_if<std::string>(&state);
+            if (value == nullptr)
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            asyncResp->res.jsonValue["FirmwareVersion"] = *value;
+        },
+        connectionName, path, "org.freedesktop.DBus.Properties", "Get",
+        "xyz.openbmc_project.Software.Version", "Version");
+}
+
 inline void
     getPowerSupplyLocation(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                            const std::string& connectionName,
@@ -573,6 +600,11 @@ inline void requestRoutesPowerSupply(App& app)
                                 getPowerSupplyHealth(asyncResp,
                                                      validPowerSupplyService,
                                                      validPowerSupplyPath);
+
+                                // Get power supply firmware version
+                                getPowerSupplyFirmwareVersion(
+                                    asyncResp, validPowerSupplyService,
+                                    validPowerSupplyPath);
 
                                 // Get power supply efficiency ratings
                                 getEfficiencyRatings(asyncResp);
