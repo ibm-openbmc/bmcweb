@@ -11,6 +11,8 @@
 #include <http_stream.hpp>
 #include <ibm/utils.hpp>
 
+#include <random>
+
 namespace crow
 {
 namespace obmc_dump
@@ -166,6 +168,8 @@ class Handler : public std::enable_shared_from_this<Handler>
         bool fileExists = std::filesystem::exists(unixSocketPath, ec);
         if (ec)
         {
+            BMCWEB_LOG_ERROR << "Unix socket file clean up failed "
+                             << unixSocketPath;
             this->connection->sendStreamErrorStatus(
                 boost::beast::http::status::internal_server_error);
             return;
@@ -307,8 +311,13 @@ inline void requestRoutes(App& app)
             std::string dumpType = "bmc";
             boost::asio::io_context* ioCon = conn.getIoContext();
 
-            std::string unixSocketPath =
-                unixSocketPathDir + dumpType + "_dump_" + dumpId;
+            // Generating random id to create unique socket file
+            // for each dump offload request
+            std::random_device rd;
+            std::default_random_engine gen(rd());
+            std::uniform_int_distribution<> dist{0, 1024};
+            std::string unixSocketPath = unixSocketPathDir + dumpType +
+                                         "_dump_" + std::to_string(dist(gen));
 
             handlers[&conn] = std::make_shared<Handler>(
                 *ioCon, dumpId, dumpType, unixSocketPath);
@@ -348,6 +357,8 @@ inline void requestRoutes(App& app)
             if (pos1 == std::string::npos || pos2 == std::string::npos)
             {
                 BMCWEB_LOG_DEBUG << "Unable to extract the dump id";
+                conn.sendStreamErrorStatus(
+                    boost::beast::http::status::not_found);
                 return;
             }
 
@@ -374,8 +385,13 @@ inline void requestRoutes(App& app)
 
             boost::asio::io_context* ioCon = conn.getIoContext();
 
+            // Generating random id to create unique socket file
+            // for each dump offload request
+            std::random_device rd;
+            std::default_random_engine gen(rd());
+            std::uniform_int_distribution<> dist{0, 1024};
             std::string unixSocketPath = unixSocketPathDir + dumpType +
-                                         "_dump_" + std::to_string(rand());
+                                         "_dump_" + std::to_string(dist(gen));
 
             handlers[&conn] = std::make_shared<Handler>(
                 *ioCon, dumpId, dumpType, unixSocketPath);
