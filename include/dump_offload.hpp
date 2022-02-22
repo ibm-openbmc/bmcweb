@@ -75,6 +75,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                     this->connection->sendStreamErrorStatus(
                         boost::beast::http::status::internal_server_error);
                     this->connection->close();
+                    this->cleanupSocketFiles();
                     return;
                 }
                 waitTimer.cancel();
@@ -109,6 +110,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                             boost::beast::http::status::internal_server_error);
                     }
                     this->connection->close();
+                    this->cleanupSocketFiles();
                     return;
                 }
             },
@@ -152,9 +154,27 @@ class Handler : public std::enable_shared_from_this<Handler>
                 this->connection->sendStreamErrorStatus(
                     boost::beast::http::status::internal_server_error);
                 this->connection->close();
+                this->cleanupSocketFiles();
                 return;
             }
         });
+    }
+
+    void cleanupSocketFiles()
+    {
+        std::error_code ec;
+        bool fileExists = std::filesystem::exists(unixSocketPath, ec);
+        if (ec)
+        {
+            this->connection->sendStreamErrorStatus(
+                boost::beast::http::status::internal_server_error);
+            return;
+        }
+        if (fileExists)
+        {
+            std::remove(unixSocketPath.c_str());
+        }
+        return;
     }
 
     void getDumpSize(const std::string& entryID, const std::string& dumpType)
@@ -180,6 +200,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                             boost::beast::http::status::internal_server_error);
                     }
                     this->connection->close();
+                    this->cleanupSocketFiles();
                     return;
                 }
                 const uint64_t* dumpsize = std::get_if<uint64_t>(&size);
@@ -191,6 +212,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                     this->connection->sendStreamErrorStatus(
                         boost::beast::http::status::internal_server_error);
                     this->connection->close();
+                    this->cleanupSocketFiles();
                     return;
                 }
                 this->dumpSize = *dumpsize;
@@ -230,6 +252,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                             boost::beast::http::status::internal_server_error);
                     }
                     this->connection->close();
+                    this->cleanupSocketFiles();
                     return;
                 }
 
@@ -351,8 +374,8 @@ inline void requestRoutes(App& app)
 
             boost::asio::io_context* ioCon = conn.getIoContext();
 
-            std::string unixSocketPath =
-                unixSocketPathDir + dumpType + "_dump_" + dumpId;
+            std::string unixSocketPath = unixSocketPathDir + dumpType +
+                                         "_dump_" + std::to_string(rand());
 
             handlers[&conn] = std::make_shared<Handler>(
                 *ioCon, dumpId, dumpType, unixSocketPath);
