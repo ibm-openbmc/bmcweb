@@ -1073,6 +1073,16 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                     messages::resourceInStandby(asyncResp->res);
                     return;
                 }
+                if (strcmp(dbusError->name,
+                           "org.freedesktop.DBus.Error.NoReply") == 0)
+                {
+                    // This will be returned as a result of createDump call
+                    // made when the dump manager is not responding.
+                    messages::serviceTemporarilyUnavailable(asyncResp->res,
+                                                            "60");
+                    return;
+                }
+
                 if (strcmp(dbusError->name, "xyz.openbmc_project.Dump."
                                             "Create.Error.Disabled") == 0)
                 {
