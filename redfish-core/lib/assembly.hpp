@@ -1,3 +1,4 @@
+#pragma once
 
 #include "led.hpp"
 
@@ -375,7 +376,7 @@ inline void setAssemblylocationIndicators(
         // handled by the adcsensor application.
         if (sdbusplus::message::object_path(assembly).filename() == "tod_battery")
         {
-            if (!json_util::readJson(req, asyncResp->res, "Assemblies", Assemblies, "Oem", oem))
+            if (!json_util::readJson(req, asyncResp->res, "Assemblies", Assemblies, "Oem", oem)) 
             {
                 return;
             }

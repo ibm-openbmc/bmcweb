@@ -27,7 +27,6 @@
                     "$ref": "#/definitions/OemActions",
                     "description": "The available OEM-specific actions for this Resource.",
                     "longDescription": "This property shall contain the available OEM-specific actions for this Resource."
-                    "versionAdded": "v1_1_0"
                 }
             },
             "type": "object"
