@@ -9,7 +9,7 @@ import json
 
 import xml.etree.ElementTree as ET
 
-VERSION = "DSP8010_2021.3"
+VERSION = "DSP8010_2021.4"
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -187,6 +187,14 @@ with open(metadata_index_path, 'w') as metadata_index:
         "        <edmx:Include Namespace=\"OemAssembly\"/>\n")
     metadata_index.write(
         "        <edmx:Include Namespace=\"OemAssembly.v1_0_0\"/>\n")
+    metadata_index.write("    </edmx:Reference>\n")
+
+    metadata_index.write(
+        "/redfish/v1/schema/OemChassis_v1.xml\">\n")
+    metadata_index.write(
+        "        <edmx:Include Namespace=\"OemChassis\"/>\n")
+    metadata_index.write(
+        "        <edmx:Include Namespace=\"OemChassis.v1_0_0\"/>\n")
     metadata_index.write("    </edmx:Reference>\n")
 
     metadata_index.write("</edmx:Edmx>\n")

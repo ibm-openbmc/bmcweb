@@ -9,13 +9,16 @@
 #include <boost/beast/core/flat_static_buffer.hpp>
 #include <boost/beast/http.hpp>
 #include <http_stream.hpp>
+#include <ibm/utils.hpp>
+
+#include <random>
 
 namespace crow
 {
 namespace obmc_dump
 {
 
-std::string unixSocketPathDir = "/var/lib/phosphor-debug-collector/";
+std::string unixSocketPathDir = "/tmp/DumpOffloadSockets/";
 
 inline void handleDumpOffloadUrl(const crow::Request& req, crow::Response& res,
                                  const std::string& entryId,
@@ -74,6 +77,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                     this->connection->sendStreamErrorStatus(
                         boost::beast::http::status::internal_server_error);
                     this->connection->close();
+                    this->cleanupSocketFiles();
                     return;
                 }
                 waitTimer.cancel();
@@ -97,9 +101,18 @@ class Handler : public std::enable_shared_from_this<Handler>
                 if (ec)
                 {
                     BMCWEB_LOG_ERROR << "DBUS response error: " << ec;
-                    this->connection->sendStreamErrorStatus(
-                        boost::beast::http::status::internal_server_error);
+                    if (ec.value() == EBADR)
+                    {
+                        this->connection->sendStreamErrorStatus(
+                            boost::beast::http::status::not_found);
+                    }
+                    else
+                    {
+                        this->connection->sendStreamErrorStatus(
+                            boost::beast::http::status::internal_server_error);
+                    }
                     this->connection->close();
+                    this->cleanupSocketFiles();
                     return;
                 }
             },
@@ -116,7 +129,7 @@ class Handler : public std::enable_shared_from_this<Handler>
      */
     void retrySocketConnect()
     {
-        waitTimer.expires_after(std::chrono::milliseconds(500));
+        waitTimer.expires_after(std::chrono::milliseconds(1000));
 
         waitTimer.async_wait([this, self(shared_from_this())](
                                  const boost::system::error_code& ec) {
@@ -143,9 +156,29 @@ class Handler : public std::enable_shared_from_this<Handler>
                 this->connection->sendStreamErrorStatus(
                     boost::beast::http::status::internal_server_error);
                 this->connection->close();
+                this->cleanupSocketFiles();
                 return;
             }
         });
+    }
+
+    void cleanupSocketFiles()
+    {
+        std::error_code ec;
+        bool fileExists = std::filesystem::exists(unixSocketPath, ec);
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "Unix socket file clean up failed "
+                             << unixSocketPath;
+            this->connection->sendStreamErrorStatus(
+                boost::beast::http::status::internal_server_error);
+            return;
+        }
+        if (fileExists)
+        {
+            std::remove(unixSocketPath.c_str());
+        }
+        return;
     }
 
     void getDumpSize(const std::string& entryID, const std::string& dumpType)
@@ -159,9 +192,19 @@ class Handler : public std::enable_shared_from_this<Handler>
                     BMCWEB_LOG_ERROR
                         << "DBUS response error: Unable to get the dump size "
                         << ec;
-                    this->connection->sendStreamErrorStatus(
-                        boost::beast::http::status::internal_server_error);
+
+                    if (ec.value() == EBADR)
+                    {
+                        this->connection->sendStreamErrorStatus(
+                            boost::beast::http::status::not_found);
+                    }
+                    else
+                    {
+                        this->connection->sendStreamErrorStatus(
+                            boost::beast::http::status::internal_server_error);
+                    }
                     this->connection->close();
+                    this->cleanupSocketFiles();
                     return;
                 }
                 const uint64_t* dumpsize = std::get_if<uint64_t>(&size);
@@ -173,6 +216,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                     this->connection->sendStreamErrorStatus(
                         boost::beast::http::status::internal_server_error);
                     this->connection->close();
+                    this->cleanupSocketFiles();
                     return;
                 }
                 this->dumpSize = *dumpsize;
@@ -212,6 +256,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                             boost::beast::http::status::internal_server_error);
                     }
                     this->connection->close();
+                    this->cleanupSocketFiles();
                     return;
                 }
 
@@ -266,12 +311,25 @@ inline void requestRoutes(App& app)
             std::string dumpType = "bmc";
             boost::asio::io_context* ioCon = conn.getIoContext();
 
-            std::string unixSocketPath =
-                unixSocketPathDir + dumpType + "_dump_" + dumpId;
+            // Generating random id to create unique socket file
+            // for each dump offload request
+            std::random_device rd;
+            std::default_random_engine gen(rd());
+            std::uniform_int_distribution<> dist{0, 1024};
+            std::string unixSocketPath = unixSocketPathDir + dumpType +
+                                         "_dump_" + std::to_string(dist(gen));
 
             handlers[&conn] = std::make_shared<Handler>(
                 *ioCon, dumpId, dumpType, unixSocketPath);
             handlers[&conn]->connection = &conn;
+
+            if (!crow::ibm_utils::createDirectory(unixSocketPathDir))
+            {
+                handlers[&conn]->connection->sendStreamErrorStatus(
+                    boost::beast::http::status::not_found);
+                return;
+            }
+
             handlers[&conn]->getDumpSize(dumpId, dumpType);
         })
         .onclose([](crow::streaming_response::Connection& conn) {
@@ -299,6 +357,8 @@ inline void requestRoutes(App& app)
             if (pos1 == std::string::npos || pos2 == std::string::npos)
             {
                 BMCWEB_LOG_DEBUG << "Unable to extract the dump id";
+                conn.sendStreamErrorStatus(
+                    boost::beast::http::status::not_found);
                 return;
             }
 
@@ -325,12 +385,25 @@ inline void requestRoutes(App& app)
 
             boost::asio::io_context* ioCon = conn.getIoContext();
 
-            std::string unixSocketPath =
-                unixSocketPathDir + dumpType + "_dump_" + dumpId;
+            // Generating random id to create unique socket file
+            // for each dump offload request
+            std::random_device rd;
+            std::default_random_engine gen(rd());
+            std::uniform_int_distribution<> dist{0, 1024};
+            std::string unixSocketPath = unixSocketPathDir + dumpType +
+                                         "_dump_" + std::to_string(dist(gen));
 
             handlers[&conn] = std::make_shared<Handler>(
                 *ioCon, dumpId, dumpType, unixSocketPath);
             handlers[&conn]->connection = &conn;
+
+            if (!crow::ibm_utils::createDirectory(unixSocketPathDir))
+            {
+                handlers[&conn]->connection->sendStreamErrorStatus(
+                    boost::beast::http::status::not_found);
+                return;
+            }
+
             handlers[&conn]->getDumpSize(dumpId, dumpType);
         })
         .onclose([](crow::streaming_response::Connection& conn) {

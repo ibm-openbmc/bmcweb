@@ -15,12 +15,14 @@
 */
 #pragma once
 
-#include "health.hpp"
 #include "led.hpp"
 #include "pcie.hpp"
 #include "redfish_util.hpp"
 #ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
 #include "oem/ibm/lamp_test.hpp"
+#endif
+#ifdef BMCWEB_ENABLE_SAI
+#include "oem/ibm/system_attention_indicator.hpp"
 #endif
 #include <app.hpp>
 #include <boost/container/flat_map.hpp>
@@ -297,18 +299,15 @@ inline void getProcessorSummary(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
  * @brief Retrieves computer system properties over dbus
  *
  * @param[in] aResp Shared pointer for completing asynchronous calls
- * @param[in] systemHealth  Shared HealthPopulate pointer
  *
  * @return None.
  */
-inline void
-    getComputerSystem(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-                      const std::shared_ptr<HealthPopulate>& systemHealth)
+inline void getComputerSystem(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
 {
     BMCWEB_LOG_DEBUG << "Get available system components.";
 
     crow::connections::systemBus->async_method_call(
-        [aResp, systemHealth](
+        [aResp](
             const boost::system::error_code ec,
             const std::vector<std::pair<
                 std::string,
@@ -335,15 +334,6 @@ inline void
                 {
                     continue;
                 }
-
-                auto memoryHealth = std::make_shared<HealthPopulate>(
-                    aResp, aResp->res.jsonValue["MemorySummary"]["Status"]);
-
-                auto cpuHealth = std::make_shared<HealthPopulate>(
-                    aResp, aResp->res.jsonValue["ProcessorSummary"]["Status"]);
-
-                systemHealth->children.emplace_back(memoryHealth);
-                systemHealth->children.emplace_back(cpuHealth);
 
                 // This is not system, so check if it's cpu, dimm, UUID or
                 // BiosVer
@@ -454,8 +444,6 @@ inline void
                                 connection.first, path,
                                 "org.freedesktop.DBus.Properties", "GetAll",
                                 "xyz.openbmc_project.Inventory.Item.Dimm");
-
-                            memoryHealth->inventory.emplace_back(path);
                         }
                         else if (interfaceName ==
                                  "xyz.openbmc_project.Inventory.Item.Cpu")
@@ -464,8 +452,6 @@ inline void
                                 << "Found Cpu, now get its properties.";
 
                             getProcessorSummary(aResp, connection.first, path);
-
-                            cpuHealth->inventory.emplace_back(path);
                         }
                         else if (interfaceName ==
                                  "xyz.openbmc_project.Common.UUID")
@@ -629,7 +615,14 @@ inline void getHostState(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                 const std::variant<std::string>& hostState) {
             if (ec)
             {
-                BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
+                if (ec == boost::system::errc::host_unreachable)
+                {
+                    // Service not available, no error, just don't return
+                    // host state info
+                    BMCWEB_LOG_DEBUG << "Service not available " << ec;
+                    return;
+                }
+                BMCWEB_LOG_ERROR << "DBUS response error " << ec;
                 messages::internalError(aResp->res);
                 return;
             }
@@ -2720,31 +2713,6 @@ inline void requestRoutesSystems(App& app)
             asyncResp->res.jsonValue["FabricAdapters"] = {
                 {"@odata.id", "/redfish/v1/Systems/system/FabricAdapters"}};
 
-            constexpr const std::array<const char*, 4> inventoryForSystems = {
-                "xyz.openbmc_project.Inventory.Item.Dimm",
-                "xyz.openbmc_project.Inventory.Item.Cpu",
-                "xyz.openbmc_project.Inventory.Item.Drive",
-                "xyz.openbmc_project.Inventory.Item.StorageController"};
-
-            auto health = std::make_shared<HealthPopulate>(asyncResp);
-            crow::connections::systemBus->async_method_call(
-                [health](const boost::system::error_code ec,
-                         std::vector<std::string>& resp) {
-                    if (ec)
-                    {
-                        // no inventory
-                        return;
-                    }
-
-                    health->inventory = std::move(resp);
-                },
-                "xyz.openbmc_project.ObjectMapper",
-                "/xyz/openbmc_project/object_mapper",
-                "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", "/",
-                int32_t(0), inventoryForSystems);
-
-            health->populate();
-
             getMainChassisId(
                 asyncResp, [](const std::string& chassisId,
                               const std::shared_ptr<bmcweb::AsyncResp>& aRsp) {
@@ -2755,7 +2723,7 @@ inline void requestRoutesSystems(App& app)
             getLocationIndicatorActive(asyncResp);
             // TODO (Gunnar): Remove IndicatorLED after enough time has passed
             getIndicatorLedState(asyncResp);
-            getComputerSystem(asyncResp, health);
+            getComputerSystem(asyncResp);
             getHostState(asyncResp);
             getBootProgress(asyncResp);
             getPCIeDeviceList(asyncResp, "PCIeDevices");
@@ -2766,6 +2734,10 @@ inline void requestRoutesSystems(App& app)
             getLastResetTime(asyncResp);
 #ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
             getLampTestState(asyncResp);
+#endif
+#ifdef BMCWEB_ENABLE_SAI
+            getSAI(asyncResp, "PartitionSystemAttentionIndicator");
+            getSAI(asyncResp, "PlatformSystemAttentionIndicator");
 #endif
 #ifdef BMCWEB_ENABLE_REDFISH_PROVISIONING_FEATURE
             getProvisioningStatus(asyncResp);
@@ -2889,6 +2861,7 @@ inline void requestRoutesSystems(App& app)
 
                     if (ibmOem)
                     {
+#ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
                         std::optional<bool> lampTest;
                         if (!json_util::readJson(*ibmOem, asyncResp->res,
                                                  "LampTest", lampTest))
@@ -2898,10 +2871,36 @@ inline void requestRoutesSystems(App& app)
 
                         if (lampTest)
                         {
-#ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
                             setLampTestState(asyncResp, *lampTest);
-#endif
                         }
+#endif
+
+#ifdef BMCWEB_ENABLE_SAI
+                        std::optional<bool> partitionSAI;
+                        std::optional<bool> platformSAI;
+                        if (!json_util::readJson(
+                                *ibmOem, asyncResp->res,
+                                "PartitionSystemAttentionIndicator",
+                                partitionSAI,
+                                "PlatformSystemAttentionIndicator",
+                                platformSAI))
+                        {
+                            return;
+                        }
+
+                        if (partitionSAI)
+                        {
+                            setSAI(asyncResp,
+                                   "PartitionSystemAttentionIndicator",
+                                   *partitionSAI);
+                        }
+                        if (platformSAI)
+                        {
+                            setSAI(asyncResp,
+                                   "PlatformSystemAttentionIndicator",
+                                   *platformSAI);
+                        }
+#endif
                     }
                 }
 

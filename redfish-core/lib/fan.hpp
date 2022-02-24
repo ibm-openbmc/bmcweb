@@ -64,7 +64,7 @@ inline void getFanHealth(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             }
             if (*value == false)
             {
-                asyncResp->res.jsonValue["Status"]["State"] = "Absent";
+                asyncResp->res.jsonValue["Status"]["Health"] = "Critical";
             }
         },
         connectionName, path, "org.freedesktop.DBus.Properties", "Get",
@@ -562,8 +562,6 @@ inline void getValidFan(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                     }
                     if (chassisName != chassisId)
                     {
-                        BMCWEB_LOG_ERROR << "The fan obtained at this time "
-                                            "does not belong to chassis ";
                         continue;
                     }
                     fanList.push_back({{"@odata.id", newPath + fanName + "/"}});
@@ -584,8 +582,6 @@ inline void getValidFan(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                     }
                     if (chassisName != chassisId)
                     {
-                        BMCWEB_LOG_ERROR << "The fan obtained at this time "
-                                            "does not belong to chassis ";
                         continue;
                     }
                     const std::string& fanSensorPath = validPath + "/sensors";

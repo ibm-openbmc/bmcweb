@@ -984,6 +984,7 @@ inline void
 
                 bool present = true;
                 bool functional = true;
+                bool available = true;
 
                 for (const auto& [interface, properties] : interfaces)
                 {
@@ -1033,6 +1034,24 @@ inline void
                             }
                         }
                     }
+                    else if (interface ==
+                             "xyz.openbmc_project.State.Decorator.Availability")
+                    {
+                        for (const auto& [proName, proValue] : properties)
+                        {
+                            if (proName == "Available")
+                            {
+                                const bool* value =
+                                    std::get_if<bool>(&proValue);
+                                if (value == nullptr)
+                                {
+                                    messages::internalError(aResp->res);
+                                    return;
+                                }
+                                available = *value;
+                            }
+                        }
+                    }
                     else if (interface == "xyz.openbmc_project.Object.Enable")
                     {
                         for (const auto& [proName, proValue] : properties)
@@ -1052,16 +1071,18 @@ inline void
                     }
                 }
 
-                if (present == false)
+                if (available == false)
+                {
+                    aResp->res.jsonValue["Status"]["State"] =
+                        "UnavailableOffline";
+                }
+                else if (present == false)
                 {
                     aResp->res.jsonValue["Status"]["State"] = "Absent";
                 }
-                else
+                else if (functional == false)
                 {
-                    if (!functional)
-                    {
-                        aResp->res.jsonValue["Status"]["Health"] = "Critical";
-                    }
+                    aResp->res.jsonValue["Status"]["Health"] = "Critical";
                 }
 
 #ifdef BMCWEB_ENABLE_HW_ISOLATION
@@ -1855,6 +1876,7 @@ inline void requestRoutesSubProcessors(App& app)
  *        patched to do appropriate action.
  *
  * @param[in] asyncResp - The redfish response to return.
+ * @param[in] procObjPath - The parent processor object path.
  * @param[in] coreId - The patched Processor Core resource id.
  * @param[in] enabled - The patched "Enabled" member value.
  *
@@ -1869,12 +1891,14 @@ inline void requestRoutesSubProcessors(App& app)
  */
 inline void
     patchCpuCoreMemberEnabled(const std::shared_ptr<bmcweb::AsyncResp>& resp,
+                              const std::string& procObjPath,
                               const std::string& coreId, const bool enabled)
 {
     redfish::hw_isolation_utils::processHardwareIsolationReq(
         resp, "Core", coreId, enabled,
         std::vector<const char*>(procCoreInterfaces.begin(),
-                                 procCoreInterfaces.end()));
+                                 procCoreInterfaces.end()),
+        procObjPath);
 }
 
 /**
@@ -1894,7 +1918,7 @@ inline void
 inline void
     patchCpuCoreMembers(const crow::Request& req,
                         const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                        const std::string& /* processorId */,
+                        const std::string& processorId,
                         const std::string& coreId)
 {
     std::optional<bool> enabled;
@@ -1904,10 +1928,15 @@ inline void
         return;
     }
 
-    if (enabled.has_value())
-    {
-        patchCpuCoreMemberEnabled(asyncResp, coreId, *enabled);
-    }
+    auto callback = [asyncResp, coreId, enabled](const std::string& cpuPath) {
+        // Handle patched Enabled Redfish property
+        if (enabled.has_value())
+        {
+            patchCpuCoreMemberEnabled(asyncResp, cpuPath, coreId, *enabled);
+        }
+    };
+
+    getProcessorPaths(asyncResp, processorId, std::move(callback));
 }
 
 inline void requestRoutesSubProcessorsCore(App& app)

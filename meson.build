@@ -92,6 +92,8 @@ feature_map = {
   'ibm-usb-code-update'             : '-DBMCWEB_ENABLE_IBM_USB_CODE_UPDATE',
   'hw-isolation'                    : '-DBMCWEB_ENABLE_HW_ISOLATION',
   'redfish-license'                 : '-DBMCWEB_ENABLE_REDFISH_LICENSE',
+  'fan-oem-data'                    : '-DBMCWEB_ENABLE_FAN_OEM_DATA',
+  'ibm-sai'                         : '-DBMCWEB_ENABLE_SAI',
 }
 
 # Get the options status and build a project summary to show which flags are
@@ -369,6 +371,7 @@ srcfiles_unittest = [
   'redfish-core/ut/lock_test.cpp',
   'redfish-core/ut/configfile_test.cpp',
   'redfish-core/ut/time_utils_test.cpp',
+  'redfish-core/ut/stl_utils_test.cpp',
   'http/ut/utility_test.cpp'
 ]
 

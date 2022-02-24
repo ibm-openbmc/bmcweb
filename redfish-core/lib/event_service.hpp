@@ -832,7 +832,7 @@ inline void requestRoutesEventDestinationCollection(App& app)
                     messages::internalError(asyncResp->res);
                     return;
                 }
-
+                subValue->setSubId(id);
                 messages::created(asyncResp->res);
                 asyncResp->res.addHeader(
                     "Location", "/redfish/v1/EventService/Subscriptions/" + id);
