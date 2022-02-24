@@ -172,22 +172,23 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
         req.body() = data;
         req.prepare_payload();
 
-        auto respHandler = [self(shared_from_this())](
-                               const boost::beast::error_code ec,
-                               const std::size_t& bytesTransferred) {
-            if (ec)
-            {
-                BMCWEB_LOG_ERROR << "sendMessage() failed: " << ec.message();
-                self->state = ConnState::sendFailed;
-                self->handleConnState();
-                return;
-            }
+        auto respHandler =
+            [self(shared_from_this())](const boost::beast::error_code ec,
+                                       const std::size_t& bytesTransferred) {
+                if (ec)
+                {
+                    BMCWEB_LOG_ERROR << "sendMessage() failed: " << ec.message()
+                                     << " to subId: " << self->subId;
+                    self->state = ConnState::sendFailed;
+                    self->handleConnState();
+                    return;
+                }
 
-            BMCWEB_LOG_DEBUG << "sendMessage() bytes transferred: "
-                             << bytesTransferred;
-            boost::ignore_unused(bytesTransferred);
-            self->recvMessage();
-        };
+                BMCWEB_LOG_DEBUG << "sendMessage() bytes transferred: "
+                                 << bytesTransferred;
+                boost::ignore_unused(bytesTransferred);
+                self->recvMessage();
+            };
 
         // Set a timeout on the operation
         conn.expires_after(std::chrono::seconds(30));
@@ -210,8 +211,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                                const std::size_t& bytesTransferred) {
             if (ec && ec != boost::asio::ssl::error::stream_truncated)
             {
-                BMCWEB_LOG_ERROR << "recvMessage() failed: " << ec.message();
-
+                BMCWEB_LOG_ERROR << "recvMessage() failed: " << ec.message()
+                                 << " from subId: " << self->subId;
                 self->state = ConnState::recvFailed;
                 self->handleConnState();
                 return;
@@ -226,7 +227,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
             {
                 // The parser failed to receive the response
                 BMCWEB_LOG_ERROR
-                    << "recvMessage() parser failed to receive response";
+                    << "recvMessage() parser failed to receive response"
+                    << " from subId: " << self->subId;
                 self->state = ConnState::recvFailed;
                 self->handleConnState();
                 return;
@@ -242,7 +244,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                 // The listener failed to receive the Sent-Event
                 BMCWEB_LOG_ERROR << "recvMessage() Listener Failed to "
                                     "receive Sent-Event. Header Response Code: "
-                                 << respCode;
+                                 << respCode << " from subId: " << self->subId;
                 self->state = ConnState::recvFailed;
                 self->handleConnState();
                 return;
@@ -267,6 +269,9 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
 
             // Returns ownership of the parsed message
             self->parser->release();
+
+            // Set the retry count to 0 as the send-recv was successful
+            self->retryCount = 0;
 
             self->handleConnState();
         };
@@ -380,8 +385,12 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                 state = ConnState::suspended;
                 BMCWEB_LOG_ERROR
                     << "SuspendRetries is set. retryCount: " << retryCount
-                    << " .Subscriber: " << this->subId << "suspended";
+                    << " .Subscriber: " << subId << "suspended";
             }
+            BMCWEB_LOG_ERROR << retryPolicyAction
+                             << " is set. Cleanup queued events and "
+                                "retrycount for subId: "
+                             << subId;
             // Reset the retrycount to zero so that client can try connecting
             // again if needed
             retryCount = 0;
@@ -455,7 +464,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
             }
             case ConnState::terminated:
             {
-                BMCWEB_LOG_ERROR << "Subscriber connection terminated. Stop";
+                BMCWEB_LOG_ERROR << "Subscriber " << subId
+                                 << " connection terminated. Stop";
                 break;
             }
             case ConnState::resolveFailed:
