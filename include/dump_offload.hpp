@@ -153,10 +153,11 @@ class Handler : public std::enable_shared_from_this<Handler>
                     << "Failed to connect, reached max retry count: "
                     << connectRetryCount;
                 waitTimer.cancel();
-                this->connection->sendStreamErrorStatus(
-                    boost::beast::http::status::internal_server_error);
-                this->connection->close();
                 this->cleanupSocketFiles();
+                this->connection->setStreamHeaders("Retry-After", "60");
+                this->connection->sendStreamErrorStatus(
+                    boost::beast::http::status::service_unavailable);
+                this->connection->close();
                 return;
             }
         });
@@ -246,7 +247,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                 const boost::system::error_code& ec, std::size_t bytesRead) {
                 if (ec)
                 {
-                    BMCWEB_LOG_ERROR << "Couldn't read from local peer: " << ec;
+                    BMCWEB_LOG_DEBUG << "Couldn't read from local peer: " << ec;
 
                     if (ec != boost::asio::error::eof)
                     {
@@ -329,7 +330,8 @@ inline void requestRoutes(App& app)
                     boost::beast::http::status::not_found);
                 return;
             }
-
+            BMCWEB_LOG_INFO << "Dump offload initiated by: "
+                            << conn.req.session->clientIp;
             handlers[&conn]->getDumpSize(dumpId, dumpType);
         })
         .onclose([](crow::streaming_response::Connection& conn) {
@@ -403,7 +405,8 @@ inline void requestRoutes(App& app)
                     boost::beast::http::status::not_found);
                 return;
             }
-
+            BMCWEB_LOG_INFO << "Dump offload initiated by: "
+                            << conn.req.session->clientIp;
             handlers[&conn]->getDumpSize(dumpId, dumpType);
         })
         .onclose([](crow::streaming_response::Connection& conn) {

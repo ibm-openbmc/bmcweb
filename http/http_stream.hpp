@@ -17,7 +17,7 @@ namespace streaming_response
 struct Connection : std::enable_shared_from_this<Connection>
 {
   public:
-    explicit Connection(const crow::Request& reqIn) : req(reqIn.req)
+    explicit Connection(const crow::Request& reqIn) : req(reqIn)
     {}
     virtual void sendMessage(const boost::asio::mutable_buffer& buffer,
                              std::function<void()> handler) = 0;
@@ -26,9 +26,11 @@ struct Connection : std::enable_shared_from_this<Connection>
     virtual void sendStreamHeaders(const std::string& streamDataSize,
                                    const std::string& contentType) = 0;
     virtual void sendStreamErrorStatus(boost::beast::http::status status) = 0;
+    virtual void setStreamHeaders(const std::string& header,
+                                  const std::string& headerValue) = 0;
     virtual ~Connection() = default;
 
-    boost::beast::http::request<boost::beast::http::string_body> req;
+    crow::Request req;
     crow::DynamicResponse streamres;
 };
 
@@ -81,6 +83,14 @@ class ConnectionImpl : public Connection
             });
     }
 
+    void setStreamHeaders(const std::string& header,
+                          const std::string& headerValue) override
+    {
+
+        streamres.addHeader(header, headerValue);
+        return;
+    }
+
     void sendStreamHeaders(const std::string& streamDataSize,
                            const std::string& contentType) override
     {
@@ -99,6 +109,7 @@ class ConnectionImpl : public Connection
                 }
             });
     }
+
     void sendMessage(const boost::asio::mutable_buffer& buffer,
                      std::function<void()> handler) override
     {
