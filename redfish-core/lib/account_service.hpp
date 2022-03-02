@@ -70,7 +70,7 @@ struct LDAPConfigData
     std::vector<std::pair<std::string, LDAPRoleMapData>> groupRoleList;
 };
 
-using DbusVariantType = std::variant<bool, int32_t, std::string>;
+using DbusVariantType = std::variant<bool, int32_t, std::string, std::vector<std::string>>;
 
 using DbusInterfaceType = boost::container::flat_map<
     std::string, boost::container::flat_map<std::string, DbusVariantType>>;
