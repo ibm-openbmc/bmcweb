@@ -177,6 +177,7 @@ class Handler : public std::enable_shared_from_this<Handler>
         }
         if (fileExists)
         {
+            unixSocket.close();
             std::remove(unixSocketPath.c_str());
         }
         return;
@@ -341,6 +342,7 @@ inline void requestRoutes(App& app)
                 BMCWEB_LOG_DEBUG << "No handler to cleanup";
                 return;
             }
+            handler->second->cleanupSocketFiles();
             handler->second->outputBuffer.clear();
             handlers.erase(handler);
         });
@@ -416,6 +418,7 @@ inline void requestRoutes(App& app)
                 BMCWEB_LOG_DEBUG << "No handler to cleanup";
                 return;
             }
+            handler->second->cleanupSocketFiles();
             handlers.erase(handler);
             handler->second->outputBuffer.clear();
         });
