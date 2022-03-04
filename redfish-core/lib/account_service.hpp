@@ -164,7 +164,8 @@ inline bool getAccountTypeFromUserGroup(std::string_view userGroup,
     return isFoundUserGroup;
 }
 
-inline std::tuple<bool, std::string> getUserGroupFromAccountType(
+inline bool getUserGroupFromAccountType(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::optional<std::vector<std::string>>& accountTypes,
     std::vector<std::string>& userGroup)
 {
@@ -203,10 +204,27 @@ inline std::tuple<bool, std::string> getUserGroupFromAccountType(
         {
             // set false if accountTypes not found and return
             isFoundAccountTypes = false;
-            return {isFoundAccountTypes, accountType};
+            messages::propertyValueNotInList(asyncResp->res, "AccountTypes",
+                                             accountType);
+            return isFoundAccountTypes;
         }
     }
 
+    if ((isHostConsole) ^ (isManagerConsole))
+    {
+        BMCWEB_LOG_ERROR << "HostConsole or ManagerConsole, one of value is "
+                            "missing to set SSH property";
+        isFoundAccountTypes = false;
+        if (!isHostConsole)
+        {
+            messages::strictAccountTypes(asyncResp->res, "HostConsole");
+        }
+        if (!isManagerConsole)
+        {
+            messages::strictAccountTypes(asyncResp->res, "ManagerConsole");
+        }
+        return isFoundAccountTypes;
+    }
     if (isRedfish)
     {
         userGroup.emplace_back("redfish");
@@ -219,26 +237,13 @@ inline std::tuple<bool, std::string> getUserGroupFromAccountType(
     {
         userGroup.emplace_back("web");
     }
-    if ((isHostConsole) ^ (isManagerConsole))
-    {
-        BMCWEB_LOG_ERROR << "HostConsole or ManagerConsole, one of value is "
-                            "missing to set SSH property";
-        isFoundAccountTypes = false;
-        if (!isHostConsole)
-        {
-            return {isFoundAccountTypes, "HostConsole"};
-        }
-        if (!isManagerConsole)
-        {
-            return {isFoundAccountTypes, "ManagerConsole"};
-        }
-    }
+
     if ((isHostConsole) && (isManagerConsole))
     {
         userGroup.emplace_back("ssh");
     }
 
-    return {isFoundAccountTypes, "noError"};
+    return isFoundAccountTypes;
 }
 
 inline void translateUserGroup(const std::vector<std::string>* userGroups,
@@ -285,12 +290,9 @@ inline void translateAccountType(
 
     // MAP userGroup with accountTypes value
     std::vector<std::string> updatedUserGroup;
-    if (auto [isFoundAccountTypes, accountVale] =
-            getUserGroupFromAccountType(accountType, updatedUserGroup);
-        !isFoundAccountTypes)
+    if (!getUserGroupFromAccountType(asyncResp, accountType, updatedUserGroup))
     {
         BMCWEB_LOG_ERROR << "accountType value unable to mapped";
-        messages::strictAccountTypes(asyncResp->res, accountVale);
         return;
     }
 
