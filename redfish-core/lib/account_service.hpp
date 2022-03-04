@@ -164,7 +164,7 @@ inline bool getAccountTypeFromUserGroup(std::string_view userGroup,
     return isFoundUserGroup;
 }
 
-inline bool getUserGroupFromAccountType(
+inline std::tuple<bool, std::string> getUserGroupFromAccountType(
     const std::optional<std::vector<std::string>>& accountTypes,
     std::vector<std::string>& userGroup)
 {
@@ -203,7 +203,7 @@ inline bool getUserGroupFromAccountType(
         {
             // set false if accountTypes not found and return
             isFoundAccountTypes = false;
-            return isFoundAccountTypes;
+            return {isFoundAccountTypes, accountType};
         }
     }
 
@@ -224,14 +224,21 @@ inline bool getUserGroupFromAccountType(
         BMCWEB_LOG_ERROR << "HostConsole or ManagerConsole, one of value is "
                             "missing to set SSH property";
         isFoundAccountTypes = false;
-        return isFoundAccountTypes;
+        if (!isHostConsole)
+        {
+            return {isFoundAccountTypes, "HostConsole"};
+        }
+        if (!isManagerConsole)
+        {
+            return {isFoundAccountTypes, "ManagerConsole"};
+        }
     }
     if ((isHostConsole) && (isManagerConsole))
     {
         userGroup.emplace_back("ssh");
     }
 
-    return isFoundAccountTypes;
+    return {isFoundAccountTypes, "noError"};
 }
 
 inline void translateUserGroup(const std::vector<std::string>* userGroups,
@@ -271,17 +278,19 @@ inline void translateAccountType(
         {
             BMCWEB_LOG_ERROR
                 << "user can not disable their own Redfish Property";
-            messages::accountNotModified(asyncResp->res);
+            messages::strictAccountTypes(asyncResp->res, "Redfish");
             return;
         }
     }
 
     // MAP userGroup with accountTypes value
     std::vector<std::string> updatedUserGroup;
-    if (!getUserGroupFromAccountType(accountType, updatedUserGroup))
+    if (auto [isFoundAccountTypes, accountVale] =
+            getUserGroupFromAccountType(accountType, updatedUserGroup);
+        !isFoundAccountTypes)
     {
         BMCWEB_LOG_ERROR << "accountType value unable to mapped";
-        messages::internalError(asyncResp->res);
+        messages::strictAccountTypes(asyncResp->res, accountVale);
         return;
     }
 
@@ -294,7 +303,8 @@ inline void translateAccountType(
         {
             BMCWEB_LOG_ERROR
                 << "ssh configuration can't disable for Admin User";
-            messages::accountNotModified(asyncResp->res);
+            messages::strictAccountTypes(asyncResp->res, "HostConsol");
+            messages::strictAccountTypes(asyncResp->res, "ManagerConsole");
             return;
         }
     }
@@ -1583,8 +1593,7 @@ inline void updateUserProperties(
                         }
 
                         // check is user is admin user or not
-                        bool isAdminUser =
-                            (*userPrivPtr == "priv-admin") ? true : false;
+                        bool isAdminUser = (*userPrivPtr == "priv-admin");
 
                         translateAccountType(accountType, asyncResp,
                                              dbusObjectPath, isUserItself,
@@ -1753,6 +1762,7 @@ inline void requestAccountServiceRoutes(App& app)
                 {"Description", "Account Service"},
                 {"ServiceEnabled", true},
                 {"MaxPasswordLength", 20},
+                {"StrictAccountTypes", true},
                 {"Accounts",
                  {{"@odata.id", "/redfish/v1/AccountService/Accounts"}}},
                 {"Roles", {{"@odata.id", "/redfish/v1/AccountService/Roles"}}},

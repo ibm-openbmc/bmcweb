@@ -609,6 +609,17 @@ void sourceDoesNotSupportProtocol(crow::Response& res, const std::string& arg1,
                                   const std::string& arg2);
 
 /**
+ * @brief Formats StrictAccountTypes message into JSON
+ * Message body: Indicates the request failed because a set of `AccountTypes` or
+ * `OEMAccountTypes` was not accepted while `StrictAccountTypes` is set to `true
+ * @param[in] arg1 Parameter of message that will replace %1 in its body.
+ *
+ * @returns Message StrictAccountTypes formatted to JSON */
+nlohmann::json strictAccountTypes(const std::string& arg1);
+
+void strictAccountTypes(crow::Response& res, const std::string& arg1);
+
+/**
  * @brief Formats AccountRemoved message into JSON
  * Message body: "The account was successfully removed."
  *
