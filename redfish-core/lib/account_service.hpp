@@ -272,7 +272,7 @@ inline void translateUserGroup(const std::vector<std::string>* userGroups,
 inline void translateAccountType(
     const std::optional<std::vector<std::string>>& accountType,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& dbusObjectPath, bool isUserItself, bool isAdminUser)
+    const std::string& dbusObjectPath, bool isUserItself)
 {
     // user can not disable their own Redfish Property.
     if (isUserItself)
@@ -294,21 +294,6 @@ inline void translateAccountType(
     {
         BMCWEB_LOG_ERROR << "accountType value unable to mapped";
         return;
-    }
-
-    // ssh configuration can't disable for Admin User
-    if (isAdminUser)
-    {
-        if (auto it = std::find(updatedUserGroup.cbegin(),
-                                updatedUserGroup.cend(), "ssh");
-            it == updatedUserGroup.cend())
-        {
-            BMCWEB_LOG_ERROR
-                << "ssh configuration can't disable for Admin User";
-            messages::strictAccountTypes(asyncResp->res, "HostConsol");
-            messages::strictAccountTypes(asyncResp->res, "ManagerConsole");
-            return;
-        }
     }
 
     crow::connections::systemBus->async_method_call(
@@ -1574,36 +1559,8 @@ inline void updateUserProperties(
             }
             if (accountType)
             {
-                crow::connections::systemBus->async_method_call(
-                    [accountType, asyncResp, dbusObjectPath,
-                     isUserItself](const boost::system::error_code ec,
-                                   std::variant<std::string>& userPrivilege) {
-                        if (ec)
-                        {
-                            BMCWEB_LOG_ERROR << "D-Bus responses error: " << ec;
-                            messages::internalError(asyncResp->res);
-                            return;
-                        }
-                        const std::string* userPrivPtr =
-                            std::get_if<std::string>(&userPrivilege);
-                        if (userPrivPtr == nullptr)
-                        {
-                            BMCWEB_LOG_ERROR << "UserPrivilege wasn't a "
-                                                "string";
-                            messages::internalError(asyncResp->res);
-                            return;
-                        }
-
-                        // check is user is admin user or not
-                        bool isAdminUser = (*userPrivPtr == "priv-admin");
-
-                        translateAccountType(accountType, asyncResp,
-                                             dbusObjectPath, isUserItself,
-                                             isAdminUser);
-                    },
-                    "xyz.openbmc_project.User.Manager", dbusObjectPath.c_str(),
-                    "org.freedesktop.DBus.Properties", "Get",
-                    "xyz.openbmc_project.User.Attributes", "UserPrivilege");
+                translateAccountType(accountType, asyncResp, dbusObjectPath,
+                                     isUserItself);
             }
         });
 }
@@ -2371,8 +2328,7 @@ inline void requestAccountServiceRoutes(App& app)
             std::optional<nlohmann::json> oem;
             std::optional<std::vector<std::string>> accountType;
 
-            bool isUserItself =
-                (username == req.session->username ? true : false);
+            bool isUserItself = (username == req.session->username);
 
             if (!json_util::readJson(
                     req, asyncResp->res, "UserName", newUserName, "Password",
