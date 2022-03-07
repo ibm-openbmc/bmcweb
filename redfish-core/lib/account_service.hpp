@@ -217,11 +217,11 @@ inline bool getUserGroupFromAccountType(
         isFoundAccountTypes = false;
         if (!isHostConsole)
         {
-            messages::strictAccountTypes(asyncResp->res, "HostConsole");
+            messages::strictAccountTypes(asyncResp->res, "AccountTypes");
         }
         if (!isManagerConsole)
         {
-            messages::strictAccountTypes(asyncResp->res, "ManagerConsole");
+            messages::strictAccountTypes(asyncResp->res, "AccountTypes");
         }
         return isFoundAccountTypes;
     }
@@ -283,7 +283,7 @@ inline void translateAccountType(
         {
             BMCWEB_LOG_ERROR
                 << "user can not disable their own Redfish Property";
-            messages::strictAccountTypes(asyncResp->res, "Redfish");
+            messages::strictAccountTypes(asyncResp->res, "AccountTypes");
             return;
         }
     }
