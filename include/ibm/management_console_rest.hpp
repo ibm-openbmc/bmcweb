@@ -906,7 +906,7 @@ inline void
                 return;
             }
 
-            BMCWEB_LOG_INFO << "Successfully got VMI client certificate";
+            BMCWEB_LOG_CRITICAL << "Successfully got VMI client certificate";
             asyncResp->res.jsonValue["Certificate"] = *cert;
         },
         "xyz.openbmc_project.Certs.ca.authority.Manager",
@@ -942,6 +942,8 @@ inline void getCSREntryAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 return;
             }
 
+            BMCWEB_LOG_CRITICAL << "VMI Cert Entry " << entryId
+                                << " status property value " << *status;
             if (*status == "xyz.openbmc_project.Certs.Entry.State.Pending")
             {
                 asyncResp->res.result(
@@ -953,6 +955,7 @@ inline void getCSREntryAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             {
                 asyncResp->res.result(boost::beast::http::status::bad_request);
                 asyncResp->res.jsonValue["Description"] = "Bad CSR";
+                BMCWEB_LOG_CRITICAL << "SignCSR failed with Bad CSR";
             }
             else if (*status ==
                      "xyz.openbmc_project.Certs.Entry.State.Complete")
@@ -964,7 +967,7 @@ inline void getCSREntryAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             auto entry = ackMatches.find(entryId);
             if (entry != ackMatches.end())
             {
-                BMCWEB_LOG_DEBUG << "Erasing match of entryId " << entryId;
+                BMCWEB_LOG_CRITICAL << "Erasing match of entryId " << entryId;
                 ackMatches.erase(entryId);
             }
         },
@@ -997,7 +1000,6 @@ void handleCsrRequest(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 return;
             }
 
-            BMCWEB_LOG_INFO << "Created CSR Entry object";
             std::string entryId = objPath.filename();
             if (entryId.empty())
             {
@@ -1008,6 +1010,7 @@ void handleCsrRequest(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 return;
             }
 
+            BMCWEB_LOG_CRITICAL << "Created CSR Entry object " << entryId;
             auto timeoutHandler = [asyncResp, timeout, entryId](
                                       const boost::system::error_code ec) {
                 if (ec)
@@ -1031,8 +1034,9 @@ void handleCsrRequest(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 asyncResp->res.addHeader("Retry-After", "60");
                 asyncResp->res.result(
                     boost::beast::http::status::service_unavailable);
-                BMCWEB_LOG_INFO
-                    << "Timed out waiting for HostInterface to serve request";
+                BMCWEB_LOG_CRITICAL
+                    << "Timed out waiting for HostInterface to serve entry id "
+                    << entryId;
             };
 
             timeout->async_wait(timeoutHandler);
@@ -1050,8 +1054,9 @@ void handleCsrRequest(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                     auto findStatus = values.find("Status");
                     if (findStatus != values.end())
                     {
-                        BMCWEB_LOG_INFO
-                            << "Found status prop change of VMI cert object";
+                        BMCWEB_LOG_CRITICAL
+                            << "Found status prop change of VMI cert object "
+                            << entryId;
                         getCSREntryAck(asyncResp, entryId);
                         timeout->cancel();
                     }
