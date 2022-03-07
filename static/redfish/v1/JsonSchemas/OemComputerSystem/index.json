@@ -116,9 +116,9 @@
             "properties": {},
             "type": "object"
         },
-        "IBMOem": {
+        "IBM": {
             "additionalProperties": true,
-            "description": "Oem properties for IBMOem.",
+            "description": "Oem properties for IBM.",
             "patternProperties": {
                 "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
                     "description": "This property shall specify a valid odata or Redfish property.",
@@ -134,6 +134,15 @@
                 }
             },
             "properties": {
+                "LampTest": {
+                    "description": "An indicator allowing an operator to run LED lamp test.",
+                    "longDescription": "This property shall contain the state of lamp state function for this resource.",
+                    "readonly": false,
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
                 "PartitionSystemAttentionIndicator": {
                     "description": "An indicator allowing an operator to operate partition system attention.",
                     "longDescription": "This property shall contain the state of the partition system attention of this resource.",
