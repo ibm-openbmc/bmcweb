@@ -803,7 +803,7 @@ inline void
             }
             if (foundDumpEntry == false)
             {
-                BMCWEB_LOG_ERROR << "Can't find Dump Entry";
+                BMCWEB_LOG_ERROR << "Can't find Dump Entry " << entryID;
                 messages::resourceNotFound(asyncResp->res, dumpType + " dump",
                                            entryID);
                 return;
