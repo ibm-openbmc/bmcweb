@@ -108,18 +108,21 @@ inline void getSAI(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                     return;
                 }
 
-                nlohmann::json& oemSAI =
-                    aResp->res.jsonValue["Oem"]["OpenBmc"]["IBMOem"];
-                aResp->res.jsonValue["Oem"]["OpenBmc"]["@odata.type"] =
-                    "#OemComputerSystem.OpenBmc";
-                oemSAI["@odata.type"] = "#OemComputerSystem.IBMOem";
+                aResp->res.jsonValue["Oem"]["@odata.type"] =
+                    "#OemComputerSystem.Oem";
+                aResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
+                    "#OemComputerSystem.IBM";
                 if (propertyValue == "PartitionSystemAttentionIndicator")
                 {
-                    oemSAI["PartitionSystemAttentionIndicator"] = *ledOn;
+                    aResp->res.jsonValue["Oem"]["IBM"]
+                                        ["PartitionSystemAttentionIndicator"] =
+                        *ledOn;
                 }
                 else if (propertyValue == "PlatformSystemAttentionIndicator")
                 {
-                    oemSAI["PlatformSystemAttentionIndicator"] = *ledOn;
+                    aResp->res.jsonValue["Oem"]["IBM"]
+                                        ["PlatformSystemAttentionIndicator"] =
+                        *ledOn;
                 }
             },
             serviceName, objectPath, "org.freedesktop.DBus.Properties", "Get",

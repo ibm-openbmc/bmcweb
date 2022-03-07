@@ -2861,25 +2861,11 @@ inline void requestRoutesSystems(App& app)
 
                     if (ibmOem)
                     {
-#ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
                         std::optional<bool> lampTest;
-                        if (!json_util::readJson(*ibmOem, asyncResp->res,
-                                                 "LampTest", lampTest))
-                        {
-                            return;
-                        }
-
-                        if (lampTest)
-                        {
-                            setLampTestState(asyncResp, *lampTest);
-                        }
-#endif
-
-#ifdef BMCWEB_ENABLE_SAI
                         std::optional<bool> partitionSAI;
                         std::optional<bool> platformSAI;
                         if (!json_util::readJson(
-                                *ibmOem, asyncResp->res,
+                                *ibmOem, asyncResp->res, "LampTest", lampTest,
                                 "PartitionSystemAttentionIndicator",
                                 partitionSAI,
                                 "PlatformSystemAttentionIndicator",
@@ -2888,6 +2874,14 @@ inline void requestRoutesSystems(App& app)
                             return;
                         }
 
+#ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
+                        if (lampTest)
+                        {
+                            setLampTestState(asyncResp, *lampTest);
+                        }
+#endif
+
+#ifdef BMCWEB_ENABLE_SAI
                         if (partitionSAI)
                         {
                             setSAI(asyncResp,
