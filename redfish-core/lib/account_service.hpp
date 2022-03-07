@@ -2327,8 +2327,7 @@ inline void requestAccountServiceRoutes(App& app)
             std::optional<bool> locked;
             std::optional<nlohmann::json> oem;
             std::optional<std::vector<std::string>> accountType;
-
-            bool isUserItself = (username == req.session->username);
+            bool isUserItself = false;
 
             if (!json_util::readJson(
                     req, asyncResp->res, "UserName", newUserName, "Password",
@@ -2355,6 +2354,9 @@ inline void requestAccountServiceRoutes(App& app)
                 messages::insufficientPrivilege(asyncResp->res);
                 return;
             }
+
+            // check user isitself or not
+            isUserItself = (username == req.session->username);
 
             Privileges effectiveUserPrivileges =
                 redfish::getUserPrivileges(req.userRole);
