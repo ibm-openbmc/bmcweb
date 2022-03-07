@@ -252,6 +252,7 @@ inline bool saveConfigFile(const std::string& data, const std::string& fileID,
         redfish::EventServiceManager::getInstance().sendEvent(
             redfish::messages::resourceCreated(), origin, "IBMConfigFile");
     }
+    file.close();
     return true;
 }
 
@@ -456,16 +457,17 @@ inline void handleFileGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         "/var/lib/bmcweb/ibm-management-console/configfiles/" + fileID);
     if (!std::filesystem::exists(loc))
     {
-        BMCWEB_LOG_ERROR << loc << "Not found";
+        BMCWEB_LOG_ERROR << loc << " Not found";
         asyncResp->res.result(boost::beast::http::status::not_found);
         asyncResp->res.jsonValue["Description"] = resourceNotFoundMsg;
         return;
     }
 
-    std::ifstream readfile(loc.string());
-    if (!readfile)
+    std::ifstream readfile;
+    readfile.open(loc.string());
+    if (!readfile.is_open())
     {
-        BMCWEB_LOG_ERROR << loc.string() << "Not found";
+        BMCWEB_LOG_ERROR << loc << " Not found";
         asyncResp->res.result(boost::beast::http::status::not_found);
         asyncResp->res.jsonValue["Description"] = resourceNotFoundMsg;
         return;
@@ -478,6 +480,7 @@ inline void handleFileGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     fileData = {std::istreambuf_iterator<char>(readfile),
                 std::istreambuf_iterator<char>()};
     asyncResp->res.jsonValue["Data"] = fileData;
+    readfile.close();
     return;
 }
 

@@ -397,12 +397,6 @@ class Subscription : public persistent_data::UserSubscription
 
     void sendEvent(const std::string& msg)
     {
-        if ((conn != nullptr) &&
-            (conn->getConnState() != crow::ConnState::terminated))
-        {
-            conn->sendData(msg);
-            this->eventSeqNum++;
-        }
         if (conn == nullptr)
         {
             // create the HttpClient connection
@@ -412,9 +406,13 @@ class Subscription : public persistent_data::UserSubscription
             conn = std::make_shared<crow::HttpClient>(
                 crow::connections::systemBus->get_io_context(), subId, host,
                 port, path, uriProto, httpHeaders);
+        }
+        if (conn->getConnState() != crow::ConnState::terminated)
+        {
             conn->sendData(msg);
             this->eventSeqNum++;
         }
+
         if (sseConn != nullptr)
         {
             sseConn->sendData(eventSeqNum, msg);
@@ -649,6 +647,7 @@ class EventServiceManager
                 std::make_shared<Subscription>(host, port, path, urlProto);
 
             subValue->id = newSub->id;
+            subValue->setSubId(newSub->id);
             subValue->destinationUrl = newSub->destinationUrl;
             subValue->protocol = newSub->protocol;
             subValue->retryPolicy = newSub->retryPolicy;

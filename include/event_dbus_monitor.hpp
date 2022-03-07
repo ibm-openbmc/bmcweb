@@ -10,7 +10,9 @@ namespace dbus_monitor
 
 static std::shared_ptr<sdbusplus::bus::match::match> matchHostStateChange;
 static std::shared_ptr<sdbusplus::bus::match::match> matchBMCStateChange;
-static std::shared_ptr<sdbusplus::bus::match::match> matchVMIIPStateChange;
+static std::shared_ptr<sdbusplus::bus::match::match>
+    matchVMIIPEnabledPropChange;
+static std::shared_ptr<sdbusplus::bus::match::match> matchVMIIPChange;
 static std::shared_ptr<sdbusplus::bus::match::match> matchDumpCreatedSignal;
 static std::shared_ptr<sdbusplus::bus::match::match> matchDumpDeletedSignal;
 static std::shared_ptr<sdbusplus::bus::match::match> matchBIOSAttrUpdate;
@@ -22,6 +24,7 @@ static uint64_t postCodeCounter = 0;
 
 void registerHostStateChangeSignal();
 void registerBMCStateChangeSignal();
+void registerVMIIPEnabledPropChangeSignal();
 void registerVMIIPChangeSignal();
 void registerDumpCreatedSignal();
 void registerDumpDeletedSignal();
@@ -30,66 +33,47 @@ void registerBootProgressChangeSignal();
 void registerEventLogCreatedSignal();
 void registerPostCodeChangeSignal();
 
-inline void VMIIPChange(sdbusplus::message::message& msg)
+inline void sendEventOnEthIntf(std::string origin)
 {
-    BMCWEB_LOG_DEBUG << "BMC Hypervisor IP change match fired";
+    redfish::EventServiceManager::getInstance().sendEvent(
+        redfish::messages::resourceChanged(), origin, "EthernetInterface");
+}
 
+inline void VMINwPropertyChange(sdbusplus::message::message& msg)
+{
     if (msg.is_method_error())
     {
-        BMCWEB_LOG_ERROR << "BMC Hypervisor IP property changed Signal error";
+        BMCWEB_LOG_ERROR
+            << "BMC Hypervisor Network properties changed Signal error";
         return;
     }
 
     std::string objPath = msg.get_path();
 
-    std::string infName;
-    dbus::utility::getNthStringFromPath(msg.get_path(), 4, infName);
-
-    if ((objPath ==
-         "/xyz/openbmc_project/network/hypervisor/eth0/ipv4/addr0") ||
-        (objPath == "/xyz/openbmc_project/network/hypervisor/eth1/ipv4/addr0"))
+    if ((objPath !=
+         "/xyz/openbmc_project/network/hypervisor/eth0/ipv4/addr0") &&
+        (objPath != "/xyz/openbmc_project/network/hypervisor/eth1/ipv4/addr0"))
     {
-        boost::container::flat_map<std::string,
-                                   std::variant<std::string, uint8_t, bool>>
-            values;
-        std::string objName;
-        msg.read(objName, values);
-        BMCWEB_LOG_DEBUG << objName;
-
-        auto find = values.find("Enabled");
-        if (find == values.end())
-        {
-            BMCWEB_LOG_ERROR << "Enabled property not Found";
-            return;
-        }
-
-        const bool* propValue = std::get_if<bool>(&(find->second));
-        if (propValue != nullptr)
-        {
-            BMCWEB_LOG_DEBUG << *propValue;
-
-            if (*propValue)
-            {
-                // pldm recieves a sensor event from the hypervisor when the vmi
-                // is completely configured with an IP Address, post reciveing
-                // the sensor event, pldm will sent the Enable property to True.
-                //
-                // HMC is only interested in false -> true transition of Enabled
-                // property as that is when vmi is configured.
-                //
-                // Push an event
-                std::string origin =
-                    "/redfish/v1/Systems/hypervisor/EthernetInterfaces/" +
-                    infName;
-                BMCWEB_LOG_DEBUG
-                    << "Pushing the VMI IP change Event with origin : "
-                    << origin;
-                redfish::EventServiceManager::getInstance().sendEvent(
-                    redfish::messages::resourceChanged(), origin,
-                    "EthernetInterface");
-            }
-        }
+        return;
     }
+
+    std::string infName;
+    if (objPath.find("/eth0") != std::string::npos)
+    {
+        infName = "eth0";
+    }
+    else if (objPath.find("/eth1") != std::string::npos)
+    {
+        infName = "eth1";
+    }
+
+    std::string origin =
+        "/redfish/v1/Systems/hypervisor/EthernetInterfaces/" + infName;
+    BMCWEB_LOG_DEBUG << "Pushing the VMI Nw property change event for IP "
+                        "property with origin: "
+                     << origin;
+    sendEventOnEthIntf(origin);
+    return;
 }
 
 inline void BMCStatePropertyChange(sdbusplus::message::message& msg)
@@ -234,16 +218,26 @@ void registerBMCStateChangeSignal()
         BMCStatePropertyChange);
 }
 
-void registerVMIIPChangeSignal()
+void registerVMIIPEnabledPropChangeSignal()
 {
 
     BMCWEB_LOG_DEBUG << "VMI IP change signal match - Registered";
 
-    matchVMIIPStateChange = std::make_unique<sdbusplus::bus::match::match>(
+    matchVMIIPEnabledPropChange = std::make_unique<
+        sdbusplus::bus::match::match>(
         *crow::connections::systemBus,
         "type='signal',member='PropertiesChanged',interface='org.freedesktop."
         "DBus.Properties',arg0namespace='xyz.openbmc_project.Object.Enable'",
-        VMIIPChange);
+        VMINwPropertyChange);
+}
+
+void registerVMIIPChangeSignal()
+{
+    matchVMIIPChange = std::make_unique<sdbusplus::bus::match::match>(
+        *crow::connections::systemBus,
+        "type='signal',member='PropertiesChanged',interface='org.freedesktop."
+        "DBus.Properties',arg0namespace='xyz.openbmc_project.Network.IP'",
+        VMINwPropertyChange);
 }
 
 void registerBootProgressChangeSignal()
@@ -333,8 +327,13 @@ void registerStateChangeSignal()
 {
     registerHostStateChangeSignal();
     registerBMCStateChangeSignal();
-    registerVMIIPChangeSignal();
     registerBootProgressChangeSignal();
+}
+
+void registerVMIConfigChangeSignal()
+{
+    registerVMIIPEnabledPropChangeSignal();
+    registerVMIIPChangeSignal();
 }
 
 void registerPostCodeChangeSignal()

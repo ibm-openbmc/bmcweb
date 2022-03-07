@@ -15,7 +15,7 @@ constexpr const size_t timerQueueTimeoutSeconds = 5;
 namespace detail
 {
 
-constexpr const size_t maxSize = 300;
+constexpr const size_t maxSize = 1000;
 // fast timer queue for fixed tick value.
 class TimerQueue
 {
