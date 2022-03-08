@@ -32,14 +32,13 @@ option('cookie-auth', type : 'feature', value : 'enabled', description : '''Enab
 option('mutual-tls-auth', type : 'feature', value : 'enabled', description : '''Enables authenticating users through TLS client certificates. The insecure-disable-ssl must be disabled for this option to take effect.''')
 option('ibm-management-console', type : 'feature', value : 'disabled', description : 'Enable the IBM management console specific functionality. Paths are under \'/ibm/v1/\'')
 option('google-api', type : 'feature', value : 'disabled', description : 'Enable the Google specific functionality. Paths are under \'/google/v1/\'')
-option('ibm-lamp-test', type : 'feature', value : 'disabled', description : 'Enable the IBM lamp test functionality')
+option('ibm-led-extensions', type : 'feature', value : 'disabled', description : 'Enable the IBM LED extensions such as lamp test and system attention indicators')
 option('ibm-usb-code-update', type : 'feature', value : 'disabled', description : 'Enable the USB code update functionality')
 option('http-body-limit', type: 'integer', min : 0, max : 512, value : 30, description : 'Specifies the http request body length limit')
 option('redfish-new-powersubsystem-thermalsubsystem', type : 'feature', value : 'disabled', description : 'Enable/disable the new PowerSubsystem, ThermalSubsystem, and all children schemas. This includes displaying all sensors in the SensorCollection. At a later date, this feature will be defaulted to enabled.')
 option('redfish-allow-deprecated-power-thermal', type : 'feature', value : 'enabled', description : 'Enable/disable the old Power / Thermal. The default condition is allowing the old Power / Thermal.')
 option ('https_port', type : 'integer', min : 1, max : 65535, value : 443, description : 'HTTPS Port number.')
 option('fan-oem-data', type : 'feature', value : 'disabled', description : 'Enable additional fan properties for Pid and Stepwise controllers. These OEM properties are under the Manager resource.')
-option('ibm-sai', type : 'feature', value : 'disabled', description : 'Enable the IBM system attention indicator functionality')
 
 # Insecure options. Every option that starts with a `insecure` flag should
 # not be enabled by default for any platform, unless the author fully comprehends
