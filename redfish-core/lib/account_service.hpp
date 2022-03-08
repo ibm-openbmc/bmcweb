@@ -215,14 +215,7 @@ inline bool getUserGroupFromAccountType(
         BMCWEB_LOG_ERROR << "HostConsole or ManagerConsole, one of value is "
                             "missing to set SSH property";
         isFoundAccountTypes = false;
-        if (!isHostConsole)
-        {
-            messages::strictAccountTypes(asyncResp->res, "AccountTypes");
-        }
-        if (!isManagerConsole)
-        {
-            messages::strictAccountTypes(asyncResp->res, "AccountTypes");
-        }
+        messages::strictAccountTypes(asyncResp->res, "AccountTypes");
         return isFoundAccountTypes;
     }
     if (isRedfish)
