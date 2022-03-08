@@ -1346,6 +1346,34 @@ void sourceDoesNotSupportProtocol(crow::Response& res, const std::string& arg1,
 
 /**
  * @internal
+ * @brief strict Account Types message into JSON
+ *
+ * See header file for more information
+ * @endinternal
+ */
+nlohmann::json strictAccountTypes(const std::string& arg1)
+{
+    return nlohmann::json{
+        {"@odata.type", "#MessageRegistry.v1_5_0.MessageRegistry"},
+        {"MessageId", "Base.1.12.1.StrictAccountTypes"},
+        {"Message", "The request was not possible to fulfill with the account "
+                    "types included in property " +
+                        arg1 + " and property StrictAccountTypes set to true."},
+        {"MessageArgs", {arg1}},
+        {"MessageSeverity", "Warning"},
+        {"Resolution",
+         "Resubmit the request either with an acceptable set of AccountTypes "
+         "and OEMAccountTypes or with StrictAccountTypes set to false."}};
+}
+
+void strictAccountTypes(crow::Response& res, const std::string& arg1)
+{
+    res.result(boost::beast::http::status::bad_request);
+    addMessageToErrorJson(res.jsonValue, strictAccountTypes(arg1));
+}
+
+/**
+ * @internal
  * @brief Formats AccountRemoved message into JSON
  *
  * See header file for more information
