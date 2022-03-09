@@ -381,7 +381,6 @@ inline void setAssemblylocationIndicators(
 
     std::vector<nlohmann::json> items = std::move(*assemblyData);
     std::map<std::string, bool> locationIndicatorActiveMap;
-    std::optional<nlohmann::json> Assemblies;
     std::optional<nlohmann::json> oem;
 
     for (auto& item : items)
@@ -391,7 +390,7 @@ inline void setAssemblylocationIndicators(
 
         if (!json_util::readJson(item, asyncResp->res,
                                  "LocationIndicatorActive", locationIndicatorActive,
-                                 "MemberId", memberId, "Assemblies", Assemblies, "Oem", oem))
+                                 "MemberId", memberId, "Assemblies", assemblyData, "Oem", oem))
         {
             return;
         }
@@ -415,9 +414,9 @@ inline void setAssemblylocationIndicators(
         // handled by the adcsensor application.
         if (sdbusplus::message::object_path(assembly).filename() == "tod_battery")
         {
-            if (!json_util::readJson(req, asyncResp->res, "Assemblies", Assemblies, "Oem", oem)) 
+            if (!json_util::readJson(req, asyncResp->res, "Assemblies", assemblyData, "Oem", oem)) 
             {
-                const nlohmann::json& thisJson = *Assemblies;
+                const nlohmann::json& thisJson = *assemblyData;
 
                 BMCWEB_LOG_ERROR << "Property Value Format Error ";
                 messages::propertyValueFormatError(
@@ -425,6 +424,13 @@ inline void setAssemblylocationIndicators(
                 thisJson.dump(2, ' ', true, 
                               nlohmann::json::error_handler_t::replace),
                 "Assemblies");
+                return;
+            }
+            if (!oem)
+            {
+                BMCWEB_LOG_ERROR << "Property Missing ";
+                messages::propertyMissing(asyncResp->res,
+                "Oem");
                 return;
             }
             if (oem)
@@ -438,12 +444,25 @@ inline void setAssemblylocationIndicators(
                                     "OpenBMC");
                     return;
                 }
+                if (!openbmc)
+                {
+                    BMCWEB_LOG_ERROR << "Property Missing ";
+                    messages::propertyMissing(asyncResp->res,
+                   "OpenBMC");
+                    return;
+                }
                 if (openbmc)
                 {
                     std::optional<bool> readytoremove;
                     if (!json_util::readJson(*openbmc, asyncResp->res,
                                              "ReadyToRemove", readytoremove))
                     {
+                        return;
+                    }
+                    if (!readytoremove)
+                    {
+                        BMCWEB_LOG_ERROR << "Property Missing ";
+                        messages::propertyMissing(asyncResp->res, "ReadyToRemove");
                         return;
                     }
                     if (readytoremove.value() == true)
@@ -482,27 +501,7 @@ inline void setAssemblylocationIndicators(
                         "org.freedesktop.systemd1.Manager", "StartUnit",
                         "xyz.openbmc_project.adcsensor.service", "replace");
                     }
-                    else if (!readytoremove)
-                    {
-                        BMCWEB_LOG_ERROR << "Property Missing ";
-                        messages::propertyMissing(asyncResp->res, "ReadyToRemove");
-                        return;
-                    }
                 }
-                else
-                {
-                    BMCWEB_LOG_ERROR << "Property Missing ";
-                    messages::propertyMissing(asyncResp->res,
-                   "OpenBMC");
-                    return;
-                }  
-            }
-            else
-            {
-                BMCWEB_LOG_ERROR << "Property Missing ";
-                messages::propertyMissing(asyncResp->res,
-                "Oem");
-                return;
             }
         }
   
