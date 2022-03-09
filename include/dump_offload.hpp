@@ -331,8 +331,8 @@ inline void requestRoutes(App& app)
                     boost::beast::http::status::not_found);
                 return;
             }
-            BMCWEB_LOG_INFO << "Dump offload initiated by: "
-                            << conn.req.session->clientIp;
+            BMCWEB_LOG_CRITICAL << "Dump offload initiated by: "
+                                << conn.req.session->clientIp;
             handlers[&conn]->getDumpSize(dumpId, dumpType);
         })
         .onclose([](crow::streaming_response::Connection& conn) {
@@ -407,8 +407,8 @@ inline void requestRoutes(App& app)
                     boost::beast::http::status::not_found);
                 return;
             }
-            BMCWEB_LOG_INFO << "Dump offload initiated by: "
-                            << conn.req.session->clientIp;
+            BMCWEB_LOG_CRITICAL << "Dump offload initiated by: "
+                                << conn.req.session->clientIp;
             handlers[&conn]->getDumpSize(dumpId, dumpType);
         })
         .onclose([](crow::streaming_response::Connection& conn) {

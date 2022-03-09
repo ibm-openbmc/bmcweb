@@ -88,12 +88,11 @@ feature_map = {
   'insecure-tftp-update'            : '-DBMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE',
   #'vm-nbdproxy'                     : '-DBMCWEB_ENABLE_VM_NBDPROXY',
   'vm-websocket'                    : '-DBMCWEB_ENABLE_VM_WEBSOCKET',
-  'ibm-lamp-test'                   : '-DBMCWEB_ENABLE_IBM_LAMP_TEST',
+  'ibm-led-extensions'              : '-DBMCWEB_ENABLE_IBM_LED_EXTENSIONS',
   'ibm-usb-code-update'             : '-DBMCWEB_ENABLE_IBM_USB_CODE_UPDATE',
   'hw-isolation'                    : '-DBMCWEB_ENABLE_HW_ISOLATION',
   'redfish-license'                 : '-DBMCWEB_ENABLE_REDFISH_LICENSE',
   'fan-oem-data'                    : '-DBMCWEB_ENABLE_FAN_OEM_DATA',
-  'ibm-sai'                         : '-DBMCWEB_ENABLE_SAI',
 }
 
 # Get the options status and build a project summary to show which flags are

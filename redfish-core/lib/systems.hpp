@@ -18,10 +18,8 @@
 #include "led.hpp"
 #include "pcie.hpp"
 #include "redfish_util.hpp"
-#ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
+#ifdef BMCWEB_ENABLE_IBM_LED_EXTENSIONS
 #include "oem/ibm/lamp_test.hpp"
-#endif
-#ifdef BMCWEB_ENABLE_SAI
 #include "oem/ibm/system_attention_indicator.hpp"
 #endif
 #include <app.hpp>
@@ -2732,10 +2730,8 @@ inline void requestRoutesSystems(App& app)
             getStopBootOnFault(asyncResp);
             getAutomaticRetry(asyncResp);
             getLastResetTime(asyncResp);
-#ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
+#ifdef BMCWEB_ENABLE_IBM_LED_EXTENSIONS
             getLampTestState(asyncResp);
-#endif
-#ifdef BMCWEB_ENABLE_SAI
             getSAI(asyncResp, "PartitionSystemAttentionIndicator");
             getSAI(asyncResp, "PlatformSystemAttentionIndicator");
 #endif
@@ -2861,25 +2857,12 @@ inline void requestRoutesSystems(App& app)
 
                     if (ibmOem)
                     {
-#ifdef BMCWEB_ENABLE_IBM_LAMP_TEST
+#ifdef BMCWEB_ENABLE_IBM_LED_EXTENSIONS
                         std::optional<bool> lampTest;
-                        if (!json_util::readJson(*ibmOem, asyncResp->res,
-                                                 "LampTest", lampTest))
-                        {
-                            return;
-                        }
-
-                        if (lampTest)
-                        {
-                            setLampTestState(asyncResp, *lampTest);
-                        }
-#endif
-
-#ifdef BMCWEB_ENABLE_SAI
                         std::optional<bool> partitionSAI;
                         std::optional<bool> platformSAI;
                         if (!json_util::readJson(
-                                *ibmOem, asyncResp->res,
+                                *ibmOem, asyncResp->res, "LampTest", lampTest,
                                 "PartitionSystemAttentionIndicator",
                                 partitionSAI,
                                 "PlatformSystemAttentionIndicator",
@@ -2887,7 +2870,10 @@ inline void requestRoutesSystems(App& app)
                         {
                             return;
                         }
-
+                        if (lampTest)
+                        {
+                            setLampTestState(asyncResp, *lampTest);
+                        }
                         if (partitionSAI)
                         {
                             setSAI(asyncResp,

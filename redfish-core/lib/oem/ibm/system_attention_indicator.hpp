@@ -108,11 +108,8 @@ inline void getSAI(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                     return;
                 }
 
-                nlohmann::json& oemSAI =
-                    aResp->res.jsonValue["Oem"]["OpenBmc"]["IBMOem"];
-                aResp->res.jsonValue["Oem"]["OpenBmc"]["@odata.type"] =
-                    "#OemComputerSystem.OpenBmc";
-                oemSAI["@odata.type"] = "#OemComputerSystem.IBMOem";
+                nlohmann::json& oemSAI = aResp->res.jsonValue["Oem"]["IBM"];
+                oemSAI["@odata.type"] = "#OemComputerSystem.IBM";
                 if (propertyValue == "PartitionSystemAttentionIndicator")
                 {
                     oemSAI["PartitionSystemAttentionIndicator"] = *ledOn;
