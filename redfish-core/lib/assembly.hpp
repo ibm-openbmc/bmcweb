@@ -390,7 +390,7 @@ inline void setAssemblylocationIndicators(
 
         if (!json_util::readJson(item, asyncResp->res,
                                  "LocationIndicatorActive", locationIndicatorActive,
-                                 "MemberId", memberId, "Assemblies", assemblyData, "Oem", oem))
+                                 "MemberId", memberId, "Oem", oem))
         {
             return;
         }
@@ -426,6 +426,7 @@ inline void setAssemblylocationIndicators(
                 "Assemblies");
                 return;
             }
+
             if (!oem)
             {
                 BMCWEB_LOG_ERROR << "Property Missing ";
@@ -433,75 +434,74 @@ inline void setAssemblylocationIndicators(
                 "Oem");
                 return;
             }
-            if (oem)
+
+            std::optional<nlohmann::json> openbmc;
+            if (!json_util::readJson(*oem, asyncResp->res, "OpenBMC", openbmc))
             {
-                std::optional<nlohmann::json> openbmc;
-                if (!json_util::readJson(*oem, asyncResp->res, "OpenBMC", openbmc))
-                {
-                    BMCWEB_LOG_ERROR << "Property Value Format Error ";
-                    messages::propertyValueFormatError(
-                                    asyncResp->res, *openbmc,
-                                    "OpenBMC");
-                    return;
-                }
-                if (!openbmc)
-                {
-                    BMCWEB_LOG_ERROR << "Property Missing ";
-                    messages::propertyMissing(asyncResp->res,
-                   "OpenBMC");
-                    return;
-                }
-                if (openbmc)
-                {
-                    std::optional<bool> readytoremove;
-                    if (!json_util::readJson(*openbmc, asyncResp->res,
-                                             "ReadyToRemove", readytoremove))
+                BMCWEB_LOG_ERROR << "Property Value Format Error ";
+                messages::propertyValueFormatError(
+                                asyncResp->res, *openbmc,
+                                "OpenBMC");
+                return;
+            }
+
+            if (!openbmc)
+            {
+                BMCWEB_LOG_ERROR << "Property Missing ";
+                messages::propertyMissing(asyncResp->res,
+               "OpenBMC");
+                return;
+            }
+
+            std::optional<bool> readytoremove;
+            if (!json_util::readJson(*openbmc, asyncResp->res,
+                                     "ReadyToRemove", readytoremove))
+            {
+                return;
+            }
+
+            if (!readytoremove)
+            {
+                BMCWEB_LOG_ERROR << "Property Missing ";
+                messages::propertyMissing(asyncResp->res, "ReadyToRemove");
+                return;
+            }
+
+            if (readytoremove.value() == true)
+            {
+                // Call systemd to stop ADCSensor
+                crow::connections::systemBus->async_method_call(
+                        [asyncResp](const boost::system::error_code ec) {
+                    if (ec)
                     {
+                        BMCWEB_LOG_ERROR << "Failed to Stop ADCSensor:"
+                                     << ec;
+                        messages::internalError(asyncResp->res);
                         return;
                     }
-                    if (!readytoremove)
+                    messages::success(asyncResp->res);
+                },
+                "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
+                "org.freedesktop.systemd1.Manager", "StopUnit",
+                "xyz.openbmc_project.adcsensor.service", "replace");
+            }
+            else if (readytoremove.value() == false)
+            {
+                // Call systemd to start ADCSensor
+                crow::connections::systemBus->async_method_call(
+                        [asyncResp](const boost::system::error_code ec) {
+                    if (ec)
                     {
-                        BMCWEB_LOG_ERROR << "Property Missing ";
-                        messages::propertyMissing(asyncResp->res, "ReadyToRemove");
+                        BMCWEB_LOG_ERROR << "Failed to Start ADCSensor:"
+                                     << ec;
+                        messages::internalError(asyncResp->res);
                         return;
                     }
-                    if (readytoremove.value() == true)
-                    {
-                        // Call systemd to stop ADCSensor
-                        crow::connections::systemBus->async_method_call(
-                            [asyncResp](const boost::system::error_code ec) {
-                                if (ec)
-                                {
-                                    BMCWEB_LOG_ERROR << "Failed to Stop ADCSensor:"
-                                                 << ec;
-                                    messages::internalError(asyncResp->res);
-                                    return;
-                                }
-                                messages::success(asyncResp->res);
-                            },
-                        "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager", "StopUnit",
-                        "xyz.openbmc_project.adcsensor.service", "replace");
-                    }
-                    else if (readytoremove.value() == false)
-                    {
-                        // Call systemd to start ADCSensor
-                        crow::connections::systemBus->async_method_call(
-                            [asyncResp](const boost::system::error_code ec) {
-                                if (ec)
-                                {
-                                    BMCWEB_LOG_ERROR << "Failed to Start ADCSensor:"
-                                                 << ec;
-                                    messages::internalError(asyncResp->res);
-                                    return;
-                                }
-                                messages::success(asyncResp->res);
-                            },
-                        "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager", "StartUnit",
-                        "xyz.openbmc_project.adcsensor.service", "replace");
-                    }
-                }
+                    messages::success(asyncResp->res);
+                },
+                "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
+                "org.freedesktop.systemd1.Manager", "StartUnit",
+                "xyz.openbmc_project.adcsensor.service", "replace");
             }
         }
   
