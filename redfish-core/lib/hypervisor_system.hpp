@@ -510,7 +510,8 @@ inline void
 }
 
 inline void handleHypervisorIPv4StaticPatch(
-    const std::string& ifaceId, const nlohmann::json& input,
+    const crow::Request& req, const std::string& ifaceId,
+    const nlohmann::json& input,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     if ((!input.is_array()) || input.empty())
@@ -598,6 +599,12 @@ inline void handleHypervisorIPv4StaticPatch(
         {
             return;
         }
+
+        BMCWEB_LOG_ERROR
+            << "INFO: Static ip configuration request from client: "
+            << req.session->clientIp << " - ip: " << *address
+            << "; gateway: " << *gateway
+            << "; prefix length: " << static_cast<int64_t>(prefixLength);
 
         createHypervisorIPv4(ifaceId, prefixLength, *gateway, *address,
                              asyncResp);
@@ -804,7 +811,7 @@ inline void requestRoutesHypervisorSystems(App& app)
 
             getHypervisorIfaceData(
                 ifaceId,
-                [asyncResp, ifaceId, hostName = std::move(hostName),
+                [req, asyncResp, ifaceId, hostName = std::move(hostName),
                  ipv4StaticAddresses = std::move(ipv4StaticAddresses),
                  ipv4DHCPEnabled, dhcpv4 = std::move(dhcpv4)](
                     const bool& success, const EthernetInterfaceData& ethData,
@@ -860,8 +867,8 @@ inline void requestRoutesHypervisorSystems(App& app)
                                 "DHCPEnabled");
                             return;
                         }
-                        handleHypervisorIPv4StaticPatch(ifaceId, ipv4Static,
-                                                        asyncResp);
+                        handleHypervisorIPv4StaticPatch(req, ifaceId,
+                                                        ipv4Static, asyncResp);
                     }
                     if (hostName)
                     {
