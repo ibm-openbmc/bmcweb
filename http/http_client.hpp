@@ -215,8 +215,6 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
             self->recvMessage();
         };
 
-        // Set a timeout on the operation
-        conn.expires_after(std::chrono::seconds(30));
         if (sslConn)
         {
             boost::beast::http::async_write(*sslConn, req,
@@ -346,8 +344,6 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
     {
         state = ConnState::closeInProgress;
 
-        // Set the timeout on the tcp stream socket for the async operation
-        conn.expires_after(std::chrono::seconds(30));
         if (sslConn)
         {
             sslConn->async_shutdown([self = shared_from_this()](
@@ -371,7 +367,9 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                 }
                 else
                 {
-                    BMCWEB_LOG_DEBUG << "Connection closed gracefully...";
+                    BMCWEB_LOG_ERROR << "INFO: Connection closed gracefully..."
+                                     << " Destination: " << self->host << ":"
+                                     << self->port;
                 }
                 self->conn.close();
 
