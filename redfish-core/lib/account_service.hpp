@@ -1714,7 +1714,6 @@ inline void requestAccountServiceRoutes(App& app)
                 {"Description", "Account Service"},
                 {"ServiceEnabled", true},
                 {"MaxPasswordLength", 20},
-                {"StrictAccountTypes", true},
                 {"Accounts",
                  {{"@odata.id", "/redfish/v1/AccountService/Accounts"}}},
                 {"Roles", {{"@odata.id", "/redfish/v1/AccountService/Roles"}}},
@@ -2169,10 +2168,11 @@ inline void requestAccountServiceRoutes(App& app)
 
                     asyncResp->res.jsonValue = {
                         {"@odata.type",
-                         "#ManagerAccount.v1_4_0.ManagerAccount"},
+                         "#ManagerAccount.v1_7_0.ManagerAccount"},
                         {"Name", "User Account"},
                         {"Description", "User Account"},
-                        {"Password", nullptr}};
+                        {"Password", nullptr},
+                        {"StrictAccountTypes", true}};
 
                     for (const auto& interface : userIt->second)
                     {
