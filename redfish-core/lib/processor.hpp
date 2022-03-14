@@ -1080,7 +1080,8 @@ inline void
                 {
                     aResp->res.jsonValue["Status"]["State"] = "Absent";
                 }
-                else if (functional == false)
+
+                if (functional == false)
                 {
                     aResp->res.jsonValue["Status"]["Health"] = "Critical";
                 }
