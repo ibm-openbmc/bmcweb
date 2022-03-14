@@ -1193,7 +1193,7 @@ inline void requestRoutesMemory(App& app)
             });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/Memory/<str>/")
-        .privileges({{"Login"}})
+        .privileges(redfish::privileges::patchMemory)
         .methods(boost::beast::http::verb::patch)(
             [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
