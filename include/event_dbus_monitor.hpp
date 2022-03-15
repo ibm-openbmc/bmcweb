@@ -131,10 +131,13 @@ inline void HostStatePropertyChange(sdbusplus::message::message& msg)
         BMCWEB_LOG_DEBUG << *type;
         if (*type == "xyz.openbmc_project.State.Host.HostState.Off")
         {
+            // Reset system dump handler to handle power off scenarios
+            crow::obmc_dump::resetHandlers();
+
             // reset the postCodeCounter
             postCodeCounter = 0;
-            BMCWEB_LOG_DEBUG
-                << "Host is powered off. Reset the postcode counter to "
+            BMCWEB_LOG_CRITICAL
+                << "INFO: Host is powered off. Reset the postcode counter to "
                 << postCodeCounter;
         }
         // Push an event
