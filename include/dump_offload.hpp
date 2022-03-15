@@ -248,7 +248,8 @@ class Handler : public std::enable_shared_from_this<Handler>
                 const boost::system::error_code& ec, std::size_t bytesRead) {
                 if (ec)
                 {
-                    BMCWEB_LOG_DEBUG << "Couldn't read from local peer: " << ec;
+                    BMCWEB_LOG_CRITICAL
+                        << "INFO: Couldn't read from local peer: " << ec;
 
                     if (ec != boost::asio::error::eof)
                     {
@@ -290,6 +291,22 @@ static boost::container::flat_map<crow::streaming_response::Connection*,
 static boost::container::flat_map<crow::streaming_response::Connection*,
                                   std::shared_ptr<Handler>>
     systemHandlers;
+
+inline void resetHandlers()
+{
+    if (!systemHandlers.empty())
+    {
+        auto handler = systemHandlers.begin();
+        if (handler == systemHandlers.end())
+        {
+            BMCWEB_LOG_DEBUG << "No handler to cleanup";
+            return;
+        }
+        handler->first->close();
+        BMCWEB_LOG_CRITICAL << "INFO: resetHandlers cleanup";
+    }
+    return;
+}
 
 inline void requestRoutes(App& app)
 {
@@ -450,8 +467,8 @@ inline void requestRoutes(App& app)
                 return;
             }
             handler->second->cleanupSocketFiles();
-            systemHandlers.erase(handler);
             handler->second->outputBuffer.clear();
+            systemHandlers.clear();
         });
 }
 
