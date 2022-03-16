@@ -218,8 +218,6 @@ inline void
  * @param[in] interfaces - The redfish resource dbus interfaces which will use
  *                         to get the given resource dbus objects from
  *                         the inventory.
- * @param[in] parentSubtreePath - The resource parent subtree path to get
- *                                the resource object path.
  *
  * @return The redfish response in given response buffer.
  *
@@ -557,6 +555,13 @@ inline void
                                 hwStatusEventObj);
                             messages::internalError(aResp->res);
                             return;
+                        }
+
+                        // Host recovered even if there is hardware
+                        // isolation entry so change the state.
+                        if (*msgPropVal == "Recovered")
+                        {
+                            aResp->res.jsonValue["Status"]["State"] = "Enabled";
                         }
 
                         const redfish::registries::Message* msgReg =
