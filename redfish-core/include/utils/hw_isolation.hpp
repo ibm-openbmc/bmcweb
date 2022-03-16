@@ -585,6 +585,15 @@ inline void
                                         return;
                                     }
 
+                                    // Host recovered even if there is hardware
+                                    // isolation entry so change the state.
+                                    if (*msgPropVal == "Recovered")
+                                    {
+                                        aResp->res
+                                            .jsonValue["Status"]["State"] =
+                                            "Enabled";
+                                    }
+
                                     const message_registries::Message* msgReg =
                                         message_registries::getMessage(
                                             "OpenBMC.0.2."
