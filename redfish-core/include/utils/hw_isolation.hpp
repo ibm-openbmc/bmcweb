@@ -586,6 +586,15 @@ inline void
                                         return;
                                     }
 
+                                    // Host recovered even if there is hardware
+                                    // isolation entry so change the state.
+                                    if (*msgPropVal == "Recovered")
+                                    {
+                                        aResp->res
+                                            .jsonValue["Status"]["State"] =
+                                            "Enabled";
+                                    }
+
                                     const redfish::registries::Message* msgReg =
                                         registries::getMessage(
                                             "OpenBMC.0.2."
