@@ -406,6 +406,17 @@ class Subscription : public persistent_data::UserSubscription
             conn = std::make_shared<crow::HttpClient>(
                 crow::connections::systemBus->get_io_context(), subId, host,
                 port, path, uriProto, httpHeaders);
+            uint32_t retryAttempts;
+            uint32_t retryTimeoutInterval;
+            persistent_data::EventServiceConfig eventServiceConfig =
+                persistent_data::EventServiceStore::getInstance()
+                    .getEventServiceConfig();
+
+            retryAttempts = eventServiceConfig.retryAttempts;
+            retryTimeoutInterval = eventServiceConfig.retryTimeoutInterval;
+
+            conn->setRetryPolicy(retryPolicy);
+            conn->setRetryConfig(retryAttempts, retryTimeoutInterval);
         }
         if (conn->getConnState() != crow::ConnState::terminated)
         {
