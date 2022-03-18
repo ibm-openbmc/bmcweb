@@ -12,6 +12,74 @@ namespace hw_isolation_utils
 {
 
 /**
+ * @brief API used to return ChassisPowerStateOffRequiredError with
+ *        the Chassis id that will get by using the given resource
+ *        object to perform some PATCH operation on the resource object.
+ *
+ * @param[in] aResp - The redfish response to return to the caller.
+ * @param[in] resourceObjPath - The redfish resource dbus object path.
+ *
+ * @return The redfish response in given response buffer.
+ */
+inline void retChassisPowerStateOffRequiredError(
+    const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+    const sdbusplus::message::object_path& resourceObjPath)
+{
+    crow::connections::systemBus->async_method_call(
+        [aResp, resourceObjPath](
+            const boost::system::error_code ec,
+            const boost::container::flat_map<
+                std::string, boost::container::flat_map<
+                                 std::string, std::vector<std::string>>>&
+                ancestors) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "DBUS response error [" << ec.value()
+                                 << " : " << ec.message()
+                                 << "] when tried to get parent Chassis id for "
+                                    "the given resource object ["
+                                 << resourceObjPath.str << "]";
+                messages::internalError(aResp->res);
+                return;
+            }
+
+            if (ancestors.empty())
+            {
+                BMCWEB_LOG_ERROR
+                    << "The given resource object [" << resourceObjPath.str
+                    << "] is not the child of the Chassis so failed return "
+                    << "ChassisPowerStateOffRequiredError in the response";
+                messages::internalError(aResp->res);
+                return;
+            }
+
+            if (ancestors.size() > 1)
+            {
+                // Should not happen since GetAncestors returs parent object
+                // from the given child object path and we are just looking
+                // for parent chassis object id alone, so we should get one
+                // element.
+                BMCWEB_LOG_ERROR
+                    << "The given resource object [" << resourceObjPath.str
+                    << "] is contains more than one Chassis as parent so "
+                    << "failed return ChassisPowerStateOffRequiredError "
+                    << "in the response";
+                messages::internalError(aResp->res);
+                return;
+            }
+            messages::chassisPowerStateOffRequired(
+                aResp->res,
+                sdbusplus::message::object_path(ancestors.begin()->first)
+                    .filename());
+        },
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetAncestors", resourceObjPath.str,
+        std::array<const char*, 1>{
+            "xyz.openbmc_project.Inventory.Item.Chassis"});
+}
+
+/**
  * @brief API used to isolate the given resource
  *
  * @param[in] aResp - The redfish response to return to the caller.
@@ -58,29 +126,33 @@ inline void
             BMCWEB_LOG_ERROR << "DBus ErrorName: " << dbusError->name
                              << " ErrorMsg: " << dbusError->message;
 
+            // The Enabled property value will be "false" to isolate.
+            constexpr bool enabledPropVal = false;
             if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
                                         "InvalidArgument") == 0)
             {
-                constexpr bool isolate = false;
-                messages::propertyValueIncorrect(aResp->res, "@odata.id",
-                                                 std::to_string(isolate));
+                messages::propertyValueIncorrect(
+                    aResp->res, "@odata.id", std::to_string(enabledPropVal));
             }
             else if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
                                              "NotAllowed") == 0)
             {
-                messages::propertyNotWritable(aResp->res, "Enabled");
+                retChassisPowerStateOffRequiredError(aResp, resourceObjPath);
             }
             else if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
                                              "Unavailable") == 0)
             {
-                messages::resourceInStandby(aResp->res);
+                messages::propertyValueResourceConflict(
+                    aResp->res, "Enabled", std::to_string(enabledPropVal),
+                    "HardwareIsolation");
             }
             else if (strcmp(dbusError->name, "xyz.openbmc_project."
                                              "HardwareIsolation.Error."
                                              "IsolatedAlready") == 0)
             {
-                messages::resourceAlreadyExists(aResp->res, "@odata.id",
-                                                resourceName, resourceId);
+                messages::resourceAlreadyExists(aResp->res, resourceName,
+                                                "Enabled",
+                                                std::to_string(enabledPropVal));
             }
             else if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
                                              "TooManyResources") == 0)
@@ -138,7 +210,19 @@ inline void
                                     "isolation entry for the given "
                                     "resource dbus object path: "
                                  << resourceObjPath.str;
-                messages::internalError(aResp->res);
+                // The error code (53 == Invalid request descriptor) will be
+                // returned if dbus doesn't contains "isolated_hw_entry" for
+                // the given resource i.e it is not isolated to deisolate.
+                // This case might occur when resource are in the certain state
+                if (ec.value() == 53)
+                {
+                    messages::propertyValueConflict(aResp->res, "Enabled",
+                                                    "Status.State");
+                }
+                else
+                {
+                    messages::internalError(aResp->res);
+                }
                 return;
             }
 
@@ -157,8 +241,8 @@ inline void
 
             // De-isolate the given resource
             crow::connections::systemBus->async_method_call(
-                [aResp, resourceIsolatedHwEntry](
-                    const boost::system::error_code ec1,
+                [aResp, resourceIsolatedHwEntry,
+                resourceObjPath](const boost::system::error_code ec1,
                     const sdbusplus::message::message& msg) {
                     if (!ec1)
                     {
@@ -186,13 +270,20 @@ inline void
                                "xyz.openbmc_project.Common.Error."
                                "NotAllowed") == 0)
                     {
-                        messages::propertyNotWritable(aResp->res, "Entry");
+                        retChassisPowerStateOffRequiredError(aResp,
+                                                             resourceObjPath);
                     }
                     else if (strcmp(dbusError->name,
                                     "xyz.openbmc_project.Common.Error."
                                     "Unavailable") == 0)
                     {
-                        messages::resourceInStandby(aResp->res);
+                        // The Enabled property value will be "true" to
+                        // de-isolate.
+                        constexpr bool enabledPropVal = true;
+                        messages::propertyValueResourceConflict(
+                            aResp->res, "Enabled",
+                            std::to_string(enabledPropVal),
+                            "HardwareIsolation");
                     }
                     else
                     {
