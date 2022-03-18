@@ -884,6 +884,52 @@ void propertyValueIncorrect(crow::Response& res, std::string_view arg1,
 
 /**
  * @internal
+ * @brief Formats PropertyValueResourceConflict message into JSON
+ *
+ * See header file for more information
+ * @endinternal
+ */
+nlohmann::json propertyValueResourceConflict(const std::string& arg1,
+                                             const std::string& arg2,
+                                             const std::string& arg3)
+{
+    std::string messageText = "The property '";
+    messageText += arg1;
+    messageText += "' with the requested value of '";
+    messageText += arg2;
+    messageText +=
+        "' could not be written because the value conflicts with the state or configuration of the resource at '";
+    messageText += arg3;
+    messageText += "'.";
+
+    nlohmann::json::object_t message;
+    message["@odata.type"] = "#Message.v1_1_1.Message";
+    message["MessageId"] = "Base.1.10.0.PropertyValueResourceConflict";
+    message["Message"] = std::move(messageText);
+
+    nlohmann::json::array_t messageArgs;
+    messageArgs.emplace_back(arg1);
+    messageArgs.emplace_back(arg2);
+    messageArgs.emplace_back(arg3);
+    message["MessageArgs"] = std::move(messageArgs);
+
+    message["MessageSeverity"] = "Warning";
+    message["Resolution"] = "No resolution is required.";
+
+    return message;
+}
+
+void propertyValueResourceConflict(crow::Response& res, const std::string& arg1,
+                                   const std::string& arg2,
+                                   const std::string& arg3)
+{
+    res.result(boost::beast::http::status::bad_request);
+    addMessageToErrorJson(res.jsonValue,
+                          propertyValueResourceConflict(arg1, arg2, arg3));
+}
+
+/**
+ * @internal
  * @brief Formats ResourceCreationConflict message into JSON
  *
  * See header file for more information
