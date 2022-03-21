@@ -31,6 +31,10 @@ inline void getPrettyName(
     if (services.size() != 1)
     {
         BMCWEB_LOG_ERROR << "Invalid Service Size " << services.size();
+        for (const auto& service : services)
+        {
+            BMCWEB_LOG_ERROR << "Invalid Service Name: " << service.first;
+        }
         if (asyncResp)
         {
             messages::internalError(asyncResp->res);
