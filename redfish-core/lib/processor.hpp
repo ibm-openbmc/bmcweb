@@ -1080,6 +1080,11 @@ inline void
                 {
                     aResp->res.jsonValue["Status"]["State"] = "Absent";
                 }
+                else if (functional == false)
+                {
+                    // State also need to change if the core is non-functional
+                    aResp->res.jsonValue["Status"]["State"] = "Disabled";
+                }
 
                 if (functional == false)
                 {
