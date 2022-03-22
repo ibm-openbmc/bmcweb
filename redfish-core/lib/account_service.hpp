@@ -100,10 +100,6 @@ inline std::string getRoleIdFromPrivilege(std::string_view role)
     {
         return "OemIBMServiceAgent";
     }
-    if ((role == "") || (role == "priv-noaccess"))
-    {
-        return "NoAccess";
-    }
     return "";
 }
 
@@ -124,10 +120,6 @@ inline std::string getPrivilegeFromRoleId(std::string_view role)
     if (role == "OemIBMServiceAgent")
     {
         return "priv-oemibmserviceagent";
-    }
-    if ((role == "NoAccess") || (role == ""))
-    {
-        return "priv-noaccess";
     }
     return "";
 }
