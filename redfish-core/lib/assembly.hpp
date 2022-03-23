@@ -410,7 +410,6 @@ inline void setAssemblylocationIndicators(
                 messages::propertyValueFormatError(
                                 asyncResp->res, *openbmc,
                                 "OpenBMC");
-                std::cout<<"GOT TO 5"<<std::endl;
                 return;
             }
 
