@@ -381,60 +381,28 @@ inline void setAssemblylocationIndicators(
 
     std::vector<nlohmann::json> items = std::move(*assemblyData);
     std::map<std::string, bool> locationIndicatorActiveMap;
+    std::string memberId;
+    std::optional<bool> locationIndicatorPresent;
     std::optional<nlohmann::json> oem;
 
     for (auto& item : items)
     {
-        bool locationIndicatorActive;
-        std::string memberId;
-
         if (!json_util::readJson(item, asyncResp->res,
-                                 "LocationIndicatorActive", locationIndicatorActive,
+                                 "LocationIndicatorActive", locationIndicatorPresent,
                                  "MemberId", memberId, "Oem", oem))
         {
             return;
         }
+
+        bool locationIndicatorActive = *locationIndicatorPresent;
         locationIndicatorActiveMap[memberId] = locationIndicatorActive;
-    }
-
-    std::size_t assemblyIndex = 0;
-    for (const auto& assembly : assemblies)
-    {
-        auto iter =
-            locationIndicatorActiveMap.find(std::to_string(assemblyIndex));
-
-        if (iter != locationIndicatorActiveMap.end())
-        {
-            setLocationIndicatorActive(asyncResp, assembly, iter->second);
-        }
 
         // Handle special case for tod_battery assembly OEM ReadyToRemove property
         // NOTE: The following method for the special case of the tod_battery
         // ReadyToRemove property only works when there is only ONE adcsensor
         // handled by the adcsensor application.
-        if (sdbusplus::message::object_path(assembly).filename() == "tod_battery")
+        if ((oem) && (memberId == "1"))
         {
-            if (!json_util::readJson(req, asyncResp->res, "Assemblies", assemblyData, "Oem", oem)) 
-            {
-                const nlohmann::json& thisJson = *assemblyData;
-
-                BMCWEB_LOG_ERROR << "Property Value Format Error ";
-                messages::propertyValueFormatError(
-                asyncResp->res,
-                thisJson.dump(2, ' ', true, 
-                              nlohmann::json::error_handler_t::replace),
-                "Assemblies");
-                return;
-            }
-
-            if (!oem)
-            {
-                BMCWEB_LOG_ERROR << "Property Missing ";
-                messages::propertyMissing(asyncResp->res,
-                "Oem");
-                return;
-            }
-
             std::optional<nlohmann::json> openbmc;
             if (!json_util::readJson(*oem, asyncResp->res, "OpenBMC", openbmc))
             {
@@ -442,14 +410,14 @@ inline void setAssemblylocationIndicators(
                 messages::propertyValueFormatError(
                                 asyncResp->res, *openbmc,
                                 "OpenBMC");
+                std::cout<<"GOT TO 5"<<std::endl;
                 return;
             }
 
             if (!openbmc)
             {
                 BMCWEB_LOG_ERROR << "Property Missing ";
-                messages::propertyMissing(asyncResp->res,
-               "OpenBMC");
+                messages::propertyMissing(asyncResp->res, "OpenBMC");
                 return;
             }
 
@@ -503,6 +471,18 @@ inline void setAssemblylocationIndicators(
                 "org.freedesktop.systemd1.Manager", "StartUnit",
                 "xyz.openbmc_project.adcsensor.service", "replace");
             }
+        }
+    }
+
+    std::size_t assemblyIndex = 0;
+    for (const auto& assembly : assemblies)
+    {
+        auto iter =
+            locationIndicatorActiveMap.find(std::to_string(assemblyIndex));
+
+        if (iter != locationIndicatorActiveMap.end())
+        {
+            setLocationIndicatorActive(asyncResp, assembly, iter->second);
         }
   
         assemblyIndex++;
