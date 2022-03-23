@@ -80,6 +80,13 @@ enum class eventLogTypes
     ceLog,
 };
 
+enum DumpCreationProgress
+{
+    DUMP_CREATE_SUCCESS,
+    DUMP_CREATE_FAILED,
+    DUMP_CREATE_INPROGRESS
+};
+
 namespace message_registries
 {
 static const Message* getMessageFromRegistry(
@@ -841,8 +848,9 @@ inline void deleteDumpEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         "xyz.openbmc_project.Object.Delete", "Delete");
 }
 
-inline bool getDumpCompletionStatus(
-    std::vector<std::pair<std::string, std::variant<std::string>>>& values)
+inline DumpCreationProgress getDumpCompletionStatus(
+    std::vector<std::pair<std::string, std::variant<std::string>>>& values,
+    const std::shared_ptr<task::TaskData>& taskData, const std::string& objPath)
 {
     for (const std::pair<std::string, std::variant<std::string>>& statusProp :
          values)
@@ -850,12 +858,50 @@ inline bool getDumpCompletionStatus(
         if (statusProp.first == "Status")
         {
             const std::string& value = std::get<std::string>(statusProp.second);
-            return value !=
-                   "xyz.openbmc_project.Common.Progress.OperationStatus."
-                   "Completed";
+            if (value ==
+                "xyz.openbmc_project.Common.Progress.OperationStatus.Completed")
+            {
+                return DUMP_CREATE_SUCCESS;
+            }
+            if (value == "xyz.openbmc_project.Common.Progress."
+                         "OperationStatus.Failed")
+            {
+                return DUMP_CREATE_FAILED;
+            }
+            return DUMP_CREATE_INPROGRESS;
+        }
+
+        // Only resource dumps will implement the interface with this
+        // property. Hence the below if statement will be hit for
+        // all the resource dumps only
+        if (statusProp.first == "DumpRequestStatus")
+        {
+            const std::string& value = std::get<std::string>(statusProp.second);
+            if (value.ends_with("PermissionDenied"))
+            {
+                taskData->messages.emplace_back(
+                    messages::insufficientPrivilege());
+                return DUMP_CREATE_FAILED;
+            }
+            if (value.ends_with("AcfFileInvalid") ||
+                value.ends_with("PasswordInvalid"))
+            {
+                taskData->messages.emplace_back(
+                    messages::resourceAtUriUnauthorized(objPath,
+                                                        "Invalid Password"));
+                return DUMP_CREATE_FAILED;
+            }
+            if (value.ends_with("ResourceSelectorInvalid"))
+            {
+                taskData->messages.emplace_back(
+                    messages::actionParameterUnknown("CollectDiagnosticData",
+                                                     "Resource selector"));
+                return DUMP_CREATE_FAILED;
+            }
+            return DUMP_CREATE_INPROGRESS;
         }
     }
-    return true;
+    return DUMP_CREATE_INPROGRESS;
 }
 
 inline void createDumpTaskCallback(
@@ -904,6 +950,7 @@ inline void createDumpTaskCallback(
                 BMCWEB_LOG_ERROR << createdObjPath.str
                                  << ": Error in creating dump";
                 taskData->messages.emplace_back(messages::internalError());
+                taskData->state = "Cancelled";
                 return task::completed;
             }
 
@@ -912,7 +959,17 @@ inline void createDumpTaskCallback(
             std::string prop;
             m.read(prop, values);
 
-            if (getDumpCompletionStatus(values))
+            int dumpStatus =
+                getDumpCompletionStatus(values, taskData, createdObjPath);
+            if (dumpStatus == DUMP_CREATE_FAILED)
+            {
+                BMCWEB_LOG_ERROR << createdObjPath.str
+                                 << ": Error in creating dump";
+                taskData->state = "Cancelled";
+                return task::completed;
+            }
+
+            if (dumpStatus == DUMP_CREATE_INPROGRESS)
             {
                 BMCWEB_LOG_ERROR << createdObjPath.str
                                  << ": Dump creation task not completed";
@@ -933,8 +990,7 @@ inline void createDumpTaskCallback(
         },
         "type='signal',interface='org.freedesktop.DBus.Properties',"
         "member='PropertiesChanged',path='" +
-            createdObjPath.str +
-            "',arg0='xyz.openbmc_project.Common.Progress'");
+            createdObjPath.str + "'");
 
     task->startTimer(std::chrono::minutes(20));
     task->populateResp(asyncResp->res);

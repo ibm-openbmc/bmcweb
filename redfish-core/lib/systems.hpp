@@ -961,16 +961,20 @@ inline void
             }
 
             const boost::container::flat_map<std::string, std::string>
-                policyMaps = {
-                    {"xyz.openbmc_project.Control.Power.RestorePolicy.Policy."
-                     "AlwaysOn",
-                     "AlwaysOn"},
-                    {"xyz.openbmc_project.Control.Power.RestorePolicy.Policy."
-                     "AlwaysOff",
-                     "AlwaysOff"},
-                    {"xyz.openbmc_project.Control.Power.RestorePolicy.Policy."
-                     "Restore",
-                     "LastState"}};
+                policyMaps = {{"xyz.openbmc_project.Control.Power."
+                               "RestorePolicy.Policy.AlwaysOn",
+                               "AlwaysOn"},
+                              {"xyz.openbmc_project.Control.Power."
+                               "RestorePolicy.Policy.AlwaysOff",
+                               "AlwaysOff"},
+                              {"xyz.openbmc_project.Control.Power."
+                               "RestorePolicy.Policy.Restore",
+                               "LastState"},
+                              // Return `AlwaysOff` when power restore policy
+                              // set to "None"
+                              {"xyz.openbmc_project.Control.Power."
+                               "RestorePolicy.Policy.None",
+                               "AlwaysOff"}};
 
             const std::string* policyPtr = std::get_if<std::string>(&policy);
 

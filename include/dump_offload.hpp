@@ -248,7 +248,8 @@ class Handler : public std::enable_shared_from_this<Handler>
                 const boost::system::error_code& ec, std::size_t bytesRead) {
                 if (ec)
                 {
-                    BMCWEB_LOG_DEBUG << "Couldn't read from local peer: " << ec;
+                    BMCWEB_LOG_CRITICAL
+                        << "INFO: Couldn't read from local peer: " << ec;
 
                     if (ec != boost::asio::error::eof)
                     {
@@ -286,7 +287,26 @@ class Handler : public std::enable_shared_from_this<Handler>
 
 static boost::container::flat_map<crow::streaming_response::Connection*,
                                   std::shared_ptr<Handler>>
-    handlers;
+    bmcHandlers;
+static boost::container::flat_map<crow::streaming_response::Connection*,
+                                  std::shared_ptr<Handler>>
+    systemHandlers;
+
+inline void resetHandlers()
+{
+    if (!systemHandlers.empty())
+    {
+        auto handler = systemHandlers.begin();
+        if (handler == systemHandlers.end())
+        {
+            BMCWEB_LOG_DEBUG << "No handler to cleanup";
+            return;
+        }
+        handler->first->close();
+        BMCWEB_LOG_CRITICAL << "INFO: resetHandlers cleanup";
+    }
+    return;
+}
 
 inline void requestRoutes(App& app)
 {
@@ -296,13 +316,26 @@ inline void requestRoutes(App& app)
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
         .streamingResponse()
         .onopen([](crow::streaming_response::Connection& conn) {
+            if (!bmcHandlers.empty())
+            {
+                BMCWEB_LOG_ERROR << "Can't allow dump offload opertaion, one "
+                                    "of the BMC dump is already offloading";
+                conn.sendStreamErrorStatus(
+                    boost::beast::http::status::service_unavailable);
+                conn.close();
+                return;
+            }
+
             std::string url(conn.req.target());
             std::string startDelimiter = "Entries/";
             std::size_t pos1 = url.rfind(startDelimiter);
             std::size_t pos2 = url.rfind("/attachment");
             if (pos1 == std::string::npos || pos2 == std::string::npos)
             {
-                BMCWEB_LOG_DEBUG << "Unable to extract the dump id";
+                BMCWEB_LOG_ERROR << "Unable to extract the dump id";
+                conn.sendStreamErrorStatus(
+                    boost::beast::http::status::not_found);
+                conn.close();
                 return;
             }
 
@@ -321,30 +354,32 @@ inline void requestRoutes(App& app)
             std::string unixSocketPath = unixSocketPathDir + dumpType +
                                          "_dump_" + std::to_string(dist(gen));
 
-            handlers[&conn] = std::make_shared<Handler>(
+            bmcHandlers[&conn] = std::make_shared<Handler>(
                 *ioCon, dumpId, dumpType, unixSocketPath);
-            handlers[&conn]->connection = &conn;
+            bmcHandlers[&conn]->connection = &conn;
 
             if (!crow::ibm_utils::createDirectory(unixSocketPathDir))
             {
-                handlers[&conn]->connection->sendStreamErrorStatus(
+                bmcHandlers[&conn]->connection->sendStreamErrorStatus(
                     boost::beast::http::status::not_found);
+                bmcHandlers[&conn]->connection->close();
                 return;
             }
-            BMCWEB_LOG_CRITICAL << "Dump offload initiated by: "
-                                << conn.req.session->clientIp;
-            handlers[&conn]->getDumpSize(dumpId, dumpType);
+            BMCWEB_LOG_CRITICAL
+                << "INFO: " << dumpType << " Dump id " << dumpId
+                << " offload initiated by: " << conn.req.session->clientIp;
+            bmcHandlers[&conn]->getDumpSize(dumpId, dumpType);
         })
         .onclose([](crow::streaming_response::Connection& conn) {
-            auto handler = handlers.find(&conn);
-            if (handler == handlers.end())
+            auto handler = bmcHandlers.find(&conn);
+            if (handler == bmcHandlers.end())
             {
                 BMCWEB_LOG_DEBUG << "No handler to cleanup";
                 return;
             }
             handler->second->cleanupSocketFiles();
             handler->second->outputBuffer.clear();
-            handlers.erase(handler);
+            bmcHandlers.erase(handler);
         });
 
     BMCWEB_ROUTE(
@@ -353,6 +388,16 @@ inline void requestRoutes(App& app)
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
         .streamingResponse()
         .onopen([](crow::streaming_response::Connection& conn) {
+            if (!systemHandlers.empty())
+            {
+                BMCWEB_LOG_ERROR << "Can't allow dump offload opertaion, one "
+                                    "of the host dump is already offloading";
+                conn.sendStreamErrorStatus(
+                    boost::beast::http::status::service_unavailable);
+                conn.close();
+                return;
+            }
+
             std::string url(conn.req.target());
 
             std::string startDelimiter = "Entries/";
@@ -360,9 +405,10 @@ inline void requestRoutes(App& app)
             std::size_t pos2 = url.rfind("/attachment");
             if (pos1 == std::string::npos || pos2 == std::string::npos)
             {
-                BMCWEB_LOG_DEBUG << "Unable to extract the dump id";
+                BMCWEB_LOG_ERROR << "Unable to extract the dump id";
                 conn.sendStreamErrorStatus(
                     boost::beast::http::status::not_found);
+                conn.close();
                 return;
             }
 
@@ -397,30 +443,32 @@ inline void requestRoutes(App& app)
             std::string unixSocketPath = unixSocketPathDir + dumpType +
                                          "_dump_" + std::to_string(dist(gen));
 
-            handlers[&conn] = std::make_shared<Handler>(
+            systemHandlers[&conn] = std::make_shared<Handler>(
                 *ioCon, dumpId, dumpType, unixSocketPath);
-            handlers[&conn]->connection = &conn;
+            systemHandlers[&conn]->connection = &conn;
 
             if (!crow::ibm_utils::createDirectory(unixSocketPathDir))
             {
-                handlers[&conn]->connection->sendStreamErrorStatus(
+                systemHandlers[&conn]->connection->sendStreamErrorStatus(
                     boost::beast::http::status::not_found);
+                systemHandlers[&conn]->connection->close();
                 return;
             }
-            BMCWEB_LOG_CRITICAL << "Dump offload initiated by: "
-                                << conn.req.session->clientIp;
-            handlers[&conn]->getDumpSize(dumpId, dumpType);
+            BMCWEB_LOG_CRITICAL
+                << "INFO: " << dumpType << " dump id " << dumpId
+                << " offload initiated by: " << conn.req.session->clientIp;
+            systemHandlers[&conn]->getDumpSize(dumpId, dumpType);
         })
         .onclose([](crow::streaming_response::Connection& conn) {
-            auto handler = handlers.find(&conn);
-            if (handler == handlers.end())
+            auto handler = systemHandlers.find(&conn);
+            if (handler == systemHandlers.end())
             {
                 BMCWEB_LOG_DEBUG << "No handler to cleanup";
                 return;
             }
             handler->second->cleanupSocketFiles();
-            handlers.erase(handler);
             handler->second->outputBuffer.clear();
+            systemHandlers.clear();
         });
 }
 
