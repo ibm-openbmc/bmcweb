@@ -381,29 +381,54 @@ inline void setAssemblylocationIndicators(
 
     std::vector<nlohmann::json> items = std::move(*assemblyData);
     std::map<std::string, bool> locationIndicatorActiveMap;
-    std::string memberId;
-    std::optional<bool> locationIndicatorPresent;
+    std::optional<std::string> memberId;
+    std::optional<bool> locationIndicatorActive;
     std::optional<nlohmann::json> oem;
 
     for (auto& item : items)
     {
         if (!json_util::readJson(item, asyncResp->res,
-                                 "LocationIndicatorActive", locationIndicatorPresent,
+                                 "LocationIndicatorActive", locationIndicatorActive,
                                  "MemberId", memberId, "Oem", oem))
         {
             return;
         }
+     
+        if (locationIndicatorActive)
+        {
+            if (memberId)
+            {
+                locationIndicatorActiveMap[*memberId] = *locationIndicatorActive;
+            }
+            else
+            {
+                BMCWEB_LOG_ERROR << "Property Missing ";
+                BMCWEB_LOG_ERROR <<
+                            "MemberId must be included with LocationIndicatorActive "; 
+                messages::propertyMissing(asyncResp->res, "MemberId");
+                return;
+            }
+        }
+    }
 
-        bool locationIndicatorActive = *locationIndicatorPresent;
-        locationIndicatorActiveMap[memberId] = locationIndicatorActive;
+    std::size_t assemblyIndex = 0;
+    for (const auto& assembly : assemblies)
+    {
+        auto iter =
+            locationIndicatorActiveMap.find(std::to_string(assemblyIndex));
 
+        if (iter != locationIndicatorActiveMap.end())
+        {
+            setLocationIndicatorActive(asyncResp, assembly, iter->second);
+        }
+  
         // Handle special case for tod_battery assembly OEM ReadyToRemove property
         // NOTE: The following method for the special case of the tod_battery
         // ReadyToRemove property only works when there is only ONE adcsensor
         // handled by the adcsensor application.
-        if (oem)
+        if (sdbusplus::message::object_path(assembly).filename() == "tod_battery")
         {
-            if (memberId == "1")
+            if (oem)
             {
                 std::optional<nlohmann::json> openbmc;
                 if (!json_util::readJson(*oem, asyncResp->res, "OpenBMC", openbmc))
@@ -473,26 +498,8 @@ inline void setAssemblylocationIndicators(
                     "xyz.openbmc_project.adcsensor.service", "replace");
                 }
             }
-            else
-            {
-                BMCWEB_LOG_ERROR << "No OEM entity exists for MemberID: "
-                                        << memberId; 
-                return;
-            }
         }
-    }
 
-    std::size_t assemblyIndex = 0;
-    for (const auto& assembly : assemblies)
-    {
-        auto iter =
-            locationIndicatorActiveMap.find(std::to_string(assemblyIndex));
-
-        if (iter != locationIndicatorActiveMap.end())
-        {
-            setLocationIndicatorActive(asyncResp, assembly, iter->second);
-        }
-  
         assemblyIndex++;
     }
     return;
