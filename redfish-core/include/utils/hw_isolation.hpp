@@ -285,6 +285,12 @@ inline void
                             std::to_string(enabledPropVal),
                             "HardwareIsolation");
                     }
+                    else if (strcmp(dbusError->name,
+                                    "xyz.openbmc_project.Common.Error."
+                                    "InsufficientPermission") == 0)
+                    {
+                        messages::resourceCannotBeDeleted(aResp->res);
+                    }
                     else
                     {
                         BMCWEB_LOG_ERROR << "DBus Error is unsupported so "
