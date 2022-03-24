@@ -283,6 +283,13 @@ inline void
                     asyncResp->res, "Enabled", std::to_string(enabledPropVal),
                     "HardwareIsolation");
             }
+            else if (
+                std::string_view(
+                    "xyz.openbmc_project.Common.Error.InsufficientPermission") ==
+                dbusError->name)
+            {
+                messages::resourceCannotBeDeleted(asyncResp->res);
+            }
             else
             {
                 BMCWEB_LOG_ERROR(
