@@ -21,7 +21,6 @@
 #include <boost/container/flat_map.hpp>
 #include <registries/privilege_registry.hpp>
 #include <utils/fw_utils.hpp>
-#include <utils/name_utils.hpp>
 
 #include <variant>
 
@@ -864,9 +863,6 @@ inline void requestRoutesSoftwareInventory(App& app)
                                              obj.second[0].first);
 
                         asyncResp->res.jsonValue["Name"] = "Software Inventory";
-                        name_util::getPrettyName(asyncResp, obj.first,
-                                                 obj.second,
-                                                 "/Name"_json_pointer);
 
                         crow::connections::systemBus->async_method_call(
                             [asyncResp, swId](
