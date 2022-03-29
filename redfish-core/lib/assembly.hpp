@@ -381,6 +381,7 @@ inline void setAssemblylocationIndicators(
 
     std::vector<nlohmann::json> items = std::move(*assemblyData);
     std::map<std::string, bool> locationIndicatorActiveMap;
+    std::map<std::string, nlohmann::json> oemIndicatorMap;
     std::optional<std::string> memberId;
     std::optional<bool> locationIndicatorActive;
     std::optional<nlohmann::json> oem;
@@ -409,6 +410,22 @@ inline void setAssemblylocationIndicators(
                 return;
             }
         }
+
+        if (oem)
+        {
+            if (memberId)
+            {
+                oemIndicatorMap[*memberId] = *oem;
+            }
+            else
+            {
+                BMCWEB_LOG_ERROR << "Property Missing ";
+                BMCWEB_LOG_ERROR <<
+                            "MemberId must be included with the Oem property "; 
+                messages::propertyMissing(asyncResp->res, "MemberId");
+                return;
+            }
+        }
     }
 
     std::size_t assemblyIndex = 0;
@@ -422,45 +439,48 @@ inline void setAssemblylocationIndicators(
             setLocationIndicatorActive(asyncResp, assembly, iter->second);
         }
   
-        // Handle special case for tod_battery assembly OEM ReadyToRemove property
-        // NOTE: The following method for the special case of the tod_battery
-        // ReadyToRemove property only works when there is only ONE adcsensor
-        // handled by the adcsensor application.
-        if (sdbusplus::message::object_path(assembly).filename() == "tod_battery")
+        auto iter2 =
+            oemIndicatorMap.find(std::to_string(assemblyIndex));
+
+        if (iter2 != oemIndicatorMap.end())
         {
-            if (oem)
+            std::optional<nlohmann::json> openbmc;
+            if (!json_util::readJson(iter2->second, asyncResp->res, "OpenBMC", openbmc))
             {
-                std::optional<nlohmann::json> openbmc;
-                if (!json_util::readJson(*oem, asyncResp->res, "OpenBMC", openbmc))
-                {
-                    BMCWEB_LOG_ERROR << "Property Value Format Error ";
-                    messages::propertyValueFormatError(
-                                    asyncResp->res, *openbmc,
-                                    "OpenBMC");
-                    return;
-                }
+                BMCWEB_LOG_ERROR << "Property Value Format Error ";
+                messages::propertyValueFormatError(
+                                asyncResp->res, *openbmc,
+                                "OpenBMC");
+                return;
+            }
 
-                if (!openbmc)
-                {
-                    BMCWEB_LOG_ERROR << "Property Missing ";
-                    messages::propertyMissing(asyncResp->res, "OpenBMC");
-                    return;
-                }
- 
-                std::optional<bool> readytoremove;
-                if (!json_util::readJson(*openbmc, asyncResp->res,
-                                         "ReadyToRemove", readytoremove))
-                {
-                    return;
-                }
+            if (!openbmc)
+            {
+                BMCWEB_LOG_ERROR << "Property Missing ";
+                messages::propertyMissing(asyncResp->res, "OpenBMC");
+                return;
+            }
 
-                if (!readytoremove)
-                {
-                    BMCWEB_LOG_ERROR << "Property Missing ";
-                    messages::propertyMissing(asyncResp->res, "ReadyToRemove");
-                    return;
-                }
+            std::optional<bool> readytoremove;
+            if (!json_util::readJson(*openbmc, asyncResp->res,
+                                     "ReadyToRemove", readytoremove))
+            {
+                return;
+            }
 
+            if (!readytoremove)
+            {
+                BMCWEB_LOG_ERROR << "Property Missing ";
+                messages::propertyMissing(asyncResp->res, "ReadyToRemove");
+                return;
+            }
+
+            // Handle special case for tod_battery assembly OEM ReadyToRemove property.
+            // NOTE: The following method for the special case of the tod_battery
+            // ReadyToRemove property only works when there is only ONE adcsensor
+            // handled by the adcsensor application.
+            if (sdbusplus::message::object_path(assembly).filename() == "tod_battery")
+            {
                 if (readytoremove.value() == true)
                 {
                     // Call systemd to stop ADCSensor
