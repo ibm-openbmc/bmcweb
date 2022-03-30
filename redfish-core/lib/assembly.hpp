@@ -518,8 +518,15 @@ inline void setAssemblylocationIndicators(
                     "xyz.openbmc_project.adcsensor.service", "replace");
                 }
             }
+            else
+            {
+                BMCWEB_LOG_ERROR <<
+                         "Property Unknown: ReadyToRemove on Assembly with MemberID: "
+                         << assemblyIndex;
+                messages::propertyUnknown(asyncResp->res, "ReadyToRemove");
+                return;
+            }
         }
-
         assemblyIndex++;
     }
     return;
