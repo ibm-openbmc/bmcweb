@@ -421,12 +421,9 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                 }
 
                 state = ConnState::terminated;
-                // Remove the subscription
+                // TODO :Remove the subscription
                 BMCWEB_LOG_ERROR << "TerminateAfterRetries is set. retryCount: "
-                                 << retryCount << " .Subscriber: " << subId
-                                 << " deleted";
-                persistent_data::EventServiceStore::getInstance()
-                    .removeSubscription(subId);
+                                 << retryCount << " .Subscriber: " << subId;
                 return;
             }
             if (retryPolicyAction == "SuspendRetries")

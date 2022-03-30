@@ -247,7 +247,7 @@ class EventServiceStore
     boost::container::flat_map<std::string, std::shared_ptr<UserSubscription>>
         subscriptionsConfigMap;
     EventServiceConfig eventServiceConfig;
-    bool needWrite{false};
+
     static EventServiceStore& getInstance()
     {
         static EventServiceStore eventServiceStore;
@@ -257,31 +257,6 @@ class EventServiceStore
     EventServiceConfig& getEventServiceConfig()
     {
         return eventServiceConfig;
-    }
-
-    bool needsWrite()
-    {
-        return needWrite;
-    }
-
-    void persistSubscription()
-    {
-        needWrite = true;
-        return;
-    }
-    void removeSubscription(const std::string& id)
-    {
-        auto obj = subscriptionsConfigMap.find(id);
-        if (obj != subscriptionsConfigMap.end())
-        {
-            BMCWEB_LOG_ERROR << "Deleting " << id
-                             << " from subscriptionsConfigMap";
-            subscriptionsConfigMap.erase(obj);
-            needWrite = true;
-            return;
-        }
-        BMCWEB_LOG_ERROR << "Subscriber " << id
-                         << " not found subscriptionsConfigMap";
     }
 };
 

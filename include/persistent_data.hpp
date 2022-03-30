@@ -37,8 +37,7 @@ class ConfigFile
     {
         // Make sure we aren't writing stale sessions
         persistent_data::SessionStore::getInstance().applySessionTimeouts();
-        if ((persistent_data::SessionStore::getInstance().needsWrite()) ||
-            (persistent_data::EventServiceStore::getInstance().needsWrite()))
+        if (persistent_data::SessionStore::getInstance().needsWrite())
         {
             writeData();
         }
