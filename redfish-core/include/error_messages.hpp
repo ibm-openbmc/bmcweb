@@ -522,6 +522,22 @@ void propertyValueResourceConflict(crow::Response& res, const std::string& arg1,
                                    const std::string& arg3);
 
 /**
+ * @brief Formats PropertyValueExternalConflict message into JSON
+ * Message body: "The property '%1' with the requested value of '%2' could not
+ * be written because the value is not available due to a configuration
+ * conflict."
+ *
+ * @param[in] arg1 Parameter of message that will replace %1 in its body.
+ * @param[in] arg2 Parameter of message that will replace %2 in its body.
+ *
+ * @returns Message PropertyValueExternalConflict to JSON */
+nlohmann::json propertyValueExternalConflict(const std::string& arg1,
+                                             const std::string& arg2);
+
+void propertyValueExternalConflict(crow::Response& res, const std::string& arg1,
+                                   const std::string& arg2);
+
+/**
  * @brief Formats ResourceCreationConflict message into JSON
  * Message body: "The resource could not be created.  The service has a resource
  * at URI '<arg1>' that conflicts with the creation request."

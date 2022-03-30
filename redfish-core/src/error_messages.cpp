@@ -923,9 +923,50 @@ void propertyValueResourceConflict(crow::Response& res, const std::string& arg1,
                                    const std::string& arg2,
                                    const std::string& arg3)
 {
-    res.result(boost::beast::http::status::bad_request);
+    res.result(boost::beast::http::status::conflict);
     addMessageToErrorJson(res.jsonValue,
                           propertyValueResourceConflict(arg1, arg2, arg3));
+}
+
+/**
+ * @internal
+ * @brief Formats PropertyValueExternalConflict message into JSON
+ *
+ * See header file for more information
+ * @endinternal
+ */
+nlohmann::json propertyValueExternalConflict(const std::string& arg1,
+                                             const std::string& arg2)
+{
+    std::string messageText = "The property '";
+    messageText += arg1;
+    messageText += "' with the requested value of '";
+    messageText += arg2;
+    messageText +=
+        "' could not be written because the value is not available due to a configuration conflict.";
+
+    nlohmann::json::object_t message;
+    message["@odata.type"] = "#Message.v1_1_1.Message";
+    message["MessageId"] = "Base.1.10.0.PropertyValueExternalConflict";
+    message["Message"] = std::move(messageText);
+
+    nlohmann::json::array_t messageArgs;
+    messageArgs.emplace_back(arg1);
+    messageArgs.emplace_back(arg2);
+    message["MessageArgs"] = std::move(messageArgs);
+
+    message["MessageSeverity"] = "Warning";
+    message["Resolution"] = "No resolution is required.";
+
+    return message;
+}
+
+void propertyValueExternalConflict(crow::Response& res, const std::string& arg1,
+                                   const std::string& arg2)
+{
+    res.result(boost::beast::http::status::conflict);
+    addMessageToErrorJson(res.jsonValue,
+                          propertyValueExternalConflict(arg1, arg2));
 }
 
 /**
