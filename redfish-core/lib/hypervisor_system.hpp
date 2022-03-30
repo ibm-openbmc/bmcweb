@@ -432,7 +432,6 @@ inline void parseInterfaceData(
     jsonResponse["Id"] = ifaceId;
     jsonResponse["@odata.id"] =
         "/redfish/v1/Systems/hypervisor/EthernetInterfaces/" + ifaceId;
-    jsonResponse["InterfaceEnabled"] = true;
     jsonResponse["HostName"] = ethData.hostname;
     jsonResponse["DHCPv4"]["DHCPEnabled"] =
         translateDHCPEnabledToBool(ethData.DHCPEnabled, true);
@@ -443,20 +442,17 @@ inline void parseInterfaceData(
     ipv4StaticArray = nlohmann::json::array();
     for (auto& ipv4Config : ipv4Data)
     {
-        if (ipv4Config.isActive)
+        jsonResponse["InterfaceEnabled"] = ipv4Config.isActive;
+        ipv4Array.push_back({{"AddressOrigin", ipv4Config.origin},
+                             {"SubnetMask", ipv4Config.netmask},
+                             {"Address", ipv4Config.address},
+                             {"Gateway", ipv4Config.gateway}});
+        if (ipv4Config.origin == "Static")
         {
-
-            ipv4Array.push_back({{"AddressOrigin", ipv4Config.origin},
-                                 {"SubnetMask", ipv4Config.netmask},
-                                 {"Address", ipv4Config.address},
-                                 {"Gateway", ipv4Config.gateway}});
-            if (ipv4Config.origin == "Static")
-            {
-                ipv4StaticArray.push_back({{"AddressOrigin", ipv4Config.origin},
-                                           {"SubnetMask", ipv4Config.netmask},
-                                           {"Address", ipv4Config.address},
-                                           {"Gateway", ipv4Config.gateway}});
-            }
+            ipv4StaticArray.push_back({{"AddressOrigin", ipv4Config.origin},
+                                       {"SubnetMask", ipv4Config.netmask},
+                                       {"Address", ipv4Config.address},
+                                       {"Gateway", ipv4Config.gateway}});
         }
     }
 }
