@@ -21,7 +21,9 @@
 #include <memory>
 #include <utility>
 #include <vector>
-
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+#include <persistent_data.hpp>
+#endif
 namespace crow
 {
 
@@ -38,7 +40,11 @@ class Server
         acceptor(std::move(acceptorIn)),
         signals(*ioService, SIGINT, SIGTERM, SIGHUP), timer(*ioService),
         handler(handlerIn), adaptorCtx(std::move(adaptorCtx))
-    {}
+    {
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+        signals.add(SIGUSR1);
+#endif
+    }
 
     Server(Handler* handlerIn, const std::string& bindaddr, uint16_t port,
            const std::shared_ptr<boost::asio::ssl::context>& adaptorCtx,
@@ -163,6 +169,16 @@ class Server
                     }
                     this->startAsyncWaitForSignal();
                 }
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+                if (signalNo == SIGUSR1)
+                {
+                    BMCWEB_LOG_CRITICAL
+                        << "INFO: Receivied USR1 signal to dump latest session "
+                           "data for bmc dump";
+                    persistent_data::getConfig().writeCurrentSessionData();
+                    this->startAsyncWaitForSignal();
+                }
+#endif
                 else
                 {
                     stop();

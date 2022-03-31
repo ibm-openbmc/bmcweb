@@ -27,6 +27,8 @@ class ConfigFile
   public:
     // todo(ed) should read this from a fixed location somewhere, not CWD
     static constexpr const char* filename = "bmcweb_persistent_data.json";
+    static constexpr const char* dumpFilename =
+        "bmcweb_current_session_snapshot.json";
 
     ConfigFile()
     {
@@ -189,6 +191,40 @@ class ConfigFile
             writeData();
         }
     }
+
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+    void writeCurrentSessionData()
+    {
+        std::ofstream persistentFile(dumpFilename);
+        // set the permission of the file to 640
+        std::filesystem::perms permission =
+            std::filesystem::perms::owner_read |
+            std::filesystem::perms::owner_write |
+            std::filesystem::perms::group_read;
+        std::filesystem::permissions(filename, permission);
+        nlohmann::json data{
+            {"system_uuid", systemUuid},
+            {"revision", jsonRevision},
+            {"timeout", SessionStore::getInstance().getTimeoutInSeconds()}};
+
+        nlohmann::json& sessions = data["sessions"];
+        sessions = nlohmann::json::array();
+        for (const auto& p : SessionStore::getInstance().authTokens)
+        {
+            if (p.second->persistence !=
+                persistent_data::PersistenceType::SINGLE_REQUEST)
+            {
+                sessions.push_back({
+                    {"unique_id", p.second->uniqueId},
+                    {"username", p.second->username},
+                    {"client_ip", p.second->clientIp},
+                    {"client_id", p.second->clientId},
+                });
+            }
+        }
+        persistentFile << data;
+    }
+#endif
 
     void writeData()
     {
