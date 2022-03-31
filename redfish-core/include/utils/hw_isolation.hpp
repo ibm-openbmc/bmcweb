@@ -130,8 +130,9 @@ inline void
                 "xyz.openbmc_project.Common.Error.InvalidArgument") ==
             dbusError->name)
         {
-            messages::propertyValueIncorrect(asyncResp->res, "@odata.id",
-                                             std::to_string(enabledPropVal));
+            messages::propertyValueExternalConflict(
+                asyncResp->res, "Enabled",
+                std::to_string(static_cast<int>(enabledPropVal)));
         }
         else if (std::string_view(
                      "xyz.openbmc_project.Common.Error.NotAllowed") ==
@@ -144,9 +145,9 @@ inline void
                 "xyz.openbmc_project.HardwareIsolation.Error.IsolatedAlready") ==
             dbusError->name)
         {
-            messages::resourceAlreadyExists(asyncResp->res, resourceName,
-                                            "Enabled",
-                                            std::to_string(enabledPropVal));
+            messages::resourceAlreadyExists(
+                asyncResp->res, resourceName, "Enabled",
+                std::to_string(static_cast<int>(enabledPropVal)));
         }
         else if (std::string_view(
                      "xyz.openbmc_project.Common.Error.TooManyResources") ==
