@@ -131,8 +131,8 @@ inline void
             if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
                                         "InvalidArgument") == 0)
             {
-                messages::propertyValueIncorrect(
-                    aResp->res, "@odata.id", std::to_string(enabledPropVal));
+                messages::propertyValueExternalConflict(
+                    aResp->res, "Enabled", std::to_string(enabledPropVal));
             }
             else if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
                                              "NotAllowed") == 0)
