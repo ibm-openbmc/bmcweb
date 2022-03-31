@@ -163,6 +163,38 @@ class Handler : public std::enable_shared_from_this<Handler>
         });
     }
 
+    void resetOffloadURI()
+    {
+        std::string value{""};
+        crow::connections::systemBus->async_method_call(
+            [this,
+             self(shared_from_this())](const boost::system::error_code ec) {
+                if (ec)
+                {
+                    BMCWEB_LOG_ERROR << "DBUS response error: Unable to set "
+                                        "the dump OffloadUri "
+                                     << ec;
+
+                    if (ec.value() == EBADR)
+                    {
+                        this->connection->sendStreamErrorStatus(
+                            boost::beast::http::status::not_found);
+                    }
+                    else
+                    {
+                        this->connection->sendStreamErrorStatus(
+                            boost::beast::http::status::internal_server_error);
+                    }
+                    return;
+                }
+            },
+            "xyz.openbmc_project.Dump.Manager",
+            "/xyz/openbmc_project/dump/" + dumpType + "/entry/" + entryID,
+            "org.freedesktop.DBus.Properties", "Set",
+            "xyz.openbmc_project.Dump.Entry", "OffloadUri",
+            std::variant<std::string>(value));
+    }
+
     void cleanupSocketFiles()
     {
         std::error_code ec;
@@ -180,6 +212,7 @@ class Handler : public std::enable_shared_from_this<Handler>
             unixSocket.close();
             std::remove(unixSocketPath.c_str());
         }
+        resetOffloadURI();
         return;
     }
 
