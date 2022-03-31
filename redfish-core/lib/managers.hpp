@@ -2165,39 +2165,6 @@ inline void requestRoutesManager(App& app)
                         {"@odata.id", "/redfish/v1/Chassis/" + chassisId}};
                 });
 
-            static bool started = false;
-
-            if (!started)
-            {
-                crow::connections::systemBus->async_method_call(
-                    [asyncResp](const boost::system::error_code ec,
-                                const std::variant<double>& resp) {
-                        if (ec)
-                        {
-                            BMCWEB_LOG_ERROR << "Error while getting progress";
-                            messages::internalError(asyncResp->res);
-                            return;
-                        }
-                        const double* val = std::get_if<double>(&resp);
-                        if (val == nullptr)
-                        {
-                            BMCWEB_LOG_ERROR
-                                << "Invalid response while getting progress";
-                            messages::internalError(asyncResp->res);
-                            return;
-                        }
-                        if (*val < 1.0)
-                        {
-                            asyncResp->res.jsonValue["Status"]["State"] =
-                                "Starting";
-                            started = true;
-                        }
-                    },
-                    "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-                    "org.freedesktop.DBus.Properties", "Get",
-                    "org.freedesktop.systemd1.Manager", "Progress");
-            }
-
             crow::connections::systemBus->async_method_call(
                 [asyncResp](
                     const boost::system::error_code ec,
