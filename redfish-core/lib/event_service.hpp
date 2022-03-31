@@ -170,7 +170,6 @@ inline void
             }
 
             messages::resourceNotFound(asyncResp->res, "Subscriptions", id);
-            BMCWEB_LOG_CRITICAL << "Delete SNMP subscription on get";
             EventServiceManager::getInstance().deleteSubscription(id);
         },
         "xyz.openbmc_project.Network.SNMP",
@@ -1017,7 +1016,6 @@ inline void requestRoutesEventDestination(App& app)
                         "xyz.openbmc_project.Network.SNMP", snmpPath,
                         "xyz.openbmc_project.Object.Delete", "Delete");
 
-                    BMCWEB_LOG_CRITICAL << "Delete SNMP subscription";
                     EventServiceManager::getInstance().deleteSubscription(
                         param);
 
@@ -1031,8 +1029,6 @@ inline void requestRoutesEventDestination(App& app)
                         boost::beast::http::status::not_found);
                     return;
                 }
-
-                BMCWEB_LOG_CRITICAL << "Request delete subscription";
                 EventServiceManager::getInstance().deleteSubscription(param);
             });
 }
