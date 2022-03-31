@@ -529,6 +529,7 @@ inline void setAssemblylocationIndicators(
         }
         assemblyIndex++;
     }
+
     return;
 }
 
