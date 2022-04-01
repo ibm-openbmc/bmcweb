@@ -465,6 +465,11 @@ inline void setAssemblylocationIndicators(
             if (!json_util::readJson(*openbmc, asyncResp->res,
                                      "ReadyToRemove", readytoremove))
             {
+                BMCWEB_LOG_ERROR << "Property Value Format Error ";
+                messages::propertyValueFormatError(asyncResp->res,
+                                (*openbmc).dump(2, ' ', true, 
+                                nlohmann::json::error_handler_t::replace),
+                                "ReadyToRemove");
                 return;
             }
 
