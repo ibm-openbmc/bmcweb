@@ -946,10 +946,11 @@ inline void getCSREntryAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                                 << " status property value " << *status;
             if (*status == "xyz.openbmc_project.Certs.Entry.State.Pending")
             {
+                asyncResp->res.addHeader("Retry-After", "60");
                 asyncResp->res.result(
-                    boost::beast::http::status::internal_server_error);
+                    boost::beast::http::status::service_unavailable);
                 asyncResp->res.jsonValue["Description"] =
-                    "HostInterface didn't serve request";
+                    "Host is not ready to serve the request";
             }
             else if (*status == "xyz.openbmc_project.Certs.Entry.State.BadCSR")
             {
@@ -1022,21 +1023,8 @@ void handleCsrRequest(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                     return;
                 }
 
-                auto entry = ackMatches.find(entryId);
-                if (entry != ackMatches.end())
-                {
-                    BMCWEB_LOG_DEBUG << "Erasing match of entryId " << entryId;
-                    ackMatches.erase(entryId);
-                    deleteVMIDbusEntry(asyncResp, entryId);
-                }
-
+                getCSREntryAck(asyncResp, entryId);
                 timeout->cancel();
-                asyncResp->res.addHeader("Retry-After", "60");
-                asyncResp->res.result(
-                    boost::beast::http::status::service_unavailable);
-                BMCWEB_LOG_CRITICAL
-                    << "Timed out waiting for HostInterface to serve entry id "
-                    << entryId;
             };
 
             timeout->async_wait(timeoutHandler);
