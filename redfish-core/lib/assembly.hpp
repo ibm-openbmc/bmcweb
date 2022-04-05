@@ -62,6 +62,50 @@ inline void
         // Set the default Status
         tempyArray.at(assemblyIndex)["Status"]["Health"] = "OK";
 
+        // Handle special case for tod_battery assembly OEM ReadyToRemove
+        // property NOTE: The following method for the special case of the
+        // tod_battery ReadyToRemove property only works when there is only ONE
+        // adcsensor handled by the adcsensor application.
+        if (sdbusplus::message::object_path(assembly).filename() ==
+            "tod_battery")
+        {
+            tempyArray.at(assemblyIndex)["Oem"]["OpenBMC"]["@odata.type"] =
+                "#OemAssembly.v1_0_0.Assembly";
+
+            crow::connections::systemBus->async_method_call(
+                [aResp, assemblyIndex](const boost::system::error_code ec) {
+                    if (ec)
+                    {
+                        if (ec.value() == 5)
+                        {
+                            // Battery voltage is not on DBUS so ADCSensor is
+                            // not running.
+                            nlohmann::json& assemblyArray =
+                                aResp->res.jsonValue["Assemblies"];
+                            assemblyArray.at(assemblyIndex)["Oem"]["OpenBMC"]
+                                                           ["ReadyToRemove"] =
+                                true;
+                            return;
+                        }
+                        BMCWEB_LOG_DEBUG << "DBUS response error" << ec.value();
+                        messages::internalError(aResp->res);
+                        return;
+                    }
+
+                    nlohmann::json& assemblyArray =
+                        aResp->res.jsonValue["Assemblies"];
+
+                    assemblyArray.at(
+                        assemblyIndex)["Oem"]["OpenBMC"]["ReadyToRemove"] =
+                        false;
+                },
+                "xyz.openbmc_project.ObjectMapper",
+                "/xyz/openbmc_project/object_mapper",
+                "xyz.openbmc_project.ObjectMapper", "GetObject",
+                "/xyz/openbmc_project/sensors/voltage/Battery_Voltage",
+                std::array<const char*, 0>{});
+        }
+
         crow::connections::systemBus->async_method_call(
             [aResp, assemblyIndex, assembly](
                 const boost::system::error_code ec,
@@ -352,19 +396,52 @@ inline void setAssemblylocationIndicators(
 
     std::vector<nlohmann::json> items = std::move(*assemblyData);
     std::map<std::string, bool> locationIndicatorActiveMap;
+    std::map<std::string, nlohmann::json> oemIndicatorMap;
+    std::optional<std::string> memberId;
+    std::optional<bool> locationIndicatorActive;
+    std::optional<nlohmann::json> oem;
 
     for (auto& item : items)
     {
-        bool locationIndicatorActive;
-        std::string memberId;
-
-        if (!json_util::readJson(item, asyncResp->res,
-                                 "LocationIndicatorActive",
-                                 locationIndicatorActive, "MemberId", memberId))
+        if (!json_util::readJson(
+                item, asyncResp->res, "LocationIndicatorActive",
+                locationIndicatorActive, "MemberId", memberId, "Oem", oem))
         {
             return;
         }
-        locationIndicatorActiveMap[memberId] = locationIndicatorActive;
+
+        if (locationIndicatorActive)
+        {
+            if (memberId)
+            {
+                locationIndicatorActiveMap[*memberId] =
+                    *locationIndicatorActive;
+            }
+            else
+            {
+                BMCWEB_LOG_ERROR << "Property Missing ";
+                BMCWEB_LOG_ERROR << "MemberId must be included with "
+                                    "LocationIndicatorActive ";
+                messages::propertyMissing(asyncResp->res, "MemberId");
+                return;
+            }
+        }
+
+        if (oem)
+        {
+            if (memberId)
+            {
+                oemIndicatorMap[*memberId] = *oem;
+            }
+            else
+            {
+                BMCWEB_LOG_ERROR << "Property Missing ";
+                BMCWEB_LOG_ERROR
+                    << "MemberId must be included with the Oem property ";
+                messages::propertyMissing(asyncResp->res, "MemberId");
+                return;
+            }
+        }
     }
 
     std::size_t assemblyIndex = 0;
@@ -376,6 +453,101 @@ inline void setAssemblylocationIndicators(
         if (iter != locationIndicatorActiveMap.end())
         {
             setLocationIndicatorActive(asyncResp, assembly, iter->second);
+        }
+
+        auto iter2 = oemIndicatorMap.find(std::to_string(assemblyIndex));
+
+        if (iter2 != oemIndicatorMap.end())
+        {
+            std::optional<nlohmann::json> openbmc;
+            if (!json_util::readJson(iter2->second, asyncResp->res, "OpenBMC",
+                                     openbmc))
+            {
+                BMCWEB_LOG_ERROR << "Property Value Format Error ";
+                messages::propertyValueFormatError(asyncResp->res, *openbmc,
+                                                   "OpenBMC");
+                return;
+            }
+
+            if (!openbmc)
+            {
+                BMCWEB_LOG_ERROR << "Property Missing ";
+                messages::propertyMissing(asyncResp->res, "OpenBMC");
+                return;
+            }
+
+            std::optional<bool> readytoremove;
+            if (!json_util::readJson(*openbmc, asyncResp->res, "ReadyToRemove",
+                                     readytoremove))
+            {
+                BMCWEB_LOG_ERROR << "Property Value Format Error ";
+                messages::propertyValueFormatError(
+                    asyncResp->res,
+                    (*openbmc).dump(2, ' ', true,
+                                    nlohmann::json::error_handler_t::replace),
+                    "ReadyToRemove");
+                return;
+            }
+
+            if (!readytoremove)
+            {
+                BMCWEB_LOG_ERROR << "Property Missing ";
+                messages::propertyMissing(asyncResp->res, "ReadyToRemove");
+                return;
+            }
+
+            // Handle special case for tod_battery assembly OEM ReadyToRemove
+            // property. NOTE: The following method for the special case of the
+            // tod_battery ReadyToRemove property only works when there is only
+            // ONE adcsensor handled by the adcsensor application.
+            if (sdbusplus::message::object_path(assembly).filename() ==
+                "tod_battery")
+            {
+                if (readytoremove.value() == true)
+                {
+                    // Call systemd to stop ADCSensor
+                    crow::connections::systemBus->async_method_call(
+                        [asyncResp](const boost::system::error_code ec) {
+                            if (ec)
+                            {
+                                BMCWEB_LOG_ERROR << "Failed to Stop ADCSensor:"
+                                                 << ec;
+                                messages::internalError(asyncResp->res);
+                                return;
+                            }
+                            messages::success(asyncResp->res);
+                        },
+                        "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
+                        "org.freedesktop.systemd1.Manager", "StopUnit",
+                        "xyz.openbmc_project.adcsensor.service", "replace");
+                }
+                else if (readytoremove.value() == false)
+                {
+                    // Call systemd to start ADCSensor
+                    crow::connections::systemBus->async_method_call(
+                        [asyncResp](const boost::system::error_code ec) {
+                            if (ec)
+                            {
+                                BMCWEB_LOG_ERROR << "Failed to Start ADCSensor:"
+                                                 << ec;
+                                messages::internalError(asyncResp->res);
+                                return;
+                            }
+                            messages::success(asyncResp->res);
+                        },
+                        "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
+                        "org.freedesktop.systemd1.Manager", "StartUnit",
+                        "xyz.openbmc_project.adcsensor.service", "replace");
+                }
+            }
+            else
+            {
+                BMCWEB_LOG_ERROR << "Property Unknown: ReadyToRemove on "
+                                    "Assembly with MemberID: "
+                                 << assemblyIndex;
+                messages::propertyUnknown(asyncResp->res, "ReadyToRemove");
+                return;
+            }
         }
         assemblyIndex++;
     }
