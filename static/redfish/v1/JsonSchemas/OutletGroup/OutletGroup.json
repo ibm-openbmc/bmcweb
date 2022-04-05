@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/OutletGroup.v1_0_1.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/OutletGroup.v1_1_0.json",
     "$ref": "#/definitions/OutletGroup",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2020 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -133,6 +133,13 @@
                     "description": "The available actions for this resource.",
                     "longDescription": "This property shall contain the available actions for this resource."
                 },
+                "ConfigurationLocked": {
+                    "description": "Indicates whether the configuration is locked.",
+                    "longDescription": "This property shall indicate whether modification requests to this resource are not permitted.  If `true`, services shall reject modification requests to other properties in this resource.",
+                    "readonly": false,
+                    "type": "boolean",
+                    "versionAdded": "v1_1_0"
+                },
                 "CreatedBy": {
                     "description": "The creator of this outlet group.",
                     "longDescription": "This property shall contain the name of the person or application that created this outlet group.",
@@ -162,10 +169,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The energy reading for this outlet group.",
+                    "description": "The energy (kWh) for this outlet group.",
                     "excerptCopy": "SensorEnergykWhExcerpt",
-                    "longDescription": "This property shall contain the total energy, measured in kilowatt-hours (kW.h), for this outlet group, that represents the `Total` ElectricalContext sensor when multiple energy sensors exist for this outlet group.",
-                    "readonly": true
+                    "longDescription": "This property shall contain the total energy, in kilowatt-hour units, for this outlet group, that represents the `Total` ElectricalContext sensor when multiple energy sensors exist for this outlet group.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `EnergykWh`."
                 },
                 "Id": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Id",
@@ -184,6 +190,13 @@
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Oem",
                     "description": "The OEM extension property.",
                     "longDescription": "This property shall contain the OEM extensions.  All values for properties that this object contains shall conform to the Redfish Specification-described requirements."
+                },
+                "PowerControlLocked": {
+                    "description": "Indicates whether power control requests are locked.",
+                    "longDescription": "This property shall indicate whether requests to the PowerControl action are locked.  If `true`, services shall reject requests to the PowerControl action.",
+                    "readonly": false,
+                    "type": "boolean",
+                    "versionAdded": "v1_1_0"
                 },
                 "PowerCycleDelaySeconds": {
                     "description": "The number of seconds to delay power on after a PowerControl action to cycle power.  Zero seconds indicates no delay.",
@@ -249,6 +262,13 @@
                     "longDescription": "This property shall contain the power state of the outlet group.",
                     "readonly": true
                 },
+                "PowerStateInTransition": {
+                    "description": "Indicates whether the power state is undergoing a delayed transition.",
+                    "longDescription": "This property shall indicate whether the PowerState property will undergo a transition between on and off states due to a configured delay.  The transition may be due to the configuration of the power on, off, or restore delay properties.  If `true`, the PowerState property will transition at the conclusion of a configured delay.",
+                    "readonly": true,
+                    "type": "boolean",
+                    "versionAdded": "v1_1_0"
+                },
                 "PowerWatts": {
                     "anyOf": [
                         {
@@ -258,10 +278,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The power reading for this outlet group.",
+                    "description": "The power (W) for this outlet group.",
                     "excerptCopy": "SensorPowerExcerpt",
-                    "longDescription": "This property shall contain the total power, measured in Watts, for this outlet group, that represents the `Total` ElectricalContext sensor when multiple power sensors exist for this outlet group.",
-                    "readonly": true
+                    "longDescription": "This property shall contain the total power, in watt units, for this outlet group, that represents the `Total` ElectricalContext sensor when multiple power sensors exist for this outlet group.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Power`."
                 },
                 "Status": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Status",
@@ -349,6 +368,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2019.4",
-    "title": "#OutletGroup.v1_0_1.OutletGroup"
+    "release": "2021.4",
+    "title": "#OutletGroup.v1_1_0.OutletGroup"
 }

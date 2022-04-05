@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Outlet.v1_3_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Outlet.v1_4_0.json",
     "$ref": "#/definitions/Outlet",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -65,9 +65,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "Line 1 current sensor.",
+                    "description": "Line 1 current (A).",
                     "excerptCopy": "SensorCurrentExcerpt",
-                    "longDescription": "This property shall contain a Sensor excerpt of type Current that measures current for L1.  This property shall not be present if the outlet does not include an L1 measurement."
+                    "longDescription": "This property shall contain the line current, in ampere units, for L1.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Current`.  This property shall not be present if the equipment does not include an L1 measurement."
                 },
                 "Line2": {
                     "anyOf": [
@@ -78,9 +78,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "Line 2 current sensor.",
+                    "description": "Line 2 current (A).",
                     "excerptCopy": "SensorCurrentExcerpt",
-                    "longDescription": "This property shall contain a Sensor excerpt of type Current that measures current for L2.  This property shall not be present if the outlet does not include an L2 measurement."
+                    "longDescription": "This property shall contain the line current, in ampere units, for L2.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Current`.  This property shall not be present if the equipment does not include an L2 measurement."
                 },
                 "Line3": {
                     "anyOf": [
@@ -91,9 +91,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "Line 3 current sensor.",
+                    "description": "Line 3 current (A).",
                     "excerptCopy": "SensorCurrentExcerpt",
-                    "longDescription": "This property shall contain a Sensor excerpt of type Current that measures current for L3.  This property shall not be present if the outlet does not include an L3 measurement."
+                    "longDescription": "This property shall contain the line current, in ampere units, for L3.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Current`.  This property shall not be present if the equipment does not include an L3 measurement."
                 },
                 "Neutral": {
                     "anyOf": [
@@ -104,9 +104,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "Neutral line current sensor.",
+                    "description": "Neutral line current (A).",
                     "excerptCopy": "SensorCurrentExcerpt",
-                    "longDescription": "This property shall contain a Sensor excerpt of type Current that measures current for the Neutral line.  This property shall not be present if the outlet does not include a Neutral measurement."
+                    "longDescription": "This property shall contain the line current, in ampere units, for the Neutral line.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Current`.  This property shall not be present if the equipment does not include a Neutral line measurement."
                 }
             },
             "type": "object"
@@ -247,6 +247,13 @@
                     "description": "The available actions for this resource.",
                     "longDescription": "This property shall contain the available actions for this resource."
                 },
+                "ConfigurationLocked": {
+                    "description": "Indicates whether the configuration is locked.",
+                    "longDescription": "This property shall indicate whether modification requests to this resource are not permitted.  If `true`, services shall reject modification requests to other properties in this resource.",
+                    "readonly": false,
+                    "type": "boolean",
+                    "versionAdded": "v1_4_0"
+                },
                 "CurrentAmps": {
                     "anyOf": [
                         {
@@ -256,9 +263,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The current reading for this single phase outlet.",
+                    "description": "The current (A) for this single phase outlet.",
                     "excerptCopy": "SensorCurrentExcerpt",
-                    "longDescription": "This property shall contain the current, measured in Amperes, for this single phase outlet.  This property shall not appear in resource instances representing poly-phase outlets."
+                    "longDescription": "This property shall contain the current, in ampere units, for this single phase outlet.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Current`.  This property shall not appear in resource instances representing poly-phase outlets."
                 },
                 "Description": {
                     "anyOf": [
@@ -306,9 +313,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The energy reading for this outlet.",
+                    "description": "The energy (kWh) for this outlet.",
                     "excerptCopy": "SensorEnergykWhExcerpt",
-                    "longDescription": "This property shall contain the total energy, measured in kilowatt-hours (kW.h), for this outlet, that represents the `Total` ElectricalContext sensor when multiple energy sensors exist for this outlet."
+                    "longDescription": "This property shall contain the total energy, in kilowatt-hour units, for this outlet, that represents the `Total` ElectricalContext sensor when multiple energy sensors exist for this outlet.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `EnergykWh`."
                 },
                 "FrequencyHz": {
                     "anyOf": [
@@ -319,9 +326,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The frequency reading for this outlet.",
+                    "description": "The frequency (Hz) for this outlet.",
                     "excerptCopy": "SensorExcerpt",
-                    "longDescription": "This property shall contain the frequency sensor for this outlet."
+                    "longDescription": "This property shall contain the frequency, in hertz units, for this outlet.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Frequency`."
                 },
                 "Id": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Id",
@@ -415,7 +422,7 @@
                         }
                     ],
                     "description": "The current readings for this outlet.",
-                    "longDescription": "This property shall contain the current sensor(s) for this outlet.  For single phase outlets this property shall contain a duplicate copy of the current sensor referenced in the CurrentSensor property, if present.  For poly-phase outlets this property should contain multiple current sensor readings used to fully describe the outlet."
+                    "longDescription": "This property shall contain the current readings for this outlet.  For single phase outlets this property shall contain a duplicate copy of the current sensor referenced in the CurrentAmps property, if present.  For poly-phase outlets this property should contain multiple current sensor readings used to fully describe the outlet."
                 },
                 "PolyPhaseVoltage": {
                     "anyOf": [
@@ -427,7 +434,14 @@
                         }
                     ],
                     "description": "The voltage readings for this outlet.",
-                    "longDescription": "This property shall contain the voltage sensor(s) for this outlet.  For single phase outlets this property shall contain a duplicate copy of the voltage sensor referenced in the VoltageSensor property, if present.  For poly-phase outlets this property should contain multiple voltage sensor readings used to fully describe the outlet."
+                    "longDescription": "This property shall contain the voltage readings for this outlet.  For single phase outlets this property shall contain a duplicate copy of the voltage sensor referenced in the Voltage property, if present.  For poly-phase outlets this property should contain multiple voltage sensor readings used to fully describe the outlet."
+                },
+                "PowerControlLocked": {
+                    "description": "Indicates whether power control requests are locked.",
+                    "longDescription": "This property shall indicate whether requests to the PowerControl action are locked.  If `true`, services shall reject requests to the PowerControl action.",
+                    "readonly": false,
+                    "type": "boolean",
+                    "versionAdded": "v1_4_0"
                 },
                 "PowerCycleDelaySeconds": {
                     "description": "The number of seconds to delay power on after a PowerControl action to cycle power.  Zero seconds indicates no delay.",
@@ -456,9 +470,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The power load (%) for this outlet.",
+                    "description": "The power load (percent) for this outlet.",
                     "excerptCopy": "SensorExcerpt",
-                    "longDescription": "This property shall contain the power load, measured in percent, for this outlet, that represents the `Total` ElectricalContext for this outlet.",
+                    "longDescription": "This property shall contain the power load, in percent units, for this outlet, that represents the `Total` ElectricalContext for this outlet.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Percent`.",
                     "versionAdded": "v1_2_0"
                 },
                 "PowerOffDelaySeconds": {
@@ -507,6 +521,13 @@
                     "longDescription": "This property shall contain the power state of the outlet.",
                     "readonly": true
                 },
+                "PowerStateInTransition": {
+                    "description": "Indicates whether the power state is undergoing a delayed transition.",
+                    "longDescription": "This property shall indicate whether the PowerState property will undergo a transition between on and off states due to a configured delay.  The transition may be due to the configuration of the power on, off, or restore delay properties.  If `true`, the PowerState property will transition at the conclusion of a configured delay.",
+                    "readonly": true,
+                    "type": "boolean",
+                    "versionAdded": "v1_4_0"
+                },
                 "PowerWatts": {
                     "anyOf": [
                         {
@@ -516,13 +537,13 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The power reading for this outlet.",
+                    "description": "The power (W) for this outlet.",
                     "excerptCopy": "SensorPowerExcerpt",
-                    "longDescription": "This property shall contain the total power, measured in Watts, for this outlet, that represents the `Total` ElectricalContext sensor when multiple power sensors exist for this outlet."
+                    "longDescription": "This property shall contain the total power, in watt units, for this outlet, that represents the `Total` ElectricalContext sensor when multiple power sensors exist for this outlet.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Power`."
                 },
                 "RatedCurrentAmps": {
                     "description": "The rated maximum current allowed for this outlet.",
-                    "longDescription": "This property shall contain the rated maximum current for this outlet, in Amps, after any required de-rating, due to safety agency or other regulatory requirements, has been applied.",
+                    "longDescription": "This property shall contain the rated maximum current for this outlet, in ampere units, after any required de-rating, due to safety agency or other regulatory requirements, has been applied.",
                     "minimum": 0,
                     "readonly": true,
                     "type": [
@@ -552,9 +573,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The voltage reading for this single phase outlet.",
+                    "description": "The voltage (V) for this single phase outlet.",
                     "excerptCopy": "SensorVoltageExcerpt",
-                    "longDescription": "This property shall contain the voltage, measured in Volts, for this single phase outlet.  This property shall not appear in resource instances representing poly-phase outlets."
+                    "longDescription": "This property shall contain the voltage, in volt units, for this single phase outlet.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Voltage`.  This property shall not appear in resource instances representing poly-phase outlets."
                 },
                 "VoltageType": {
                     "anyOf": [
@@ -676,9 +697,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The Line 1 to Line 2 voltage reading for this outlet.",
+                    "description": "The Line 1 to Line 2 voltage (V) for this outlet.",
                     "excerptCopy": "SensorVoltageExcerpt",
-                    "longDescription": "This property shall contain a Sensor excerpt of type Voltage that measures voltage between L1 and L2.  This property shall not be present if the outlet does not include an L1-L2 measurement."
+                    "longDescription": "This property shall contain the line-to-line voltage, in volt units, between L1 and L2.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Voltage`.  This property shall not be present if the equipment does not include an L1-L2 measurement."
                 },
                 "Line1ToNeutral": {
                     "anyOf": [
@@ -689,9 +710,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The Line 1 to Neutral voltage reading for this outlet.",
+                    "description": "The Line 1 to Neutral voltage (V) for this outlet.",
                     "excerptCopy": "SensorVoltageExcerpt",
-                    "longDescription": "This property shall contain a Sensor excerpt of type Voltage that measures voltage between L1 and Neutral.  This property shall not be present if the outlet does not include an L1-Neutral measurement."
+                    "longDescription": "This property shall contain the line-to-line voltage, in volt units, between L1 and Neutral.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Voltage`.  This property shall not be present if the equipment does not include an L1-Neutral measurement."
                 },
                 "Line2ToLine3": {
                     "anyOf": [
@@ -702,9 +723,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The Line 2 to Line 3 voltage reading for this outlet.",
+                    "description": "The Line 2 to Line 3 voltage (V) for this outlet.",
                     "excerptCopy": "SensorVoltageExcerpt",
-                    "longDescription": "This property shall contain a Sensor excerpt of type Voltage that measures voltage between L2 and L3.  This property shall not be present if the outlet does not include an L2-L3 measurement."
+                    "longDescription": "This property shall contain the line-to-line voltage, in volt units, between L2 and L3.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Voltage`.  This property shall not be present if the equipment does not include an L2-L3 measurement."
                 },
                 "Line2ToNeutral": {
                     "anyOf": [
@@ -715,9 +736,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The Line 2 to Neutral voltage reading for this outlet.",
+                    "description": "The Line 2 to Neutral voltage (V) for this outlet.",
                     "excerptCopy": "SensorVoltageExcerpt",
-                    "longDescription": "This property shall contain a Sensor excerpt of type Voltage that measures voltage between L2 and Neutral.  This property shall not be present if the outlet does not include an L2-Neutral measurement."
+                    "longDescription": "This property shall contain the line-to-line voltage, in volt units, between L2 and Neutral.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Voltage`.  This property shall not be present if the equipment does not include an L2-Neutral measurement."
                 },
                 "Line3ToLine1": {
                     "anyOf": [
@@ -728,9 +749,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The Line 3 to Line 1 voltage reading for this outlet.",
+                    "description": "The Line 3 to Line 1 voltage (V) for this outlet.",
                     "excerptCopy": "SensorVoltageExcerpt",
-                    "longDescription": "This property shall contain a Sensor excerpt of type Voltage that measures voltage between L3 and L1.  This property shall not be present if the outlet does not include an L3-L1 measurement."
+                    "longDescription": "This property shall contain the line-to-line voltage, in volt units, between L3 and L1.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Voltage`.  This property shall not be present if the equipment does not include an L3-L1 measurement."
                 },
                 "Line3ToNeutral": {
                     "anyOf": [
@@ -741,9 +762,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The Line 3 to Neutral voltage reading for this outlet.",
+                    "description": "The Line 3 to Neutral voltage (V) for this outlet.",
                     "excerptCopy": "SensorVoltageExcerpt",
-                    "longDescription": "This property shall contain a Sensor excerpt of type Voltage that measures voltage between L3 and Neutral.  This property shall not be present if the outlet does not include an L3-Neutral measurement."
+                    "longDescription": "This property shall contain the line-to-line voltage, in volt units, between L3 and Neutral.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Voltage`.  This property shall not be present if the equipment does not include an L3-Neutral measurement."
                 }
             },
             "type": "object"
@@ -761,6 +782,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.3",
-    "title": "#Outlet.v1_3_0.Outlet"
+    "release": "2021.4",
+    "title": "#Outlet.v1_4_0.Outlet"
 }

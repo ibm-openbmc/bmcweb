@@ -4,7 +4,7 @@
   "@odata.type": "#JsonSchemaFileCollection.JsonSchemaFileCollection",
   "Name": "JsonSchemaFile Collection",
   "Description": "Collection of JsonSchemaFiles",
-  "Members@odata.count": 135,
+  "Members@odata.count": 139,
   "Members": [
     {
       "@odata.id": "/redfish/v1/JsonSchemas/AccelerationFunction"
@@ -68,6 +68,9 @@
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/CollectionCapabilities"
+    },
+    {
+      "@odata.id": "/redfish/v1/JsonSchemas/ComponentIntegrity"
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/CompositionReservation"
@@ -170,6 +173,9 @@
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/ManagerAccount"
+    },
+    {
+      "@odata.id": "/redfish/v1/JsonSchemas/ManagerDiagnosticData"
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/ManagerNetworkProtocol"
@@ -295,6 +301,9 @@
       "@odata.id": "/redfish/v1/JsonSchemas/Redundancy"
     },
     {
+      "@odata.id": "/redfish/v1/JsonSchemas/RegisteredClient"
+    },
+    {
       "@odata.id": "/redfish/v1/JsonSchemas/Resource"
     },
     {
@@ -323,6 +332,9 @@
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/SerialInterface"
+    },
+    {
+      "@odata.id": "/redfish/v1/JsonSchemas/ServiceConditions"
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/ServiceRoot"
