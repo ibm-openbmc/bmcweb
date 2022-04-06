@@ -288,7 +288,7 @@ inline void
                             },
                             service, objectPath,
                             "org.freedesktop.DBus.Properties", "Set", interface,
-                            "NTPServers",
+                            "StaticNTPServers",
                             std::variant<std::vector<std::string>>{ntpServers});
                     }
                 }
