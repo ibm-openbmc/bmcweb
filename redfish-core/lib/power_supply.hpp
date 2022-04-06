@@ -622,6 +622,11 @@ inline void requestRoutesPowerSupply(App& app)
                                     "/redfish/v1/Chassis/" + chassisID +
                                     "/PowerSubsystem/PowerSupplies/" +
                                     powerSupplyID;
+                                asyncResp->res.jsonValue["Metrics"] = {
+                                    {"@odata.id",
+                                     "/redfish/v1/Chassis/" + chassisID +
+                                         "/PowerSubsystem/PowerSupplies/" +
+                                         powerSupplyID + "/Metrics"}};
 
                                 // Get power supply asset
                                 getPowerSupplyAsset(asyncResp,

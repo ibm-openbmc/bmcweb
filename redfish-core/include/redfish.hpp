@@ -42,6 +42,7 @@
 #include "../lib/power.hpp"
 #include "../lib/power_subsystem.hpp"
 #include "../lib/power_supply.hpp"
+#include "../lib/power_supply_metrics.hpp"
 #include "../lib/processor.hpp"
 #include "../lib/redfish_sessions.hpp"
 #include "../lib/roles.hpp"
@@ -92,6 +93,7 @@ class RedfishService
         requestRoutesPowerSubsystem(app);
         requestRoutesPowerSupplyCollection(app);
         requestRoutesPowerSupply(app);
+        requestRoutesPowerSupplyMetrics(app);
 #endif
         requestRoutesManagerCollection(app);
         requestRoutesFan(app);
