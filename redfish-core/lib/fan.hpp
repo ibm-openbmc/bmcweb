@@ -228,13 +228,63 @@ inline void getValidFan(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                     messages::internalError(asyncResp->res);
                     return;
                 }
-                const std::string& validPath = objectPath;
-                sdbusplus::message::object_path pathFan(validPath);
-                std::string fanName = pathFan.filename();
 
-                fanList.push_back({{"@odata.id", newPath + fanName + "/"}});
-                asyncResp->res.jsonValue["Members@odata.count"] =
-                    fanList.size();
+                const std::string& connectionName = serviceName[0].first;
+                const std::string fanPath = objectPath;
+                crow::connections::systemBus->async_method_call(
+                    [asyncResp, chassisId, fanPath, connectionName, &fanList,
+                     newPath](const boost::system::error_code ec,
+                              const std::variant<std::vector<std::string>>&
+                                  endpoints) {
+                        if (ec)
+                        {
+                            if (ec.value() == EBADR)
+                            {
+                                // This fan have no chassis association.
+                                return;
+                            }
+                            BMCWEB_LOG_ERROR << "DBUS response error";
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+
+                        const std::vector<std::string>* fanChassis =
+                            std::get_if<std::vector<std::string>>(&(endpoints));
+
+                        if (fanChassis == nullptr)
+                        {
+                            BMCWEB_LOG_ERROR
+                                << "Error getting Fan association!";
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+
+                        if ((*fanChassis).size() != 1)
+                        {
+                            BMCWEB_LOG_ERROR << "Fan association error! ";
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+
+                        std::vector<std::string> chassisPath = *fanChassis;
+                        sdbusplus::message::object_path path(chassisPath[0]);
+                        std::string chassisName = path.filename();
+                        if (chassisName != chassisId)
+                        {
+                            // The fan does't belong to the chassisId
+                            return;
+                        }
+                        sdbusplus::message::object_path pathFan(fanPath);
+                        std::string fanName = pathFan.filename();
+
+                        fanList.push_back(
+                            {{"@odata.id", newPath + fanName + "/"}});
+                        asyncResp->res.jsonValue["Members@odata.count"] =
+                            fanList.size();
+                    },
+                    "xyz.openbmc_project.ObjectMapper", fanPath + "/chassis",
+                    "org.freedesktop.DBus.Properties", "Get",
+                    "xyz.openbmc_project.Association", "endpoints");
             }
         },
         "xyz.openbmc_project.ObjectMapper",
