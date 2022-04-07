@@ -1,0 +1,109 @@
+{
+    "$id": "http://redfish.dmtf.org/schemas/v1/OemPowerSupplyMetric.v1_0_0.json",
+    "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
+    "copyright": "Copyright 2014-2019 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "definitions": {
+        "OEM": {
+            "additionalProperties": true,
+            "description": "OemPowerSupplyMetric OEM properties.",
+            "patternProperties": {
+                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
+                    "description": "This property shall specify a valid odata or Redfish property.",
+                    "type": [
+                        "array",
+                        "boolean",
+                        "integer",
+                        "number",
+                        "null",
+                        "object",
+                        "string"
+                    ]
+                }
+            },
+            "properties": {
+                "IBM": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/definitions/IBM"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                }
+            },
+            "type": "object"
+        },
+        "IBM": {
+            "additionalProperties": true,
+            "description": "IBM Oem propperties for Power Supply Metrics.",
+            "patternProperties": {
+                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
+                    "description": "This property shall specify a valid odata or Redfish property.",
+                    "type": [
+                        "array",
+                        "boolean",
+                        "integer",
+                        "number",
+                        "null",
+                        "object",
+                        "string"
+                    ]
+                }
+            },
+            "properties": {
+                "InputPowerHistoryItem": {
+                    "$ref": "#/definitions/InputPowerHistoryItem",
+                    "description": "Contains power supply input power history.",
+                    "longDescription": "Contains power supply input power history, timestamped average and maximum input power over 30 second intervals.",
+                    "readonly": false,
+                    "versionAdded": "v1_0_0"
+                }
+            }
+        },
+        "InputPowerHistoryItem": {
+            "additionalProperties": false,
+            "description": "Contains power supply input power history.",
+            "longDescription": "Contains power supply input power history, timestamped average and maximum input power over 30 second intervals.",
+            "patternProperties": {
+                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
+                    "description": "This property shall specify a valid odata or Redfish property.",
+                    "type": [
+                        "array",
+                        "boolean",
+                        "integer",
+                        "number",
+                        "null",
+                        "object",
+                        "string"
+                    ]
+                }
+            },
+            "properties": {
+                "Date": {
+                    "description": "Timestamp for when records were retrieved",
+                    "format": "date-time",
+                    "longDescription": "This property shall contain an array of objects representing the timestamp for when a record was retrieved from the power supply.",
+                    "readonly": true,
+                    "type": "string"
+                },
+                "Average": {
+                    "description": "The average power supply input power values.",
+                    "longDescription": "This property shall contain an array of objects that represent the average input power the power supply has calculated, each over a 30 second interval.",
+                    "readonly": true,
+                    "type": "array"
+                },
+                "Max": {
+                    "description": "The maximum power supply input power values",
+                    "longDescription": "",
+                    "readonly": true,
+                    "type": "array"
+                }
+            },
+            "type": "object"
+        }
+    },
+    "OwningEntity": "OpenBMC",
+    "release": "1.0",
+    "title": "#OemPowerSupplyMetric.v1_0_0"
+}

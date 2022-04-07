@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
+    <edmx:Reference Uri="http://docs.oasis-open.org/odata/odata/v4.0/errata03/csd01/complete/vocabularies/Org.OData.Core.V1.xml">
+        <edmx:Include Namespace="Org.OData.Core.V1" Alias="OData" />
+    </edmx:Reference>
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/RedfishExtensions_v1.xml">
+        <edmx:Include Namespace="Validation.v1_0_0" Alias="Validation"/>
+        <edmx:Include Namespace="RedfishExtensions.v1_0_0" Alias="Redfish"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Metric_v1.xml">
+        <edmx:Include Namespace="Metric"/>
+        <edmx:Include Namespace="Metric.v1_0_0"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Resource_v1.xml">
+        <edmx:Include Namespace="Resource"/>
+        <edmx:Include Namespace="Resource.v1_0_0"/>
+    </edmx:Reference>
+
+    <edmx:DataServices>
+        <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemPowerSupplyMetric">
+            <ComplexType Name="Oem" BaseType="Resource.OemObject">
+                <Annotation Term="OData.AdditionalProperties" Bool="true" />
+                <Annotation Term="OData.Description" String="OemPowerSupplyMetric Oem properties." />
+                <Annotation Term="OData.AutoExpand"/>
+                <Property Name="IBM" Type="OemPowerSupplyMetric.IBM"/>
+            </ComplexType>
+            <ComplexType Name="IBM">
+                <Annotation Term="OData.AdditionalProperties" Bool="true" />
+                <Annotation Term="OData.Description" String="IBM Oem properties for Power Supply Metrics." />
+                <Annotation Term="OData.AutoExpand"/>
+                <Property Name="InputPowerHistoryItems" Type="Collection(OemPowerSupplyMetric.InputPowerHistoryItem)"/>
+            </ComplexType>
+
+            <ComplexType Name="InputPowerHistoryItem" BaseType="Resource.OemObject">
+                <Annotation Term="OData.AdditionalProperties" Bool="true" />
+                <Annotation Term="OData.Description" String="Contains power supply input power history." />
+                <Annotation Term="OData.LongDescription" String="Contains power supply input power history, timestamped average and maximum input power over 30 second intervals." />
+                    <Annotation Term="OData.AutoExpand"/>
+                    <Property Name="Date" Type="Edm.DateTimeOffset" Nullable="false">
+                        <Annotation Term="OData.AdditionalProperties" Bool="false" />
+                        <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+                        <Annotation Term="OData.Description" String="Timestamp for when records were retrieved."/>
+                        <Annotation Term="OData.LongDescription" String="This property shall contain an array of objects representing the timestamp for when a record was retrieved from the power supply."/>
+                    </Property>
+                    <Property Name="Average" Type="Collection(Edm.Int16)">
+                        <Annotation Term="OData.AdditionalProperties" Bool="false" />
+                        <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+                        <Annotation Term="OData.Description" String="The average power supply input power values."/>
+                        <Annotation Term="OData.LongDescription" String="This property shall contain an array of objects that represent the average input power the power supply has calculated, each over a 30 second interval."/>
+                    </Property>
+                    <Property Name="Max" Type="Collection(Edm.Int16)">
+                        <Annotation Term="OData.AdditionalProperties" Bool="false" />
+                        <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+                        <Annotation Term="OData.Description" String="The maximum power supply input power values."/>
+                        <Annotation Term="OData.LongDescription" String="."/>
+                    </Property>
+            </ComplexType>
+        </Schema>
+    </edmx:DataServices>
+</edmx:Edmx>
