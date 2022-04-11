@@ -335,8 +335,13 @@ inline void resetHandlers()
             BMCWEB_LOG_DEBUG << "No handler to cleanup";
             return;
         }
-        handler->first->close();
-        BMCWEB_LOG_CRITICAL << "INFO: resetHandlers cleanup";
+        if ((handler->second->dumpType == "system") ||
+            (handler->second->dumpType == "resource"))
+        {
+            handler->first->close();
+            BMCWEB_LOG_CRITICAL << "INFO: " << handler->second->dumpType
+                                << " dump resetHandlers cleanup";
+        }
     }
     return;
 }
