@@ -93,7 +93,11 @@ inline bool getOemPrivFromRole(std::string_view role, nlohmann::json& privArray)
 
 inline bool isRestrictedRole(const std::string& role)
 {
-    return role == "OemIBMServiceAgent";
+    if ((role == "Operator") || (role == "OemIBMServiceAgent"))
+    {
+        return true;
+    }
+    return false;
 }
 
 inline void requestRoutesRoles(App& app)
