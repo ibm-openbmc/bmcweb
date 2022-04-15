@@ -199,6 +199,8 @@ class RedfishService
         requestRoutesDBusCELogEntry(app);
         requestRoutesDBusEventLogEntryDownload(app);
         requestRoutesDBusCELogEntryDownload(app);
+        requestRoutesDBusEventLogEntryDownloadPelJson(app);
+        requestRoutesDBusCELogEntryDownloadPelJson(app);
 #endif
 
         requestRoutesMessageRegistryFileCollection(app);
