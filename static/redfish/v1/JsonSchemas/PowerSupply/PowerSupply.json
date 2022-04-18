@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/PowerSupply.v1_2_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/PowerSupply.v1_3_0.json",
     "$ref": "#/definitions/PowerSupply",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -125,6 +125,19 @@
                 }
             },
             "type": "object"
+        },
+        "LineStatus": {
+            "enum": [
+                "Normal",
+                "LossOfInput",
+                "OutOfRange"
+            ],
+            "enumDescriptions": {
+                "LossOfInput": "No power detected at line input.",
+                "Normal": "Line input is within normal operating range.",
+                "OutOfRange": "Line input voltage or current is outside of normal operating range."
+            },
+            "type": "string"
         },
         "Links": {
             "additionalProperties": false,
@@ -368,6 +381,20 @@
                     "longDescription": "This property shall contain a collection of ranges usable by this power supply.",
                     "type": "array"
                 },
+                "LineInputStatus": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/definitions/LineStatus"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "The status of the line input.",
+                    "longDescription": "This property shall contain the status of the power line input for this power supply.",
+                    "readonly": true,
+                    "versionAdded": "v1_3_0"
+                },
                 "Links": {
                     "$ref": "#/definitions/Links",
                     "description": "The links to other resources that are related to this resource.",
@@ -593,6 +620,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.3",
-    "title": "#PowerSupply.v1_2_0.PowerSupply"
+    "release": "2021.4",
+    "title": "#PowerSupply.v1_3_0.PowerSupply"
 }

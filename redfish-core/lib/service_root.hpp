@@ -24,6 +24,111 @@ namespace redfish
 {
 
 inline void
+    handleServiceRootOem(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](
+            const boost::system::error_code ec,
+            const std::vector<std::pair<
+                std::string,
+                std::vector<std::pair<std::string, std::vector<std::string>>>>>&
+                subtree) {
+            if (ec)
+            {
+                BMCWEB_LOG_DEBUG << "DBUS response error";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            // Iterate over all retrieved ObjectPaths.
+            for (const auto& object : subtree)
+            {
+                const std::string& path = object.first;
+                BMCWEB_LOG_DEBUG << "Got path: " << path;
+                const std::vector<
+                    std::pair<std::string, std::vector<std::string>>>&
+                    connectionNames = object.second;
+                if (connectionNames.empty())
+                {
+                    continue;
+                }
+
+                // This is not system, so check if it's cpu, dimm, UUID or
+                // BiosVer
+                for (const auto& connection : connectionNames)
+                {
+                    for (const auto& interfaceName : connection.second)
+                    {
+                        if (interfaceName ==
+                            "xyz.openbmc_project.Inventory.Item.System")
+                        {
+                            crow::connections::systemBus->async_method_call(
+                                [asyncResp](
+                                    const boost::system::error_code ec2,
+                                    const std::vector<
+                                        std::pair<std::string, VariantType>>&
+                                        propertiesList) {
+                                    if (ec2)
+                                    {
+                                        // doesn't have to include this
+                                        // interface
+                                        return;
+                                    }
+                                    BMCWEB_LOG_DEBUG
+                                        << "Got " << propertiesList.size()
+                                        << " properties for system";
+                                    for (const std::pair<std::string,
+                                                         VariantType>&
+                                             property : propertiesList)
+                                    {
+                                        const std::string propertyName =
+                                            property.first;
+                                        if ((propertyName == "Model") ||
+                                            (propertyName == "SerialNumber"))
+                                        {
+                                            const std::string* value =
+                                                std::get_if<std::string>(
+                                                    &property.second);
+                                            if (value != nullptr)
+                                            {
+                                                asyncResp->res
+                                                    .jsonValue["Oem"]["IBM"]
+                                                              [propertyName] =
+                                                    *value;
+                                            }
+                                        }
+                                    }
+                                },
+                                connection.first, path,
+                                "org.freedesktop.DBus.Properties", "GetAll",
+                                "xyz.openbmc_project.Inventory.Decorator."
+                                "Asset");
+                        }
+                    }
+                }
+            }
+        },
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetSubTree",
+        "/xyz/openbmc_project/inventory", int32_t(0),
+        std::array<const char*, 1>{
+            "xyz.openbmc_project.Inventory.Decorator.Asset",
+        });
+
+    std::pair<std::string, std::string> redfishDateTimeOffset =
+        crow::utility::getDateTimeOffsetNow();
+
+    asyncResp->res.jsonValue["Oem"]["IBM"]["DateTime"] =
+        redfishDateTimeOffset.first;
+    asyncResp->res.jsonValue["Oem"]["IBM"]["DateTimeLocalOffset"] =
+        redfishDateTimeOffset.second;
+
+    asyncResp->res.jsonValue["Oem"]["@odata.type"] = "#OemServiceRoot.Oem";
+    asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
+        "#OemServiceRoot.IBM";
+}
+
+inline void
     handleServiceRootGet(const crow::Request&,
                          const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
@@ -68,6 +173,8 @@ inline void
         {"@odata.id", "/redfish/v1/LicenseService"}};
 #endif
     asyncResp->res.jsonValue["Cables"] = {{"@odata.id", "/redfish/v1/Cables"}};
+
+    handleServiceRootOem(asyncResp);
 }
 
 inline void requestRoutesServiceRoot(App& app)

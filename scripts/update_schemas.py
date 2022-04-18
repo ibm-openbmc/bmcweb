@@ -149,6 +149,13 @@ with open(metadata_index_path, 'w') as metadata_index:
     metadata_index.write("    </edmx:Reference>\n")
 
     metadata_index.write(
+        "    <edmx:Reference Uri=\""
+        "/redfish/v1/schema/OemServiceRoot_v1.xml\">\n")
+    metadata_index.write(
+        "        <edmx:Include Namespace=\"OemServiceRoot\"/>\n")
+    metadata_index.write("    </edmx:Reference>\n")
+
+    metadata_index.write(
         "    <edmx:Reference Uri=\"/redfish/v1/schema/OemSession_v1.xml\">\n")
     metadata_index.write("        <edmx:Include Namespace=\"OemSession\"/>\n")
     metadata_index.write(
@@ -190,6 +197,7 @@ with open(metadata_index_path, 'w') as metadata_index:
     metadata_index.write("    </edmx:Reference>\n")
 
     metadata_index.write(
+        "    <edmx:Reference Uri=\""
         "/redfish/v1/schema/OemChassis_v1.xml\">\n")
     metadata_index.write(
         "        <edmx:Include Namespace=\"OemChassis\"/>\n")

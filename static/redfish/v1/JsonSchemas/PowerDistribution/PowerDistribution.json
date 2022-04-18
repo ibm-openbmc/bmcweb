@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/PowerDistribution.v1_2_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/PowerDistribution.v1_2_1.json",
     "$ref": "#/definitions/PowerDistribution",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -560,8 +560,8 @@
             },
             "properties": {
                 "OverNominalFrequencyHz": {
-                    "description": "The frequency in Hertz over the nominal value that satisfies a criterion for transfer.",
-                    "longDescription": "This property shall contain the frequency in Hertz over the nominal value that satisfies a criterion for transfer.",
+                    "description": "The frequency in hertz over the nominal value that satisfies a criterion for transfer.",
+                    "longDescription": "This property shall contain the frequency in hertz over the nominal value that satisfies a criterion for transfer.",
                     "readonly": false,
                     "type": [
                         "number",
@@ -593,8 +593,8 @@
                     "readonly": false
                 },
                 "UnderNominalFrequencyHz": {
-                    "description": "The frequency in Hertz under the nominal value that satisfies a criterion for transfer.",
-                    "longDescription": "This property shall contain the frequency in Hertz under the nominal value that satisfies a criterion for transfer.",
+                    "description": "The frequency in hertz under the nominal value that satisfies a criterion for transfer.",
+                    "longDescription": "This property shall contain the frequency in hertz under the nominal value that satisfies a criterion for transfer.",
                     "readonly": false,
                     "type": [
                         "number",
@@ -631,5 +631,5 @@
     },
     "owningEntity": "DMTF",
     "release": "2021.3",
-    "title": "#PowerDistribution.v1_2_0.PowerDistribution"
+    "title": "#PowerDistribution.v1_2_1.PowerDistribution"
 }

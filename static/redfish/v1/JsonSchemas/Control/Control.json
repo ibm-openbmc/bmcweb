@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Control.v1_0_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Control.v1_1_0.json",
     "$ref": "#/definitions/Control",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -279,8 +279,7 @@
                     ],
                     "description": "The sensor reading associated with this control.",
                     "excerptCopy": "SensorExcerpt",
-                    "longDescription": "This property shall contain the Sensor excerpt directly associated with this control.  This property shall not be present if multiple sensors are associated with a single control.",
-                    "readonly": true
+                    "longDescription": "This property shall contain the Sensor excerpt directly associated with this control.  The value of the DataSourceUri property shall reference a resource of type Sensor.  This property shall not be present if multiple sensors are associated with a single control."
                 },
                 "SetPoint": {
                     "description": "The desired set point of the control.",
@@ -743,17 +742,27 @@
             "enum": [
                 "Temperature",
                 "Power",
-                "Frequency"
+                "Frequency",
+                "FrequencyMHz",
+                "Pressure"
             ],
             "enumDescriptions": {
-                "Frequency": "Frequency control.",
-                "Power": "Power control or power limit.",
-                "Temperature": "Temperature control or thermostat."
+                "Frequency": "Frequency (Hz) control.",
+                "FrequencyMHz": "Frequency (MHz) control.",
+                "Power": "Power (W) control or power limit.",
+                "Pressure": "Pressure (kPa) control.",
+                "Temperature": "Temperature (C) control or thermostat."
             },
             "enumLongDescriptions": {
-                "Frequency": "This value shall indicate a control used to limit the operating frequency, measured in Hertz units, of a device, either to a single set point or within a range, and the SetPointUnits property shall contain `Hz`.",
-                "Power": "This value shall indicate a control used to regulate or limit maximum power consumption, in Watts units, either to a single set point or within a range, and the SetPointUnits property shall contain `W`.",
+                "Frequency": "This value shall indicate a control used to limit the operating frequency, in hertz units, of a device, either to a single set point or within a range, and the SetPointUnits property shall contain `Hz`.",
+                "FrequencyMHz": "This value shall indicate a control used to limit the operating frequency, in megahertz units, of a device, either to a single set point or within a range, and the SetPointUnits property shall contain `MHz`.",
+                "Power": "This value shall indicate a control used to regulate or limit maximum power consumption, in watt units, either to a single set point or within a range, and the SetPointUnits property shall contain `W`.",
+                "Pressure": "This value shall indicate a control used to adjust pressure in a system, in kilopascal units, and the SetPointUnits property shall contain `kPa`.",
                 "Temperature": "This value shall indicate a control used to regulate temperature, in units of degrees Celsius, either to a single set point or within a range, and the SetPointUnits property shall contain `Cel`."
+            },
+            "enumVersionAdded": {
+                "FrequencyMHz": "v1_1_0",
+                "Pressure": "v1_1_0"
             },
             "type": "string"
         },
@@ -808,6 +817,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.2",
-    "title": "#Control.v1_0_0.Control"
+    "release": "2021.4",
+    "title": "#Control.v1_1_0.Control"
 }

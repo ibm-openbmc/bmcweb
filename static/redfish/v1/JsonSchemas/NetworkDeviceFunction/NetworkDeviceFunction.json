@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/NetworkDeviceFunction.v1_7_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/NetworkDeviceFunction.v1_8_0.json",
     "$ref": "#/definitions/NetworkDeviceFunction",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -850,10 +850,12 @@
                 },
                 "PhysicalNetworkPortAssignment": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Port.json#/definitions/Port",
+                    "deprecated": "This property has been deprecated in favor of PhysicalNetworkPortAssignment within Links to avoid loops on expand.",
                     "description": "The physical port to which this network device function is currently assigned.",
                     "longDescription": "This property shall contain a link to a resource of type Port that is the physical port to which this network device function is currently assigned.  This value shall be one of the AssignablePhysicalNetworkPorts array members.",
                     "readonly": true,
-                    "versionAdded": "v1_5_0"
+                    "versionAdded": "v1_5_0",
+                    "versionDeprecated": "v1_8_0"
                 },
                 "PhysicalPortAssignment": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/NetworkPort.json#/definitions/NetworkPort",
@@ -1234,6 +1236,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.2",
-    "title": "#NetworkDeviceFunction.v1_7_0.NetworkDeviceFunction"
+    "release": "2021.4",
+    "title": "#NetworkDeviceFunction.v1_8_0.NetworkDeviceFunction"
 }

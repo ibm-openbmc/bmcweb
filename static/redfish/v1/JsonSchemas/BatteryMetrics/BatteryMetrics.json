@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/BatteryMetrics.v1_0_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/BatteryMetrics.v1_0_1.json",
     "$ref": "#/definitions/BatteryMetrics",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -68,12 +68,12 @@
                     "longDescription": "This property shall contain the available actions for this resource."
                 },
                 "CellVoltages": {
-                    "description": "The cell voltage readings for this battery.",
+                    "description": "The cell voltages (V) for this battery.",
                     "excerptCopy": "SensorVoltageExcerpt",
                     "items": {
                         "$ref": "http://redfish.dmtf.org/schemas/v1/Sensor.json#/definitions/SensorVoltageExcerpt"
                     },
-                    "longDescription": "This property shall contain the cell voltage sensors for this battery.",
+                    "longDescription": "This property shall contain the cell voltages, in volt units, for this battery.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Voltage`.",
                     "type": "array"
                 },
                 "CellVoltages@odata.count": {
@@ -81,9 +81,9 @@
                 },
                 "ChargePercent": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Sensor.json#/definitions/SensorExcerpt",
-                    "description": "The amount of charge available in this battery as a percentage.",
+                    "description": "The amount of charge available (percent) in this battery.",
                     "excerptCopy": "SensorExcerpt",
-                    "longDescription": "This property shall contain the amount of charge available in this battery as a percentage."
+                    "longDescription": "This property shall contain the amount of charge available, in percent units, in this battery.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Percent`."
                 },
                 "Description": {
                     "anyOf": [
@@ -112,15 +112,15 @@
                 },
                 "InputCurrentAmps": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Sensor.json#/definitions/SensorCurrentExcerpt",
-                    "description": "The input current reading for this battery.",
+                    "description": "The input current (A) for this battery.",
                     "excerptCopy": "SensorCurrentExcerpt",
-                    "longDescription": "This property shall contain the input current sensor for this battery."
+                    "longDescription": "This property shall contain the input current, in ampere units, for this battery.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Current`."
                 },
                 "InputVoltage": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Sensor.json#/definitions/SensorVoltageExcerpt",
-                    "description": "The input voltage reading for this battery.",
+                    "description": "The input voltage (V) for this battery.",
                     "excerptCopy": "SensorVoltageExcerpt",
-                    "longDescription": "This property shall contain the input voltage sensor for this battery."
+                    "longDescription": "This property shall contain the input voltage, in volt units, for this battery.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Voltage`."
                 },
                 "Name": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Name",
@@ -132,24 +132,24 @@
                     "longDescription": "This property shall contain the OEM extensions.  All values for properties that this object contains shall conform to the Redfish Specification-described requirements."
                 },
                 "OutputCurrentAmps": {
-                    "description": "The output current readings for this battery.",
+                    "description": "The output currents (A) for this battery.",
                     "excerptCopy": "SensorCurrentExcerpt",
                     "items": {
                         "$ref": "http://redfish.dmtf.org/schemas/v1/Sensor.json#/definitions/SensorCurrentExcerpt"
                     },
-                    "longDescription": "This property shall contain the output current sensors for this battery.  The sensors shall appear in the same array order as the OutputVoltages property.",
+                    "longDescription": "This property shall contain the output currents, in ampere units, for this battery.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Current`.  The sensors shall appear in the same array order as the OutputVoltages property.",
                     "type": "array"
                 },
                 "OutputCurrentAmps@odata.count": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
                 },
                 "OutputVoltages": {
-                    "description": "The output voltage readings for this battery.",
+                    "description": "The output voltages (V) for this battery.",
                     "excerptCopy": "SensorVoltageExcerpt",
                     "items": {
                         "$ref": "http://redfish.dmtf.org/schemas/v1/Sensor.json#/definitions/SensorVoltageExcerpt"
                     },
-                    "longDescription": "This property shall contain the output voltage sensors for this battery.  The sensors shall appear in the same array order as the OutputCurrentAmps property.",
+                    "longDescription": "This property shall contain the output voltages, in volt units, for this battery.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Voltage`.  The sensors shall appear in the same array order as the OutputCurrentAmps property.",
                     "type": "array"
                 },
                 "OutputVoltages@odata.count": {
@@ -162,21 +162,21 @@
                 },
                 "StoredChargeAmpHours": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Sensor.json#/definitions/SensorExcerpt",
-                    "description": "The charge stored in this battery in amp-hours.",
+                    "description": "The charge (Ah) stored in this battery.",
                     "excerptCopy": "SensorExcerpt",
-                    "longDescription": "This property shall contain the charge sensor for this battery in amp-hours."
+                    "longDescription": "This property shall contain the stored charge, in ampere-hours units, for this battery.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `ChargeAh`."
                 },
                 "StoredEnergyWattHours": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Sensor.json#/definitions/SensorExcerpt",
-                    "description": "The energy stored in this battery in watt-hours.",
+                    "description": "The energy (Wh) stored in this battery.",
                     "excerptCopy": "SensorExcerpt",
-                    "longDescription": "This property shall contain the energy sensor for this battery in watt-hours."
+                    "longDescription": "This property shall contain the stored energy, in watt-hour units, for this battery.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `EnergyWh`."
                 },
                 "TemperatureCelsius": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Sensor.json#/definitions/SensorExcerpt",
-                    "description": "The temperature reading for this battery.",
+                    "description": "The temperature (C) for this battery.",
                     "excerptCopy": "SensorExcerpt",
-                    "longDescription": "This property shall contain the temperature sensor for this battery."
+                    "longDescription": "This property shall contain the temperature, in degrees Celsius units, for this battery.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Temperature`."
                 }
             },
             "required": [
@@ -211,5 +211,5 @@
     },
     "owningEntity": "DMTF",
     "release": "2021.2",
-    "title": "#BatteryMetrics.v1_0_0.BatteryMetrics"
+    "title": "#BatteryMetrics.v1_0_1.BatteryMetrics"
 }

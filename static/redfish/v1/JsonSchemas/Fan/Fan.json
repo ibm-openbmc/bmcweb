@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Fan.v1_1_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Fan.v1_1_1.json",
     "$ref": "#/definitions/Fan",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -162,10 +162,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "Power consumption (Watts).",
+                    "description": "Power consumption (W).",
                     "excerptCopy": "SensorPowerExcerpt",
-                    "longDescription": "This property shall contain the total power, measured in Watts, for this resource.",
-                    "readonly": true,
+                    "longDescription": "This property shall contain the total power, in watt units, for this resource.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Power`.",
                     "versionAdded": "v1_1_0"
                 },
                 "SerialNumber": {
@@ -195,10 +194,9 @@
                             "type": "null"
                         }
                     ],
-                    "description": "The fan speed reading.",
+                    "description": "The fan speed (percent).",
                     "excerptCopy": "SensorFanExcerpt",
-                    "longDescription": "This property shall contain the fan speed sensor.",
-                    "readonly": true
+                    "longDescription": "This property shall contain the fan speed, in percent units, for this resource.  The value of the DataSourceUri property, if present, shall reference a resource of type Sensor with the ReadingType property containing the value `Percent`."
                 },
                 "Status": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Status",
@@ -238,5 +236,5 @@
     },
     "owningEntity": "DMTF",
     "release": "2021.1",
-    "title": "#Fan.v1_1_0.Fan"
+    "title": "#Fan.v1_1_1.Fan"
 }
