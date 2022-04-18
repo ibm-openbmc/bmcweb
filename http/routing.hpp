@@ -49,19 +49,18 @@ class BaseRule
     virtual void handle(const Request&,
                         const std::shared_ptr<bmcweb::AsyncResp>&,
                         const RoutingParams&) = 0;
-    virtual void handleUpgrade(const Request&, Response& res,
-                               boost::asio::ip::tcp::socket&&)
+    virtual void handleUpgrade(const Request& /*req*/,
+                               std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                               boost::asio::ip::tcp::socket&& /*adaptor*/)
     {
-        res.result(boost::beast::http::status::not_found);
-        res.end();
+        asyncResp->res.result(boost::beast::http::status::not_found);
     }
 #ifdef BMCWEB_ENABLE_SSL
-    virtual void
-        handleUpgrade(const Request&, Response& res,
-                      boost::beast::ssl_stream<boost::asio::ip::tcp::socket>&&)
+    virtual void handleUpgrade(
+        const Request& /*req*/, std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+        boost::beast::ssl_stream<boost::asio::ip::tcp::socket>&& /*adaptor*/)
     {
-        res.result(boost::beast::http::status::not_found);
-        res.end();
+        asyncResp->res.result(boost::beast::http::status::not_found);
     }
 #endif
 
@@ -334,7 +333,8 @@ class WebSocketRule : public BaseRule
         asyncResp->res.result(boost::beast::http::status::not_found);
     }
 
-    void handleUpgrade(const Request& req, Response&,
+    void handleUpgrade(const Request& req,
+                       std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                        boost::asio::ip::tcp::socket&& adaptor) override
     {
         std::shared_ptr<
@@ -343,10 +343,11 @@ class WebSocketRule : public BaseRule
                 crow::websocket::ConnectionImpl<boost::asio::ip::tcp::socket>>(
                 req, std::move(adaptor), openHandler, messageHandler,
                 closeHandler, errorHandler);
-        myConnection->start();
+        myConnection->start(asyncResp);
     }
 #ifdef BMCWEB_ENABLE_SSL
-    void handleUpgrade(const Request& req, Response&,
+    void handleUpgrade(const Request& req,
+                       std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                        boost::beast::ssl_stream<boost::asio::ip::tcp::socket>&&
                            adaptor) override
     {
@@ -356,7 +357,7 @@ class WebSocketRule : public BaseRule
                 boost::beast::ssl_stream<boost::asio::ip::tcp::socket>>>(
                 req, std::move(adaptor), openHandler, messageHandler,
                 closeHandler, errorHandler);
-        myConnection->start();
+        myConnection->start(asyncResp);
     }
 #endif
 
@@ -417,7 +418,7 @@ class StreamingResponseRule : public BaseRule
         asyncResp->res.result(boost::beast::http::status::not_found);
     }
 
-    void handleUpgrade(const Request& req, Response&,
+    void handleUpgrade(const Request& req, std::shared_ptr<bmcweb::AsyncResp>&,
                        boost::asio::ip::tcp::socket&& adaptor) override
     {
         std::shared_ptr<crow::streaming_response::ConnectionImpl<
@@ -434,7 +435,7 @@ class StreamingResponseRule : public BaseRule
     }
 
 #ifdef BMCWEB_ENABLE_SSL
-    void handleUpgrade(const Request& req, Response&,
+    void handleUpgrade(const Request& req, std::shared_ptr<bmcweb::AsyncResp>&,
                        boost::beast::ssl_stream<boost::asio::ip::tcp::socket>&&
                            adaptor) override
     {
@@ -1230,12 +1231,13 @@ class Router
     }
 
     template <typename Adaptor>
-    void handleUpgrade(const Request& req, Response& res, Adaptor&& adaptor)
+    void handleUpgrade(const Request& req,
+                       std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                       Adaptor&& adaptor)
     {
         if (static_cast<size_t>(req.method()) >= perMethods.size())
         {
-            res.result(boost::beast::http::status::not_found);
-            res.end();
+            asyncResp->res.result(boost::beast::http::status::not_found);
             return;
         }
 
@@ -1248,8 +1250,7 @@ class Router
         if (!ruleIndex)
         {
             BMCWEB_LOG_DEBUG << "Cannot match rules " << req.url;
-            res.result(boost::beast::http::status::not_found);
-            res.end();
+            asyncResp->res.result(boost::beast::http::status::not_found);
             return;
         }
 
@@ -1262,23 +1263,24 @@ class Router
         {
             BMCWEB_LOG_INFO << "Redirecting to a url with trailing slash: "
                             << req.url;
-            res.result(boost::beast::http::status::moved_permanently);
+            asyncResp->res.result(
+                boost::beast::http::status::moved_permanently);
 
             // TODO absolute url building
             if (req.getHeaderValue("Host").empty())
             {
-                res.addHeader("Location", std::string(req.url) + "/");
+                asyncResp->res.addHeader("Location",
+                                         std::string(req.url) + "/");
             }
             else
             {
-                res.addHeader(
+                asyncResp->res.addHeader(
                     "Location",
                     req.isSecure
                         ? "https://"
                         : "http://" + std::string(req.getHeaderValue("Host")) +
                               std::string(req.url) + "/");
             }
-            res.end();
             return;
         }
 
@@ -1289,8 +1291,7 @@ class Router
                              << " with " << req.methodString() << "("
                              << static_cast<uint32_t>(req.method()) << ") / "
                              << rules[ruleIndex]->getMethods();
-            res.result(boost::beast::http::status::not_found);
-            res.end();
+            asyncResp->res.result(boost::beast::http::status::not_found);
             return;
         }
 
@@ -1301,13 +1302,14 @@ class Router
         // any uncaught exceptions become 500s
         try
         {
-            rules[ruleIndex]->handleUpgrade(req, res, std::move(adaptor));
+            rules[ruleIndex]->handleUpgrade(req, asyncResp,
+                                            std::forward<Adaptor>(adaptor));
         }
         catch (const std::exception& e)
         {
             BMCWEB_LOG_ERROR << "An uncaught exception occurred: " << e.what();
-            res.result(boost::beast::http::status::internal_server_error);
-            res.end();
+            asyncResp->res.result(
+                boost::beast::http::status::internal_server_error);
             return;
         }
         catch (...)
@@ -1315,8 +1317,8 @@ class Router
             BMCWEB_LOG_ERROR
                 << "An uncaught exception occurred. The type was unknown "
                    "so no information was available.";
-            res.result(boost::beast::http::status::internal_server_error);
-            res.end();
+            asyncResp->res.result(
+                boost::beast::http::status::internal_server_error);
             return;
         }
     }
