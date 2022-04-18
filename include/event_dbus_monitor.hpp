@@ -13,6 +13,7 @@ static std::shared_ptr<sdbusplus::bus::match::match> matchBMCStateChange;
 static std::shared_ptr<sdbusplus::bus::match::match>
     matchVMIIPEnabledPropChange;
 static std::shared_ptr<sdbusplus::bus::match::match> matchVMIIPChange;
+static std::shared_ptr<sdbusplus::bus::match::match> matchVMIEthIntfPropChange;
 static std::shared_ptr<sdbusplus::bus::match::match> matchDumpCreatedSignal;
 static std::shared_ptr<sdbusplus::bus::match::match> matchDumpDeletedSignal;
 static std::shared_ptr<sdbusplus::bus::match::match> matchBIOSAttrUpdate;
@@ -26,6 +27,7 @@ void registerHostStateChangeSignal();
 void registerBMCStateChangeSignal();
 void registerVMIIPEnabledPropChangeSignal();
 void registerVMIIPChangeSignal();
+void registerVMIEthIntfPropChangeSignal();
 void registerDumpCreatedSignal();
 void registerDumpDeletedSignal();
 void registerBIOSAttrUpdateSignal();
@@ -50,9 +52,9 @@ inline void VMINwPropertyChange(sdbusplus::message::message& msg)
 
     std::string objPath = msg.get_path();
 
-    if ((objPath !=
-         "/xyz/openbmc_project/network/hypervisor/eth0/ipv4/addr0") &&
-        (objPath != "/xyz/openbmc_project/network/hypervisor/eth1/ipv4/addr0"))
+    if (!(objPath.starts_with(
+            "/xyz/openbmc_project/network/hypervisor/eth0")) &&
+        !(objPath.starts_with("/xyz/openbmc_project/network/hypervisor/eth1")))
     {
         return;
     }
@@ -243,6 +245,16 @@ void registerVMIIPChangeSignal()
         VMINwPropertyChange);
 }
 
+void registerVMIEthIntfPropChangeSignal()
+{
+    matchVMIEthIntfPropChange = std::make_unique<sdbusplus::bus::match::match>(
+        *crow::connections::systemBus,
+        "type='signal',member='PropertiesChanged',interface='org.freedesktop."
+        "DBus.Properties',arg0namespace='xyz.openbmc_project.Network."
+        "EthernetInterface'",
+        VMINwPropertyChange);
+}
+
 void registerBootProgressChangeSignal()
 {
     BMCWEB_LOG_DEBUG << "BootProgress change signal - Register";
@@ -337,6 +349,7 @@ void registerVMIConfigChangeSignal()
 {
     registerVMIIPEnabledPropChangeSignal();
     registerVMIIPChangeSignal();
+    registerVMIEthIntfPropChangeSignal();
 }
 
 void registerPostCodeChangeSignal()
