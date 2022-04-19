@@ -139,14 +139,6 @@ inline void
         {
             retChassisPowerStateOffRequiredError(asyncResp, resourceObjPath);
         }
-        else if (std::string_view(
-                     "xyz.openbmc_project.Common.Error.Unavailable") ==
-                 dbusError->name)
-        {
-            messages::propertyValueResourceConflict(
-                asyncResp->res, "Enabled", std::to_string(enabledPropVal),
-                "HardwareIsolation");
-        }
         else if (
             std::string_view(
                 "xyz.openbmc_project.HardwareIsolation.Error.IsolatedAlready") ==
@@ -271,17 +263,6 @@ inline void
             {
                 retChassisPowerStateOffRequiredError(asyncResp,
                                                      resourceObjPath);
-            }
-            else if (std::string_view(
-                         "xyz.openbmc_project.Common.Error.Unavailable") ==
-                     dbusError->name)
-            {
-                // The Enabled property value will be "true" to
-                // de-isolate.
-                constexpr bool enabledPropVal = true;
-                messages::propertyValueResourceConflict(
-                    asyncResp->res, "Enabled", std::to_string(enabledPropVal),
-                    "HardwareIsolation");
             }
             else if (
                 std::string_view(
