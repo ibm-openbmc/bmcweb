@@ -50,7 +50,7 @@ class Handler : public std::enable_shared_from_this<Handler>
             // ERROR
             if (session)
             {
-                session->close("Error creating ssh child process");
+                session->close("Error creating child process for login shell.");
             }
             return;
         }
@@ -58,45 +58,17 @@ class Handler : public std::enable_shared_from_this<Handler>
         {
             // CHILD
 
-            // sets the effective user ID
-            // as service user
-            bool isUidSet = false;
             if (auto userName = session->getUserName(); !userName.empty())
             {
-                if (struct passwd* pw = getpwnam(userName.c_str());
-                    pw != nullptr)
-                {
-                    int uidr = setuid(pw->pw_uid);
-                    if (!uidr)
-                    {
-                        isUidSet = true;
-                    }
-                    else
-                    {
-                        BMCWEB_LOG_ERROR << "sets service user failed Error: "
-                                         << uidr;
-                    }
-                }
-                else
-                {
-                    BMCWEB_LOG_ERROR << "getpwnam return null passwd";
-                }
+                execl("/bin/login", "/bin/login", "-f", userName.c_str(), NULL);
+                // execl only returns on fail
+                BMCWEB_LOG_ERROR << "execl() for /bin/login failed: " << errno;
+                session->close("Internal Error Login failed");
             }
             else
             {
-                BMCWEB_LOG_ERROR << "userName is empty";
+                session->close("Error session user name not found");
             }
-
-            // close connection unable to set
-            // setuid()
-            if (!isUidSet)
-            {
-                session->close("sets service user failed");
-                return;
-            }
-
-            // create /bin/sh chiled process
-            execl("/bin/sh", "/bin/sh", nullptr);
             return;
         }
         if (pid > 0)
@@ -202,7 +174,7 @@ static std::map<crow::websocket::Connection*, std::shared_ptr<Handler>>
 inline void requestRoutes(App& app)
 {
     BMCWEB_ROUTE(app, "/bmc-console")
-        .privileges({{"ConfigureManager"}})
+        .privileges({{"OemIBMPerformService"}})
         .websocket()
         .onopen([](crow::websocket::Connection& conn,
                    const std::shared_ptr<bmcweb::AsyncResp>&) {
