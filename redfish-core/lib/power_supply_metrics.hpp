@@ -247,7 +247,7 @@ inline void requestRoutesPowerSupplyMetrics(App& app)
                     "#OemPowerSupplyMetric.v1_0_0";
                 asyncResp->res.jsonValue["@odata.id"] =
                     "/redfish/v1/Chassis/" + chassisId +
-                    "/PowerSubSystem/PowerSupplies/" + powerSupplyId +
+                    "/PowerSubsystem/PowerSupplies/" + powerSupplyId +
                     "/Metrics";
                 asyncResp->res.jsonValue["Name"] =
                     "Metrics for " + powerSupplyId;
