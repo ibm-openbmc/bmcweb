@@ -93,7 +93,7 @@ inline void getAverageValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                                 }
                                 else
                                 {
-                                    BMCWEB_LOG_DEBUG
+                                    BMCWEB_LOG_ERROR
                                         << "Failed to find power supply input "
                                            "history Values data for:"
                                         << powerSupplyID;
@@ -193,7 +193,7 @@ inline void getMaxValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                                 }
                                 else
                                 {
-                                    BMCWEB_LOG_DEBUG
+                                    BMCWEB_LOG_ERROR
                                         << "Failed to find power supply input "
                                            "history Values data for:"
                                         << powerSupplyID;
