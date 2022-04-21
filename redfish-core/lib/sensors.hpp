@@ -106,6 +106,10 @@ inline const char* toReadingType(const std::string& sensorType)
     {
         return "Percent";
     }
+    if (sensorType == "humidity")
+    {
+        return "Humidity";
+    }
     if (sensorType == "altitude")
     {
         return "Altitude";
@@ -143,7 +147,8 @@ inline const char* toReadingUnits(const std::string& sensorType)
     {
         return "Cel";
     }
-    if (sensorType == "fan_pwm" || sensorType == "utilization")
+    if (sensorType == "fan_pwm" || sensorType == "utilization" ||
+        sensorType == "humidity")
     {
         return "%";
     }
