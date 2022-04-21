@@ -159,8 +159,8 @@ inline void requestRoutes(App& app)
     sessions.reserve(maxSessions);
 
     BMCWEB_ROUTE(app, "/kvm/0")
-        .privileges({{"ConfigureComponents", "ConfigureManager"}})
         .websocket()
+        .privileges({{"ConfigureComponents", "ConfigureManager"}})
         .onopen([](crow::websocket::Connection& conn,
                    const std::shared_ptr<bmcweb::AsyncResp>&) {
             BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";
