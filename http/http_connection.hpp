@@ -47,10 +47,10 @@ constexpr uint64_t loggedOutPostBodyLimit = 4096;
 
 constexpr uint32_t httpHeaderLimit = 8192;
 
-// drop all connections after 3 minutes, this time limit was chosen
+// drop all connections after 12 minutes, this time limit was chosen
 // arbitrarily and can be adjusted later if needed
 static constexpr const size_t loggedInAttempts =
-    (180 / timerQueueTimeoutSeconds);
+    (720 / timerQueueTimeoutSeconds);
 
 static constexpr const size_t loggedOutAttempts =
     (15 / timerQueueTimeoutSeconds);
