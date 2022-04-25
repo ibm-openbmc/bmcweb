@@ -43,6 +43,14 @@ inline void getFanHealth(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                          const std::string& connectionName,
                          const std::string& path)
 {
+    if ("xyz.openbmc_project.PLDM" == connectionName)
+    {
+        asyncResp->res.jsonValue["Status"]["Health"] = "Unknown";
+
+        // cannot read health info for fans off this controller
+        return;
+    }
+
     // Set the default Health to OK
     asyncResp->res.jsonValue["Status"]["Health"] = "OK";
 
