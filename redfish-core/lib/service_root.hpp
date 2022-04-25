@@ -123,6 +123,34 @@ inline void
     asyncResp->res.jsonValue["Oem"]["IBM"]["DateTimeLocalOffset"] =
         redfishDateTimeOffset.second;
 
+    // Report if ACFWindowActive
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code ec,
+                    const std::variant<bool>& retVal) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR
+                    << "Failed to read ACFWindowActive property";
+            }
+            else
+            {
+                const bool* isACFWindowActive = std::get_if<bool>(&retVal);
+                if (isACFWindowActive == nullptr)
+                {
+                    BMCWEB_LOG_ERROR << "nullptr for ACFWindowActive";
+                    messages::internalError(asyncResp->res);
+                }
+                else
+                {
+                    asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
+                        *isACFWindowActive;
+                }
+            }
+        },
+        "com.ibm.PanelApp", "/com/ibm/panel_app",
+        "org.freedesktop.DBus.Properties", "Get", "com.ibm.panel",
+        "ACFWindowActive");
+
     asyncResp->res.jsonValue["Oem"]["@odata.type"] = "#OemServiceRoot.Oem";
     asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
         "#OemServiceRoot.IBM";
