@@ -1898,8 +1898,10 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                     redfish::time_utils::getDateTimeUintMs(*timestamp);
                 thisEntry["Modified"] =
                     redfish::time_utils::getDateTimeUintMs(*updateTimestamp);
-                asyncResp->res.jsonValue["ServiceProviderNotified"] =
-                    *serviceProviderNotified;
+                thisEntry["ServiceProviderNotified"] = *serviceProviderNotified;
+                thisEntry["Oem"]["IBM"]["@odata.id"] =
+                    "/redfish/v1/Systems/system/LogServices/EventLog/Entries/" +
+                    std::to_string(*id) + "/OemPelAttachment";
                 if (filePath != nullptr)
                 {
                     thisEntry["AdditionalDataURI"] =
@@ -2151,8 +2153,10 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
                     redfish::time_utils::getDateTimeUintMs(*timestamp);
                 thisEntry["Modified"] =
                     redfish::time_utils::getDateTimeUintMs(*updateTimestamp);
-                asyncResp->res.jsonValue["ServiceProviderNotified"] =
-                    serviceProviderNotified;
+                thisEntry["ServiceProviderNotified"] = serviceProviderNotified;
+                thisEntry["Oem"]["IBM"]["@odata.id"] =
+                    "/redfish/v1/Systems/system/LogServices/CELog/Entries/" +
+                    std::to_string(*id) + "/OemPelAttachment";
                 if (filePath != nullptr)
                 {
                     thisEntry["AdditionalDataURI"] =
@@ -2301,6 +2305,9 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                 redfish::time_utils::getDateTimeUintMs(*updateTimestamp);
             asyncResp->res.jsonValue["ServiceProviderNotified"] =
                 *serviceProviderNotified;
+            asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.id"] =
+                "/redfish/v1/Systems/system/LogServices/EventLog/Entries/" +
+                std::to_string(*id) + "/OemPelAttachment";
             if (filePath != nullptr)
             {
                 asyncResp->res.jsonValue["AdditionalDataURI"] =
@@ -2505,6 +2512,9 @@ inline void requestRoutesDBusCELogEntry(App& app)
                 redfish::time_utils::getDateTimeUintMs(*updateTimestamp);
             asyncResp->res.jsonValue["ServiceProviderNotified"] =
                 *serviceProviderNotified;
+            asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.id"] =
+                "/redfish/v1/Systems/system/LogServices/CELog/Entries/" +
+                std::to_string(*id) + "/OemPelAttachment";
             if (filePath != nullptr)
             {
                 asyncResp->res.jsonValue["AdditionalDataURI"] =
@@ -2585,6 +2595,131 @@ inline void requestRoutesDBusCELogEntry(App& app)
         };
         getHiddenPropertyValue(asyncResp, entryID,
                                std::move(deleteCELogCallback));
+        });
+}
+
+inline void
+    displayOemPelAttachment(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                            const std::string& entryID)
+{
+
+    auto respHandler = [asyncResp, entryID](const boost::system::error_code ec,
+                                            const std::string& pelJson) {
+        if (ec.value() == EBADR)
+        {
+            messages::resourceNotFound(asyncResp->res, "OemPelAttachment",
+                                       entryID);
+            return;
+        }
+        if (ec)
+        {
+            BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        asyncResp->res.jsonValue["Oem"]["IBM"]["PelJson"] = pelJson;
+        asyncResp->res.jsonValue["Oem"]["@odata.type"] =
+            "#OemLogEntryAttachment.Oem";
+        asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
+            "#OemLogEntryAttachment.IBM";
+    };
+
+    uint32_t id = 0;
+    const std::string_view tEntryID{entryID};
+
+    auto [ptrIndex, ecIndex] =
+        std::from_chars(tEntryID.data(), tEntryID.data() + tEntryID.size(), id);
+
+    if (ecIndex != std::errc())
+    {
+        BMCWEB_LOG_DEBUG << "Unable to convert to entryID " << entryID
+                         << " to uint32_t";
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    crow::connections::systemBus->async_method_call(
+        respHandler, "xyz.openbmc_project.Logging",
+        "/xyz/openbmc_project/logging", "org.open_power.Logging.PEL",
+        "GetPELJSON", id);
+}
+
+inline void requestRoutesDBusEventLogEntryDownloadPelJson(App& app)
+{
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/LogServices/EventLog/Entries/"
+                      "<str>/OemPelAttachment")
+        .privileges(redfish::privileges::getLogEntry)
+        .methods(boost::beast::http::verb::get)(
+            [&app](const crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                   const std::string& systemName, const std::string& param)
+
+            {
+        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+        {
+            return;
+        }
+        if (systemName != "system")
+        {
+            messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                       systemName);
+            return;
+        }
+
+        std::string entryID = param;
+        dbus::utility::escapePathForDbus(entryID);
+
+        auto eventLogAttachmentCallback =
+            [asyncResp, entryID](bool hiddenPropVal) {
+            if (hiddenPropVal)
+            {
+                messages::resourceNotFound(asyncResp->res, "LogEntry", entryID);
+                return;
+            }
+            displayOemPelAttachment(asyncResp, entryID);
+        };
+        getHiddenPropertyValue(asyncResp, entryID,
+                               std::move(eventLogAttachmentCallback));
+        });
+}
+
+inline void requestRoutesDBusCELogEntryDownloadPelJson(App& app)
+{
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/LogServices/CELog/Entries/"
+                      "<str>/OemPelAttachment")
+        .privileges(redfish::privileges::getLogEntry)
+        .methods(boost::beast::http::verb::get)(
+            [&app](const crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                   const std::string& systemName, const std::string& param)
+
+            {
+        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+        {
+            return;
+        }
+        if (systemName != "system")
+        {
+            messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                       systemName);
+            return;
+        }
+
+        std::string entryID = param;
+        dbus::utility::escapePathForDbus(entryID);
+
+        auto eventLogAttachmentCallback =
+            [asyncResp, entryID](bool hiddenPropVal) {
+            if (!hiddenPropVal)
+            {
+                messages::resourceNotFound(asyncResp->res, "LogEntry", entryID);
+                return;
+            }
+            displayOemPelAttachment(asyncResp, entryID);
+        };
+        getHiddenPropertyValue(asyncResp, entryID,
+                               std::move(eventLogAttachmentCallback));
         });
 }
 
