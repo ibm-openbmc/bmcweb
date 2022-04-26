@@ -1152,6 +1152,14 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                     messages::resourceInStandby(asyncResp->res);
                     return;
                 }
+
+                if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
+                                            "Unavailable") == 0)
+                {
+                    messages::resourceInUse(asyncResp->res);
+                    return;
+                }
+
                 if (strcmp(dbusError->name,
                            "org.freedesktop.DBus.Error.NoReply") == 0)
                 {
