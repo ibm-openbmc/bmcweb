@@ -2603,6 +2603,109 @@ inline void requestRoutesDBusCELogEntry(App& app)
             });
 }
 
+inline void
+    displayOemPelAttachment(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                            const std::string& entryID)
+{
+
+    auto respHandler = [asyncResp, entryID](const boost::system::error_code ec,
+                                            const std::string& pelJson) {
+        if (ec.value() == EBADR)
+        {
+            messages::resourceNotFound(asyncResp->res, "OemPelAttachment",
+                                       entryID);
+            return;
+        }
+        if (ec)
+        {
+            BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        asyncResp->res.jsonValue["Oem"]["IBM"]["PelJson"] = pelJson;
+        asyncResp->res.jsonValue["Oem"]["@odata.type"] =
+            "#OemLogEntryAttachment.Oem";
+        asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
+            "#OemLogEntryAttachment.IBM";
+    };
+
+    uint32_t id;
+    auto [ptrIndex, ecIndex] =
+        std::from_chars(entryID.data(), entryID.data() + entryID.size(), id);
+
+    if (ecIndex != std::errc())
+    {
+        BMCWEB_LOG_DEBUG << "Unable to convert to entryID " << entryID
+                         << " to uint32_t";
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    crow::connections::systemBus->async_method_call(
+        respHandler, "xyz.openbmc_project.Logging",
+        "/xyz/openbmc_project/logging", "org.open_power.Logging.PEL",
+        "GetPELJSON", id);
+}
+
+inline void requestRoutesDBusEventLogEntryDownloadPelJson(App& app)
+{
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/EventLog/Entries/"
+                      "<str>/OemPelAttachment")
+        .privileges(redfish::privileges::getLogEntry)
+        .methods(boost::beast::http::verb::get)(
+            [](const crow::Request&,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+               const std::string& param)
+
+            {
+                std::string entryID = param;
+                dbus::utility::escapePathForDbus(entryID);
+
+                auto eventLogAttachmentCallback =
+                    [asyncResp, entryID](bool hiddenPropVal) {
+                        if (hiddenPropVal)
+                        {
+                            messages::resourceNotFound(asyncResp->res,
+                                                       "LogEntry", entryID);
+                            return;
+                        }
+                        displayOemPelAttachment(asyncResp, entryID);
+                    };
+                getHiddenPropertyValue(asyncResp, entryID,
+                                       std::move(eventLogAttachmentCallback));
+            });
+}
+
+inline void requestRoutesDBusCELogEntryDownloadPelJson(App& app)
+{
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/CELog/Entries/"
+                      "<str>/OemPelAttachment")
+        .privileges(redfish::privileges::getLogEntry)
+        .methods(boost::beast::http::verb::get)(
+            [](const crow::Request&,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+               const std::string& param)
+
+            {
+                std::string entryID = param;
+                dbus::utility::escapePathForDbus(entryID);
+
+                auto eventLogAttachmentCallback =
+                    [asyncResp, entryID](bool hiddenPropVal) {
+                        if (!hiddenPropVal)
+                        {
+                            messages::resourceNotFound(asyncResp->res,
+                                                       "LogEntry", entryID);
+                            return;
+                        }
+                        displayOemPelAttachment(asyncResp, entryID);
+                    };
+                getHiddenPropertyValue(asyncResp, entryID,
+                                       std::move(eventLogAttachmentCallback));
+            });
+}
+
 inline void getEventLogEntryAttachment(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& entryID)
