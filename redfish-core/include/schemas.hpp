@@ -139,5 +139,6 @@ namespace redfish
         "OemServiceRoot",
         "OemPCIeDevice",
         "OemLogEntry",
+        "OemLogEntryAttachment",
     };
 }
