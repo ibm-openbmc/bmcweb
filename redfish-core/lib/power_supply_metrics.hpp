@@ -17,7 +17,7 @@ inline void getAverageValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                              const std::string& chassisID,
                              const std::string& powerSupplyID)
 {
-    BMCWEB_LOG_INFO << "Get power supply average input power values";
+    BMCWEB_LOG_DEBUG << "Get power supply average input power values";
     BMCWEB_LOG_DEBUG << "ChassisID: " << chassisID;
     BMCWEB_LOG_DEBUG << "PowerSupplyID: " << powerSupplyID;
     // Setup date/timestamp and average values as arrays.
@@ -135,7 +135,7 @@ inline void getMaxValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                          const std::string& chassisID,
                          const std::string& powerSupplyID)
 {
-    BMCWEB_LOG_INFO << "Get power supply maximum input power values";
+    BMCWEB_LOG_DEBUG << "Get power supply maximum input power values";
     BMCWEB_LOG_DEBUG << "ChassisID: " << chassisID;
     BMCWEB_LOG_DEBUG << "PowerSupplyID: " << powerSupplyID;
 
@@ -240,8 +240,8 @@ inline void requestRoutesPowerSupplyMetrics(App& app)
                 const std::string& chassisId = param;
                 const std::string& powerSupplyId = param2;
 
-                BMCWEB_LOG_INFO << "ChassisID: " << chassisId;
-                BMCWEB_LOG_INFO << "PowerSupplyID: " << powerSupplyId;
+                BMCWEB_LOG_DEBUG << "ChassisID: " << chassisId;
+                BMCWEB_LOG_DEBUG << "PowerSupplyID: " << powerSupplyId;
 
                 asyncResp->res.jsonValue["@odata.type"] =
                     "#OemPowerSupplyMetric.v1_0_0";
