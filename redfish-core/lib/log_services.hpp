@@ -5376,18 +5376,51 @@ inline void deleteSystemHardwareIsolationLogEntryById(
 
             // Delete the respective dbus entry object
             crow::connections::systemBus->async_method_call(
-                [asyncResp, entryObjPath](const boost::system::error_code ec) {
-                    if (ec)
+                [asyncResp,
+                 entryObjPath](const boost::system::error_code ec,
+                               const sdbusplus::message::message& msg) {
+                    if (!ec)
                     {
-                        BMCWEB_LOG_ERROR << "DBUS response error ["
-                                         << ec.value() << " : " << ec.message()
-                                         << "] when tried to delete the given "
-                                            "object path: "
-                                         << entryObjPath.str;
+                        messages::success(asyncResp->res);
+                        return;
+                    }
+
+                    BMCWEB_LOG_ERROR << "DBUS response error [" << ec.value()
+                                     << " : " << ec.message()
+                                     << "] when tried to delete the given "
+                                     << "entry: " << entryObjPath.str;
+
+                    const sd_bus_error* dbusError = msg.get_error();
+
+                    if (dbusError == nullptr)
+                    {
                         messages::internalError(asyncResp->res);
                         return;
                     }
-                    messages::success(asyncResp->res);
+
+                    BMCWEB_LOG_ERROR << "DBus ErrorName: " << dbusError->name
+                                     << " ErrorMsg: " << dbusError->message;
+
+                    if (strcmp(dbusError->name,
+                               "xyz.openbmc_project.Common.Error."
+                               "NotAllowed") == 0)
+                    {
+                        messages::chassisPowerStateOffRequired(asyncResp->res,
+                                                               "chassis");
+                    }
+                    else if (strcmp(dbusError->name,
+                                    "xyz.openbmc_project.Common.Error."
+                                    "InsufficientPermission") == 0)
+                    {
+                        messages::resourceCannotBeDeleted(asyncResp->res);
+                    }
+                    else
+                    {
+                        BMCWEB_LOG_ERROR << "DBus Error is unsupported so "
+                                            "returning as Internal Error";
+                        messages::internalError(asyncResp->res);
+                    }
+                    return;
                 },
                 objType[0].first, entryObjPath.str,
                 "xyz.openbmc_project.Object.Delete", "Delete");
@@ -5442,18 +5475,45 @@ inline void postSystemHardwareIsolationLogServiceClearLog(
 
             // Delete all HardwareIsolation entries
             crow::connections::systemBus->async_method_call(
-                [asyncResp](const boost::system::error_code ec) {
-                    if (ec)
+                [asyncResp](const boost::system::error_code ec,
+                            const sdbusplus::message::message& msg) {
+                    if (!ec)
                     {
-                        BMCWEB_LOG_ERROR
-                            << "DBUS response error [" << ec.value() << " : "
-                            << ec.message()
-                            << "] when tried to delete all HardwareIsolation "
-                               "entries";
+                        messages::success(asyncResp->res);
+                        return;
+                    }
+
+                    BMCWEB_LOG_ERROR
+                        << "DBUS response error [" << ec.value() << " : "
+                        << ec.message()
+                        << "] when tried to delete all HardwareIsolation "
+                           "entries";
+
+                    const sd_bus_error* dbusError = msg.get_error();
+
+                    if (dbusError == nullptr)
+                    {
                         messages::internalError(asyncResp->res);
                         return;
                     }
-                    messages::success(asyncResp->res);
+
+                    BMCWEB_LOG_ERROR << "DBus ErrorName: " << dbusError->name
+                                     << " ErrorMsg: " << dbusError->message;
+
+                    if (strcmp(dbusError->name,
+                               "xyz.openbmc_project.Common.Error."
+                               "NotAllowed") == 0)
+                    {
+                        messages::chassisPowerStateOffRequired(asyncResp->res,
+                                                               "chassis");
+                    }
+                    else
+                    {
+                        BMCWEB_LOG_ERROR << "DBus Error is unsupported so "
+                                            "returning as Internal Error";
+                        messages::internalError(asyncResp->res);
+                    }
+                    return;
                 },
                 objType[0].first, "/xyz/openbmc_project/hardware_isolation",
                 "xyz.openbmc_project.Collection.DeleteAll", "DeleteAll");
