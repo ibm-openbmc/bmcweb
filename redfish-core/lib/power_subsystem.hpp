@@ -75,7 +75,7 @@ inline void getPowerSubsystemAllocationProperties(
             }
 
             // If MaxPowerCapValue valid, store Allocation properties in JSON
-            if (maxPowerCapValue > 0)
+            if ((maxPowerCapValue > 0) && (maxPowerCapValue < UINT32_MAX))
             {
                 asyncResp->res.jsonValue["Allocation"]["AllocatedWatts"] =
                     powerCapEnable ? powerCap : maxPowerCapValue;
