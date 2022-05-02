@@ -921,6 +921,11 @@ inline DumpCreationProgress getDumpCompletionStatus(
                                                      "Resource selector"));
                 return DUMP_CREATE_FAILED;
             }
+            if (value.ends_with("Success"))
+            {
+                taskData->state = "Running";
+                return DUMP_CREATE_INPROGRESS;
+            }
             return DUMP_CREATE_INPROGRESS;
         }
     }
