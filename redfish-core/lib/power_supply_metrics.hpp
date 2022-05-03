@@ -51,9 +51,8 @@ inline void getAverageValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                         crow::connections::systemBus->async_method_call(
                             [aResp, powerSupplyID](
                                 const boost::system::error_code ec2,
-                                const std::variant<std::vector<
-                                    std::tuple<std::uint64_t, std::int64_t>>>&
-                                    values_rsp) {
+                                const std::variant<std::vector<std::tuple<
+                                    std::uint64_t, std::int64_t>>>& valuesRsp) {
                                 if (ec2)
                                 {
                                     BMCWEB_LOG_DEBUG << "DBUS response error";
@@ -63,11 +62,11 @@ inline void getAverageValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 
                                 const std::vector<
                                     std::tuple<std::uint64_t, std::int64_t>>*
-                                    values_ptr =
+                                    valuesPtr =
                                         std::get_if<std::vector<std::tuple<
                                             std::uint64_t, std::int64_t>>>(
-                                            &values_rsp);
-                                if (values_ptr != nullptr)
+                                            &valuesRsp);
+                                if (valuesPtr != nullptr)
                                 {
                                     nlohmann::json& dates =
                                         aResp->res
@@ -80,7 +79,7 @@ inline void getAverageValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                                                       ["InputPowerHistoryItem"]
                                                       ["Average"];
 
-                                    for (const auto& values : *values_ptr)
+                                    for (const auto& values : *valuesPtr)
                                     {
                                         // The first value returned is the
                                         // timestamp, it is in milliseconds
@@ -168,9 +167,8 @@ inline void getMaxValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                         crow::connections::systemBus->async_method_call(
                             [aResp, powerSupplyID](
                                 const boost::system::error_code ec2,
-                                const std::variant<std::vector<
-                                    std::tuple<std::uint64_t, std::int64_t>>>&
-                                    values_rsp) {
+                                const std::variant<std::vector<std::tuple<
+                                    std::uint64_t, std::int64_t>>>& valuesRsp) {
                                 if (ec2)
                                 {
                                     BMCWEB_LOG_DEBUG << "DBUS response error";
@@ -180,18 +178,18 @@ inline void getMaxValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 
                                 const std::vector<
                                     std::tuple<std::uint64_t, std::int64_t>>*
-                                    values_ptr =
+                                    valuesPtr =
                                         std::get_if<std::vector<std::tuple<
                                             std::uint64_t, std::int64_t>>>(
-                                            &values_rsp);
-                                if (values_ptr != nullptr)
+                                            &valuesRsp);
+                                if (valuesPtr != nullptr)
                                 {
                                     nlohmann::json& maximums =
                                         aResp->res
                                             .jsonValue["Oem"]["IBM"]
                                                       ["InputPowerHistoryItem"]
                                                       ["Max"];
-                                    for (const auto& values : *values_ptr)
+                                    for (const auto& values : *valuesPtr)
                                     {
                                         // The first value returned is the
                                         // timestamp, already handled in
