@@ -2048,6 +2048,22 @@ inline void requestAccountServiceRoutes(App& app)
                         messages::internalError(asyncResp->res);
                         return;
                     }
+                    
+                    // Create (modified) modGroupsList from allGroupsList that
+                    // does not contain the ipmi group.
+                    std::vector<std::string> modGroupsList;
+
+                    for (unsigned int index = 0; index < allGroupsList->size();
+                                                                 index++)
+                    {
+				    	if (allGroupsList->at(index) != "ipmi") 
+                        {
+                            modGroupsList.push_back(allGroupsList->at(index));
+                        }
+                    }
+
+                    const std::vector<std::string>* pModGroupsList =
+                                                   &modGroupsList;
 
                     crow::connections::systemBus->async_method_call(
                         [asyncResp, username,
@@ -2100,7 +2116,7 @@ inline void requestAccountServiceRoutes(App& app)
                         "xyz.openbmc_project.User.Manager",
                         "/xyz/openbmc_project/user",
                         "xyz.openbmc_project.User.Manager", "CreateUser",
-                        username, *allGroupsList, *roleId, *enabled);
+                        username, *pModGroupsList, *roleId, *enabled);
                 },
                 "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
                 "org.freedesktop.DBus.Properties", "Get",
