@@ -56,8 +56,7 @@
                     "$ref": "#/definitions/InputPowerHistoryItem",
                     "description": "Contains power supply input power history.",
                     "longDescription": "Contains power supply input power history, timestamped average and maximum input power over 30 second intervals.",
-                    "readonly": false,
-                    "versionAdded": "v1_0_0"
+                    "readonly": false
                 }
             }
         },
@@ -105,5 +104,5 @@
     },
     "OwningEntity": "OpenBMC",
     "release": "1.0",
-    "title": "#OemPowerSupplyMetric.v1_0_0"
+    "title": "#OemPowerSupplyMetric"
 }

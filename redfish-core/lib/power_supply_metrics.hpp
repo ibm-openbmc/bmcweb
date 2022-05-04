@@ -242,7 +242,7 @@ inline void requestRoutesPowerSupplyMetrics(App& app)
                 BMCWEB_LOG_DEBUG << "PowerSupplyID: " << powerSupplyId;
 
                 asyncResp->res.jsonValue["@odata.type"] =
-                    "#OemPowerSupplyMetric.v1_0_0";
+                    "#PowerSupplyMetric.PowerSupplyMetric";
                 asyncResp->res.jsonValue["@odata.id"] =
                     "/redfish/v1/Chassis/" + chassisId +
                     "/PowerSubsystem/PowerSupplies/" + powerSupplyId +
@@ -251,6 +251,10 @@ inline void requestRoutesPowerSupplyMetrics(App& app)
                     "Metrics for " + powerSupplyId;
                 asyncResp->res.jsonValue["Id"] = "Metrics";
 
+                asyncResp->res.jsonValue["Oem"]["@odata.type"] =
+                    "#OemPowerSupplyMetric.Oem";
+                asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
+                    "#OemPowerSupplyMetric.IBM";
                 getAverageValues(asyncResp, chassisId, powerSupplyId);
                 getMaxValues(asyncResp, chassisId, powerSupplyId);
             });
