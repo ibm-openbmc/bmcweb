@@ -1,6 +1,7 @@
 #pragma once
 
 #include <app.hpp>
+#include <dbus_utility.hpp>
 #include <utils/chassis_utils.hpp>
 #include <utils/json_utils.hpp>
 
@@ -9,23 +10,8 @@
 namespace redfish
 {
 
-// Map of service name to list of interfaces
-using MapperServiceMap =
-    std::vector<std::pair<std::string, std::vector<std::string>>>;
-
-// Map of object paths to MapperServiceMaps
-using MapperGetSubTreeResponse =
-    std::vector<std::pair<std::string, MapperServiceMap>>;
-
 // PowerCap interface
 constexpr auto powerCapInterface = "xyz.openbmc_project.Control.Power.Cap";
-
-// Variant for property values in PowerCap interface
-using PowerCapPropertiesValue = std::variant<uint32_t, bool>;
-
-// Vector of properties in the PowerCap interface
-using PowerCapProperties =
-    std::vector<std::pair<std::string, PowerCapPropertiesValue>>;
 
 inline void getPowerSubsystemAllocationProperties(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -34,7 +20,7 @@ inline void getPowerSubsystemAllocationProperties(
     // Get all properties of PowerCap D-Bus interface
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code ec,
-                    const PowerCapProperties& properties) {
+                    const dbus::utility::DBusPropertiesMap& properties) {
             if (ec)
             {
                 BMCWEB_LOG_DEBUG << "D-Bus response error on GetAll " << ec;
@@ -51,34 +37,53 @@ inline void getPowerSubsystemAllocationProperties(
                 if (property == "PowerCap")
                 {
                     const uint32_t* valPtr = std::get_if<uint32_t>(&value);
-                    if (valPtr != nullptr)
+                    if (valPtr == nullptr)
                     {
-                        powerCap = *valPtr;
+                        BMCWEB_LOG_DEBUG << "Unexpected data type for PowerCap";
+                        messages::internalError(asyncResp->res);
+                        return;
                     }
+                    powerCap = *valPtr;
                 }
                 else if (property == "PowerCapEnable")
                 {
                     const bool* valPtr = std::get_if<bool>(&value);
-                    if (valPtr != nullptr)
+                    if (valPtr == nullptr)
                     {
-                        powerCapEnable = *valPtr;
+                        BMCWEB_LOG_DEBUG
+                            << "Unexpected data type for PowerCapEnable";
+                        messages::internalError(asyncResp->res);
+                        return;
                     }
+                    powerCapEnable = *valPtr;
                 }
                 else if (property == "MaxPowerCapValue")
                 {
                     const uint32_t* valPtr = std::get_if<uint32_t>(&value);
-                    if (valPtr != nullptr)
+                    if (valPtr == nullptr)
                     {
-                        maxPowerCapValue = *valPtr;
+                        BMCWEB_LOG_DEBUG
+                            << "Unexpected data type for MaxPowerCapValue";
+                        messages::internalError(asyncResp->res);
+                        return;
                     }
+                    maxPowerCapValue = *valPtr;
                 }
             }
 
             // If MaxPowerCapValue valid, store Allocation properties in JSON
             if ((maxPowerCapValue > 0) && (maxPowerCapValue < UINT32_MAX))
             {
-                asyncResp->res.jsonValue["Allocation"]["AllocatedWatts"] =
-                    powerCapEnable ? powerCap : maxPowerCapValue;
+                if (powerCapEnable)
+                {
+                    asyncResp->res.jsonValue["Allocation"]["AllocatedWatts"] =
+                        powerCap;
+                }
+                else
+                {
+                    asyncResp->res.jsonValue["Allocation"]["AllocatedWatts"] =
+                        maxPowerCapValue;
+                }
                 asyncResp->res.jsonValue["Allocation"]["RequestedWatts"] =
                     maxPowerCapValue;
             }
@@ -93,7 +98,7 @@ inline void getPowerSubsystemAllocation(
     // Find service and object path that implement PowerCap interface (if any)
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code ec,
-                    const MapperGetSubTreeResponse& subTree) {
+                    const dbus::utility::MapperGetSubTreeResponse& subTree) {
             if (ec)
             {
                 BMCWEB_LOG_DEBUG << "D-Bus response error on GetSubTree " << ec;
