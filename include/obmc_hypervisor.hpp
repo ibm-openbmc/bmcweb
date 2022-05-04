@@ -117,8 +117,8 @@ inline void connectHandler(const boost::system::error_code& ec)
 inline void requestRoutes(App& app)
 {
     BMCWEB_ROUTE(app, "/console1")
-        .privileges({{"ConfigureComponents", "ConfigureManager"}})
         .websocket()
+        .privileges({{"OemIBMPerformService"}})
         .onopen([](crow::websocket::Connection& conn,
                    const std::shared_ptr<bmcweb::AsyncResp>&) {
             BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";
