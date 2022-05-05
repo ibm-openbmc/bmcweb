@@ -2048,22 +2048,22 @@ inline void requestAccountServiceRoutes(App& app)
                         messages::internalError(asyncResp->res);
                         return;
                     }
-                    
+
                     // Create (modified) modGroupsList from allGroupsList that
                     // does not contain the ipmi group.
                     std::vector<std::string> modGroupsList;
 
                     for (unsigned int index = 0; index < allGroupsList->size();
-                                                                 index++)
+                         index++)
                     {
-				    	if (allGroupsList->at(index) != "ipmi") 
+                        if (allGroupsList->at(index) != "ipmi") 
                         {
                             modGroupsList.push_back(allGroupsList->at(index));
                         }
                     }
 
                     const std::vector<std::string>* pModGroupsList =
-                                                   &modGroupsList;
+                        &modGroupsList;
 
                     crow::connections::systemBus->async_method_call(
                         [asyncResp, username,
