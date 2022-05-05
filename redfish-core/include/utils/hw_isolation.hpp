@@ -179,10 +179,6 @@ inline void
  * @note - This function will try to identify the hardware isolated dbus entry
  *         from associations endpoints by using the given resource dbus object
  *         of "isolated_hw_entry".
- *       - This function will use the last endpoint from the list since the
- *         HardwareIsolation manager may be used the "Resolved" dbus entry
- *         property to indicate the deisolation instead of delete
- *         the entry object.
  */
 inline void
     deisolateResource(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
