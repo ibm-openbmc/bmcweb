@@ -6750,19 +6750,6 @@ inline void fillSystemHardwareIsolationLogEntry(
                         break;
                     }
                 }
-                else if (property.first == "Resolved")
-                {
-                    const bool* resolved = std::get_if<bool>(&property.second);
-                    if (resolved == nullptr)
-                    {
-                        BMCWEB_LOG_ERROR(
-                            "Failed to get the Resolved from object: {}",
-                            dbusObjIt->first.str);
-                        messages::internalError(asyncResp->res);
-                        break;
-                    }
-                    entryJson["Resolved"] = *resolved;
-                }
             }
         }
         else if (interface.first == "xyz.openbmc_project.Time.EpochTime")
