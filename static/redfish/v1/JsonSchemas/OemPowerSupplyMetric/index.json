@@ -104,5 +104,5 @@
     },
     "OwningEntity": "OpenBMC",
     "release": "1.0",
-    "title": "#OemPowerSupplyMetric"
+    "title": "#OemPowerSupplyMetric.v1_0_0"
 }

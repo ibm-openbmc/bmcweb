@@ -234,29 +234,44 @@ inline void requestRoutesPowerSupplyMetrics(App& app)
         .methods(boost::beast::http::verb::get)(
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-               const std::string& param, const std::string& param2) {
-                const std::string& chassisId = param;
-                const std::string& powerSupplyId = param2;
+               const std::string& chassisID, const std::string& powerSupplyID) {
+                // const std::string& chassisId = param;
+                auto getChassisID =
+                    [asyncResp, chassisID, powerSupplyID](
+                        const std::optional<std::string>& validChassisID) {
+                        if (!validChassisID)
+                        {
+                            BMCWEB_LOG_ERROR << "Not a valid chassis ID:"
+                                             << chassisID;
+                            messages::resourceNotFound(asyncResp->res,
+                                                       "Chassis", chassisID);
+                            return;
+                        }
 
-                BMCWEB_LOG_DEBUG << "ChassisID: " << chassisId;
-                BMCWEB_LOG_DEBUG << "PowerSupplyID: " << powerSupplyId;
+                        // const std::string& powerSupplyId = param2;
 
-                asyncResp->res.jsonValue["@odata.type"] =
-                    "#PowerSupplyMetric.PowerSupplyMetric";
-                asyncResp->res.jsonValue["@odata.id"] =
-                    "/redfish/v1/Chassis/" + chassisId +
-                    "/PowerSubsystem/PowerSupplies/" + powerSupplyId +
-                    "/Metrics";
-                asyncResp->res.jsonValue["Name"] =
-                    "Metrics for " + powerSupplyId;
-                asyncResp->res.jsonValue["Id"] = "Metrics";
+                        BMCWEB_LOG_DEBUG << "ChassisID: " << chassisID;
+                        BMCWEB_LOG_DEBUG << "PowerSupplyID: " << powerSupplyID;
 
-                asyncResp->res.jsonValue["Oem"]["@odata.type"] =
-                    "#OemPowerSupplyMetric.Oem";
-                asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
-                    "#OemPowerSupplyMetric.IBM";
-                getAverageValues(asyncResp, chassisId, powerSupplyId);
-                getMaxValues(asyncResp, chassisId, powerSupplyId);
+                        asyncResp->res.jsonValue["@odata.type"] =
+                            "#PowerSupplyMetrics.v1_0_0.PowerSupplyMetrics";
+                        asyncResp->res.jsonValue["@odata.id"] =
+                            "/redfish/v1/Chassis/" + chassisID +
+                            "/PowerSubsystem/PowerSupplies/" + powerSupplyID +
+                            "/Metrics";
+                        asyncResp->res.jsonValue["Name"] =
+                            "Metrics for " + powerSupplyID;
+                        asyncResp->res.jsonValue["Id"] = "Metrics";
+
+                        asyncResp->res.jsonValue["Oem"]["@odata.type"] =
+                            "#OemPowerSupplyMetric.Oem";
+                        asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
+                            "#OemPowerSupplyMetric.IBM";
+                        getAverageValues(asyncResp, chassisID, powerSupplyID);
+                        getMaxValues(asyncResp, chassisID, powerSupplyID);
+                    };
+                redfish::chassis_utils::getValidChassisID(
+                    asyncResp, chassisID, std::move(getChassisID));
             });
 }
 } // namespace redfish
