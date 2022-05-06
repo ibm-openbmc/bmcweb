@@ -575,7 +575,8 @@ inline void
                 thisEntry["@odata.id"] = dumpPath + entryID;
                 thisEntry["Id"] = entryID;
                 thisEntry["EntryType"] = "Event";
-                thisEntry["Created"] = crow::utility::getDateTime(timestamp);
+                thisEntry["Created"] =
+                    crow::utility::getDateTime(timestamp / 1000 / 1000);
 
                 thisEntry["AdditionalDataSizeBytes"] = size;
 
