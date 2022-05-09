@@ -469,6 +469,25 @@ inline void getPCIeSlots(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                                         }
                                         propertyData["HotPluggable"] = *value;
                                     }
+                                    else if (propertyName == "BusId")
+                                    {
+                                        const size_t* value =
+                                            std::get_if<size_t>(
+                                                &property.second);
+                                        if (value == nullptr)
+                                        {
+                                            messages::internalError(
+                                                asyncResp->res);
+                                            return;
+                                        }
+                                        propertyData["Oem"]["@odata.type"] =
+                                            "#OemPCIeSlots.Oem";
+                                        propertyData["Oem"]["IBM"]
+                                                    ["@odata.type"] =
+                                                        "#OemPCIeSlots.IBM";
+                                        propertyData["Oem"]["IBM"]["LinkId"] =
+                                            *value;
+                                    }
                                 }
 
                                 const std::string locationInterface =

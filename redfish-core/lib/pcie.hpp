@@ -445,7 +445,8 @@ inline void requestRoutesSystemPCIeDevice(App& app)
                     [asyncResp,
                      device](const boost::system::error_code ec,
                              boost::container::flat_map<
-                                 std::string, std::variant<std::string, bool>>&
+                                 std::string,
+                                 std::variant<std::string, size_t, bool>>&
                                  pcieDevProperties) {
                         if (ec)
                         {
@@ -570,6 +571,20 @@ inline void requestRoutesSystemPCIeDevice(App& app)
                                               ["PartLocation"]["ServiceLabel"] =
                                     *property;
                             }
+                        }
+
+                        if (size_t* property = std::get_if<size_t>(
+                                &pcieDevProperties["LanesInUse"]);
+                            property)
+                        {
+                            if (property == nullptr)
+                            {
+                                messages::internalError(asyncResp->res);
+                                return;
+                            }
+                            asyncResp->res
+                                .jsonValue["PCIeInterface"]["LanesInUse"] =
+                                *property;
                         }
 
                         // Link status
