@@ -174,8 +174,8 @@ static std::map<crow::websocket::Connection*, std::shared_ptr<Handler>>
 inline void requestRoutes(App& app)
 {
     BMCWEB_ROUTE(app, "/bmc-console")
-        .websocket()
         .privileges({{"OemIBMPerformService"}})
+        .websocket()
         .onopen([](crow::websocket::Connection& conn,
                    const std::shared_ptr<bmcweb::AsyncResp>&) {
             BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";

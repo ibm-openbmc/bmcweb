@@ -45,7 +45,7 @@ class App
     }
 
     template <typename Adaptor>
-    void handleUpgrade(Request& req,
+    void handleUpgrade(const Request& req,
                        std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                        Adaptor&& adaptor)
     {
