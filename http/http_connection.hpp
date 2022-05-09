@@ -375,36 +375,15 @@ class Connection :
                               [self] { self->completeRequest(); });
         });
 
-        auto asyncResp = std::make_shared<bmcweb::AsyncResp>(res);
         if (thisReq.isUpgrade() &&
             boost::iequals(
                 thisReq.getHeaderValue(boost::beast::http::field::upgrade),
                 "websocket"))
         {
-            asyncResp->res.setCompleteRequestHandler(
-                [self(shared_from_this())]() {
-                    if (self->res.resultInt() != 101)
-                    {
-                        // When any error occurs during handle upgradation,
-                        // the result in response will be set to respective
-                        // error. during success Result will be Switching
-                        // Protocols (101), which implies successful handle
-                        // upgrade. Response needs to be sent over this
-                        // connection only on failure.
-                        boost::asio::post(self->adaptor.get_executor(),
-                                          [self] { self->completeRequest(); });
-                        return;
-                    }
-
-                    // Set Complete request handler to NULL to remove
-                    // the shared pointer of connection to enable
-                    // connection destruction. As the connection would
-                    // get upgraded, we wouldn't need this connection
-                    // any longer
-                    self->res.setCompleteRequestHandler(nullptr);
-                });
-            handler->handleUpgrade(thisReq, asyncResp,
-                                   std::forward<Adaptor>(adaptor));
+            handler->handleUpgrade(thisReq, res, std::move(adaptor));
+            // delete lambda with self shared_ptr
+            // to enable connection destruction
+            res.setCompleteRequestHandler(nullptr);
             return;
         }
 
@@ -413,13 +392,13 @@ class Connection :
             boost::ends_with(url, "/attachment"))
         {
             BMCWEB_LOG_DEBUG << "upgrade stream connection";
-            handler->handleUpgrade(*req, asyncResp,
-                                   std::forward<Adaptor>(adaptor));
+            handler->handleUpgrade(*req, res, std::move(adaptor));
             // delete lambda with self shared_ptr
             // to enable connection destruction
             res.completeRequestHandler = nullptr;
             return;
         }
+        auto asyncResp = std::make_shared<bmcweb::AsyncResp>(res);
         handler->handle(thisReq, asyncResp);
     }
 
