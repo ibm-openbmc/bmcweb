@@ -143,46 +143,15 @@ inline void getFanLocation(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 }
 
 inline void
-    getFanSpecificInfo(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                       const std::string& fanPath)
-{
-
-    const std::array<const char*, 1> fanInterfaces = {
-        "xyz.openbmc_project.Inventory.Item.Fan"};
-    crow::connections::systemBus->async_method_call(
-        [asyncResp, fanPath](
-            const boost::system::error_code ec,
-            const std::vector<std::pair<std::string, std::vector<std::string>>>&
-                object) {
-            if (ec)
-            {
-                BMCWEB_LOG_DEBUG << "DBUS response error";
-                messages::internalError(asyncResp->res);
-                return;
-            }
-            for (const auto& tempObject : object)
-            {
-                const std::string& connectionName = tempObject.first;
-                getFanState(asyncResp, connectionName, fanPath);
-                getFanHealth(asyncResp, connectionName, fanPath);
-                getFanAsset(asyncResp, connectionName, fanPath);
-                getFanLocation(asyncResp, connectionName, fanPath);
-                getLocationIndicatorActive(asyncResp, fanPath);
-            }
-        },
-        "xyz.openbmc_project.ObjectMapper",
-        "/xyz/openbmc_project/object_mapper",
-        "xyz.openbmc_project.ObjectMapper", "GetObject", fanPath,
-        fanInterfaces);
-}
-
-inline void
     getFanInventoryItem(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                         const std::string& path,
                         const std::string& connectionName)
 {
     getFanState(asyncResp, connectionName, path);
-    getFanHealth(asyncResp, connectionName, path);
+    if ("xyz.openbmc_project.PLDM" != connectionName)
+    {
+        getFanHealth(asyncResp, connectionName, path);
+    }
     getFanAsset(asyncResp, connectionName, path);
     getFanLocation(asyncResp, connectionName, path);
     getLocationIndicatorActive(asyncResp, path);
