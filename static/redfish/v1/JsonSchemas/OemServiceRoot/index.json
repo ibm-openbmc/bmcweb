@@ -54,6 +54,44 @@
                         "string",
                         "null"
                     ]
+                },
+                "SerialNumber": {
+                    "description": "The serial number for this system.",
+                    "longDescription": "This property shall contain the serial number for the system.",
+                    "readonly": true,
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "DateTime": {
+                    "description": "The current date and time with UTC offset of the manager.",
+                    "format": "date-time",
+                    "longDescription": "This property shall contain the current date and time with UTC offset of the manager.",
+                    "readonly": false,
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "DateTimeLocalOffset": {
+                    "description": "The time offset from UTC that the DateTime property is in `+HH:MM` format.",
+                    "longDescription": "This property shall contain the offset from UTC time that the DateTime property contains.  If both DateTime and DateTimeLocalOffset are provided in modification requests, services shall apply DateTimeLocalOffset after DateTime is applied.",
+                    "pattern": "^([-+][0-1][0-9]:[0-5][0-9])$",
+                    "readonly": false,
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ACFWindowActive": {
+                    "description": "An indication of whether the time window for an unauthorized agent to upload an ACF is active.",
+                    "longDescription": "This property shall indicate if the time window for an unauthorized agent to upload an ACF is active.",
+                    "readonly": true,
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
                 }
             },
             "type": "object"
