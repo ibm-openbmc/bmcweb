@@ -122,7 +122,14 @@ inline void requestRoutes(App& app)
         .onopen([](crow::websocket::Connection& conn,
                    const std::shared_ptr<bmcweb::AsyncResp>&) {
             BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";
-
+            // TODO: this user check must be removed when WebSocket privileges
+            // work.
+            if (conn.getUserName() != "service")
+            {
+                BMCWEB_LOG_DEBUG
+                    << "only service user have access to hypervisor";
+                conn.close("only service user have access to hypervisor");
+            }
             sessions.insert(&conn);
             if (hostSocket == nullptr)
             {
