@@ -46,29 +46,67 @@ inline void getFanHealth(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     // Set the default Health to OK
     asyncResp->res.jsonValue["Status"]["Health"] = "OK";
 
+    const std::array<const std::string, 1> fanInterfaces = {
+        "xyz.openbmc_project.Inventory.Item.Fan"};
+
+    // filter out PLDM mapper sources
     crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec,
-                    const std::variant<bool>& health) {
+        [asyncResp, &connectionName, &path](
+            const boost::system::error_code ec,
+            const std::vector<std::pair<std::string, std::vector<std::string>>>&
+                object) {
+            const std::string PLDM{"xyz.openbmc_project.PLDM"};
+
             if (ec)
             {
-                BMCWEB_LOG_DEBUG << "Can't get Fan health!";
-                messages::internalError(asyncResp->res);
+                BMCWEB_LOG_ERROR << "D-Bus object query failed";
                 return;
             }
 
-            const bool* value = std::get_if<bool>(&health);
-            if (value == nullptr)
+            bool isPldm = (object.end() !=
+                           std::find_if(object.begin(), object.end(),
+                                        [&PLDM](const auto& connection) {
+                                            return PLDM == connection.first;
+                                        }));
+
+            if (!isPldm)
             {
-                messages::internalError(asyncResp->res);
-                return;
+                crow::connections::systemBus->async_method_call(
+                    [asyncResp](const boost::system::error_code ec,
+                                const std::variant<bool>& health) {
+                        if (ec)
+                        {
+                            BMCWEB_LOG_DEBUG << "Can't get Fan health!";
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+
+                        const bool* value = std::get_if<bool>(&health);
+                        if (value == nullptr)
+                        {
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+                        if (*value == false)
+                        {
+                            asyncResp->res.jsonValue["Status"]["Health"] =
+                                "Critical";
+                        }
+                    },
+                    connectionName, path, "org.freedesktop.DBus.Properties",
+                    "Get",
+                    "xyz.openbmc_project.State.Decorator.OperationalStatus",
+                    "Functional");
             }
-            if (*value == false)
+            else
             {
-                asyncResp->res.jsonValue["Status"]["Health"] = "Critical";
+                asyncResp->res.jsonValue["Status"]["Health"] = "Unknown";
             }
         },
-        connectionName, path, "org.freedesktop.DBus.Properties", "Get",
-        "xyz.openbmc_project.State.Decorator.OperationalStatus", "Functional");
+
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetObject", path, fanInterfaces);
 }
 
 inline void getFanAsset(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -140,40 +178,6 @@ inline void getFanLocation(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         },
         connectionName, path, "org.freedesktop.DBus.Properties", "Get",
         locationInterface, "LocationCode");
-}
-
-inline void
-    getFanSpecificInfo(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                       const std::string& fanPath)
-{
-
-    const std::array<const char*, 1> fanInterfaces = {
-        "xyz.openbmc_project.Inventory.Item.Fan"};
-    crow::connections::systemBus->async_method_call(
-        [asyncResp, fanPath](
-            const boost::system::error_code ec,
-            const std::vector<std::pair<std::string, std::vector<std::string>>>&
-                object) {
-            if (ec)
-            {
-                BMCWEB_LOG_DEBUG << "DBUS response error";
-                messages::internalError(asyncResp->res);
-                return;
-            }
-            for (const auto& tempObject : object)
-            {
-                const std::string& connectionName = tempObject.first;
-                getFanState(asyncResp, connectionName, fanPath);
-                getFanHealth(asyncResp, connectionName, fanPath);
-                getFanAsset(asyncResp, connectionName, fanPath);
-                getFanLocation(asyncResp, connectionName, fanPath);
-                getLocationIndicatorActive(asyncResp, fanPath);
-            }
-        },
-        "xyz.openbmc_project.ObjectMapper",
-        "/xyz/openbmc_project/object_mapper",
-        "xyz.openbmc_project.ObjectMapper", "GetObject", fanPath,
-        fanInterfaces);
 }
 
 inline void
