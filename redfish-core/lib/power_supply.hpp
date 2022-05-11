@@ -62,6 +62,12 @@ inline void getPowerSupplyFirmwareVersion(
                     const std::variant<std::string> state) {
             if (ec)
             {
+                if (ec.value() == EBADR)
+                {
+                    BMCWEB_LOG_DEBUG
+                        << "PowerSupply Firmware not found, skipping";
+                    return;
+                }
                 BMCWEB_LOG_ERROR << "Can't get PowerSupply firmware version!";
                 messages::internalError(asyncResp->res);
                 return;
