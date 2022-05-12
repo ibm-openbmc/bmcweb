@@ -201,6 +201,89 @@ inline void
         "Get", "xyz.openbmc_project.Association", "endpoints");
 }
 
+/**
+ * @brief Add PCIeSlot to NMVe backplane assembly link
+ *
+ * @param[in, out]  asyncResp       Async HTTP response.
+ * @param[in]       pcieSlotPath    Object path of the PCIeSlot.
+ * @param[in]       index           Index.
+ */
+inline void linkAssociatedDiskBackplane(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& pcieSlotPath, size_t index)
+{
+    auto respHandler = [asyncResp, pcieSlotPath,
+                        index](const boost::system::error_code ec,
+                               const std::variant<std::vector<std::string>>&
+                                   endpoints) {
+        if (ec)
+        {
+            if (ec.value() == EBADR)
+            {
+                // Disk backplane association not found for this pcie slot.
+                BMCWEB_LOG_DEBUG << "Disk backplane association not found";
+                return;
+            }
+            BMCWEB_LOG_ERROR << "DBUS response error " << ec.message();
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        const std::vector<std::string>* value =
+            std::get_if<std::vector<std::string>>(&endpoints);
+
+        if (value == nullptr)
+        {
+            BMCWEB_LOG_DEBUG
+                << "Error getting disk backplane drives association!";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        if ((*value).size() <= 0)
+        {
+            BMCWEB_LOG_DEBUG
+                << "No association was found for disk backplane drive";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        // Each slot points to one disk backplane, so picking the top one
+        // or the only one we will have instead of looping through.
+        const std::string drivePath = (*value)[0];
+        const std::string chassisId = "chassis";
+
+        auto backplaneAssemblyCallback =
+            [asyncResp, index, chassisId,
+             drivePath](const std::vector<std::string>& assemblyList) {
+                auto it = std::find(assemblyList.begin(), assemblyList.end(),
+                                    drivePath);
+                if (it != assemblyList.end())
+                {
+                    asyncResp->res.jsonValue["Slots"][index]["Links"]["Oem"] = {
+                        {{"@odata.id",
+                          "/redfish/v1/Chassis/" + chassisId +
+                              "/Assembly#/Assemblies/" +
+                              std::to_string(it - assemblyList.begin())}}};
+                }
+                else
+                {
+                    BMCWEB_LOG_ERROR << "Drive path " << drivePath
+                                     << "not found in the assembly list";
+                    messages::internalError(asyncResp->res);
+                }
+            };
+
+        redfish::chassis_utils::getChassisAssembly(
+            asyncResp, chassisId, std::move(backplaneAssemblyCallback));
+    };
+
+    crow::connections::systemBus->async_method_call(
+        respHandler, "xyz.openbmc_project.ObjectMapper",
+        pcieSlotPath + "/inventory", "org.freedesktop.DBus.Properties", "Get",
+        "xyz.openbmc_project.Association", "endpoints");
+}
+
 inline void getPCIeSlots(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                          const std::string& chassisID)
 {
@@ -439,6 +522,8 @@ inline void getPCIeSlots(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                                                      index);
                                 linkAssociatedProcessor(asyncResp, pcieSlotPath,
                                                         index);
+                                linkAssociatedDiskBackplane(
+                                    asyncResp, pcieSlotPath, index);
                             },
                             connectionName, pcieSlotPath,
                             "org.freedesktop.DBus.Properties", "GetAll",
