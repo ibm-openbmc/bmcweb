@@ -2056,14 +2056,14 @@ inline void requestAccountServiceRoutes(App& app)
                     for (unsigned int index = 0; index < allGroupsList->size();
                          index++)
                     {
-				    	if (allGroupsList->at(index) != "ipmi")
+                        if (allGroupsList->at(index) != "ipmi")
                         {
                             modGroupsList.push_back(allGroupsList->at(index));
                         }
                     }
 
                     const std::vector<std::string>* pModGroupsList =
-                                                   &modGroupsList;
+                        &modGroupsList;
 
                     crow::connections::systemBus->async_method_call(
                         [asyncResp, username,
