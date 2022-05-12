@@ -575,7 +575,8 @@ inline void
                 thisEntry["@odata.id"] = dumpPath + entryID;
                 thisEntry["Id"] = entryID;
                 thisEntry["EntryType"] = "Event";
-                thisEntry["Created"] = crow::utility::getDateTime(timestamp);
+                thisEntry["Created"] =
+                    crow::utility::getDateTime(timestamp / 1000 / 1000);
 
                 thisEntry["AdditionalDataSizeBytes"] = size;
 
@@ -920,6 +921,11 @@ inline DumpCreationProgress getDumpCompletionStatus(
                     messages::actionParameterUnknown("CollectDiagnosticData",
                                                      "Resource selector"));
                 return DUMP_CREATE_FAILED;
+            }
+            if (value.ends_with("Success"))
+            {
+                taskData->state = "Running";
+                return DUMP_CREATE_INPROGRESS;
             }
             return DUMP_CREATE_INPROGRESS;
         }
@@ -4996,19 +5002,6 @@ inline void fillSystemHardwareIsolationLogEntry(
                         messages::internalError(asyncResp->res);
                         break;
                     }
-                }
-                else if (property.first == "Resolved")
-                {
-                    const bool* resolved = std::get_if<bool>(&property.second);
-                    if (resolved == nullptr)
-                    {
-                        BMCWEB_LOG_ERROR
-                            << "Failed to get the Resolved"
-                            << "from object: " << dbusObjIt->first.str;
-                        messages::internalError(asyncResp->res);
-                        break;
-                    }
-                    entryJson["Resolved"] = *resolved;
                 }
             }
         }
