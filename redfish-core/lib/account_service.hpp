@@ -2054,7 +2054,7 @@ inline void requestAccountServiceRoutes(App& app)
                     // does not contain the ipmi group.
                     std::vector<std::string> modGroupsList;
 
-                    for (const auto &group : *allGroupsList)
+                    for (const auto& group : *allGroupsList)
                     {
                         if (group != "ipmi")
                         {
