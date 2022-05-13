@@ -2054,12 +2054,11 @@ inline void requestAccountServiceRoutes(App& app)
                     // does not contain the ipmi group.
                     std::vector<std::string> modGroupsList;
 
-                    for (unsigned int index = 0; index < allGroupsList->size();
-                         index++)
+                    for (const auto &group : *allGroupsList)
                     {
-                        if (allGroupsList->at(index) != "ipmi")
+                        if (group != "ipmi")
                         {
-                            modGroupsList.push_back(allGroupsList->at(index));
+                            modGroupsList.push_back(group);
                         }
                     }
 
