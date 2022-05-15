@@ -484,7 +484,8 @@ class StreamingResponseRule : public BaseRule
     std::function<void(crow::streaming_response::Connection&,
                        const std::string&, bool)>
         messageHandler;
-    std::function<void(crow::streaming_response::Connection&)> closeHandler;
+    std::function<void(crow::streaming_response::Connection&, bool&)>
+        closeHandler;
     std::function<void(crow::streaming_response::Connection&)> errorHandler;
 };
 
