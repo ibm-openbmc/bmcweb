@@ -2050,6 +2050,21 @@ inline void requestAccountServiceRoutes(App& app)
                         return;
                     }
 
+                    // Create (modified) modGroupsList from allGroupsList that
+                    // does not contain the ipmi group.
+                    std::vector<std::string> modGroupsList;
+
+                    for (const auto& group : *allGroupsList)
+                    {
+                        if (group != "ipmi")
+                        {
+                            modGroupsList.push_back(group);
+                        }
+                    }
+
+                    const std::vector<std::string>* pModGroupsList =
+                        &modGroupsList;
+
                     crow::connections::systemBus->async_method_call(
                         [asyncResp, username,
                          password](const boost::system::error_code ec2,
@@ -2101,7 +2116,7 @@ inline void requestAccountServiceRoutes(App& app)
                         "xyz.openbmc_project.User.Manager",
                         "/xyz/openbmc_project/user",
                         "xyz.openbmc_project.User.Manager", "CreateUser",
-                        username, *allGroupsList, *roleId, *enabled);
+                        username, *pModGroupsList, *roleId, *enabled);
                 },
                 "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
                 "org.freedesktop.DBus.Properties", "Get",
