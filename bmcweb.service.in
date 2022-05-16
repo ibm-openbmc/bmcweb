@@ -13,6 +13,8 @@ ExecReload=kill -s HUP $MAINPID
 ExecStart=@MESON_INSTALL_PREFIX@/bin/bmcweb
 Type=simple
 WorkingDirectory=/home/root
+StartLimitInterval=15
+StartLimitBurst=5
 
 [Install]
 WantedBy=network.target
