@@ -535,8 +535,8 @@ inline void
                                     messages::internalError(asyncResp->res);
                                     break;
                                 }
-                                timestamp =
-                                    static_cast<std::time_t>(*usecsTimeStamp);
+                                timestamp = static_cast<std::time_t>(
+                                    *usecsTimeStamp / 1000 / 1000);
                                 break;
                             }
                         }
@@ -575,8 +575,7 @@ inline void
                 thisEntry["@odata.id"] = dumpPath + entryID;
                 thisEntry["Id"] = entryID;
                 thisEntry["EntryType"] = "Event";
-                thisEntry["Created"] =
-                    crow::utility::getDateTime(timestamp / 1000 / 1000);
+                thisEntry["Created"] = crow::utility::getDateTime(timestamp);
 
                 thisEntry["AdditionalDataSizeBytes"] = size;
 
@@ -735,8 +734,8 @@ inline void
                                     messages::internalError(asyncResp->res);
                                     break;
                                 }
-                                timestamp =
-                                    static_cast<std::time_t>(*usecsTimeStamp);
+                                timestamp = static_cast<std::time_t>(
+                                    *usecsTimeStamp / 1000 / 1000);
                                 break;
                             }
                         }
