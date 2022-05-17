@@ -45,6 +45,12 @@
                     <Annotation Term="OData.Description" String="An indicator allowing an operator to operate platform system attention."/>
                     <Annotation Term="OData.LongDescription" String="This property shall contain the state of the platform system attention of this resource."/>
                 </Property>
+                </Property>
+                <Property Name="SafeMode" Type="OemComputerSystem.IBM">
+                  <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+                  <Annotation Term="OData.Description" String="An indication of whether safe mode is enabled."/>
+                  <Annotation Term="OData.LongDescription" String="The value of this property shall indicate if safe mode is enabled."/>
+                </Property>
             </ComplexType>
 
             <ComplexType Name="OpenBmc" BaseType="Resource.OemObject">
