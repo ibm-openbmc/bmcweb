@@ -426,6 +426,16 @@ with open(metadata_index_path, "w") as metadata_index:
     metadata_index.write("    </edmx:Reference>\n")
 
     metadata_index.write(
+        "       <edmx:Reference"
+        ' Uri="/redfish/v1/schema/OemPCIeDevice_v1.xml">\n'
+    )
+    metadata_index.write('        <edmx:Include Namespace="OemPCIeDevice"/>\n')
+    metadata_index.write(
+        '        <edmx:Include Namespace="OemPCIeDevice.v1_0_0"/>\n'
+    )
+    metadata_index.write("    </edmx:Reference>\n")
+
+    metadata_index.write(
         '    <edmx:Reference Uri="'
         '/redfish/v1/schema/OemUpdateService_v1.xml">\n'
     )
