@@ -1020,6 +1020,15 @@ inline void createDumpTaskCallback(
         "member='PropertiesChanged',path='" +
             createdObjPath.str + "'");
 
+    // Take the task state to "Running" for all dumps except
+    // Resource dumps as there is no validation on the user input
+    // for dump creation, meaning only in resource dump creation,
+    // validation will be done on the user input.
+    if (dumpPath.find("/resource/") == std::string::npos)
+    {
+        task->state = "Running";
+    }
+
     task->startTimer(std::chrono::minutes(20));
     task->populateResp(asyncResp->res);
     task->payload.emplace(req);
