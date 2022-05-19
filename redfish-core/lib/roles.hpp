@@ -39,7 +39,7 @@ inline std::string getRoleFromPrivileges(std::string_view priv)
     }
     if (priv == "priv-oemibmserviceagent")
     {
-        return "ServiceAgent";
+        return "OemIBMServiceAgent";
     }
     return "";
 }
@@ -47,7 +47,7 @@ inline std::string getRoleFromPrivileges(std::string_view priv)
 inline bool getAssignedPrivFromRole(std::string_view role,
                                     nlohmann::json& privArray)
 {
-    if ((role == "Administrator") || (role == "ServiceAgent"))
+    if ((role == "Administrator") || (role == "OemIBMServiceAgent"))
     {
         privArray = {"Login", "ConfigureManager", "ConfigureUsers",
                      "ConfigureSelf", "ConfigureComponents"};
@@ -74,7 +74,7 @@ inline bool getOemPrivFromRole(std::string_view role, nlohmann::json& privArray)
     {
         privArray = nlohmann::json::array();
     }
-    else if (role == "ServiceAgent")
+    else if (role == "OemIBMServiceAgent")
     {
         privArray = {"OemIBMPerformService"};
     }
@@ -87,7 +87,7 @@ inline bool getOemPrivFromRole(std::string_view role, nlohmann::json& privArray)
 
 inline bool isRestrictedRole(const std::string& role)
 {
-    if ((role == "Operator") || (role == "ServiceAgent"))
+    if ((role == "Operator") || (role == "OemIBMServiceAgent"))
     {
         return true;
     }
@@ -119,7 +119,7 @@ inline void requestRoutesRoles(App& app)
                 asyncResp->res.jsonValue = {
                     {"@odata.type", "#Role.v1_3_0.Role"},
                     {"Name", "User Role"},
-                    {"Description", roleId + " User Role"},
+                    {"Description", ""},
                     {"OemPrivileges", std::move(oemPrivArray)},
                     {"IsPredefined", true},
                     {"Id", roleId},
@@ -127,6 +127,15 @@ inline void requestRoutesRoles(App& app)
                     {"@odata.id", "/redfish/v1/AccountService/Roles/" + roleId},
                     {"AssignedPrivileges", std::move(privArray)},
                     {"Restricted", isRestrictedRole(roleId)}};
+
+                if (roleId == "OemIBMServiceAgent")
+                {
+                    asyncResp->res.jsonValue["Description"] = "ServiceAgent";
+                }
+                else
+                {
+                    asyncResp->res.jsonValue["Description"] = roleId;
+                }
             });
 }
 
