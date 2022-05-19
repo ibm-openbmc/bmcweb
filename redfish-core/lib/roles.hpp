@@ -39,7 +39,7 @@ inline std::string getRoleFromPrivileges(std::string_view priv)
     }
     if (priv == "priv-oemibmserviceagent")
     {
-        return "OemIBMServiceAgent";
+        return "ServiceAgent";
     }
     return "";
 }
@@ -47,7 +47,7 @@ inline std::string getRoleFromPrivileges(std::string_view priv)
 inline bool getAssignedPrivFromRole(std::string_view role,
                                     nlohmann::json& privArray)
 {
-    if ((role == "Administrator") || (role == "OemIBMServiceAgent"))
+    if ((role == "Administrator") || (role == "ServiceAgent"))
     {
         privArray = {"Login", "ConfigureManager", "ConfigureUsers",
                      "ConfigureSelf", "ConfigureComponents"};
@@ -74,7 +74,7 @@ inline bool getOemPrivFromRole(std::string_view role, nlohmann::json& privArray)
     {
         privArray = nlohmann::json::array();
     }
-    else if (role == "OemIBMServiceAgent")
+    else if (role == "ServiceAgent")
     {
         privArray = {"OemIBMPerformService"};
     }
@@ -87,7 +87,7 @@ inline bool getOemPrivFromRole(std::string_view role, nlohmann::json& privArray)
 
 inline bool isRestrictedRole(const std::string& role)
 {
-    if ((role == "Operator") || (role == "OemIBMServiceAgent"))
+    if ((role == "Operator") || (role == "ServiceAgent"))
     {
         return true;
     }
