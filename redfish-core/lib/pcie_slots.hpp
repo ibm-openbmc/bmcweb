@@ -559,6 +559,10 @@ void checkPCIeSlotsCount(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                         "associated to chassis = "
                      << chassisID;
 
+    // Count of slots that do not belong to the chassis represented by
+    // chassisID
+    static size_t slotsNotInChassis = 0;
+
     crow::connections::systemBus->async_method_call(
         [asyncResp, chassisID, total, callback{std::move(callback)}](
             const boost::system::error_code ec,
@@ -579,6 +583,7 @@ void checkPCIeSlotsCount(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             }
 
             index = 0;
+            slotsNotInChassis = 0;
             auto slotNum = subtree.size();
             unsigned int slotCheckIndex = 0;
             for (const auto& [objectPath, serviceName] : subtree)
@@ -652,8 +657,7 @@ void checkPCIeSlotsCount(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                         std::string chassisName = path.filename();
                         if (chassisName != chassisID)
                         {
-                            // The pcie slot does't belong to the chassisID
-                            return;
+                            slotsNotInChassis++;
                         }
 
                         index++;
@@ -663,7 +667,7 @@ void checkPCIeSlotsCount(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                         {
                             // the total number of slots in the request is
                             // correct
-                            if (index == total)
+                            if (index - slotsNotInChassis == total)
                             {
                                 callback();
                             }
