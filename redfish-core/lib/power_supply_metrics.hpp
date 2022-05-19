@@ -69,7 +69,7 @@ inline void parseAverageMaximum(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 inline void getMaximumValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                              const std::string& serviceName,
                              const std::string& maximumPath,
-                             averageMaxArray averageValues)
+                             const averageMaxArray& averageValues)
 {
     // gets values from Maximum interface, call parseAverageMaximum() to plop
     // in the array.
