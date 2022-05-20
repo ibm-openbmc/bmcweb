@@ -28,10 +28,11 @@ inline void
 
     const std::string* cableTypeDescription = nullptr;
     const double* length = nullptr;
+    const std::string* cableStatus = nullptr;
 
     const bool success = sdbusplus::unpackPropertiesNoThrow(
         dbus_utils::UnpackErrorPrinter(), properties, "CableTypeDescription",
-        cableTypeDescription, "Length", length);
+        cableTypeDescription, "Length", length, "CableStatus", cableStatus);
 
     if (!success)
     {
@@ -58,6 +59,31 @@ inline void
         else
         {
             resp.jsonValue["LengthMeters"] = *length;
+        }
+    }
+
+    if (cableStatus != nullptr && !cableStatus->empty())
+    {
+        if (*cableStatus ==
+            "xyz.openbmc_project.Inventory.Item.Cable.Status.Inactive")
+        {
+            resp.jsonValue["CableStatus"] = "Normal";
+            resp.jsonValue["Status"]["State"] = "StandbyOffline";
+            resp.jsonValue["Status"]["Health"] = "OK";
+        }
+        else if (*cableStatus == "xyz.openbmc_project.Inventory.Item."
+                                 "Cable.Status.Running")
+        {
+            resp.jsonValue["CableStatus"] = "Normal";
+            resp.jsonValue["Status"]["State"] = "Enabled";
+            resp.jsonValue["Status"]["Health"] = "OK";
+        }
+        else if (*cableStatus == "xyz.openbmc_project.Inventory.Item."
+                                 "Cable.Status.PoweredOff")
+        {
+            resp.jsonValue["CableStatus"] = "Disabled";
+            resp.jsonValue["Status"]["State"] = "StandbyOffline";
+            resp.jsonValue["Status"]["Health"] = "OK";
         }
     }
 }
@@ -138,7 +164,7 @@ inline void requestRoutesCable(App& app)
                     continue;
                 }
 
-                asyncResp->res.jsonValue["@odata.type"] = "#Cable.v1_0_0.Cable";
+                asyncResp->res.jsonValue["@odata.type"] = "#Cable.v1_2_0.Cable";
                 asyncResp->res.jsonValue["@odata.id"] =
                     "/redfish/v1/Cables/" + cableId;
                 asyncResp->res.jsonValue["Id"] = cableId;
