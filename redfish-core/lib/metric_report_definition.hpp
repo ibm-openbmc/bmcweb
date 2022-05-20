@@ -370,13 +370,8 @@ class AddReport
                 }
                 if (ec == boost::system::errc::argument_list_too_long)
                 {
-                    nlohmann::json metricProperties = nlohmann::json::array();
-                    for (const auto& [uri, _] : uriToDbus)
-                    {
-                        metricProperties.emplace_back(uri);
-                    }
                     messages::propertyValueIncorrect(
-                        aResp->res, metricProperties, "MetricProperties");
+                        aResp->res, "MetricProperties", "MetricProperties");
                     return;
                 }
                 if (ec)
