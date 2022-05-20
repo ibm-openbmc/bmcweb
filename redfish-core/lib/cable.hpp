@@ -88,6 +88,49 @@ inline void
             }
             resp.jsonValue["CableType"] = *cableTypeDescription;
         }
+        else if (propKey == "CableStatus")
+        {
+            const std::string* cableStatus =
+                std::get_if<std::string>(&propVariant);
+            if (cableStatus == nullptr)
+            {
+                messages::internalError(resp);
+                return;
+            }
+
+            std::string linkStatus = *cableStatus;
+            if (linkStatus.empty())
+            {
+                continue;
+            }
+
+            if (linkStatus ==
+                "xyz.openbmc_project.Inventory.Item.Cable.Status.Inactive")
+            {
+                resp.jsonValue["CableStatus"] = "Normal";
+                resp.jsonValue["Status"]["State"] = "StandbyOffline";
+                resp.jsonValue["Status"]["Health"] = "OK";
+                return;
+            }
+
+            if (linkStatus == "xyz.openbmc_project.Inventory.Item."
+                              "Cable.Status.Running")
+            {
+                resp.jsonValue["CableStatus"] = "Normal";
+                resp.jsonValue["Status"]["State"] = "Enabled";
+                resp.jsonValue["Status"]["Health"] = "OK";
+                return;
+            }
+
+            if (linkStatus == "xyz.openbmc_project.Inventory.Item."
+                              "Cable.Status.PoweredOff")
+            {
+                resp.jsonValue["CableStatus"] = "Disabled";
+                resp.jsonValue["Status"]["State"] = "StandbyOffline";
+                resp.jsonValue["Status"]["Health"] = "OK";
+                return;
+            }
+        }
         else if (propKey == "Length")
         {
             const double* cableLength = std::get_if<double>(&propVariant);
