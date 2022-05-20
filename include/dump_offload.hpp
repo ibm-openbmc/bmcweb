@@ -187,6 +187,8 @@ class Handler : public std::enable_shared_from_this<Handler>
                     }
                     return;
                 }
+                BMCWEB_LOG_CRITICAL << "INFO: Reset OffloadUri of " << dumpType
+                                    << " dump id " << entryID;
             },
             "xyz.openbmc_project.Dump.Manager",
             "/xyz/openbmc_project/dump/" + dumpType + "/entry/" + entryID,
@@ -212,7 +214,6 @@ class Handler : public std::enable_shared_from_this<Handler>
             unixSocket.close();
             std::remove(unixSocketPath.c_str());
         }
-        resetOffloadURI();
         return;
     }
 
@@ -281,18 +282,18 @@ class Handler : public std::enable_shared_from_this<Handler>
                 const boost::system::error_code& ec, std::size_t bytesRead) {
                 if (ec)
                 {
-                    BMCWEB_LOG_CRITICAL
-                        << "INFO: Couldn't read from local peer: " << ec;
-
                     if (ec != boost::asio::error::eof)
                     {
                         BMCWEB_LOG_ERROR << "Couldn't read from local peer: "
                                          << ec;
                         this->connection->sendStreamErrorStatus(
                             boost::beast::http::status::internal_server_error);
+                        this->connection->close();
+                        return;
                     }
+                    BMCWEB_LOG_CRITICAL << "INFO: Hit Dump end of file";
+                    this->connection->completionStatus = true;
                     this->connection->close();
-                    this->cleanupSocketFiles();
                     return;
                 }
 
@@ -408,7 +409,7 @@ inline void requestRoutes(App& app)
                 << " offload initiated by: " << conn.req.session->clientIp;
             bmcHandlers[&conn]->getDumpSize(dumpId, dumpType);
         })
-        .onclose([](crow::streaming_response::Connection& conn) {
+        .onclose([](crow::streaming_response::Connection& conn, bool& status) {
             auto handler = bmcHandlers.find(&conn);
             if (handler == bmcHandlers.end())
             {
@@ -416,6 +417,10 @@ inline void requestRoutes(App& app)
                 return;
             }
             handler->second->cleanupSocketFiles();
+            if (!status)
+            {
+                handler->second->resetOffloadURI();
+            }
             handler->second->outputBuffer.clear();
             bmcHandlers.erase(handler);
         });
@@ -497,7 +502,7 @@ inline void requestRoutes(App& app)
                 << " offload initiated by: " << conn.req.session->clientIp;
             systemHandlers[&conn]->getDumpSize(dumpId, dumpType);
         })
-        .onclose([](crow::streaming_response::Connection& conn) {
+        .onclose([](crow::streaming_response::Connection& conn, bool& status) {
             auto handler = systemHandlers.find(&conn);
             if (handler == systemHandlers.end())
             {
@@ -505,6 +510,10 @@ inline void requestRoutes(App& app)
                 return;
             }
             handler->second->cleanupSocketFiles();
+            if (!status)
+            {
+                handler->second->resetOffloadURI();
+            }
             handler->second->outputBuffer.clear();
             systemHandlers.clear();
         });

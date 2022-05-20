@@ -32,6 +32,7 @@ struct Connection : std::enable_shared_from_this<Connection>
 
     crow::Request req;
     crow::DynamicResponse streamres;
+    bool completionStatus = false;
 };
 
 template <typename Adaptor>
@@ -42,7 +43,7 @@ class ConnectionImpl : public Connection
                    std::function<void(Connection&)> openHandler,
                    std::function<void(Connection&, const std::string&, bool)>
                        messageHandler,
-                   std::function<void(Connection&)> closeHandler,
+                   std::function<void(Connection&, bool&)> closeHandler,
                    std::function<void(Connection&)> errorHandler) :
 
         Connection(reqIn),
@@ -128,7 +129,7 @@ class ConnectionImpl : public Connection
     {
         streamres.end();
         boost::beast::get_lowest_layer(adaptor).close();
-        closeHandler(*this);
+        closeHandler(*this, completionStatus);
     }
 
     void doWrite()
@@ -155,7 +156,7 @@ class ConnectionImpl : public Connection
     bool doingWrite = false;
     std::function<void(Connection&)> openHandler;
     std::function<void(Connection&, const std::string&, bool)> messageHandler;
-    std::function<void(Connection&)> closeHandler;
+    std::function<void(Connection&, bool&)> closeHandler;
     std::function<void(Connection&)> errorHandler;
     std::function<void()> handlerFunc;
     crow::Request req;
