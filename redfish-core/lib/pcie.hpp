@@ -440,6 +440,7 @@ inline void requestRoutesSystemPCIeDevice(App& app)
                         const std::string* prettyName = nullptr;
                         const std::string* locationCode = nullptr;
                         const bool* present = nullptr;
+                        const int64_t* lanesInUse = nullptr;
 
                         const bool success = sdbusplus::unpackPropertiesNoThrow(
                             dbus_utils::UnpackErrorPrinter(), pcieDevProperties,
@@ -448,7 +449,8 @@ inline void requestRoutesSystemPCIeDevice(App& app)
                             "PartNumber", partNumber, "SerialNumber",
                             serialNumber, "Model", model, "SparePartNumber",
                             sparePartNumber, "Name", prettyName, "LocationCode",
-                            locationCode, "Present", present);
+                            locationCode, "Present", present, "LanesInUse",
+                            lanesInUse);
 
                         if (!success)
                         {
@@ -521,6 +523,15 @@ inline void requestRoutesSystemPCIeDevice(App& app)
                             asyncResp->res
                                 .jsonValue["Slot"]["Location"]["PartLocation"]
                                           ["ServiceLabel"] = *locationCode;
+                        }
+
+                        // The default value of LanesInUse is 0, and the field
+                        // will be left as off if it is a default value.
+                        if (lanesInUse != nullptr && *lanesInUse != 0)
+                        {
+                            asyncResp->res
+                                .jsonValue["PCIeInterface"]["LanesInUse"] =
+                                *lanesInUse;
                         }
 
                         // Link status
