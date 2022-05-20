@@ -93,6 +93,49 @@ inline void requestRoutesLicenseService(App& app)
             });
 }
 
+void resetLicenseActivationStatus(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    std::string value{"com.ibm.License.LicenseManager.Status.Pending"};
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code ec) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "DBUS response error: Unable to set "
+                                    "the LicenseString property "
+                                 << ec;
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            licenseActivationStatusMatch = nullptr;
+        },
+        "com.ibm.License.Manager", "/com/ibm/license",
+        "org.freedesktop.DBus.Properties", "Set",
+        "com.ibm.License.LicenseManager", "LicenseActivationStatus",
+        std::variant<std::string>(value));
+}
+
+void resetLicenseString(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    std::string value{""};
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code ec) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "DBUS response error: Unable to set "
+                                    "the LicenseString property "
+                                 << ec;
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            resetLicenseActivationStatus(asyncResp);
+        },
+        "com.ibm.License.Manager", "/com/ibm/license",
+        "org.freedesktop.DBus.Properties", "Set",
+        "com.ibm.License.LicenseManager", "LicenseString",
+        std::variant<std::string>(value));
+}
+
 inline void
     getLicenseActivationAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                             const std::string& status,
@@ -134,7 +177,9 @@ inline void
     {
         messages::internalError(asyncResp->res);
     }
-    licenseActivationStatusMatch = nullptr;
+    // Reset LicenseString D-bus property to empty string
+    // after request status populated by pldmd.
+    resetLicenseString(asyncResp);
 }
 
 inline void requestRoutesLicenseEntryCollection(App& app)
@@ -181,7 +226,7 @@ inline void requestRoutesLicenseEntryCollection(App& app)
             std::shared_ptr<boost::asio::steady_timer> timeout =
                 std::make_shared<boost::asio::steady_timer>(
                     crow::connections::systemBus->get_io_context());
-            timeout->expires_after(std::chrono::seconds(10));
+            timeout->expires_after(std::chrono::seconds(20));
             crow::connections::systemBus->async_method_call(
                 [timeout, asyncResp,
                  licenseString](const boost::system::error_code ec) {
@@ -196,7 +241,7 @@ inline void requestRoutesLicenseEntryCollection(App& app)
                     auto timeoutHandler =
                         [asyncResp,
                          timeout](const boost::system::error_code ec) {
-                            licenseActivationStatusMatch = nullptr;
+                            resetLicenseString(asyncResp);
                             if (ec)
                             {
                                 if (ec != boost::asio::error::operation_aborted)
@@ -241,6 +286,13 @@ inline void requestRoutesLicenseEntryCollection(App& app)
                                 if (status == nullptr)
                                 {
                                     messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                                // Ignore D-bus propertyChanged signal for
+                                // status value "Pending"
+                                if (*status == "com.ibm.License.LicenseManager."
+                                               "Status.Pending")
+                                {
                                     return;
                                 }
                                 getLicenseActivationAck(asyncResp, *status,
