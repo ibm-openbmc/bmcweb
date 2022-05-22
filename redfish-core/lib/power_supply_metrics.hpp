@@ -308,7 +308,6 @@ inline void requestRoutesPowerSupplyMetrics(App& app)
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                const std::string& chassisID, const std::string& powerSupplyID) {
-                // const std::string& chassisId = param;
                 auto getChassisID =
                     [asyncResp, chassisID, powerSupplyID](
                         const std::optional<std::string>& validChassisID) {
@@ -320,8 +319,6 @@ inline void requestRoutesPowerSupplyMetrics(App& app)
                                                        "Chassis", chassisID);
                             return;
                         }
-
-                        // const std::string& powerSupplyId = param2;
 
                         BMCWEB_LOG_DEBUG << "ChassisID: " << chassisID;
                         BMCWEB_LOG_DEBUG << "PowerSupplyID: " << powerSupplyID;
@@ -341,7 +338,6 @@ inline void requestRoutesPowerSupplyMetrics(App& app)
                         asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
                             "#OemPowerSupplyMetrics.IBM";
                         getValues(asyncResp, chassisID, powerSupplyID);
-                        // getMaxValues(asyncResp, chassisID, powerSupplyID);
                     };
                 redfish::chassis_utils::getValidChassisID(
                     asyncResp, chassisID, std::move(getChassisID));
