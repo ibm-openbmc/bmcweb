@@ -551,7 +551,7 @@ inline void requestRoutesBiosAttributeRegistry(App& app)
     BMCWEB_ROUTE(
         app,
         "/redfish/v1/Registries/BiosAttributeRegistry/BiosAttributeRegistry")
-        .privileges({{"ConfigureManager"}})
+        .privileges({{"Login"}})
         .methods(
             boost::beast::http::verb::
                 get)([](const crow::Request&,
