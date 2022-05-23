@@ -217,12 +217,9 @@ inline void mapRedfishUriToDbusPath(Callback&& callback)
 
         for (const std::string& chassisName : chassisNames)
         {
-            for (const auto& [sensorNode, dbusPaths] : sensors::dbus::paths)
-            {
-                ++counter->second;
-                retrieveUriToDbusMap(chassisName, sensorNode.data(),
-                                     handleRetrieveUriToDbusMap);
-            }
+            ++counter->second;
+            retrieveUriToDbusMap(chassisName, sensors::node::sensors.data(),
+                                 handleRetrieveUriToDbusMap);
         }
     });
 }
