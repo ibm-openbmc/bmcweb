@@ -1741,34 +1741,75 @@ inline void getPowerMode(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                 messages::internalError(aResp->res);
                 return;
             }
-            // Valid Power Mode object found, now read the current value
+
+            // Valid Power Mode object found, now read the mode variables.
             crow::connections::systemBus->async_method_call(
                 [aResp](const boost::system::error_code ec,
-                        const std::variant<std::string>& pmode) {
+                        PropertiesType& properties) {
                     if (ec)
                     {
                         // Service not available, no error, return no data
                         BMCWEB_LOG_DEBUG
-                            << "Service not available on PowerMode Get: " << ec;
+                            << "Service not available on PowerMode GetAll: "
+                            << ec;
                         return;
                     }
 
-                    const std::string* s = std::get_if<std::string>(&pmode);
-                    if (s == nullptr)
+                    BMCWEB_LOG_DEBUG << "Size: " << properties.size();
+
+                    for (const auto& property : properties)
                     {
-                        BMCWEB_LOG_DEBUG << "Unable to get PowerMode value";
-                        messages::internalError(aResp->res);
-                        return;
+                        if (property.first == "PowerMode")
+                        {
+                            const std::string* powerMode =
+                                std::get_if<std::string>(&property.second);
+
+                            if (powerMode == nullptr)
+                            {
+                                BMCWEB_LOG_DEBUG
+                                    << "Unable to get PowerMode value ";
+                                messages::internalError(aResp->res);
+                                return;
+                            }
+
+                            BMCWEB_LOG_DEBUG << "Current power mode: "
+                                             << *powerMode;
+
+                            aResp->res.jsonValue
+                                ["PowerMode@Redfish.AllowableValues"] = {
+                                "Static", "MaximumPerformance", "PowerSaving"};
+
+                            translatePowerMode(aResp, *powerMode);
+                        }
+                        else if (property.first == "SafeMode")
+                        {
+                            const bool* safeMode =
+                                std::get_if<bool>(&property.second);
+
+                            if (safeMode == nullptr)
+                            {
+                                BMCWEB_LOG_DEBUG
+                                    << "Unable to get SafeMode value ";
+                                messages::internalError(aResp->res);
+                                return;
+                            }
+
+                            BMCWEB_LOG_DEBUG << "Current safe mode: "
+                                             << *safeMode;
+
+                            aResp->res.jsonValue["Oem"]["IBM"]["SafeMode"] =
+                                *safeMode;
+                        }
+                        else
+                        {
+                            BMCWEB_LOG_WARNING
+                                << "Unexpected PowerMode property: "
+                                << property.first;
+                        }
                     }
-
-                    aResp->res.jsonValue["PowerMode@Redfish.AllowableValues"] =
-                        {"Static", "MaximumPerformance", "PowerSaving"};
-
-                    BMCWEB_LOG_DEBUG << "Current power mode: " << *s;
-                    translatePowerMode(aResp, *s);
                 },
-                service, path, "org.freedesktop.DBus.Properties", "Get",
-                "xyz.openbmc_project.Control.Power.Mode", "PowerMode");
+                service, path, "org.freedesktop.DBus.Properties", "GetAll",
+                "xyz.openbmc_project.Control.Power.Mode");
         },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",

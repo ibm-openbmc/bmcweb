@@ -160,6 +160,15 @@
                         "boolean",
                         "null"
                     ]
+                },
+                "SafeMode": {
+                    "description": "An indication of whether safe mode is enabled.",
+                    "longDescription": "The value of this property shall indicate if safe mode is enabled.",
+                    "readonly": true,
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
                 }
             },
             "type": "object"
