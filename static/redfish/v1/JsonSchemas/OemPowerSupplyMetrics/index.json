@@ -53,9 +53,12 @@
             },
             "properties": {
                 "InputPowerHistoryItem": {
-                    "$ref": "#/definitions/InputPowerHistoryItem",
+                    "items": {
+                        "$ref": "#/definitions/InputPowerHistoryItem"
+                    },
                     "description": "Contains power supply input power history.",
                     "longDescription": "Contains power supply input power history, timestamped average and maximum input power over 30 second intervals.",
+                    "type": "array",
                     "readonly": false
                 }
             }

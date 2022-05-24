@@ -17,14 +17,14 @@ const std::string maximumInterface =
  *
  * @param[in/out] aResp - Shared pointer for asynchronous calls.
  * @param[in] averageValues - populated array of date/time and average values.
+ * @param[in] maximumValues - populated array of date/time and maximum values.
  *
  * @return None.
  */
 inline void parseAverageMaximum(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-                                averageMaxArray averageValues,
-                                averageMaxArray maximumValues)
+                                const averageMaxArray& averageValues,
+                                const averageMaxArray& maximumValues)
 {
-    // that inner part of the lambda stuff with push_back()
     // Take date/time and average from averageValues and maximum from
     // maximumValues to populate each inputHistoryItem entry.
     nlohmann::json& jsonResponse = aResp->res.jsonValue;
@@ -71,16 +71,12 @@ inline void getMaximumValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                              const std::string& maximumPath,
                              const averageMaxArray& averageValues)
 {
-    // gets values from Maximum interface, call parseAverageMaximum() to plop
-    // in the array.
-    // Do code or call code to push up into JSON response.
-
     BMCWEB_LOG_DEBUG << "Get Values from serviceName: " << serviceName
                      << " objectPath: " << maximumPath
                      << " interfaceName: " << maximumInterface;
 
     crow::connections::systemBus->async_method_call(
-        [aResp, serviceName, maximumPath, averageValues](
+        [aResp, averageValues](
             const boost::system::error_code ec2,
             const std::variant<averageMaxArray>& intfValues) mutable {
             if (ec2)
@@ -129,6 +125,10 @@ inline void getMaximumValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
  * After getting average values, proceed to get maximum values.
  *
  * @param[in] aResp - Shared pointer for asynchronous calls.
+ * @param[in] serviceName - The serviceName providing the average/maximum values
+ *            interfaces.
+ * @param[in] averagePath - Object path to the Average Values interface.
+ * @param[in] maximumPath - Object path to the Maximum Values interface.
  *
  * @return None.
  */
@@ -138,16 +138,12 @@ inline void
                             const std::string& averagePath,
                             const std::string& maximumPath)
 {
-    // gets values from Average interface, call parseAverageMaximum() to plop in
-    // the array.
-    //
-    // Call getMaximumValues() and pass averageValues by copy.
     BMCWEB_LOG_DEBUG << "Get Values from serviceName: " << serviceName
                      << " objectPath: " << averagePath
                      << " interfaceName: " << averageInterface;
 
     crow::connections::systemBus->async_method_call(
-        [aResp, serviceName, averagePath,
+        [aResp, serviceName,
          maximumPath](const boost::system::error_code ec2,
                       const std::variant<averageMaxArray>& intfValues) mutable {
             if (ec2)
@@ -192,8 +188,8 @@ inline void
 }
 
 /**
- * @brief Get power supply average and date values given chassis and power
- * supply IDs.
+ * @brief Get power supply average, maximum and date values given chassis and
+ * power supply IDs.
  *
  * @param[in] aResp - Shared pointer for asynchronous calls.
  * @param[in] chassisID - Chassis to which the values are associated.
