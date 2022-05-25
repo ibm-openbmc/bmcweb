@@ -317,6 +317,15 @@ inline void requestRoutesPowerSupplyMetrics(App& app)
                         return;
                     }
 
+                    if (chassisID != "chassis")
+                    {
+                        BMCWEB_LOG_ERROR << "No Metrics for chassis ID:"
+                                         << chassisID;
+                        messages::resourceNotFound(asyncResp->res, "Chassis",
+                                                   chassisID);
+                        return;
+                    }
+
                     BMCWEB_LOG_DEBUG << "ChassisID: " << chassisID;
 
                     auto getPowerSupplyHandler =
