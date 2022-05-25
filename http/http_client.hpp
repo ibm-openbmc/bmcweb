@@ -64,7 +64,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
 {
   private:
     crow::async_resolve::Resolver resolver;
-    boost::asio::ssl::context ctx{boost::asio::ssl::context::tlsv12_client};
+    boost::asio::ssl::context ctx{boost::asio::ssl::context::tlsv13_client};
     boost::beast::tcp_stream conn;
     std::optional<boost::beast::ssl_stream<boost::beast::tcp_stream&>> sslConn;
     boost::asio::steady_timer timer;
@@ -589,6 +589,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
         requestDataQueue.set_capacity(maxRequestQueueSize);
         if (uriProto == "https")
         {
+            ctx.set_options(boost::asio::ssl::context::no_tlsv1_1);
             sslConn.emplace(conn, ctx);
         }
     }
