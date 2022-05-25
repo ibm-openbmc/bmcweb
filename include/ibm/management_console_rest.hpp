@@ -1344,7 +1344,7 @@ inline void requestRoutes(App& app)
             });
 
     BMCWEB_ROUTE(app, "/ibm/v1/OCC/Control/<str>/Actions/PassThrough.Send")
-        .privileges({{"ConfigureManager"}})
+        .privileges({{"OemIBMPerformService"}})
         .methods(boost::beast::http::verb::post)(
             [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
