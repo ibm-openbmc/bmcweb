@@ -32,10 +32,10 @@
                 <Annotation Term="OData.AdditionalProperties" Bool="true" />
                 <Annotation Term="OData.Description" String="IBM Oem properties for Power Supply Metrics." />
                 <Annotation Term="OData.AutoExpand"/>
-                <Property Name="InputPowerHistoryItems" Type="Collection(OemPowerSupplyMetrics.InputPowerHistoryItem)"/>
+                <Property Name="InputPowerHistoryItems" Type="Collection(OemPowerSupplyMetrics.InputPowerHistoryItems)"/>
             </ComplexType>
 
-            <ComplexType Name="InputPowerHistoryItem" BaseType="Resource.OemObject">
+            <ComplexType Name="InputPowerHistoryItems" BaseType="Resource.OemObject">
                 <Annotation Term="OData.AdditionalProperties" Bool="true" />
                 <Annotation Term="OData.Description" String="Contains power supply input power history." />
                 <Annotation Term="OData.LongDescription" String="Contains power supply input power history, timestamped average and maximum input power over 30 second intervals." />

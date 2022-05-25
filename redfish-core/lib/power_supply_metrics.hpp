@@ -29,7 +29,7 @@ inline void parseAverageMaximum(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
     // maximumValues to populate each inputHistoryItem entry.
     nlohmann::json& jsonResponse = aResp->res.jsonValue;
     nlohmann::json& inputPowerHistoryItemArray =
-        jsonResponse["Oem"]["IBM"]["InputPowerHistoryItem"];
+        jsonResponse["Oem"]["IBM"]["InputPowerHistoryItems"];
     inputPowerHistoryItemArray = nlohmann::json::array();
 
     std::vector<averageMaxEntry>::const_iterator average =
@@ -203,10 +203,11 @@ inline void getValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 {
     BMCWEB_LOG_DEBUG
         << "Get power supply date/average/maximum input power values";
-    // Setup InputPowerHistoryItem values array.
+    // Setup InputPowerHistoryItems values array.
     // It will have 0 to many date/timestamp, average, and maximum entries.
-    aResp->res.jsonValue["Oem"]["IBM"]["InputPowerHistoryItem"]["@odata.type"] =
-        "#OemPowerSupplyMetric.InputPowerHistoryItem";
+    aResp->res
+        .jsonValue["Oem"]["IBM"]["InputPowerHistoryItems"]["@odata.type"] =
+        "#OemPowerSupplyMetric.InputPowerHistoryItems";
 
     const std::array<const char*, 2> interfaces = {
         "org.open_power.Sensor.Aggregation.History.Average",

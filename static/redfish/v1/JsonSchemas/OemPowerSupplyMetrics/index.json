@@ -52,9 +52,9 @@
                 }
             },
             "properties": {
-                "InputPowerHistoryItem": {
+                "InputPowerHistoryItems": {
                     "items": {
-                        "$ref": "#/definitions/InputPowerHistoryItem"
+                        "$ref": "#/definitions/InputPowerHistoryItems"
                     },
                     "description": "Contains power supply input power history.",
                     "longDescription": "Contains power supply input power history, timestamped average and maximum input power over 30 second intervals.",
@@ -63,7 +63,7 @@
                 }
             }
         },
-        "InputPowerHistoryItem": {
+        "InputPowerHistoryItems": {
             "additionalProperties": false,
             "description": "Contains power supply input power history.",
             "longDescription": "Contains power supply input power history, timestamped average and maximum input power over 30 second intervals.",
