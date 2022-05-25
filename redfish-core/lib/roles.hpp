@@ -125,7 +125,6 @@ inline void requestRoutesRoles(App& app)
 
         asyncResp->res.jsonValue["@odata.type"] = "#Role.v1_3_0.Role";
         asyncResp->res.jsonValue["Name"] = "User Role";
-        asyncResp->res.jsonValue["Description"] = roleId + " User Role";
         asyncResp->res.jsonValue["OemPrivileges"] = std::move(oemPrivArray);
         asyncResp->res.jsonValue["IsPredefined"] = true;
         asyncResp->res.jsonValue["Id"] = roleId;
@@ -134,6 +133,14 @@ inline void requestRoutesRoles(App& app)
             "/redfish/v1/AccountService/Roles/" + roleId;
         asyncResp->res.jsonValue["AssignedPrivileges"] = std::move(privArray);
         asyncResp->res.jsonValue["Restricted"] = isRestrictedRole(roleId);
+            
+        if (roleId == "OemIBMServiceAgent")
+        {
+            asyncResp->res.jsonValue["Description"] = "ServiceAgent";
+        }
+        else
+        {
+            asyncResp->res.jsonValue["Description"] = roleId;
         });
 }
 
