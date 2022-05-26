@@ -123,12 +123,10 @@ inline void fillReportDefinition(
     }
     catch (const sdbusplus::exception::UnpackPropertyError& error)
     {
-        BMCWEB_LOG_ERROR << error.what() << ", property: "
-                         << error.propertyName + ", reason: " << error.reason;
+        BMCWEB_LOG_ERROR << error.what()
+                         << ", property: " << error.propertyName;
         messages::queryParameterValueFormatError(
-            asyncResp->res,
-            std::string(error.propertyName) + " " + std::string(error.reason),
-            error.what());
+            asyncResp->res, std::string(error.propertyName), error.what());
         messages::internalError(asyncResp->res);
     }
 }
