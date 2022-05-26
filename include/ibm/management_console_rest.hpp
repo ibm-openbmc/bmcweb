@@ -656,7 +656,7 @@ inline void
         {
             BMCWEB_LOG_ERROR
                 << "handleAcquireLockAPI: There is a conflict within itself";
-            asyncResp->res.result(boost::beast::http::status::bad_request);
+            asyncResp->res.result(boost::beast::http::status::conflict);
             return;
         }
     }
