@@ -43,11 +43,11 @@ constexpr char const* configFilePath =
     "/var/lib/bmcweb/ibm-management-console/configfiles";
 
 constexpr size_t maxSaveareaDirSize =
-    10000000; // Allow save area dir size to be max 10MB
+    25000000; // Allow save area dir size to be max 25MB
 constexpr size_t minSaveareaFileSize =
     100; // Allow save area file size of minimum 100B
 constexpr size_t maxSaveareaFileSize =
-    10000000; // Allow save area file size upto 10MB
+    25000000; // Allow save area file size upto 25MB
 constexpr size_t maxBroadcastMsgSize =
     1000; // Allow Broadcast message size upto 1KB
 
@@ -108,7 +108,7 @@ inline bool saveConfigFile(const std::string& data, const std::string& fileID,
     {
         asyncResp->res.result(boost::beast::http::status::bad_request);
         asyncResp->res.jsonValue["Description"] =
-            "File size exceeds maximum allowed size[10MB]";
+            "File size exceeds maximum allowed size[25MB]";
         return false;
     }
     std::ofstream file;
@@ -213,7 +213,7 @@ inline bool saveConfigFile(const std::string& data, const std::string& fileID,
         asyncResp->res.result(boost::beast::http::status::bad_request);
         asyncResp->res.jsonValue["Description"] =
             "File size does not fit in the savearea "
-            "directory maximum allowed size[10MB]";
+            "directory maximum allowed size[25MB]";
         return false;
     }
 
