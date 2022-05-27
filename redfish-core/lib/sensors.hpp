@@ -25,6 +25,7 @@
 #include <utils/json_utils.hpp>
 
 #include <cmath>
+#include <regex>
 #include <utility>
 #include <variant>
 
@@ -51,6 +52,9 @@ static constexpr std::string_view power = "Power";
 static constexpr std::string_view sensors = "Sensors";
 static constexpr std::string_view thermal = "Thermal";
 } // namespace node
+
+// Regular expression that matches power supply input power sensor names
+static const std::regex powerSupplyInputPowerPattern{"ps[0-9]+_input_power"};
 
 namespace dbus
 {
@@ -975,6 +979,13 @@ inline void objectInterfacesToJson(
         else
         {
             sensorJson["ReadingUnits"] = readingUnits;
+        }
+
+        // If this is a power supply input power sensor, set the Accuracy to 1%.
+        // All power supplies currently used on IBM systems have this accuracy.
+        if (std::regex_match(sensorName, sensors::powerSupplyInputPowerPattern))
+        {
+            sensorJson["Accuracy"] = 1;
         }
     }
     else if (sensorType == "temperature")
