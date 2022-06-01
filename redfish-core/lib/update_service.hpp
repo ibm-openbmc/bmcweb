@@ -19,6 +19,8 @@
 
 #include <app.hpp>
 #include <boost/container/flat_map.hpp>
+#include <boost/range/adaptor/reversed.hpp>
+#include <dbus_utility.hpp>
 #include <registries/privilege_registry.hpp>
 #include <utils/fw_utils.hpp>
 
@@ -58,6 +60,109 @@ inline static void activateImage(const std::string& objPath,
         std::variant<std::string>(
             "xyz.openbmc_project.Software.Activation.RequestedActivations."
             "Active"));
+}
+
+inline void updateErrorLogMessage(
+    const std::shared_ptr<task::TaskData>& taskData,
+    const std::string& index)
+{
+    crow::connections::systemBus->async_method_call(
+        [taskData, index](
+            const boost::system::error_code errorCode,
+            const dbus::utility::ManagedObjectType& resp) {
+            if (errorCode)
+            {
+                BMCWEB_LOG_ERROR
+                    << "updateErrorLogMessage returned an error "
+                    << errorCode;
+                return;
+            }
+
+            for (auto& objectPath : boost::adaptors::reverse(resp))
+            {
+                for (auto& interfaceMap : objectPath.second)
+                {
+                    if (interfaceMap.first == "xyz.openbmc_project.Logging."
+                                              "Entry")
+                    {
+                        using AdditionalDataType = std::vector<std::string>;
+                        std::string eventId;
+                        std::string message;
+                        std::string addDataStr;
+
+                        for (auto& propertyMap : interfaceMap.second)
+                        {
+                            if (propertyMap.first == "Message")
+                            {
+                                const std::string* messagePtr =
+                                    std::get_if<std::string>(
+                                        &propertyMap.second);
+                                if (messagePtr == nullptr)
+                                {
+                                    BMCWEB_LOG_ERROR
+                                        << "Log property has unexpected value";
+                                    taskData->messages.emplace_back(
+                                        messages::internalError());
+                                    return;
+                                }
+                                if (!boost::starts_with(*messagePtr,
+                                                        "xyz.openbmc_project."
+                                                        "Software"))
+                                {
+                                    break;
+                                }
+                                message.append(*messagePtr);
+
+                            }
+                            else if (propertyMap.first == "AdditionalData")
+                            {
+                                const AdditionalDataType* addData =
+                                    std::get_if<AdditionalDataType>(
+                                        &propertyMap.second);
+                                if (addData == nullptr)
+                                {
+                                    BMCWEB_LOG_ERROR
+                                        << "Log property has unexpected value";
+                                    taskData->messages.emplace_back(
+                                        messages::internalError());
+                                    return;
+                                }
+                                for (auto& data: *addData)
+                                {
+                                    addDataStr.append(data);
+                                    addDataStr.append(" ");
+                                }
+                            }
+                            else if (propertyMap.first == "EventId")
+                            {
+                                const std::string* eventIdPtr =
+                                    std::get_if<std::string>(
+                                        &propertyMap.second);
+                                if (eventIdPtr == nullptr)
+                                {
+                                    BMCWEB_LOG_ERROR
+                                        << "Log property has unexpected value";
+                                    taskData->messages.emplace_back(
+                                        messages::internalError());
+                                    return;
+                                }
+                                eventId.append(*eventIdPtr);
+                            }
+                        }
+                        if (!message.empty() && !addDataStr.empty() &&
+                            !eventId.empty())
+                        {
+                            taskData->messages.emplace_back(
+                                messages::taskAborted(index, message,
+                                                      addDataStr, eventId));
+                            return;
+                        }
+                    }
+                }
+            }
+        },
+        "xyz.openbmc_project.Logging", "/xyz/openbmc_project/logging",
+        "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
 
 // Note that asyncResp can be either a valid pointer or nullptr. If nullptr
@@ -169,8 +274,8 @@ static void
                                         {
                                             taskData->state = "Exception";
                                             taskData->status = "Warning";
-                                            taskData->messages.emplace_back(
-                                                messages::taskAborted(index));
+                                            updateErrorLogMessage(taskData,
+                                                                  index);
                                             return task::completed;
                                         }
 
