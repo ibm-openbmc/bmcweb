@@ -62,19 +62,17 @@ inline static void activateImage(const std::string& objPath,
             "Active"));
 }
 
-inline void updateErrorLogMessage(
-    const std::shared_ptr<task::TaskData>& taskData,
-    const std::string& index)
+inline void
+    updateErrorLogMessage(const std::shared_ptr<task::TaskData>& taskData,
+                          const std::string& index)
 {
     crow::connections::systemBus->async_method_call(
-        [taskData, index](
-            const boost::system::error_code errorCode,
-            const dbus::utility::ManagedObjectType& resp) {
+        [taskData, index](const boost::system::error_code errorCode,
+                          const dbus::utility::ManagedObjectType& resp) {
             if (errorCode)
             {
-                BMCWEB_LOG_ERROR
-                    << "updateErrorLogMessage returned an error "
-                    << errorCode;
+                BMCWEB_LOG_ERROR << "updateErrorLogMessage returned an error "
+                                 << errorCode;
                 return;
             }
 
@@ -112,7 +110,6 @@ inline void updateErrorLogMessage(
                                     break;
                                 }
                                 message.append(*messagePtr);
-
                             }
                             else if (propertyMap.first == "AdditionalData")
                             {
@@ -127,7 +124,7 @@ inline void updateErrorLogMessage(
                                         messages::internalError());
                                     return;
                                 }
-                                for (auto& data: *addData)
+                                for (auto& data : *addData)
                                 {
                                     addDataStr.append(data);
                                     addDataStr.append(" ");
