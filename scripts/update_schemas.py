@@ -236,7 +236,7 @@ with open(metadata_index_path, 'w') as metadata_index:
     metadata_index.write(
         "        <edmx:Include Namespace=\"OemMessage\"/>\n")
     metadata_index.write(
-        "        <edmx:Include Namespace=\"OemMessage.v1_0_0\"/>\n")    
+        "        <edmx:Include Namespace=\"OemMessage.v1_0_0\"/>\n")
     metadata_index.write("    </edmx:Reference>\n")
 
     metadata_index.write("</edmx:Edmx>\n")
