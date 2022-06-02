@@ -21,6 +21,7 @@
 #include <app.hpp>
 #include <boost/system/linux_error.hpp>
 #include <registries/privilege_registry.hpp>
+#include <utils/pcie_util.hpp>
 
 #include <map>
 
@@ -68,7 +69,7 @@ static inline void
             for (const auto& [serviceName, interfaceList] : serviceMap)
             {
                 std::string devName =
-                    sdbusplus::message::object_path(pcieDevicePath).filename();
+                    pcie_util::buildPCIeUniquePath(pcieDevicePath);
 
                 if (devName.empty())
                 {

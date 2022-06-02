@@ -1,7 +1,9 @@
 #pragma once
+
 #include <boost/container/flat_map.hpp>
 #include <utils/chassis_utils.hpp>
 #include <utils/json_utils.hpp>
+#include <utils/pcie_util.hpp>
 
 namespace redfish
 {
@@ -180,15 +182,15 @@ inline void
 
             for (const auto& fullPath : value)
             {
-                sdbusplus::message::object_path path(fullPath);
-                std::string leaf = path.filename();
-                if (leaf.empty())
+                std::string devName = pcie_util::buildPCIeUniquePath(fullPath);
+
+                if (devName.empty())
                 {
                     continue;
                 }
                 linkArray.push_back(
                     {{"@odata.id",
-                      "/redfish/v1/Systems/system/PCIeDevices/" + leaf}});
+                      "/redfish/v1/Systems/system/PCIeDevices/" + devName}});
             }
         });
 

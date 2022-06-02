@@ -3,6 +3,7 @@
 #include <utils/collection.hpp>
 #include <utils/json_utils.hpp>
 #include <utils/name_utils.hpp>
+#include <utils/pcie_util.hpp>
 
 namespace redfish
 {
@@ -143,10 +144,9 @@ inline void
             {
                 // if the adapter also implements this interface, link the
                 // adapter schema to PCIeDevice schema for this adapter.
-                const std::string pcieDevice =
-                    sdbusplus::message::object_path(objPath).filename();
+                std::string devName = pcie_util::buildPCIeUniquePath(objPath);
 
-                if (pcieDevice.empty())
+                if (devName.empty())
                 {
                     BMCWEB_LOG_ERROR << "Failed to find / in pcie device path";
                     messages::internalError(aResp->res);
@@ -159,7 +159,7 @@ inline void
 
                 deviceArray.push_back(
                     {{"@odata.id",
-                      "/redfish/v1/Systems/system/PCIeDevices/" + pcieDevice}});
+                      "/redfish/v1/Systems/system/PCIeDevices/" + devName}});
 
                 aResp->res.jsonValue["Links"]["PCIeDevices@odata.count"] =
                     deviceArray.size();
