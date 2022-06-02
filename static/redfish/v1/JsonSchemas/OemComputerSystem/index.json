@@ -169,6 +169,15 @@
                         "boolean",
                         "null"
                     ]
+                },
+                "PCIeTopologyRefresh": {
+                    "description": "An indication of topology information is ready.",
+                    "longDescription": "This property when set to 'true' refreshes the topology information. The application which uses this should set it to 'false' when a refresh occurs.",
+                    "readonly": true,
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
                 }
             },
             "type": "object"
