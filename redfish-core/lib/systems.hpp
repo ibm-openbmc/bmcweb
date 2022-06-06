@@ -22,6 +22,8 @@
 #include "oem/ibm/lamp_test.hpp"
 #include "oem/ibm/system_attention_indicator.hpp"
 #endif
+#include "oem/ibm/pcie_topology_refresh.hpp"
+
 #include <app.hpp>
 #include <boost/container/flat_map.hpp>
 #include <registries/privilege_registry.hpp>
@@ -2770,6 +2772,7 @@ inline void requestRoutesSystems(App& app)
             getHostState(asyncResp);
             getBootProgress(asyncResp);
             getPCIeDeviceList(asyncResp, "PCIeDevices");
+            getPCIeTopologyRefresh(asyncResp);
             getHostWatchdogTimer(asyncResp);
             getPowerRestorePolicy(asyncResp);
             getStopBootOnFault(asyncResp);
@@ -2906,12 +2909,13 @@ inline void requestRoutesSystems(App& app)
                         std::optional<bool> lampTest;
                         std::optional<bool> partitionSAI;
                         std::optional<bool> platformSAI;
+                        std::optional<bool> pcieTopologyRefresh;
                         if (!json_util::readJson(
                                 *ibmOem, asyncResp->res, "LampTest", lampTest,
                                 "PartitionSystemAttentionIndicator",
                                 partitionSAI,
-                                "PlatformSystemAttentionIndicator",
-                                platformSAI))
+                                "PlatformSystemAttentionIndicator", platformSAI,
+                                "PCIeTopologyRefresh", pcieTopologyRefresh))
                         {
                             return;
                         }
@@ -2931,7 +2935,20 @@ inline void requestRoutesSystems(App& app)
                                    "PlatformSystemAttentionIndicator",
                                    *platformSAI);
                         }
+#else
+                        std::optional<bool> pcieTopologyRefresh;
+                        if (!json_util::readJson(*ibmOem, asyncResp->res,
+                                                 "PCIeTopologyRefresh",
+                                                 pcieTopologyRefresh))
+                        {
+                            return;
+                        }
 #endif
+                        if (pcieTopologyRefresh)
+                        {
+                            setPCIeTopologyRefresh(asyncResp,
+                                                   *pcieTopologyRefresh);
+                        }
                     }
                 }
 

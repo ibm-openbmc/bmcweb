@@ -139,6 +139,16 @@ inline void
                                     BMCWEB_LOG_ERROR << "error_code = " << ec3;
                                     BMCWEB_LOG_ERROR << "error msg = "
                                                      << ec3.message();
+                                    // If we happen to get a resource not found,
+                                    // it could be due to the code update app
+                                    // deleting it between the call to the
+                                    // mapper and here. Just leave these
+                                    // properties off if resource not found
+                                    // D-Bus error.
+                                    if (ec3.value() == EBADR)
+                                    {
+                                        return;
+                                    }
                                     messages::internalError(aResp->res);
                                     return;
                                 }

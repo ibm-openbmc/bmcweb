@@ -5,6 +5,7 @@
 #include <app.hpp>
 #include <utils/chassis_utils.hpp>
 #include <utils/json_utils.hpp>
+#include <utils/pcie_util.hpp>
 
 namespace redfish
 {
@@ -118,10 +119,11 @@ inline void
 
             // Assuming only one device path per slot.
             const std::string& pcieDevciePath = std::get<0>(subtree[0]);
-            const std::string pcieDevice =
-                sdbusplus::message::object_path(pcieDevciePath).filename();
 
-            if (pcieDevice.empty())
+            std::string devName =
+                pcie_util::buildPCIeUniquePath(pcieDevciePath);
+
+            if (devName.empty())
             {
                 BMCWEB_LOG_ERROR << "Failed to find / in pcie device path";
                 messages::internalError(asyncResp->res);
@@ -130,7 +132,7 @@ inline void
 
             asyncResp->res.jsonValue["Slots"][index]["Links"]["PCIeDevice"] = {
                 {{"@odata.id",
-                  "/redfish/v1/Systems/system/PCIeDevices/" + pcieDevice}}};
+                  "/redfish/v1/Systems/system/PCIeDevices/" + devName}}};
         },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
