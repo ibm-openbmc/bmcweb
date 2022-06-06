@@ -2946,7 +2946,7 @@ inline void requestRoutesSystems(App& app)
 #endif
                         if (pcieTopologyRefresh)
                         {
-                            setPCIeTopologyRefresh(asyncResp,
+                            setPCIeTopologyRefresh(req, asyncResp,
                                                    *pcieTopologyRefresh);
                         }
                     }
