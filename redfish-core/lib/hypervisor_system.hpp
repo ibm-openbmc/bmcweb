@@ -519,7 +519,7 @@ inline void parseInterfaceData(
         translateDHCPEnabledToBool(ethData.DHCPEnabled, true);
 
     jsonResponse["DHCPv6"]["OperatingMode"] =
-        translateDHCPEnabledToBool(ethData.DHCPEnabled, false) ? "Stateful"
+        translateDHCPEnabledToBool(ethData.DHCPEnabled, false) ? "Enabled"
                                                                : "Disabled";
     nlohmann::json& ipv4Array = jsonResponse["IPv4Addresses"];
     nlohmann::json& ipv4StaticArray = jsonResponse["IPv4StaticAddresses"];
@@ -584,7 +584,7 @@ inline void setIpv6DhcpOperatingMode(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     std::string ipv6DHCP;
-    if ((operatingMode == "Stateful") || (operatingMode == "Stateless"))
+    if (operatingMode == "Enabled")
     {
         ipv6DHCP = "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v6";
     }
@@ -830,7 +830,7 @@ inline void handleHypervisorIPv6StaticPatch(
             return;
         }
 
-        BMCWEB_LOG_ERROR
+        BMCWEB_LOG_DEBUG
             << "INFO: Static ip configuration request from client: "
             << req.session->clientIp << " - ip: " << *address
             << ";gateway: " << *gateway
@@ -839,7 +839,7 @@ inline void handleHypervisorIPv6StaticPatch(
         createHypervisorIP(ifaceId, *prefixLen, *gateway, *address,
                            "xyz.openbmc_project.Network.IP.Protocol.IPv6",
                            asyncResp);
-        // Set the DHCPEnabled to false since the Static IPv4 is set
+        // Set the DHCPEnabled to false since the Static IPv6 is set
         setIpv6DhcpOperatingMode(ifaceId, "Disabled", asyncResp);
     }
     else
