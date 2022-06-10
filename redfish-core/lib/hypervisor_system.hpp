@@ -197,49 +197,52 @@ inline bool extractHypervisorInterfaceData(
                             {
                                 const std::string* address =
                                     std::get_if<std::string>(&property.second);
-                                if (address != nullptr)
+                                if (address == nullptr)
                                 {
-                                    if (protocol == "ipv4")
-                                    {
-                                        ipv4Address.address = *address;
-                                    }
-                                    else if (protocol == "ipv6")
-                                    {
-                                        ipv6Address.address = *address;
-                                    }
+                                    return false;
+                                }
+                                if (protocol == "ipv4")
+                                {
+                                    ipv4Address.address = *address;
+                                }
+                                else if (protocol == "ipv6")
+                                {
+                                    ipv6Address.address = *address;
                                 }
                             }
                             else if (property.first == "PrefixLength")
                             {
                                 const uint8_t* mask =
                                     std::get_if<uint8_t>(&property.second);
-                                if (mask != nullptr)
+                                if (mask == nullptr)
                                 {
-                                    if (protocol == "ipv4")
-                                    {
-                                        ipv4Address.netmask = getNetmask(*mask);
-                                    }
-                                    else if (protocol == "ipv6")
-                                    {
-                                        ipv6Address.prefixLength = *mask;
-                                    }
+                                    return false;
+                                }
+                                if (protocol == "ipv4")
+                                {
+                                    ipv4Address.netmask = getNetmask(*mask);
+                                }
+                                else if (protocol == "ipv6")
+                                {
+                                    ipv6Address.prefixLength = *mask;
                                 }
                             }
                             else if (property.first == "Gateway")
                             {
                                 const std::string* gateway =
                                     std::get_if<std::string>(&property.second);
-                                if (gateway != nullptr)
+                                if (gateway == nullptr)
                                 {
-                                    if (protocol == "ipv4")
-                                    {
-                                        ipv4Address.gateway = *gateway;
-                                    }
+                                    return false;
+                                }
+                                if (protocol == "ipv4")
+                                {
+                                    ipv4Address.gateway = *gateway;
                                 }
                             }
                             else
                             {
-                                BMCWEB_LOG_ERROR
+                                BMCWEB_LOG_DEBUG
                                     << "Got extra property: " << property.first
                                     << " on the " << objpath.first.str
                                     << " object";
@@ -255,16 +258,17 @@ inline bool extractHypervisorInterfaceData(
                             {
                                 const bool* enabled =
                                     std::get_if<bool>(&property.second);
-                                if (enabled != nullptr)
+                                if (enabled == nullptr)
                                 {
-                                    if (protocol == "ipv4")
-                                    {
-                                        ipv4Address.isActive = *enabled;
-                                    }
-                                    else if (protocol == "ipv6")
-                                    {
-                                        ipv6Address.isActive = *enabled;
-                                    }
+                                    return false;
+                                }
+                                if (protocol == "ipv4")
+                                {
+                                    ipv4Address.isActive = *enabled;
+                                }
+                                else if (protocol == "ipv6")
+                                {
+                                    ipv6Address.isActive = *enabled;
                                 }
                             }
                         }
@@ -284,48 +288,48 @@ inline bool extractHypervisorInterfaceData(
                         {
                             const std::string* dhcpEnabled =
                                 std::get_if<std::string>(&property.second);
-                            if (dhcpEnabled != nullptr)
+                            if (dhcpEnabled == nullptr)
                             {
-                                ethData.DHCPEnabled = *dhcpEnabled;
-                                if (!translateDHCPEnabledToBool(*dhcpEnabled,
-                                                                true))
-                                {
-                                    ipv4Address.origin = "Static";
-                                }
-                                else
-                                {
-                                    ipv4Address.origin = "DHCP";
-                                }
+                                return false;
+                            }
+                            ethData.DHCPEnabled = *dhcpEnabled;
+                            if (!translateDHCPEnabledToBool(*dhcpEnabled, true))
+                            {
+                                ipv4Address.origin = "Static";
+                            }
+                            else
+                            {
+                                ipv4Address.origin = "DHCP";
+                            }
 
-                                if (!translateDHCPEnabledToBool(*dhcpEnabled,
-                                                                false))
-                                {
-                                    ipv6Address.origin = "Static";
-                                }
-                                else
-                                {
-                                    ipv6Address.origin = "DHCP";
-                                }
+                            if (!translateDHCPEnabledToBool(*dhcpEnabled,
+                                                            false))
+                            {
+                                ipv6Address.origin = "Static";
+                            }
+                            else
+                            {
+                                ipv6Address.origin = "DHCP";
                             }
                         }
                         else if (property.first == "DefaultGateway6")
                         {
                             const std::string* defaultGateway6 =
                                 std::get_if<std::string>(&property.second);
-                            if (defaultGateway6 != nullptr)
+                            if (defaultGateway6 == nullptr)
                             {
-                                std::string defaultGateway6Str =
-                                    *defaultGateway6;
-                                if (defaultGateway6Str.empty())
-                                {
-                                    ethData.ipv6_default_gateway =
-                                        "0:0:0:0:0:0:0:0";
-                                }
-                                else
-                                {
-                                    ethData.ipv6_default_gateway =
-                                        defaultGateway6Str;
-                                }
+                                return false;
+                            }
+                            std::string defaultGateway6Str = *defaultGateway6;
+                            if (defaultGateway6Str.empty())
+                            {
+                                ethData.ipv6_default_gateway =
+                                    "0:0:0:0:0:0:0:0";
+                            }
+                            else
+                            {
+                                ethData.ipv6_default_gateway =
+                                    defaultGateway6Str;
                             }
                         }
                     }
@@ -344,10 +348,11 @@ inline bool extractHypervisorInterfaceData(
                         {
                             const std::string* hostname =
                                 std::get_if<std::string>(&property.second);
-                            if (hostname != nullptr)
+                            if (hostname == nullptr)
                             {
-                                ethData.hostname = *hostname;
+                                return false;
                             }
+                            ethData.hostname = *hostname;
                         }
                     }
                 }
@@ -453,12 +458,8 @@ inline void
                 }
                 else if (ec == boost::system::errc::argument_list_too_long)
                 {
-                    std::string createInp = address + "; " +
-                                            std::to_string(prefixLength) +
-                                            "; " + gateway;
-                    messages::actionParameterValueFormatError(
-                        asyncResp->res, createInp, "IPv4StaticAddresses",
-                        "Create");
+                    messages::invalidObject(asyncResp->res,
+                                            "IPv4StaticAddresses");
                 }
                 else
                 {
@@ -518,9 +519,14 @@ inline void parseInterfaceData(
     jsonResponse["DHCPv4"]["DHCPEnabled"] =
         translateDHCPEnabledToBool(ethData.DHCPEnabled, true);
 
-    jsonResponse["DHCPv6"]["OperatingMode"] =
-        translateDHCPEnabledToBool(ethData.DHCPEnabled, false) ? "Enabled"
-                                                               : "Disabled";
+    if (translateDHCPEnabledToBool(ethData.DHCPEnabled, false))
+    {
+        jsonResponse["DHCPv6"]["OperatingMode"] = "Enabled";
+    }
+    else
+    {
+        jsonResponse["DHCPv6"]["OperatingMode"] = "Disabled";
+    }
     nlohmann::json& ipv4Array = jsonResponse["IPv4Addresses"];
     nlohmann::json& ipv4StaticArray = jsonResponse["IPv4StaticAddresses"];
     ipv4Array = nlohmann::json::array();
@@ -575,8 +581,21 @@ inline void parseInterfaceData(
         }
     }
 
-    jsonResponse["InterfaceEnabled"] =
-        ipv4IsActive ? true : (ipv6IsActive ? true : false);
+    if (ipv4IsActive)
+    {
+        jsonResponse["InterfaceEnabled"] = true;
+    }
+    else
+    {
+        if (ipv6IsActive)
+        {
+            jsonResponse["InterfaceEnabled"] = true;
+        }
+        else
+        {
+            jsonResponse["InterfaceEnabled"] = false;
+        }
+    }
 }
 
 inline void setIpv6DhcpOperatingMode(
@@ -592,6 +611,12 @@ inline void setIpv6DhcpOperatingMode(
     {
         ipv6DHCP =
             "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.none";
+    }
+    else
+    {
+        messages::propertyValueIncorrect(asyncResp->res, "OperatingMode",
+                                         operatingMode);
+        return;
     }
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code ec) {
@@ -805,11 +830,10 @@ inline void handleHypervisorIPv6StaticPatch(
             return;
         }
 
-        bool errorInEntry = false;
         if (!address)
         {
             messages::propertyMissing(asyncResp->res, pathString + "/Address");
-            errorInEntry = true;
+            return;
         }
 
         if (!gateway)
@@ -822,11 +846,6 @@ inline void handleHypervisorIPv6StaticPatch(
         {
             messages::propertyMissing(asyncResp->res,
                                       pathString + "/PrefixLength");
-            errorInEntry = true;
-        }
-
-        if (errorInEntry)
-        {
             return;
         }
 
