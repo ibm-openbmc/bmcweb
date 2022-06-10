@@ -25,6 +25,14 @@
                     "description": "An identifier to detect the PCIe bus linked to the slot.",
                     "readonly": true,
                     "type": "integer"
+                },
+                "AssociatedAssembly": {
+                    "description": "Represent association slot with assembly.",
+                    "readonly": true,
+                    "type": [
+                        "null",
+                        "object"
+                    ]
                 }
             },
             "type": "object"
