@@ -246,6 +246,11 @@ inline void requestRoutes(App& app)
                 auto& session = req.session;
                 if (session != nullptr)
                 {
+                    asyncResp->res.addHeader(
+                        "Set-Cookie", "SESSION="
+                                      "; SameSite=Strict; Secure; HttpOnly; "
+                                      "expires=Thu, 01 Jan 1970 00:00:00 GMT");
+
                     asyncResp->res.jsonValue = {
                         {"data", "User '" + session->username + "' logged out"},
                         {"message", "200 OK"},
