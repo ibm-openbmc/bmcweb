@@ -500,15 +500,38 @@ inline std::optional<pcie_device::PCIeTypes>
 inline void getPCIeDevices(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                            const std::string& device)
 {
+
     auto getPCIeDevicePropertiesCallback =
-        [asyncResp, device](
-            const dbus::utility::DBusPropertiesMap& pcieDevProperties,
-            const std::string& /* device */, const std::string& /* path */) {
+        [asyncResp,
+         device](const dbus::utility::DBusPropertiesMap& pcieDevProperties,
+                 const std::string& /* device */, const std::string& path) {
         asyncResp->res.jsonValue = {
             {"@odata.type", "#PCIeDevice.v1_9_0.PCIeDevice"},
             {"@odata.id", "/redfish/v1/Systems/system/PCIeDevices/" + device},
             {"Name", "PCIe Device"},
             {"Id", device}};
+
+        // Link-to-PCIeSlot
+        std::vector<std::string> splitText;
+        boost::split(splitText, path, [](char c) { return c == '/'; });
+        auto it = std::find_if(splitText.begin(), splitText.end(),
+                               [](const std::string& data) {
+            return data.find("chassis") != std::string::npos;
+        });
+        if (it != splitText.cend())
+        {
+            asyncResp->res
+                .jsonValue["Links"]["Oem"]["IBM"]["PCIeSlot"]["@odata.id"] =
+                ("/redfish/v1/Chassis/" + *it + "/PCIeSlots");
+        }
+        else
+        {
+            // if reach here mean unable to find Chassis name.
+            BMCWEB_LOG_ERROR << "unable to find PCIe Slot for PCIe Device :"
+                             << device;
+            messages::internalError(asyncResp->res);
+            return;
+        }
 
         const std::string* manufacturer = nullptr;
         const std::string* deviceType = nullptr;
