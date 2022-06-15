@@ -436,11 +436,11 @@ inline void getPCIeDevices(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     std::string& serviceName = std::get<0>(it->second);
     std::string& path = std::get<1>(it->second);
     crow::connections::systemBus->async_method_call(
-        [asyncResp, device, path](
-            const boost::system::error_code ec,
-            boost::container::flat_map<std::string,
-                                       std::variant<std::string, size_t, bool>>&
-                pcieDevProperties) {
+        [asyncResp, device,
+         path](const boost::system::error_code ec,
+               boost::container::flat_map<
+                   std::string, std::variant<std::string, int64_t, bool>>&
+                   pcieDevProperties) {
             if (ec)
             {
                 BMCWEB_LOG_DEBUG
@@ -577,8 +577,8 @@ inline void getPCIeDevices(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 }
             }
 
-            if (size_t* property =
-                    std::get_if<size_t>(&pcieDevProperties["LanesInUse"]);
+            if (int64_t* property =
+                    std::get_if<int64_t>(&pcieDevProperties["LanesInUse"]);
                 property)
             {
                 if (property == nullptr)
