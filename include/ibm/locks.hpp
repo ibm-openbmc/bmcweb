@@ -599,7 +599,7 @@ inline bool Lock::isConflictRecord(const LockRequest& refLockRecord1,
         ++i;
     }
 
-    return false;
+    return true;
 }
 
 inline uint32_t Lock::generateTransactionId()
