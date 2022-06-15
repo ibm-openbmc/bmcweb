@@ -1,6 +1,7 @@
 #pragma once
 
 #include <utils/collection.hpp>
+#include <utils/fabric_util.hpp>
 #include <utils/json_utils.hpp>
 #include <utils/name_utils.hpp>
 #include <utils/pcie_util.hpp>
@@ -206,8 +207,7 @@ inline void getAdapter(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             for (const auto& [objectPath, serviceMap] : subtree)
             {
                 std::string adapterId =
-                    sdbusplus::message::object_path(objectPath).filename();
-
+                    fabric_util::buildFabricUniquePath(objectPath);
                 if (adapterId.empty())
                 {
                     BMCWEB_LOG_ERROR << "Failed to find / in adapter path";
@@ -252,20 +252,53 @@ inline void requestRoutesFabricAdapterCollection(App& app)
      */
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/FabricAdapters/")
         .privileges({{"Login"}})
-        .methods(boost::beast::http::verb::get)(
-            [](const crow::Request&,
-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
-                asyncResp->res.jsonValue["@odata.type"] =
-                    "#FabricAdapterCollection.FabricAdapterCollection";
-                asyncResp->res.jsonValue["Name"] = "Fabric adapter Collection";
+        .methods(
+            boost::beast::http::verb::
+                get)([](const crow::Request&,
+                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+            asyncResp->res.jsonValue["@odata.type"] =
+                "#FabricAdapterCollection.FabricAdapterCollection";
+            asyncResp->res.jsonValue["Name"] = "Fabric adapter Collection";
 
-                asyncResp->res.jsonValue["@odata.id"] =
-                    "/redfish/v1/Systems/system/FabricAdapters";
+            asyncResp->res.jsonValue["@odata.id"] =
+                "/redfish/v1/Systems/system/FabricAdapters";
+            crow::connections::systemBus->async_method_call(
+                [asyncResp](const boost::system::error_code ec,
+                            const std::vector<std::string>& objects) {
+                    if (ec)
+                    {
+                        BMCWEB_LOG_DEBUG << "DBUS response error";
+                        messages::internalError(asyncResp->res);
+                        return;
+                    }
+                    nlohmann::json& members =
+                        asyncResp->res.jsonValue["Members"];
+                    members = nlohmann::json::array();
 
-                collection_util::getCollectionMembers(
-                    asyncResp, "/redfish/v1/Systems/system/FabricAdapters",
-                    {"xyz.openbmc_project.Inventory.Item.FabricAdapter"});
-            });
+                    for (const auto& object : objects)
+                    {
+                        std::string leaf =
+                            fabric_util::buildFabricUniquePath(object);
+                        if (leaf.empty())
+                        {
+                            continue;
+                        }
+                        std::string newPath =
+                            "/redfish/v1/Systems/system/FabricAdapters";
+                        newPath += '/';
+                        newPath += leaf;
+                        members.push_back({{"@odata.id", std::move(newPath)}});
+                    }
+                    asyncResp->res.jsonValue["Members@odata.count"] =
+                        members.size();
+                },
+                "xyz.openbmc_project.ObjectMapper",
+                "/xyz/openbmc_project/object_mapper",
+                "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
+                "/xyz/openbmc_project/inventory", 0,
+                std::array<const char*, 1>{
+                    "xyz.openbmc_project.Inventory.Item.FabricAdapter"});
+        });
 }
 
 /**

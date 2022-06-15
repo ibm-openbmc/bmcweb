@@ -2,6 +2,7 @@
 
 #include <boost/container/flat_map.hpp>
 #include <utils/chassis_utils.hpp>
+#include <utils/fabric_util.hpp>
 #include <utils/json_utils.hpp>
 #include <utils/pcie_util.hpp>
 
@@ -251,7 +252,9 @@ inline void
                 {
                     continue;
                 }
-                std::string endpointLeaf = path.parent_path().filename();
+                std::string parentPath = path.parent_path();
+                std::string endpointLeaf =
+                    fabric_util::buildFabricUniquePath(parentPath);
                 if (endpointLeaf.empty())
                 {
                     continue;
@@ -284,7 +287,9 @@ inline void
                 {
                     continue;
                 }
-                std::string endpointLeaf = path.parent_path().filename();
+                std::string parentPath = path.parent_path();
+                std::string endpointLeaf =
+                    fabric_util::buildFabricUniquePath(parentPath);
                 if (endpointLeaf.empty())
                 {
                     continue;
