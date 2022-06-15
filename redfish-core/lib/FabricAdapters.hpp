@@ -1,5 +1,7 @@
 #pragma once
 
+#include "led.hpp"
+
 #include <utils/collection.hpp>
 #include <utils/json_utils.hpp>
 #include <utils/name_utils.hpp>
@@ -163,6 +165,78 @@ inline void
 
                 aResp->res.jsonValue["Links"]["PCIeDevices@odata.count"] =
                     deviceArray.size();
+            }
+
+            else if (interface == "xyz.openbmc_project.Inventory.Item")
+            {
+
+                crow::connections::systemBus->async_method_call(
+                    [aResp, objPath](const boost::system::error_code ec,
+                                     const std::variant<bool>& property) {
+                        if (ec)
+                        {
+                            BMCWEB_LOG_DEBUG << "DBUS response error";
+                            messages::internalError(aResp->res);
+                            return;
+                        }
+
+                        const bool* present = std::get_if<bool>(&property);
+
+                        if (present == nullptr)
+                        {
+                            // illegal value
+                            messages::internalError(aResp->res);
+                            return;
+                        }
+                        if (*present)
+                        {
+                            aResp->res.jsonValue["Status"]["State"] = "Enabled";
+                        }
+                        else
+                        {
+                            aResp->res.jsonValue["Status"]["State"] = "Absent";
+                        }
+                    },
+                    serviceName, objPath, "org.freedesktop.DBus.Properties",
+                    "Get", "xyz.openbmc_project.Inventory.Item", "Present");
+            }
+
+            else if (interface ==
+                     "xyz.openbmc_project.State.Decorator.OperationalStatus")
+            {
+
+                crow::connections::systemBus->async_method_call(
+                    [aResp, objPath](const boost::system::error_code ec,
+                                     const std::variant<bool>& property) {
+                        if (ec)
+                        {
+                            BMCWEB_LOG_DEBUG << "DBUS response error";
+                            messages::internalError(aResp->res);
+                            return;
+                        }
+
+                        const bool* functional = std::get_if<bool>(&property);
+
+                        if (functional == nullptr)
+                        {
+                            // illegal value
+                            messages::internalError(aResp->res);
+                            return;
+                        }
+                        if (*functional)
+                        {
+                            aResp->res.jsonValue["Status"]["Health"] = "OK";
+                        }
+                        else
+                        {
+                            aResp->res.jsonValue["Status"]["Health"] =
+                                "Critical";
+                        }
+                    },
+                    serviceName, objPath, "org.freedesktop.DBus.Properties",
+                    "Get",
+                    "xyz.openbmc_project.State.Decorator.OperationalStatus",
+                    "Functional");
             }
         }
     }
