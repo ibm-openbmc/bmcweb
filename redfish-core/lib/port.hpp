@@ -2,6 +2,7 @@
 
 #include "led.hpp"
 
+#include <utils/fabric_util.hpp>
 #include <utils/json_utils.hpp>
 
 namespace redfish
@@ -105,15 +106,14 @@ inline void getPort(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             // vector.
             for (const auto& [objectPath, serviceMap] : subtree)
             {
+                sdbusplus::message::object_path path(objectPath);
+                std::string parentPath = path.parent_path();
                 std::string parentAdapter =
-                    sdbusplus::message::object_path(objectPath).parent_path();
-                parentAdapter =
-                    sdbusplus::message::object_path(parentAdapter).filename();
+                    fabric_util::buildFabricUniquePath(parentPath);
 
                 if (parentAdapter == adapterId)
                 {
-                    std::string portName =
-                        sdbusplus::message::object_path(objectPath).filename();
+                    std::string portName = path.filename();
 
                     if (portName != portId)
                     {
@@ -183,7 +183,7 @@ inline void getPortCollection(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 {
                     std::string adapterPath = object.substr(0, pos);
                     if (adapterId ==
-                        sdbusplus::message::object_path(adapterPath).filename())
+                        fabric_util::buildFabricUniquePath(adapterPath))
                     {
                         sdbusplus::message::object_path path(object);
                         std::string leaf = path.filename();
@@ -249,8 +249,7 @@ inline void requestRoutesPortCollection(App& app)
                         for (const auto& [objectPath, serviceMap] : subtree)
                         {
                             std::string adapter =
-                                sdbusplus::message::object_path(objectPath)
-                                    .filename();
+                                fabric_util::buildFabricUniquePath(objectPath);
 
                             if (adapter.empty())
                             {
@@ -372,18 +371,14 @@ inline void requestRoutesPort(App& app)
                         // with empty vector.
                         for (const auto& [objectPath, serviceMap] : subtree)
                         {
+                            sdbusplus::message::object_path path(objectPath);
+                            std::string parentPath = path.parent_path();
                             std::string parentAdapter =
-                                sdbusplus::message::object_path(objectPath)
-                                    .parent_path();
-                            parentAdapter =
-                                sdbusplus::message::object_path(parentAdapter)
-                                    .filename();
+                                fabric_util::buildFabricUniquePath(parentPath);
 
                             if (parentAdapter == adapterId)
                             {
-                                std::string portName =
-                                    sdbusplus::message::object_path(objectPath)
-                                        .filename();
+                                std::string portName = path.filename();
 
                                 if (portName != portId)
                                 {
