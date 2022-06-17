@@ -6,6 +6,7 @@
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 
+#include <utils/fabric_util.hpp>
 #include <utils/json_utils.hpp>
 
 #include <array>
@@ -95,9 +96,9 @@ inline void getPortCollection(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 
         for (const auto& path : paths)
         {
-            if (sdbusplus::message::object_path(path)
-                    .parent_path()
-                    .filename() != adapterId)
+            const std::string& adapterUniq =
+                fabric_util::buildFabricUniquePath(path);
+            if (!fabric_util::checkFabricAdapterId(adapterId, adapterUniq))
             {
                 continue;
             }
