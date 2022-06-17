@@ -3778,4 +3778,8 @@
         <edmx:Include Namespace="OemMessage"/>
         <edmx:Include Namespace="OemMessage.v1_0_0"/>
     </edmx:Reference>
+    <edmx:Reference Uri="/redfish/v1/schema/OemFabricAdapter_v1.xml">
+        <edmx:Include Namespace="OemFabricAdapter"/>
+        <edmx:Include Namespace="OemFabricAdapter.v1_0_0"/>
+    </edmx:Reference>
 </edmx:Edmx>
