@@ -112,25 +112,22 @@ inline void
                 resp.jsonValue["CableStatus"] = "Normal";
                 resp.jsonValue["Status"]["State"] = "StandbyOffline";
                 resp.jsonValue["Status"]["Health"] = "OK";
-                return;
             }
 
-            if (linkStatus == "xyz.openbmc_project.Inventory.Item."
-                              "Cable.Status.Running")
+            else if (linkStatus == "xyz.openbmc_project.Inventory.Item."
+                                   "Cable.Status.Running")
             {
                 resp.jsonValue["CableStatus"] = "Normal";
                 resp.jsonValue["Status"]["State"] = "Enabled";
                 resp.jsonValue["Status"]["Health"] = "OK";
-                return;
             }
 
-            if (linkStatus == "xyz.openbmc_project.Inventory.Item."
-                              "Cable.Status.PoweredOff")
+            else if (linkStatus == "xyz.openbmc_project.Inventory.Item."
+                                   "Cable.Status.PoweredOff")
             {
                 resp.jsonValue["CableStatus"] = "Disabled";
                 resp.jsonValue["Status"]["State"] = "StandbyOffline";
                 resp.jsonValue["Status"]["Health"] = "OK";
-                return;
             }
         }
         else if (propKey == "Length")
@@ -363,6 +360,33 @@ inline void
                 },
                 service, cableObjectPath, "org.freedesktop.DBus.Properties",
                 "GetAll", interface);
+
+            crow::connections::systemBus->async_method_call(
+                [asyncResp](const boost::system::error_code ec,
+                            const std::variant<std::string>& partNumber) {
+                    if (ec)
+                    {
+                        if (ec.value() == EBADR)
+                        {
+                            return;
+                        }
+                        BMCWEB_LOG_ERROR << "On Decorator.Asset interface "
+                                            "PartNumber DBUS response error "
+                                         << ec;
+                        messages::internalError(asyncResp->res);
+                        return;
+                    }
+
+                    const std::string* partNumberPtr =
+                        std::get_if<std::string>(&partNumber);
+                    if (partNumberPtr != nullptr)
+                    {
+                        asyncResp->res.jsonValue["PartNumber"] = *partNumberPtr;
+                    }
+                },
+                service, cableObjectPath, "org.freedesktop.DBus.Properties",
+                "Get", "xyz.openbmc_project.Inventory.Decorator.Asset",
+                "PartNumber");
         }
     }
 }
