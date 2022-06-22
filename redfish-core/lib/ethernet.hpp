@@ -1631,7 +1631,7 @@ inline void parseInterfaceData(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& ifaceId, const EthernetInterfaceData& ethData,
     const boost::container::flat_set<IPv4AddressData>& ipv4Data,
-    const boost::container::flat_set<IPv6AddressData>& ipv6Data)
+    const boost::container::flat_set<IPv6AddressData>& /*ipv6Data*/)
 {
     nlohmann::json& jsonResponse = asyncResp->res.jsonValue;
     jsonResponse["Id"] = ifaceId;
@@ -1659,12 +1659,17 @@ inline void parseInterfaceData(
     jsonResponse["DHCPv4"]["UseDNSServers"] = ethData.DNSEnabled;
     jsonResponse["DHCPv4"]["UseDomainName"] = ethData.HostNameEnabled;
 
+    // TODO: Uncomment the following block of code
+    // in the future while enabling the support for
+    // ipv6 configuration.
+#if 0
     jsonResponse["DHCPv6"]["OperatingMode"] =
         translateDHCPEnabledToBool(ethData.DHCPEnabled, false) ? "Stateful"
                                                                : "Disabled";
     jsonResponse["DHCPv6"]["UseNTPServers"] = ethData.NTPEnabled;
     jsonResponse["DHCPv6"]["UseDNSServers"] = ethData.DNSEnabled;
     jsonResponse["DHCPv6"]["UseDomainName"] = ethData.HostNameEnabled;
+#endif
 
     if (!ethData.hostname.empty())
     {
@@ -1710,6 +1715,10 @@ inline void parseInterfaceData(
         }
     }
 
+    // TODO: Uncomment the following block of code
+    // in the future while enabling the support for
+    // ipv6 configuration.
+#if 0
     std::string ipv6GatewayStr = ethData.ipv6_default_gateway;
     if (ipv6GatewayStr.empty())
     {
@@ -1740,6 +1749,7 @@ inline void parseInterfaceData(
                  {"AddressState", nullptr}});
         }
     }
+#endif
 }
 
 inline bool verifyNames(const std::string& parent, const std::string& iface)
@@ -1886,6 +1896,14 @@ inline void requestEthernetInterfacesRoutes(App& app)
 
                 if (dhcpv6)
                 {
+                    messages::actionNotSupported(
+                        asyncResp->res,
+                        "Setting DHCPv6 parameters on the interface");
+                    return;
+                    // TODO: Uncomment the following block of code
+                    // in the future while enabling the support for
+                    // ipv6 configuration.
+#if 0
                     if (!json_util::readJson(
                             *dhcpv6, asyncResp->res, "OperatingMode",
                             v6dhcpParms.dhcpv6OperatingMode, "UseDNSServers",
@@ -1895,6 +1913,7 @@ inline void requestEthernetInterfacesRoutes(App& app)
                     {
                         return;
                     }
+#endif
                 }
 
                 // Get single eth interface data, and call the below callback
@@ -1915,7 +1934,7 @@ inline void requestEthernetInterfacesRoutes(App& app)
                         const boost::container::flat_set<IPv4AddressData>&
                             ipv4Data,
                         const boost::container::flat_set<IPv6AddressData>&
-                            ipv6Data) {
+                        /*ipv6Data*/) {
                         if (!success)
                         {
                             // ... otherwise return error
@@ -1924,6 +1943,21 @@ inline void requestEthernetInterfacesRoutes(App& app)
                             messages::resourceNotFound(
                                 asyncResp->res, "Ethernet Interface", ifaceId);
                             return;
+                        }
+
+                        if (ipv6StaticAddresses)
+                        {
+                            messages::actionNotSupported(
+                                asyncResp->res, "Setting Static IPv6 parameters on the interface");
+                            return;
+                            // TODO: Uncomment the following block of code
+                            // in the future while enabling the support for
+                            // ipv6 configuration.
+#if 0
+                            nlohmann::json ipv6Static = *ipv6StaticAddresses;
+                            handleIPv6StaticAddressesPatch(ifaceId, ipv6Static,
+                                                           ipv6Data, asyncResp);
+#endif
                         }
 
                         if (dhcpv4 || dhcpv6)
@@ -1972,13 +2006,6 @@ inline void requestEthernetInterfacesRoutes(App& app)
                         {
                             messages::propertyNotWritable(asyncResp->res,
                                                           "IPv6DefaultGateway");
-                        }
-
-                        if (ipv6StaticAddresses)
-                        {
-                            nlohmann::json ipv6Static = *ipv6StaticAddresses;
-                            handleIPv6StaticAddressesPatch(ifaceId, ipv6Static,
-                                                           ipv6Data, asyncResp);
                         }
 
                         if (interfaceEnabled)
