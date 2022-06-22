@@ -1631,7 +1631,7 @@ inline void parseInterfaceData(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& ifaceId, const EthernetInterfaceData& ethData,
     const boost::container::flat_set<IPv4AddressData>& ipv4Data,
-    const boost::container::flat_set<IPv6AddressData>& ipv6Data)
+    const boost::container::flat_set<IPv6AddressData>& /*ipv6Data*/)
 {
     nlohmann::json& jsonResponse = asyncResp->res.jsonValue;
     jsonResponse["Id"] = ifaceId;
@@ -1659,12 +1659,17 @@ inline void parseInterfaceData(
     jsonResponse["DHCPv4"]["UseDNSServers"] = ethData.DNSEnabled;
     jsonResponse["DHCPv4"]["UseDomainName"] = ethData.HostNameEnabled;
 
+    // TODO: Uncomment the following block of code
+    // in the future while enabling the support for
+    // ipv6 configuration.
+#if 0
     jsonResponse["DHCPv6"]["OperatingMode"] =
         translateDHCPEnabledToBool(ethData.DHCPEnabled, false) ? "Stateful"
                                                                : "Disabled";
     jsonResponse["DHCPv6"]["UseNTPServers"] = ethData.NTPEnabled;
     jsonResponse["DHCPv6"]["UseDNSServers"] = ethData.DNSEnabled;
     jsonResponse["DHCPv6"]["UseDomainName"] = ethData.HostNameEnabled;
+#endif
 
     if (!ethData.hostname.empty())
     {
@@ -1710,6 +1715,10 @@ inline void parseInterfaceData(
         }
     }
 
+    // TODO: Uncomment the following block of code
+    // in the future while enabling the support for
+    // ipv6 configuration.
+#if 0
     std::string ipv6GatewayStr = ethData.ipv6_default_gateway;
     if (ipv6GatewayStr.empty())
     {
@@ -1740,6 +1749,7 @@ inline void parseInterfaceData(
                  {"AddressState", nullptr}});
         }
     }
+#endif
 }
 
 inline bool verifyNames(const std::string& parent, const std::string& iface)
@@ -1843,49 +1853,58 @@ inline void requestEthernetInterfacesRoutes(App& app)
             redfish::privileges::
                 patchEthernetInterfaceSubOverManagerEthernetInterfaceCollection)
 
-        .methods(boost::beast::http::verb::patch)(
-            [](const crow::Request& req,
-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-               const std::string& ifaceId) {
-                std::optional<std::string> hostname;
-                std::optional<std::string> fqdn;
-                std::optional<std::string> macAddress;
-                std::optional<std::string> ipv6DefaultGateway;
-                std::optional<nlohmann::json> ipv4StaticAddresses;
-                std::optional<nlohmann::json> ipv6StaticAddresses;
-                std::optional<std::vector<std::string>> staticNameServers;
-                std::optional<nlohmann::json> dhcpv4;
-                std::optional<nlohmann::json> dhcpv6;
-                std::optional<bool> interfaceEnabled;
-                DHCPParameters v4dhcpParms;
-                DHCPParameters v6dhcpParms;
+        .methods(
+            boost::beast::http::verb::
+                patch)([](const crow::Request& req,
+                          const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                          const std::string& ifaceId) {
+            std::optional<std::string> hostname;
+            std::optional<std::string> fqdn;
+            std::optional<std::string> macAddress;
+            std::optional<std::string> ipv6DefaultGateway;
+            std::optional<nlohmann::json> ipv4StaticAddresses;
+            std::optional<nlohmann::json> ipv6StaticAddresses;
+            std::optional<std::vector<std::string>> staticNameServers;
+            std::optional<nlohmann::json> dhcpv4;
+            std::optional<nlohmann::json> dhcpv6;
+            std::optional<bool> interfaceEnabled;
+            DHCPParameters v4dhcpParms;
+            DHCPParameters v6dhcpParms;
 
+            if (!json_util::readJson(
+                    req, asyncResp->res, "HostName", hostname, "FQDN", fqdn,
+                    "IPv4StaticAddresses", ipv4StaticAddresses, "MACAddress",
+                    macAddress, "StaticNameServers", staticNameServers,
+                    "IPv6DefaultGateway", ipv6DefaultGateway,
+                    "IPv6StaticAddresses", ipv6StaticAddresses, "DHCPv4",
+                    dhcpv4, "DHCPv6", dhcpv6, "InterfaceEnabled",
+                    interfaceEnabled))
+            {
+                return;
+            }
+            if (dhcpv4)
+            {
                 if (!json_util::readJson(
-                        req, asyncResp->res, "HostName", hostname, "FQDN", fqdn,
-                        "IPv4StaticAddresses", ipv4StaticAddresses,
-                        "MACAddress", macAddress, "StaticNameServers",
-                        staticNameServers, "IPv6DefaultGateway",
-                        ipv6DefaultGateway, "IPv6StaticAddresses",
-                        ipv6StaticAddresses, "DHCPv4", dhcpv4, "DHCPv6", dhcpv6,
-                        "InterfaceEnabled", interfaceEnabled))
+                        *dhcpv4, asyncResp->res, "DHCPEnabled",
+                        v4dhcpParms.dhcpv4Enabled, "UseDNSServers",
+                        v4dhcpParms.useDNSServers, "UseNTPServers",
+                        v4dhcpParms.useNTPServers, "UseDomainName",
+                        v4dhcpParms.useUseDomainName))
                 {
                     return;
                 }
-                if (dhcpv4)
-                {
-                    if (!json_util::readJson(
-                            *dhcpv4, asyncResp->res, "DHCPEnabled",
-                            v4dhcpParms.dhcpv4Enabled, "UseDNSServers",
-                            v4dhcpParms.useDNSServers, "UseNTPServers",
-                            v4dhcpParms.useNTPServers, "UseDomainName",
-                            v4dhcpParms.useUseDomainName))
-                    {
-                        return;
-                    }
-                }
+            }
 
-                if (dhcpv6)
-                {
+            if (dhcpv6)
+            {
+                messages::actionNotSupported(
+                    asyncResp->res,
+                    "Setting DHCPv6 parameters on the interface");
+                return;
+            // TODO: Uncomment the following block of code
+            // in the future while enabling the support for
+            // ipv6 configuration.
+#if 0
                     if (!json_util::readJson(
                             *dhcpv6, asyncResp->res, "OperatingMode",
                             v6dhcpParms.dhcpv6OperatingMode, "UseDNSServers",
@@ -1895,100 +1914,107 @@ inline void requestEthernetInterfacesRoutes(App& app)
                     {
                         return;
                     }
-                }
+#endif
+            }
 
-                // Get single eth interface data, and call the below callback
-                // for JSON preparation
-                getEthernetIfaceData(
-                    ifaceId,
-                    [asyncResp, ifaceId, hostname = std::move(hostname),
-                     fqdn = std::move(fqdn), macAddress = std::move(macAddress),
-                     ipv4StaticAddresses = std::move(ipv4StaticAddresses),
-                     ipv6DefaultGateway = std::move(ipv6DefaultGateway),
-                     ipv6StaticAddresses = std::move(ipv6StaticAddresses),
-                     staticNameServers = std::move(staticNameServers),
-                     dhcpv4 = std::move(dhcpv4), dhcpv6 = std::move(dhcpv6),
-                     v4dhcpParms = std::move(v4dhcpParms),
-                     v6dhcpParms = std::move(v6dhcpParms), interfaceEnabled](
-                        const bool& success,
-                        const EthernetInterfaceData& ethData,
-                        const boost::container::flat_set<IPv4AddressData>&
-                            ipv4Data,
-                        const boost::container::flat_set<IPv6AddressData>&
-                            ipv6Data) {
-                        if (!success)
-                        {
-                            // ... otherwise return error
-                            // TODO(Pawel)consider distinguish between non
-                            // existing object, and other errors
-                            messages::resourceNotFound(
-                                asyncResp->res, "Ethernet Interface", ifaceId);
-                            return;
-                        }
+            // Get single eth interface data, and call the below callback
+            // for JSON preparation
+            getEthernetIfaceData(
+                ifaceId,
+                [asyncResp, ifaceId, hostname = std::move(hostname),
+                 fqdn = std::move(fqdn), macAddress = std::move(macAddress),
+                 ipv4StaticAddresses = std::move(ipv4StaticAddresses),
+                 ipv6DefaultGateway = std::move(ipv6DefaultGateway),
+                 ipv6StaticAddresses = std::move(ipv6StaticAddresses),
+                 staticNameServers = std::move(staticNameServers),
+                 dhcpv4 = std::move(dhcpv4), dhcpv6 = std::move(dhcpv6),
+                 v4dhcpParms = std::move(v4dhcpParms),
+                 v6dhcpParms = std::move(v6dhcpParms), interfaceEnabled](
+                    const bool& success, const EthernetInterfaceData& ethData,
+                    const boost::container::flat_set<IPv4AddressData>& ipv4Data,
+                    const boost::container::flat_set<IPv6AddressData>&
+                    /*ipv6Data*/) {
+                    if (!success)
+                    {
+                        // ... otherwise return error
+                        // TODO(Pawel)consider distinguish between non
+                        // existing object, and other errors
+                        messages::resourceNotFound(
+                            asyncResp->res, "Ethernet Interface", ifaceId);
+                        return;
+                    }
 
-                        if (dhcpv4 || dhcpv6)
-                        {
-                            handleDHCPPatch(ifaceId, ethData, v4dhcpParms,
-                                            v6dhcpParms, asyncResp);
-                        }
-
-                        if (hostname)
-                        {
-                            handleHostnamePatch(*hostname, asyncResp);
-                        }
-
-                        if (fqdn)
-                        {
-                            handleFqdnPatch(ifaceId, *fqdn, asyncResp);
-                        }
-
-                        if (macAddress)
-                        {
-                            handleMACAddressPatch(ifaceId, *macAddress,
-                                                  asyncResp);
-                        }
-
-                        if (ipv4StaticAddresses)
-                        {
-                            // TODO(ed) for some reason the capture of
-                            // ipv4Addresses above is returning a const value,
-                            // not a non-const value. This doesn't really work
-                            // for us, as we need to be able to efficiently move
-                            // out the intermedia nlohmann::json objects. This
-                            // makes a copy of the structure, and operates on
-                            // that, but could be done more efficiently
-                            nlohmann::json ipv4Static = *ipv4StaticAddresses;
-                            handleIPv4StaticPatch(ifaceId, ipv4Static, ipv4Data,
-                                                  asyncResp);
-                        }
-
-                        if (staticNameServers)
-                        {
-                            handleStaticNameServersPatch(
-                                ifaceId, *staticNameServers, asyncResp);
-                        }
-
-                        if (ipv6DefaultGateway)
-                        {
-                            messages::propertyNotWritable(asyncResp->res,
-                                                          "IPv6DefaultGateway");
-                        }
-
-                        if (ipv6StaticAddresses)
-                        {
+                    if (ipv6StaticAddresses)
+                    {
+                        messages::actionNotSupported(
+                            asyncResp->res,
+                            "Setting Static IPv6 parameters on the interface");
+                        return;
+                // TODO: Uncomment the following block of code
+                // in the future while enabling the support for
+                // ipv6 configuration.
+#if 0
                             nlohmann::json ipv6Static = *ipv6StaticAddresses;
                             handleIPv6StaticAddressesPatch(ifaceId, ipv6Static,
                                                            ipv6Data, asyncResp);
-                        }
+#endif
+                    }
 
-                        if (interfaceEnabled)
-                        {
-                            setEthernetInterfaceBoolProperty(
-                                ifaceId, "NICEnabled", *interfaceEnabled,
-                                asyncResp);
-                        }
-                    });
-            });
+                    if (dhcpv4 || dhcpv6)
+                    {
+                        handleDHCPPatch(ifaceId, ethData, v4dhcpParms,
+                                        v6dhcpParms, asyncResp);
+                    }
+
+                    if (hostname)
+                    {
+                        handleHostnamePatch(*hostname, asyncResp);
+                    }
+
+                    if (fqdn)
+                    {
+                        handleFqdnPatch(ifaceId, *fqdn, asyncResp);
+                    }
+
+                    if (macAddress)
+                    {
+                        handleMACAddressPatch(ifaceId, *macAddress, asyncResp);
+                    }
+
+                    if (ipv4StaticAddresses)
+                    {
+                        // TODO(ed) for some reason the capture of
+                        // ipv4Addresses above is returning a const value,
+                        // not a non-const value. This doesn't really work
+                        // for us, as we need to be able to efficiently move
+                        // out the intermedia nlohmann::json objects. This
+                        // makes a copy of the structure, and operates on
+                        // that, but could be done more efficiently
+                        nlohmann::json ipv4Static = *ipv4StaticAddresses;
+                        handleIPv4StaticPatch(ifaceId, ipv4Static, ipv4Data,
+                                              asyncResp);
+                    }
+
+                    if (staticNameServers)
+                    {
+                        handleStaticNameServersPatch(
+                            ifaceId, *staticNameServers, asyncResp);
+                    }
+
+                    if (ipv6DefaultGateway)
+                    {
+                        messages::propertyNotWritable(asyncResp->res,
+                                                      "IPv6DefaultGateway");
+                    }
+
+                    if (interfaceEnabled)
+                    {
+                        setEthernetInterfaceBoolProperty(ifaceId, "NICEnabled",
+                                                         *interfaceEnabled,
+                                                         asyncResp);
+                    }
+                });
+        });
 }
 
 } // namespace redfish
