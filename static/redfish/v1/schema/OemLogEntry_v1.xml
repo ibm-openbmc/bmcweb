@@ -24,16 +24,28 @@
       <Annotation Term="Redfish.OwningEntity" String="OpenBMC"/>
       <Annotation Term="Redfish.Release" String="1.0"/>
 
-      <EntityType Name="LogEntry" BaseType="Resource.OemObject" Abstract="true">
-          <Annotation Term="OData.Description" String="OEM Extension for LogEntry"/>
-          <Annotation Term="OData.LongDescription" String="OEM Extension for LogEntry to provide the OEM specific details"/>
 
-            <Property Name="ManagementSystemAck" Type="Edm.Boolean">
-              <Annotation Term="OData.Description" String="Flag to keep track of external interface acknowledgment."/>
-              <Annotation Term="OData.LongDescription" String="A true value says external interface acked error log, false says otherwise."/>
-            </Property>
+<ComplexType Name="Oem" BaseType="Resource.OemObject">
+        <Annotation Term="OData.AdditionalProperties" Bool="true" />
+        <Annotation Term="OData.Description" String="OemLogEntry Oem properties." />
+        <Annotation Term="OData.AutoExpand" />
+        <Property Name="OpenBMC" Type="OemLogEntry.v1_0_0.OpenBMC" />
+      </ComplexType>
+        
+      <ComplexType Name="OpenBMC">
+        <Annotation Term="OData.AdditionalProperties" Bool="true" />
+        <Annotation Term="OData.Description" String="Oem properties for OpenBMC." />
+        <Annotation Term="OData.AutoExpand" />
+          <Property Name="ManagementSystemAck" Type="Edm.Boolean">
+            <Annotation Term="OData.Description" String="Flag to keep track of external interface acknowledgment."/>
+            <Annotation Term="OData.LongDescription" String="A true value says external interface acked error log, false says otherwise."/>
+          </Property>
 
-      </EntityType>
+          <Property Name="GeneratorId" Type="Edm.String">
+            <Annotation Term="OData.Description" String="Id of the user who created the LogEntry."/>
+            <Annotation Term="OData.LongDescription" String="Unique id of the user who has caused the creation of the LogEntry. Eg: ip address, session id, client id."/>
+          </Property>
+      </ComplexType>
     </Schema>
   </edmx:DataServices>
 </edmx:Edmx>
