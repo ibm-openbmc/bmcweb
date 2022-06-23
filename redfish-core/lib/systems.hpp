@@ -2773,6 +2773,7 @@ inline void requestRoutesSystems(App& app)
             getBootProgress(asyncResp);
             getPCIeDeviceList(asyncResp, "PCIeDevices");
             getPCIeTopologyRefresh(asyncResp);
+            getSavePCIeTopologyInfo(asyncResp);
             getHostWatchdogTimer(asyncResp);
             getPowerRestorePolicy(asyncResp);
             getStopBootOnFault(asyncResp);
@@ -2910,12 +2911,14 @@ inline void requestRoutesSystems(App& app)
                         std::optional<bool> partitionSAI;
                         std::optional<bool> platformSAI;
                         std::optional<bool> pcieTopologyRefresh;
+                        std::optional<bool> savePCIeTopologyInfo;
                         if (!json_util::readJson(
                                 *ibmOem, asyncResp->res, "LampTest", lampTest,
                                 "PartitionSystemAttentionIndicator",
                                 partitionSAI,
                                 "PlatformSystemAttentionIndicator", platformSAI,
-                                "PCIeTopologyRefresh", pcieTopologyRefresh))
+                                "PCIeTopologyRefresh", pcieTopologyRefresh,
+                                "SavePCIeTopologyInfo", savePCIeTopologyInfo))
                         {
                             return;
                         }
@@ -2937,9 +2940,11 @@ inline void requestRoutesSystems(App& app)
                         }
 #else
                         std::optional<bool> pcieTopologyRefresh;
-                        if (!json_util::readJson(*ibmOem, asyncResp->res,
-                                                 "PCIeTopologyRefresh",
-                                                 pcieTopologyRefresh))
+                        std::optional<bool> savePCIeTopologyInfo;
+                        if (!json_util::readJson(
+                                *ibmOem, asyncResp->res, "PCIeTopologyRefresh",
+                                pcieTopologyRefresh, "SavePCIeTopologyInfo",
+                                savePCIeTopologyInfo))
                         {
                             return;
                         }
@@ -2948,6 +2953,11 @@ inline void requestRoutesSystems(App& app)
                         {
                             setPCIeTopologyRefresh(req, asyncResp,
                                                    *pcieTopologyRefresh);
+                        }
+                        if (savePCIeTopologyInfo)
+                        {
+                            setSavePCIeTopologyInfo(asyncResp,
+                                                    *savePCIeTopologyInfo);
                         }
                     }
                 }
