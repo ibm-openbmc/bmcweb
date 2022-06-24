@@ -55,6 +55,11 @@
                   <Annotation Term="OData.Description" String="An indication of topology information is ready."/>
                   <Annotation Term="OData.LongDescription" String="This property when set to 'true' refreshes the topology information. The application which uses this should set it to 'false' when a refresh occurs."/>
                 </Property>
+                <Property Name="SavePCIeTopologyInfo" Type="OemComputerSystem.IBM">
+                  <Annotation Term="OData.Permissions" EnumMember="OData.Permission/ReadWrite"/>
+                  <Annotation Term="OData.Description" String="An indication of PEL topology information is saves."/>
+                  <Annotation Term="OData.LongDescription" String="This property when set to 'true' saves the topology information. The information is saved in the form of a PEL(Error Log)."/>
+                </Property>
             </ComplexType>
 
             <ComplexType Name="OpenBmc" BaseType="Resource.OemObject">

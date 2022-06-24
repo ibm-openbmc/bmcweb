@@ -26,7 +26,7 @@ inline void
                 std::variant<bool>& pcieRefreshValue) {
             if (ec)
             {
-                BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
+                BMCWEB_LOG_ERROR << "DBUS response error " << ec;
                 messages::internalError(aResp->res);
                 return;
             }
@@ -63,7 +63,7 @@ void pcieTopologyRefreshWatchdog(
 {
     if (ec)
     {
-        BMCWEB_LOG_DEBUG << "steady_timer error " << ec;
+        BMCWEB_LOG_ERROR << "steady_timer error " << ec;
         messages::internalError(aResp->res);
         pcieTopologyRefreshTimer = nullptr;
         (*countPtr) = 0;
@@ -85,7 +85,7 @@ void pcieTopologyRefreshWatchdog(
                                  std::variant<bool>& pcieRefreshValue) {
             if (ec)
             {
-                BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
+                BMCWEB_LOG_ERROR << "DBUS response error " << ec;
                 messages::internalError(aResp->res);
                 pcieTopologyRefreshTimer = nullptr;
                 (*countPtr) = 0;
@@ -95,7 +95,7 @@ void pcieTopologyRefreshWatchdog(
                 std::get_if<bool>(&pcieRefreshValue);
             if (!pcieRefreshValuePtr)
             {
-                BMCWEB_LOG_DEBUG << "pcieRefreshValuePtr value nullptr";
+                BMCWEB_LOG_ERROR << "pcieRefreshValuePtr value nullptr";
                 messages::internalError(aResp->res);
                 pcieTopologyRefreshTimer = nullptr;
                 (*countPtr) = 0;
@@ -145,7 +145,7 @@ inline void
         [&req, aResp](const boost::system::error_code ec) {
             if (ec)
             {
-                BMCWEB_LOG_DEBUG << "PCIe Topology Refresh failed." << ec;
+                BMCWEB_LOG_ERROR << "PCIe Topology Refresh failed." << ec;
                 messages::internalError(aResp->res);
                 return;
             }
@@ -162,6 +162,70 @@ inline void
         "xyz.openbmc_project.PLDM", "/xyz/openbmc_project/pldm",
         "org.freedesktop.DBus.Properties", "Set", "com.ibm.PLDM.PCIeTopology",
         "PCIeTopologyRefresh", std::variant<bool>(state));
+}
+
+/**
+ * @brief Retrieves Save PCIe Topology Info properties over DBUS
+ *
+ * @param[in] aResp     Shared pointer for completing asynchronous calls.
+ *
+ * @return None.
+ */
+inline void
+    getSavePCIeTopologyInfo(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
+{
+    crow::connections::systemBus->async_method_call(
+        [aResp](const boost::system::error_code ec,
+                std::variant<bool>& savePCIeTopologyInfo) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "DBUS response error " << ec;
+                messages::internalError(aResp->res);
+                return;
+            }
+            const bool* savePCIeTopologyInfoPtr =
+                std::get_if<bool>(&savePCIeTopologyInfo);
+            if (!savePCIeTopologyInfoPtr)
+            {
+                messages::internalError(aResp->res);
+                return;
+            }
+            aResp->res.jsonValue["Oem"]["@odata.type"] =
+                "#OemComputerSystem.Oem";
+            nlohmann::json& pcieRefresh = aResp->res.jsonValue["Oem"]["IBM"];
+            pcieRefresh["@odata.type"] = "#OemComputerSystem.IBM";
+            pcieRefresh["SavePCIeTopologyInfo"] = *savePCIeTopologyInfoPtr;
+        },
+        "xyz.openbmc_project.PLDM", "/xyz/openbmc_project/pldm",
+        "org.freedesktop.DBus.Properties", "Get", "com.ibm.PLDM.PCIeTopology",
+        "SavePCIeTopologyInfo");
+}
+
+/**
+ * @brief Sets Save PCIe Topology Info state.
+ *
+ * @param[in] aResp   Shared pointer for generating response message.
+ * @param[in] state   Save PCIe Topology Info state from request.
+ *
+ * @return None.
+ */
+inline void
+    setSavePCIeTopologyInfo(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                            const bool state)
+{
+    BMCWEB_LOG_DEBUG << "Set Save PCIe Topology Info status.";
+    crow::connections::systemBus->async_method_call(
+        [aResp](const boost::system::error_code ec) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "Save PCIe Topology Info failed." << ec;
+                messages::internalError(aResp->res);
+                return;
+            }
+        },
+        "xyz.openbmc_project.PLDM", "/xyz/openbmc_project/pldm",
+        "org.freedesktop.DBus.Properties", "Set", "com.ibm.PLDM.PCIeTopology",
+        "SavePCIeTopologyInfo", std::variant<bool>(state));
 }
 
 } // namespace redfish
