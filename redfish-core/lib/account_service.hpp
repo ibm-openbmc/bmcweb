@@ -2395,7 +2395,8 @@ inline void requestAccountServiceRoutes(App& app)
             // Do not even allow the service user to change these properties.
             // Implementation note: Ideally this would get the user's RoleId
             // but that would take an additional D-Bus operation.
-            if ((username == "service") && (newUserName || password || roleId))
+            if ((username == "service") &&
+                (newUserName || password || roleId || enabled))
             {
                 BMCWEB_LOG_ERROR
                     << "Attempt to PATCH user who has a Restricted Role";
