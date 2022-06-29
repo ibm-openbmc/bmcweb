@@ -2057,8 +2057,8 @@ inline void requestAccountServiceRoutes(App& app)
 
                     for (const auto& group : *allGroupsList)
                     {
-                        if ((group != "ipmi") && ((group != "ssh") ||
-                                                  (*roleId == "Administrator")))
+                        if ((group != "ipmi") &&
+                            ((group != "ssh") || (*roleId == "Administrator")))
                         {
                             modGroupsList.push_back(group);
                         }
