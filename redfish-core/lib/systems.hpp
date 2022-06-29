@@ -2772,8 +2772,6 @@ inline void requestRoutesSystems(App& app)
             getHostState(asyncResp);
             getBootProgress(asyncResp);
             getPCIeDeviceList(asyncResp, "PCIeDevices");
-            getPCIeTopologyRefresh(asyncResp);
-            getSavePCIeTopologyInfo(asyncResp);
             getHostWatchdogTimer(asyncResp);
             getPowerRestorePolicy(asyncResp);
             getStopBootOnFault(asyncResp);
