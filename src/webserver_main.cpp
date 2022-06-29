@@ -25,6 +25,7 @@
 #include <sdbusplus/server.hpp>
 #include <security_headers.hpp>
 #include <ssl_key_handler.hpp>
+#include <user_monitor.hpp>
 #include <vm_websocket.hpp>
 #include <webassets.hpp>
 
@@ -177,6 +178,8 @@ static int run()
     BMCWEB_LOG_INFO << "Start Hostname Monitor Service...";
     crow::hostname_monitor::registerHostnameSignal();
 #endif
+
+    bmcweb::registerUserRemovedSignal();
 
     app.run();
     io->run();
