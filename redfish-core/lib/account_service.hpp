@@ -1911,13 +1911,15 @@ inline void handleAccountCollectionPost(
             return;
         }
 
-        // Create (modified) modGroupsList from allGroupsList that
-        // does not contain the ipmi group.
+        // Create (modified) modGroupsList from allGroupsList.
+        // Remove the ipmi group.  Also Remove "ssh" if the new
+        // user is not an Administrator.
         std::vector<std::string> modGroupsList;
 
         for (const auto& group : allGroupsList)
         {
-            if (group != "ipmi")
+            if ((group != "ipmi") &&
+                ((group != "ssh") || (*roleId == "Administrator")))
             {
                 modGroupsList.push_back(group);
             }
