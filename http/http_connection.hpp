@@ -47,10 +47,11 @@ constexpr uint64_t loggedOutPostBodyLimit = 4096;
 
 constexpr uint32_t httpHeaderLimit = 8192;
 
-// drop all connections after 12 minutes, this time limit was chosen
-// arbitrarily and can be adjusted later if needed
+// drop all connections after 26 minutes, this time limit is so high
+// to support our large code update images on slow networks
+// Need a better way to do this
 static constexpr const size_t loggedInAttempts =
-    (720 / timerQueueTimeoutSeconds);
+    (1560 / timerQueueTimeoutSeconds);
 
 static constexpr const size_t loggedOutAttempts =
     (15 / timerQueueTimeoutSeconds);
