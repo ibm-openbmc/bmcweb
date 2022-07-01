@@ -1341,7 +1341,7 @@ inline void requestRoutesSystemLogServiceCollection(App& app)
                 Privileges effectiveUserPrivileges =
                     redfish::getUserPrivileges(req.userRole);
 
-                if (isOperationAllowedWithPrivileges({{"ConfigureManager"}},
+                if (isOperationAllowedWithPrivileges({{"OemIBMPerformService"}},
                                                      effectiveUserPrivileges))
                 {
                     logServiceArray.push_back(
@@ -1434,7 +1434,7 @@ inline void requestRoutesCELogService(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/CELog/")
         // Overwrite normal permissions for CELog
-        .privileges({{"ConfigureManager"}})
+        .privileges({{"OemIBMPerformService"}})
         .methods(boost::beast::http::verb::get)(
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
@@ -2086,7 +2086,7 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/CELog/Entries/")
         // Overwrite normal permissions for CELog Entries
-        .privileges({{"ConfigureManager"}})
+        .privileges({{"OemIBMPerformService"}})
         .methods(
             boost::beast::http::verb::
                 get)([](const crow::Request&,
@@ -2532,7 +2532,7 @@ inline void requestRoutesDBusCELogEntry(App& app)
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/"
                       "CELog/Entries/<str>/")
         // Overwrite normal permissions for CELog Entry
-        .privileges({{"ConfigureManager"}})
+        .privileges({{"OemIBMPerformService"}})
         .methods(boost::beast::http::verb::get)(
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -2570,7 +2570,7 @@ inline void requestRoutesDBusCELogEntry(App& app)
 
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/"
                       "CELog/Entries/<str>/")
-        .privileges(redfish::privileges::patchLogEntry)
+        .privileges({{"OemIBMPerformService"}})
         .methods(boost::beast::http::verb::patch)(
             [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -2591,7 +2591,7 @@ inline void requestRoutesDBusCELogEntry(App& app)
 
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/"
                       "CELog/Entries/<str>/")
-        .privileges(redfish::privileges::deleteLogEntry)
+        .privileges({{"OemIBMPerformService"}})
         .methods(boost::beast::http::verb::delete_)(
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -2695,7 +2695,7 @@ inline void requestRoutesDBusCELogEntryDownloadPelJson(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/CELog/Entries/"
                       "<str>/OemPelAttachment")
-        .privileges(redfish::privileges::getLogEntry)
+        .privileges({{"OemIBMPerformService"}})
         .methods(boost::beast::http::verb::get)(
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -2835,7 +2835,7 @@ inline void requestRoutesDBusCELogEntryDownload(App& app)
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/CELog/Entries/"
                       "<str>/attachment")
         // Overwrite normal permissions for LogEntry attachment
-        .privileges({{"ConfigureManager"}})
+        .privileges({{"OemIBMPerformService"}})
         .methods(boost::beast::http::verb::get)(
             [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -3935,7 +3935,7 @@ inline void requestRoutesDBusCELogServiceActionsClear(App& app)
 
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/CELog/Actions/"
                       "LogService.ClearLog/")
-        .privileges(redfish::privileges::postLogService)
+        .privileges({{"OemIBMPerformService"}})
         .methods(boost::beast::http::verb::post)(
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
