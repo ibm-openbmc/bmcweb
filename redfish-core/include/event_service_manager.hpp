@@ -397,6 +397,11 @@ class Subscription : public persistent_data::UserSubscription
 
     void sendEvent(const std::string& msg)
     {
+        if (subscriptionType == "SNMPTrap")
+        {
+            return; // Don't need send SNMPTrap event.
+        }
+
         if (conn == nullptr)
         {
             // create the HttpClient connection
@@ -1068,6 +1073,12 @@ class EventServiceManager
             {
                 isSubscribed = true;
             }
+
+            if (entry->subscriptionType == "SNMPTrap")
+            {
+                isSubscribed = false; // Don't need send SNMPTrap event.
+            }
+
             if (isSubscribed)
             {
                 nlohmann::json msgJson = {
