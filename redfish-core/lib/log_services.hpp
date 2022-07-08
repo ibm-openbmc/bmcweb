@@ -4789,6 +4789,7 @@ inline void getRedfishUriByDbusObjPath(
                             uriPropPath /= entryJsonIdx - 1;
                             uriPropPath /= "Links";
                             uriPropPath /= "OriginOfCondition";
+                            uriPropPath /= "@odata.id";
 
                             assembly::fillWithAssemblyId(
                                 asyncResp, std::get<0>(assemblyParent),
