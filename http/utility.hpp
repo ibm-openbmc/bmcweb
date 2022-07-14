@@ -4,6 +4,8 @@
 
 #include <openssl/crypto.h>
 
+#include <boost/date_time/posix_time/posix_time.hpp>
+
 #include <chrono>
 #include <cstdint>
 #include <cstring>
@@ -608,6 +610,17 @@ inline std::string getDateTime(const std::time_t& time)
     }
 
     return redfishDateTime;
+}
+
+inline std::string getDateTimeUintMs(uint64_t millisSecondsSinceEpoch)
+{
+
+    boost::posix_time::milliseconds timeSinceEpoch =
+        boost::posix_time::milliseconds(millisSecondsSinceEpoch);
+    boost::posix_time::ptime epoch(boost::gregorian::date(1970, 1, 1));
+    boost::posix_time::ptime time = epoch + timeSinceEpoch;
+
+    return boost::posix_time::to_iso_extended_string(time) + "+00:00";
 }
 
 /**
