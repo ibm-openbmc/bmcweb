@@ -2340,6 +2340,13 @@ inline void requestAccountServiceRoutes(App& app)
                 return;
             }
 
+            if (newUserName)
+            {
+                // Disallow renaming users: it breaks the "admin" account
+                messages::propertyNotWritable(asyncResp->res, "UserName");
+                return;
+            }
+            
             // Unauthenticated user
             if (req.session == nullptr)
             {
