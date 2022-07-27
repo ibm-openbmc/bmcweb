@@ -1077,6 +1077,29 @@ inline void
         std::variant<std::string>(userNameAttribute));
 }
 
+inline void setPropertyAllowUnauthACFUpload(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, bool allow)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp, allow](const boost::system::error_code ec) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "D-Bus responses error: " << ec;
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            messages::success(asyncResp->res);
+            return;
+        },
+        "xyz.openbmc_project.Settings",
+        "/xyz/openbmc_project/ibmacf/allow_unauth_upload",
+        "org.freedesktop.DBus.Properties",
+        "Set",
+        "xyz.openbmc_project.Object.Enable",
+        "Enabled",
+        std::variant<bool>(allow));
+}
+
 inline void getAcfProperties(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::tuple<std::vector<uint8_t>, bool, std::string>& messageFDbus)
@@ -1175,6 +1198,26 @@ inline void getAcfProperties(
     }
     asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["ACFInstalled"] =
         acfInstalled;
+
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code ec, 
+                    const std::variant<bool>& retval) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "D-Bus responses error: " << ec;
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            const bool *allowed = std::get_if<bool>(&retval);
+            asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]
+                ["AllowUnauthACFUpload"] = *allowed;
+        },
+        "xyz.openbmc_project.Settings",
+        "/xyz/openbmc_project/ibmacf/allow_unauth_upload",
+        "org.freedesktop.DBus.Properties",
+        "Get",
+        "xyz.openbmc_project.Object.Enable",
+        "Enabled");
 }
 
 /**
@@ -1667,10 +1710,15 @@ inline void uploadACF(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         "InstallACF", decodedAcf);
 }
 
+// This is called when someone either is not authenticated or is not
+// authorized to upload an ACF, and they are trying to upload an ACF;
+// in this condition, uploading an ACF is allowed when
+// AllowUnauthACFUpload is true.
 inline void triggerUnauthenticatedACFUpload(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     std::optional<nlohmann::json> oem)
 {
+    std::vector<uint8_t> decodedAcf;
     std::optional<nlohmann::json> ibm;
     if (!redfish::json_util::readJson(*oem, asyncResp->res, "IBM", ibm))
     {
@@ -1691,7 +1739,6 @@ inline void triggerUnauthenticatedACFUpload(
 
         if (acf)
         {
-            std::vector<uint8_t> decodedAcf;
             std::optional<std::string> acfFile;
             if (acf.value().contains("ACFFile") &&
                 acf.value()["ACFFile"] == nullptr)
@@ -1727,43 +1774,78 @@ inline void triggerUnauthenticatedACFUpload(
                     return;
                 }
             }
+        }
+    }
 
+    // Allow ACF upload when D-Bus property allow_unauth_upload is true (aka
+    // Redfish property AllowUnauthACFUpload).
+    crow::connections::systemBus->async_method_call(
+        [asyncResp, decodedAcf](const boost::system::error_code ec, 
+                    const std::variant<bool>& allowed) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR << "D-Bus response error reading allow_unauth_upload: " << ec;
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            const bool *allowUnauthACFUpload = std::get_if<bool>(&allowed);
+            if (allowUnauthACFUpload == nullptr)
+            {
+                BMCWEB_LOG_ERROR << "nullptr for allow_unauth_upload";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            if (*allowUnauthACFUpload == true)
+            {
+                uploadACF(asyncResp, decodedAcf);
+                return;
+            }
+
+            // Allow ACF upload when D-Bus property ACFWindowActive is true
+            // (aka OpPanel function 74).
             crow::connections::systemBus->async_method_call(
                 [asyncResp, decodedAcf](const boost::system::error_code ec,
                                         const std::variant<bool>& retVal) {
+                    bool isActive;
                     if (ec)
                     {
                         BMCWEB_LOG_ERROR
                             << "Failed to read ACFWindowActive property";
-                        messages::internalError(asyncResp->res);
-                        return;
+                        // The Panel app doesn't run on simulated systems.
+                        isActive = false;
                     }
-
-                    const bool* isACFWindowActive = std::get_if<bool>(&retVal);
-
-                    if (isACFWindowActive == nullptr)
+                    else
                     {
-                        BMCWEB_LOG_ERROR << "nullptr for ACFWindowActive";
-                        messages::internalError(asyncResp->res);
-                        return;
+                        const bool* isACFWindowActive = std::get_if<bool>(&retVal);
+                        if (isACFWindowActive == nullptr)
+                        {
+                            BMCWEB_LOG_ERROR << "nullptr for ACFWindowActive";
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+                        isActive = *isACFWindowActive;
                     }
-
-                    if (*isACFWindowActive == true)
+                    
+                    if (isActive == true)
                     {
                         uploadACF(asyncResp, decodedAcf);
                         return;
                     }
 
-                    BMCWEB_LOG_ERROR << "ACF window not set to "
-                                        "active from panel";
+                    BMCWEB_LOG_ERROR << "ACF upload not allowed";
                     messages::insufficientPrivilege(asyncResp->res);
                     return;
                 },
                 "com.ibm.PanelApp", "/com/ibm/panel_app",
                 "org.freedesktop.DBus.Properties", "Get", "com.ibm.panel",
                 "ACFWindowActive");
-        }
-    }
+        },
+        "xyz.openbmc_project.Settings",
+        "/xyz/openbmc_project/ibmacf/allow_unauth_upload",
+        "org.freedesktop.DBus.Properties",
+        "Get",
+        "xyz.openbmc_project.Object.Enable",
+        "Enabled");
 }
 
 inline void requestAccountServiceRoutes(App& app)
@@ -2499,6 +2581,13 @@ inline void requestAccountServiceRoutes(App& app)
 
             if (oem)
             {
+                if (username != "service")
+                {
+                    // Only the service user has Oem properties
+                    messages::propertyUnknown(asyncResp->res, "Oem");
+                    return;
+                }
+
                 std::optional<nlohmann::json> ibm;
                 if (!redfish::json_util::readJson(*oem, asyncResp->res, "IBM",
                                                   ibm))
@@ -2517,26 +2606,26 @@ inline void requestAccountServiceRoutes(App& app)
                         messages::propertyMissing(asyncResp->res, "ACF");
                         return;
                     }
-                    if (acf && (username == "service"))
+                    if (acf)
                     {
-                        std::vector<uint8_t> decodedAcf;
+                        std::optional<bool> allowUnauthACFUpload;
                         std::optional<std::string> acfFile;
-                        if (acf.value().contains("ACFFile") &&
-                            acf.value()["ACFFile"] == nullptr)
+                        if (!redfish::json_util::readJson(
+                                *acf, asyncResp->res, "ACFFile", acfFile,
+                                "AllowUnauthACFUpload",
+                                allowUnauthACFUpload))
                         {
-                            acfFile = "";
+                            BMCWEB_LOG_ERROR << "Illegal Property ";
+                            messages::propertyMissing(asyncResp->res,
+                                                      "ACFFile");
+                            messages::propertyMissing(
+                                asyncResp->res, "AllowUnauthACFUpload");
+                            return;
                         }
-                        else
-                        {
-                            if (!redfish::json_util::readJson(
-                                    *acf, asyncResp->res, "ACFFile", acfFile))
-                            {
-                                BMCWEB_LOG_ERROR << "Illegal Property ";
-                                messages::propertyMissing(asyncResp->res,
-                                                          "ACFFile");
-                                return;
-                            }
 
+                        if (acfFile)
+                        {
+                            std::vector<uint8_t> decodedAcf;
                             std::string sDecodedAcf;
                             if (!crow::utility::base64Decode(*acfFile,
                                                              sDecodedAcf))
@@ -2557,16 +2646,14 @@ inline void requestAccountServiceRoutes(App& app)
                                 messages::internalError(asyncResp->res);
                                 return;
                             }
+                            uploadACF(asyncResp, decodedAcf);
                         }
 
-                        uploadACF(asyncResp, decodedAcf);
-                    }
-                    else if (acf && (username != "service"))
-                    {
-                        messages::resourceAtUriUnauthorized(
-                            asyncResp->res, std::string(req.url),
-                            "ACF properties access not allowed by non service "
-                            "user");
+                        if (allowUnauthACFUpload)
+                        {
+                            setPropertyAllowUnauthACFUpload(
+                                asyncResp, *allowUnauthACFUpload);
+                        }
                     }
                 }
             }
