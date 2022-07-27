@@ -21,8 +21,8 @@ class Handler : public std::enable_shared_from_this<Handler>
 {
   public:
     Handler(crow::websocket::Connection* conn) :
-        session(conn), streamFileDescriptor(conn->getIoContext()),
-        doingWrite(false)
+        session(conn), streamFileDescriptor(conn->getIoContext())
+
     {}
 
     ~Handler() = default;
@@ -161,7 +161,7 @@ class Handler : public std::enable_shared_from_this<Handler>
   private:
     crow::websocket::Connection* session;
     boost::asio::posix::stream_descriptor streamFileDescriptor;
-    bool doingWrite;
+    bool doingWrite{false};
     int ttyFileDescriptor;
     pid_t pid;
 
