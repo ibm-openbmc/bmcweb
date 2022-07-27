@@ -42,8 +42,7 @@ class Handler : public std::enable_shared_from_this<Handler>
         entryID(entryIDIn),
         dumpType(dumpTypeIn),
         outputBuffer(boost::beast::flat_static_buffer<socketBufferSize>()),
-        unixSocketPath(unixSocketPathIn), unixSocket(ios), dumpSize(0),
-        waitTimer(ios), connectRetryCount(0)
+        unixSocketPath(unixSocketPathIn), unixSocket(ios), waitTimer(ios)
     {}
 
     /**
@@ -313,10 +312,10 @@ class Handler : public std::enable_shared_from_this<Handler>
     boost::beast::flat_static_buffer<socketBufferSize> outputBuffer;
     std::filesystem::path unixSocketPath;
     boost::asio::local::stream_protocol::socket unixSocket;
-    uint64_t dumpSize;
+    uint64_t dumpSize{0};
     boost::asio::steady_timer waitTimer;
     crow::streaming_response::Connection* connection = nullptr;
-    uint16_t connectRetryCount;
+    uint16_t connectRetryCount{0};
 };
 
 static boost::container::flat_map<crow::streaming_response::Connection*,
