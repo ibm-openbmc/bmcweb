@@ -290,10 +290,9 @@ class InventoryItem
 {
   public:
     InventoryItem(const std::string& objPath) :
-        objectPath(objPath), name(), isPresent(true), isFunctional(true),
-        isPowerSupply(false), powerSupplyEfficiencyPercent(-1), manufacturer(),
-        model(), partNumber(), serialNumber(), sensors(), ledObjectPath(""),
-        ledState(LedState::UNKNOWN)
+        objectPath(objPath), name(), manufacturer(), model(), partNumber(),
+        serialNumber(), sensors(), ledObjectPath("")
+
     {
         // Set inventory item name to last node of object path
         sdbusplus::message::object_path path(objectPath);
@@ -306,17 +305,17 @@ class InventoryItem
 
     std::string objectPath;
     std::string name;
-    bool isPresent;
-    bool isFunctional;
-    bool isPowerSupply;
-    int powerSupplyEfficiencyPercent;
+    bool isPresent{true};
+    bool isFunctional{true};
+    bool isPowerSupply{false};
+    int powerSupplyEfficiencyPercent{-1};
     std::string manufacturer;
     std::string model;
     std::string partNumber;
     std::string serialNumber;
     std::set<std::string> sensors;
     std::string ledObjectPath;
-    LedState ledState;
+    LedState ledState{LedState::UNKNOWN};
 };
 
 /**
