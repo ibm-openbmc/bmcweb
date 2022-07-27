@@ -20,12 +20,22 @@
 #include <registries/privilege_registry.hpp>
 #include <utils/systemd_utils.hpp>
 
+#include <filesystem>
+
 namespace redfish
 {
 
 inline void
     handleACFWindowActive(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
+    bool allow;
+    GetPropertyAllowUnauthACFUpload(asyncResp, allow); // ignore return code
+    if (allow)
+    {
+        asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] = true;
+        return;
+    }
+
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code ec,
                     const std::variant<bool>& retVal) {

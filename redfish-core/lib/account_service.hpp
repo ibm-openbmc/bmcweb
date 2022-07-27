@@ -24,6 +24,8 @@
 #include <roles.hpp>
 #include <utils/json_utils.hpp>
 
+#include <filesystem>
+#include <iostream>
 #include <string>
 #include <variant>
 #include <vector>
@@ -1078,6 +1080,74 @@ inline void
         std::variant<std::string>(userNameAttribute));
 }
 
+// This file holds the value of the AllowUnauthACFUpload property.  An
+// Administrator user can GET and PATCH this property.  Contrast with the
+// readonly Oem.IBM.ACFWindowActive property (in /redfish/v1) which is true
+// when either AllowUnauthACFUpload or the "OpPanel function 74 time window"
+// is active.  Low-level design:
+//  - When this file exists, AllowUnauthACFUpload=True.
+//  - Otherwise, AllowUnauthACFUpload=False (the default value).
+const std::filesystem::path allowUnauthACFUploadFilename{"/var/lib/AllowUnauthACFUpload"};
+
+inline bool SetPropertyAllowUnauthACFUpload(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, bool allow)
+{
+    if (allow)
+    {
+        // Create the file to indicate the property is true
+        std::ofstream file;
+        file.open(allowUnauthACFUploadFilename);
+        if (file.fail())
+        {
+            BMCWEB_LOG_ERROR << "Error creating file: " << allowUnauthACFUploadFilename;
+            asyncResp->res = {};
+            messages::internalError(asyncResp->res);
+            return false;            
+        }
+
+        // Set the file permission so we can delete it later
+        std::filesystem::perms permission =
+            std::filesystem::perms::owner_read |
+            std::filesystem::perms::owner_write;
+        std::error_code ec;
+        std::filesystem::permissions(allowUnauthACFUploadFilename, permission, ec);
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "Error: permissions(" << allowUnauthACFUploadFilename << ") ec=" << ec;
+            asyncResp->res = {};
+            messages::internalError(asyncResp->res);
+            return false;
+        }
+    }
+    else
+    {
+        // Delete the file to indicate the property is false
+        std::error_code ec;
+        std::filesystem::remove(allowUnauthACFUploadFilename, ec);
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "Error: remove(" << allowUnauthACFUploadFilename << ") ec=" << ec;
+            asyncResp->res = {};
+            messages::internalError(asyncResp->res);
+            return false;
+        }
+    }
+    return true;
+}
+
+inline bool GetPropertyAllowUnauthACFUpload(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, bool& allow)
+{
+    std::error_code ec;
+    allow = std::filesystem::is_regular_file(allowUnauthACFUploadFilename, ec);
+    if (ec && !((ec.category() == std::generic_category()) && (ec.value() == ENOENT)))
+    {
+        BMCWEB_LOG_ERROR << "Error: is_regular_file(" << allowUnauthACFUploadFilename << ") ec=" << ec;
+        asyncResp->res = {};
+        messages::internalError(asyncResp->res);
+        return false;
+    }
+    return true;
+}
+
 inline void getAcfProperties(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::tuple<std::vector<uint8_t>, bool, std::string>& messageFDbus)
@@ -1093,6 +1163,13 @@ inline void getAcfProperties(
 
     bool acfInstalled = std::get<1>(messageFDbus);
     std::string expirationDate = std::get<2>(messageFDbus);
+
+    bool alwaysAllowUnauthACFUploadProperty = false;
+    if (!GetPropertyAllowUnauthACFUpload(asyncResp,
+                                         alwaysAllowUnauthACFUploadProperty))
+    {
+        return;
+    }
 
     asyncResp->res
         .jsonValue["Oem"]["IBM"]["ACF"]["WarningLongDatedExpiration"] = nullptr;
@@ -1176,6 +1253,8 @@ inline void getAcfProperties(
     }
     asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["ACFInstalled"] =
         acfInstalled;
+    asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["AllowUnauthACFUpload"] =
+        alwaysAllowUnauthACFUploadProperty;
 }
 
 /**
@@ -1727,6 +1806,14 @@ inline void triggerUnauthenticatedACFUpload(
                     messages::internalError(asyncResp->res);
                     return;
                 }
+            }
+
+            bool allow;
+            GetPropertyAllowUnauthACFUpload(asyncResp, allow);
+            if (allow)
+            {
+                uploadACF(asyncResp, decodedAcf);
+                return;
             }
 
             crow::connections::systemBus->async_method_call(
@@ -2500,6 +2587,13 @@ inline void requestAccountServiceRoutes(App& app)
 
             if (oem)
             {
+                if (username != "service")
+                {
+                    // Only the service user has Oem properties
+                    messages::propertyUnknown(asyncResp->res, "Oem");
+                    return;
+                }
+
                 std::optional<nlohmann::json> ibm;
                 if (!redfish::json_util::readJson(*oem, asyncResp->res, "IBM",
                                                   ibm))
@@ -2518,26 +2612,22 @@ inline void requestAccountServiceRoutes(App& app)
                         messages::propertyMissing(asyncResp->res, "ACF");
                         return;
                     }
-                    if (acf && (username == "service"))
+                    if (acf)
                     {
-                        std::vector<uint8_t> decodedAcf;
+                        std::optional<bool> allowUnauthACFUpload;
                         std::optional<std::string> acfFile;
-                        if (acf.value().contains("ACFFile") &&
-                            acf.value()["ACFFile"] == nullptr)
+                        if (!redfish::json_util::readJson(*acf, asyncResp->res,
+                                                          "ACFFile", acfFile, "AllowUnauthACFUpload", allowUnauthACFUpload))
                         {
-                            acfFile = "";
+                            BMCWEB_LOG_ERROR << "Illegal Property ";
+                            messages::propertyMissing(asyncResp->res, "ACFFile");
+                            messages::propertyMissing(asyncResp->res, "AllowUnauthACFUpload");
+                            return;
                         }
-                        else
-                        {
-                            if (!redfish::json_util::readJson(
-                                    *acf, asyncResp->res, "ACFFile", acfFile))
-                            {
-                                BMCWEB_LOG_ERROR << "Illegal Property ";
-                                messages::propertyMissing(asyncResp->res,
-                                                          "ACFFile");
-                                return;
-                            }
 
+                        if (acfFile)
+                        {
+                            std::vector<uint8_t> decodedAcf;
                             std::string sDecodedAcf;
                             if (!crow::utility::base64Decode(*acfFile,
                                                              sDecodedAcf))
@@ -2558,16 +2648,17 @@ inline void requestAccountServiceRoutes(App& app)
                                 messages::internalError(asyncResp->res);
                                 return;
                             }
+                            uploadACF(asyncResp, decodedAcf);
                         }
 
-                        uploadACF(asyncResp, decodedAcf);
-                    }
-                    else if (acf && (username != "service"))
-                    {
-                        messages::resourceAtUriUnauthorized(
-                            asyncResp->res, std::string(req.url),
-                            "ACF properties access not allowed by non service "
-                            "user");
+                        if (allowUnauthACFUpload)
+                        {
+                            if (!SetPropertyAllowUnauthACFUpload(
+                                    asyncResp, *allowUnauthACFUpload))
+                            {
+                                return;
+                            }
+                        }
                     }
                 }
             }
