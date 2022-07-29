@@ -1098,12 +1098,19 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
             dumpPath = "/xyz/openbmc_project/dump/resource";
 
-            createDumpParams.emplace_back(
-                std::make_pair("com.ibm.Dump.Create.CreateParameters.VSPString",
-                               resourceDumpParams[1]));
-            createDumpParams.emplace_back(
-                std::make_pair("com.ibm.Dump.Create.CreateParameters.Password",
-                               resourceDumpParams[2]));
+            if (resourceDumpParams.size() >= 2)
+            {
+                createDumpParams.emplace_back(std::make_pair(
+                    "com.ibm.Dump.Create.CreateParameters.VSPString",
+                    resourceDumpParams[1]));
+            }
+
+            if (resourceDumpParams.size() == 3)
+            {
+                createDumpParams.emplace_back(std::make_pair(
+                    "com.ibm.Dump.Create.CreateParameters.Password",
+                    resourceDumpParams[2]));
+            }
         }
         else
         {
