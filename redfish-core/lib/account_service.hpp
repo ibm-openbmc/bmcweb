@@ -1090,7 +1090,7 @@ inline void
 const std::filesystem::path allowUnauthACFUploadFilename{
     "/var/lib/AllowUnauthACFUpload"};
 
-inline bool SetPropertyAllowUnauthACFUpload(
+inline bool setPropertyAllowUnauthACFUpload(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, bool allow)
 {
     if (allow)
@@ -1139,7 +1139,7 @@ inline bool SetPropertyAllowUnauthACFUpload(
     return true;
 }
 
-inline bool GetPropertyAllowUnauthACFUpload(
+inline bool getPropertyAllowUnauthACFUpload(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, bool& allow)
 {
     std::error_code ec;
@@ -1173,7 +1173,7 @@ inline void getAcfProperties(
     std::string expirationDate = std::get<2>(messageFDbus);
 
     bool alwaysAllowUnauthACFUploadProperty = false;
-    if (!GetPropertyAllowUnauthACFUpload(asyncResp,
+    if (!getPropertyAllowUnauthACFUpload(asyncResp,
                                          alwaysAllowUnauthACFUploadProperty))
     {
         return;
@@ -1817,7 +1817,7 @@ inline void triggerUnauthenticatedACFUpload(
             }
 
             bool allow;
-            GetPropertyAllowUnauthACFUpload(asyncResp, allow);
+            getPropertyAllowUnauthACFUpload(asyncResp, allow);
             if (allow)
             {
                 uploadACF(asyncResp, decodedAcf);
@@ -2669,7 +2669,7 @@ inline void requestAccountServiceRoutes(App& app)
 
                             if (allowUnauthACFUpload)
                             {
-                                if (!SetPropertyAllowUnauthACFUpload(
+                                if (!setPropertyAllowUnauthACFUpload(
                                         asyncResp, *allowUnauthACFUpload))
                                 {
                                     return;

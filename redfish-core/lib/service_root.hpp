@@ -29,7 +29,7 @@ inline void
     handleACFWindowActive(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     bool allow;
-    GetPropertyAllowUnauthACFUpload(asyncResp, allow); // ignore return code
+    getPropertyAllowUnauthACFUpload(asyncResp, allow); // ignore return code
     if (allow)
     {
         asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] = true;
