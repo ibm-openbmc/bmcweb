@@ -93,7 +93,7 @@
                     "type": [
                         "boolean"
                     ],
-                    "versionAdded": "v1_0_1"
+                    "versionAdded": "v1_0_0"
                 }
             },
             "type": "object"
