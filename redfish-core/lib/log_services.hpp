@@ -999,8 +999,8 @@ inline void createDumpTaskCallback(
 
             if (dumpStatus == DUMP_CREATE_INPROGRESS)
             {
-                BMCWEB_LOG_ERROR << createdObjPath.str
-                                 << ": Dump creation task not completed";
+                BMCWEB_LOG_DEBUG << createdObjPath.str
+                                 << ": Dump creation task is in progress";
                 return !task::completed;
             }
 
@@ -1011,8 +1011,8 @@ inline void createDumpTaskCallback(
                 "Location: " + dumpEntryPath + http_helpers::urlEncode(dumpId);
             taskData->payload->httpHeaders.emplace_back(std::move(headerLoc));
 
-            BMCWEB_LOG_DEBUG << createdObjPath.str
-                             << ": Dump creation task completed";
+            BMCWEB_LOG_CRITICAL << "INFO: " << createdObjPath.str
+                                << ": Dump creation task completed";
             taskData->state = "Completed";
             return task::completed;
         },
