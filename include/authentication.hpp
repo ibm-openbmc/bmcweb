@@ -128,7 +128,10 @@ static std::shared_ptr<persistent_data::UserSession>
     performCookieAuth(boost::beast::http::verb method,
                       const boost::beast::http::header<true>& reqHeader)
 {
-    BMCWEB_LOG_DEBUG << "[AuthMiddleware] Cookie authentication";
+    if (method != boost::beast::http::verb::get)
+    {
+        BMCWEB_LOG_DEBUG << "[AuthMiddleware] Cookie authentication";
+    }
 
     std::string_view cookieValue = reqHeader["Cookie"];
     if (cookieValue.empty())
