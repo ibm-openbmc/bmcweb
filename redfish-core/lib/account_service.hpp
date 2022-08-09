@@ -462,17 +462,33 @@ inline void handleRoleMapPatch(
                 {
                     crow::connections::systemBus->async_method_call(
                         [asyncResp, roleMapObjData, serverType, index,
-                         remoteGroup](const boost::system::error_code ec) {
-                            if (ec)
+                         remoteGroup](const boost::system::error_code ec,
+                                      const sdbusplus::message::message& msg) {
+                        if (ec)
+                        {
+                            BMCWEB_LOG_ERROR << "DBUS response error: " << ec;
+                            const sd_bus_error* dbusError = msg.get_error();
+                            if (dbusError == nullptr)
                             {
-                                BMCWEB_LOG_ERROR << "DBUS response error: "
-                                                 << ec;
                                 messages::internalError(asyncResp->res);
                                 return;
                             }
-                            asyncResp->res
-                                .jsonValue[serverType]["RemoteRoleMapping"]
-                                          [index]["RemoteGroup"] = *remoteGroup;
+                            if ((strcmp(
+                                     dbusError->name,
+                                     "xyz.openbmc_project.Common.Error.InvalidArgument") ==
+                                 0))
+                            {
+                                messages::propertyValueFormatError(
+                                    asyncResp->res, "RemoteGroup",
+                                    *remoteGroup);
+                                return;
+                            }
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+                        asyncResp->res
+                            .jsonValue[serverType]["RemoteRoleMapping"][index]
+                                      ["RemoteGroup"] = *remoteGroup;
                         },
                         ldapDbusService, roleMapObjData[index].first,
                         propertyInterface, "Set",
@@ -486,17 +502,33 @@ inline void handleRoleMapPatch(
                 {
                     crow::connections::systemBus->async_method_call(
                         [asyncResp, roleMapObjData, serverType, index,
-                         localRole](const boost::system::error_code ec) {
-                            if (ec)
+                         localRole](const boost::system::error_code ec,
+                                    const sdbusplus::message::message& msg) {
+                        if (ec)
+                        {
+                            BMCWEB_LOG_ERROR << "DBUS response error: " << ec;
+                            const sd_bus_error* dbusError = msg.get_error();
+                            if (dbusError == nullptr)
                             {
-                                BMCWEB_LOG_ERROR << "DBUS response error: "
-                                                 << ec;
                                 messages::internalError(asyncResp->res);
                                 return;
                             }
-                            asyncResp->res
-                                .jsonValue[serverType]["RemoteRoleMapping"]
-                                          [index]["LocalRole"] = *localRole;
+
+                            if ((strcmp(
+                                     dbusError->name,
+                                     "xyz.openbmc_project.Common.Error.InvalidArgument") ==
+                                 0))
+                            {
+                                messages::propertyValueFormatError(
+                                    asyncResp->res, "LocalRole", *localRole);
+                                return;
+                            }
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+                        asyncResp->res
+                            .jsonValue[serverType]["RemoteRoleMapping"][index]
+                                      ["LocalRole"] = *localRole;
                         },
                         ldapDbusService, roleMapObjData[index].first,
                         propertyInterface, "Set",
@@ -826,26 +858,40 @@ inline void handleServiceAddressPatch(
 {
     crow::connections::systemBus->async_method_call(
         [asyncResp, ldapServerElementName,
-         serviceAddressList](const boost::system::error_code ec) {
-            if (ec)
+         serviceAddressList](const boost::system::error_code ec,
+                             sdbusplus::message::message& msg) {
+        if (ec)
+        {
+            BMCWEB_LOG_DEBUG
+                << "Error Occurred in updating the service address";
+            const sd_bus_error* dbusError = msg.get_error();
+            if (dbusError == nullptr)
             {
-                BMCWEB_LOG_DEBUG
-                    << "Error Occurred in updating the service address";
                 messages::internalError(asyncResp->res);
                 return;
             }
-            std::vector<std::string> modifiedserviceAddressList = {
-                serviceAddressList.front()};
-            asyncResp->res
-                .jsonValue[ldapServerElementName]["ServiceAddresses"] =
-                modifiedserviceAddressList;
-            if ((serviceAddressList).size() > 1)
+            if ((strcmp(dbusError->name,
+                        "xyz.openbmc_project.Common.Error.InvalidArgument") ==
+                 0))
             {
-                messages::propertyValueModified(asyncResp->res,
-                                                "ServiceAddresses",
-                                                serviceAddressList.front());
+                messages::propertyValueFormatError(asyncResp->res,
+                                                   "ServiceAddresses",
+                                                   serviceAddressList.front());
+                return;
             }
-            BMCWEB_LOG_DEBUG << "Updated the service address";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        std::vector<std::string> modifiedserviceAddressList = {
+            serviceAddressList.front()};
+        asyncResp->res.jsonValue[ldapServerElementName]["ServiceAddresses"] =
+            modifiedserviceAddressList;
+        if ((serviceAddressList).size() > 1)
+        {
+            messages::propertyValueModified(asyncResp->res, "ServiceAddresses",
+                                            serviceAddressList.front());
+        }
+        BMCWEB_LOG_DEBUG << "Updated the service address";
         },
         ldapDbusService, ldapConfigObject, propertyInterface, "Set",
         ldapConfigInterface, "LDAPServerURI",
@@ -932,26 +978,40 @@ inline void
 {
     crow::connections::systemBus->async_method_call(
         [asyncResp, baseDNList,
-         ldapServerElementName](const boost::system::error_code ec) {
-            if (ec)
+         ldapServerElementName](const boost::system::error_code ec,
+                                const sdbusplus::message::message& msg) {
+        if (ec)
+        {
+            BMCWEB_LOG_DEBUG << "Error Occurred in Updating the base DN";
+            const sd_bus_error* dbusError = msg.get_error();
+            if (dbusError == nullptr)
             {
-                BMCWEB_LOG_DEBUG << "Error Occurred in Updating the base DN";
                 messages::internalError(asyncResp->res);
                 return;
             }
-            auto& serverTypeJson =
-                asyncResp->res.jsonValue[ldapServerElementName];
-            auto& searchSettingsJson =
-                serverTypeJson["LDAPService"]["SearchSettings"];
-            std::vector<std::string> modifiedBaseDNList = {baseDNList.front()};
-            searchSettingsJson["BaseDistinguishedNames"] = modifiedBaseDNList;
-            if (baseDNList.size() > 1)
+            if ((strcmp(dbusError->name,
+                        "xyz.openbmc_project.Common.Error.InvalidArgument") ==
+                 0))
             {
-                messages::propertyValueModified(asyncResp->res,
-                                                "BaseDistinguishedNames",
-                                                baseDNList.front());
+                messages::propertyValueFormatError(asyncResp->res,
+                                                   "BaseDistinguishedNames",
+                                                   baseDNList.front());
+                return;
             }
-            BMCWEB_LOG_DEBUG << "Updated the base DN";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        auto& serverTypeJson = asyncResp->res.jsonValue[ldapServerElementName];
+        auto& searchSettingsJson =
+            serverTypeJson["LDAPService"]["SearchSettings"];
+        std::vector<std::string> modifiedBaseDNList = {baseDNList.front()};
+        searchSettingsJson["BaseDistinguishedNames"] = modifiedBaseDNList;
+        if (baseDNList.size() > 1)
+        {
+            messages::propertyValueModified(
+                asyncResp->res, "BaseDistinguishedNames", baseDNList.front());
+        }
+        BMCWEB_LOG_DEBUG << "Updated the base DN";
         },
         ldapDbusService, ldapConfigObject, propertyInterface, "Set",
         ldapConfigInterface, "LDAPBaseDN",
