@@ -549,6 +549,35 @@ void propertyValueNotInList(crow::Response& res, const std::string& arg1,
 
 /**
  * @internal
+ * @brief Formats PropertyValueOutOfRange message into JSON for the specified
+ * property
+ *
+ * See header file for more information
+ * @endinternal
+ */
+nlohmann::json propertyValueOutOfRange(const std::string& arg1,
+                                       const std::string& arg2)
+{
+    return nlohmann::json{
+        {"@odata.type", "#Message.v1_1_1.Message"},
+        {"MessageId", "Base.1.13.0.PropertyValueOutOfRange"},
+        {"Message", "The value " + arg1 + " for the property " + arg2 +
+                        " is not in the supported range of acceptable values."},
+        {"MessageArgs", {arg1, arg2}},
+        {"MessageSeverity", "Warning"},
+        {"Resolution", "Correct the value for the property in the request body "
+                       "and resubmit the request if the operation failed."}};
+}
+
+void propertyValueOutOfRange(crow::Response& res, const std::string& arg1,
+                             const std::string& arg2)
+{
+    res.result(boost::beast::http::status::bad_request);
+    addMessageToJson(res.jsonValue, propertyValueOutOfRange(arg1, arg2), arg2);
+}
+
+/**
+ * @internal
  * @brief Formats ResourceAtUriInUnknownFormat message into JSON
  *
  * See header file for more information
