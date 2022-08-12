@@ -206,7 +206,7 @@ inline void
             const dbus::utility::MapperGetObject& intfObject) mutable {
             if (ec)
             {
-                BMCWEB_LOG_DEBUG << "D-Bus response error on GetSubTree " << ec;
+                BMCWEB_LOG_DEBUG << "D-Bus response error on GetObject " << ec;
                 messages::internalError(aResp->res);
                 return;
             }
@@ -314,7 +314,7 @@ inline void getValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
  *
  * @param asyncResp     Pointer to object holding response data
  * @param powerSupplyPath Validated power supply path
- * @param callback      Callback for next step to get valid chassis ID
+ * @param callback      Callback for next step to populate Redfish JSON.
  */
 template <typename Callback>
 inline void
@@ -350,7 +350,6 @@ inline void
 
             if (inputHistoryItem != nullptr)
             {
-                // more
                 if ((*inputHistoryItem).size() == 0)
                 {
                     BMCWEB_LOG_ERROR
@@ -369,9 +368,7 @@ inline void
                     inputHistoryPath.push_back(objpath);
                 }
 
-                const std::string& serviceName = "not here";
-
-                callback(inputHistoryPath, serviceName);
+                callback(inputHistoryPath);
             }
         };
 
@@ -433,9 +430,7 @@ inline void requestRoutesPowerSupplyMetrics(App& app)
                             [asyncResp, chassisID, powerSupplyID,
                              validPowerSupplyPath](
                                 const std::optional<std::vector<std::string>>&
-                                    validInputHistoryItem,
-                                [[maybe_unused]] const std::string&
-                                    validInputHistoryService) {
+                                    validInputHistoryItem) {
                                 if (!validInputHistoryItem)
                                 {
                                     BMCWEB_LOG_ERROR
