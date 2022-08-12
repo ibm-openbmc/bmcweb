@@ -2,6 +2,7 @@
 
 #include "led.hpp"
 
+#include <dbus_utility.hpp>
 #include <utils/json_utils.hpp>
 #include <utils/name_utils.hpp>
 
@@ -107,10 +108,9 @@ inline void
         }
 
         crow::connections::systemBus->async_method_call(
-            [aResp, assemblyIndex, assembly](
-                const boost::system::error_code ec,
-                const std::vector<
-                    std::pair<std::string, std::vector<std::string>>>& object) {
+            [aResp, assemblyIndex,
+             assembly](const boost::system::error_code ec,
+                       const dbus::utility::MapperGetObject& object) {
                 if (ec)
                 {
                     BMCWEB_LOG_DEBUG << "DBUS response error";

@@ -79,8 +79,7 @@ using DbusInterfaceType = boost::container::flat_map<
 using ManagedObjectType =
     std::vector<std::pair<sdbusplus::message::object_path, DbusInterfaceType>>;
 
-using GetObjectType =
-    std::vector<std::pair<std::string, std::vector<std::string>>>;
+using GetObjectType = dbus::utility::MapperGetObject;
 
 inline std::string getRoleIdFromPrivilege(std::string_view role)
 {
