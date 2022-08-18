@@ -1,5 +1,7 @@
 #pragma once
 
+#include <dbus_utility.hpp>
+
 namespace redfish
 {
 
@@ -187,110 +189,196 @@ inline void
         averageInterface, "Values");
 }
 
-/**
- * @brief Get power supply average, maximum and date values given chassis and
- * power supply IDs.
- *
- * @param[in] aResp - Shared pointer for asynchronous calls.
- * @param[in] chassisID - Chassis to which the values are associated.
- * @param[in] powerSupplyID - Power supply to which the values are associated.
- *
- * @return None.
- */
-inline void getValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-                      const std::string& chassisID,
-                      const std::string& powerSupplyID)
+inline void
+    getServicePathValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                         const std::string& objectPath,
+                         const std::string& objectPath2,
+                         std::string& serviceName, std::string& averagePath,
+                         std::string& maximumPath)
 {
-    BMCWEB_LOG_DEBUG
-        << "Get power supply date/average/maximum input power values";
-    // Setup InputPowerHistoryItems values array.
-    // It will have 0 to many date/timestamp, average, and maximum entries.
-    aResp->res
-        .jsonValue["Oem"]["IBM"]["InputPowerHistoryItems"]["@odata.type"] =
-        "#OemPowerSupplyMetric.InputPowerHistoryItems";
-
     const std::array<const char*, 2> interfaces = {
         "org.open_power.Sensor.Aggregation.History.Average",
         "org.open_power.Sensor.Aggregation.History.Maximum"};
 
-    crow::connections::systemBus->async_method_call(
-        [aResp, chassisID, powerSupplyID](
+    auto getServiceAndPathHandler =
+        [aResp, objectPath, objectPath2, serviceName, averagePath, maximumPath](
             const boost::system::error_code ec,
-            const std::vector<std::pair<
-                std::string,
-                std::vector<std::pair<std::string, std::vector<std::string>>>>>&
-                intfSubTree) mutable {
+            const dbus::utility::MapperGetObject& intfObject) mutable {
             if (ec)
             {
-                BMCWEB_LOG_DEBUG << "D-Bus response error on GetSubTree " << ec;
+                BMCWEB_LOG_DEBUG << "D-Bus response error on GetObject " << ec;
                 messages::internalError(aResp->res);
                 return;
             }
 
-            std::string serviceName;
-            std::string averagePath;
-            std::string maximumPath;
-
-            for (const auto& [objectPath, connectionNames] : intfSubTree)
+            for (const auto& [service, interfaceNames] : intfObject)
             {
-                if (objectPath.empty())
+                if (service.empty())
                 {
                     BMCWEB_LOG_DEBUG << "Error getting D-Bus object!";
                     messages::internalError(aResp->res);
                     return;
                 }
 
-                const std::string& validPath = objectPath;
-                auto psuMatchStr = powerSupplyID + "_input_power";
-                std::string psuInputPowerStr;
-                // validPath -> {psu}_input_power
-                // 5 below comes from
-                // /org/open_power/sensors/aggregation/per_30s/
-                //   0      1         2         3         4
-                // .../{psu}_input_power/[average,maximum]
-                //           5..............6
-                if (!dbus::utility::getNthStringFromPath(validPath, 5,
-                                                         psuInputPowerStr))
+                for (const auto& interface : interfaceNames)
                 {
-                    BMCWEB_LOG_ERROR << "Got invalid path " << validPath;
-                    messages::invalidObject(aResp->res, validPath);
-                    return;
-                }
-
-                if (psuInputPowerStr != psuMatchStr)
-                {
-                    // not this power supply, continue to next objectPath...
-                    continue;
-                }
-
-                BMCWEB_LOG_DEBUG << "Got validPath: " << validPath;
-                for (const auto& connection : connectionNames)
-                {
-                    serviceName = connection.first;
-
-                    for (const auto& interfaceName : connection.second)
+                    if (interface == averageInterface)
                     {
-                        if (interfaceName == "org.open_power.Sensor."
-                                             "Aggregation.History.Average")
+                        if (serviceName.empty())
                         {
-                            averagePath = validPath;
+                            serviceName = service;
                         }
-                        else if (interfaceName == "org.open_power.Sensor."
-                                                  "Aggregation.History.Maximum")
+                        if (averagePath.empty())
                         {
-                            maximumPath = validPath;
+                            averagePath = objectPath;
+                        }
+                    }
+                    else if (interface == maximumInterface)
+                    {
+                        if (serviceName.empty())
+                        {
+                            serviceName = service;
+                        }
+                        if (maximumPath.empty())
+                        {
+                            maximumPath = objectPath;
                         }
                     }
                 }
+                BMCWEB_LOG_DEBUG << "serviceName: " << serviceName;
+                BMCWEB_LOG_DEBUG << "averagePath: " << averagePath;
+                BMCWEB_LOG_DEBUG << "maximumPath: " << maximumPath;
             }
 
-            getAverageMaximumValues(aResp, serviceName, averagePath,
-                                    maximumPath);
-        },
-        "xyz.openbmc_project.ObjectMapper",
+            if (objectPath2.empty())
+            {
+                BMCWEB_LOG_DEBUG << "Get power supply date/average/maximum "
+                                    "input power values";
+                getAverageMaximumValues(aResp, serviceName, averagePath,
+                                        maximumPath);
+            }
+            else
+            {
+                getServicePathValues(aResp, objectPath2, "", serviceName,
+                                     averagePath, maximumPath);
+            }
+        };
+
+    crow::connections::systemBus->async_method_call(
+        getServiceAndPathHandler, "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
-        "xyz.openbmc_project.ObjectMapper", "GetSubTree",
-        "/org/open_power/sensors/aggregation/per_30s", 0, interfaces);
+        "xyz.openbmc_project.ObjectMapper", "GetObject", objectPath,
+        interfaces);
+}
+
+/**
+ * @brief Get power supply average, maximum and date values given chassis
+ * and power supply IDs.
+ *
+ * @param[in] aResp - Shared pointer for asynchronous calls.
+ * @param[in] inputHistoryItem - Array of object paths for input history.
+ *
+ * @return None.
+ */
+inline void getValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                      const std::vector<std::string>& inputHistoryItem)
+{
+    BMCWEB_LOG_DEBUG << "ENTER: getValues(...)";
+    for (const auto& item : inputHistoryItem)
+    {
+        BMCWEB_LOG_DEBUG << " inputHistoryItem: " << item;
+    }
+
+    // Setup InputPowerHistoryItems values array.
+    // It will have 0 to many date/timestamp, average, and maximum entries.
+    aResp->res
+        .jsonValue["Oem"]["IBM"]["InputPowerHistoryItems"]["@odata.type"] =
+        "#OemPowerSupplyMetric.InputPowerHistoryItems";
+
+    std::string serviceName;
+    std::string averagePath;
+    std::string maximumPath;
+
+    getServicePathValues(aResp, inputHistoryItem[0], inputHistoryItem[1],
+                         serviceName, averagePath, maximumPath);
+
+    BMCWEB_LOG_DEBUG << "EXIT: getValues(...)";
+}
+
+/**
+ * @brief Retrieves valid input history item.
+ *
+ * Not all power supplies support the power input history. Do not provide
+ * Redfish fields for input power history if no associated endpoint matches this
+ * chassis.
+ *
+ * @param asyncResp     Pointer to object holding response data
+ * @param powerSupplyPath Validated power supply path
+ * @param callback      Callback for next step to populate Redfish JSON.
+ */
+template <typename Callback>
+inline void
+    getValidInputHistory(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                         const std::string& powerSupplyPath,
+                         Callback&& callback)
+{
+    BMCWEB_LOG_DEBUG << "getValidInputHistory enter";
+    BMCWEB_LOG_DEBUG << "powerSupplyPath: " << powerSupplyPath;
+
+    auto respHandler =
+        [callback{std::move(callback)}, asyncResp, powerSupplyPath](
+            const boost::system::error_code ec,
+            const std::variant<std::vector<std::string>>& endpoints) {
+            BMCWEB_LOG_DEBUG << "getValidInputHistory respHandler enter";
+
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR
+                    << "getValidInputHistory respHandler D-Bus error: " << ec;
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            // Set the default value to resourceNotFound, and if we confirm
+            // finding association with chassisID and powerSupplyID is correct,
+            // the error response will be cleared.
+            messages::resourceNotFound(asyncResp->res, "PowerSupplyMetrics",
+                                       "Metrics");
+
+            const std::vector<std::string>* inputHistoryItem =
+                std::get_if<std::vector<std::string>>(&(endpoints));
+
+            if (inputHistoryItem != nullptr)
+            {
+                if ((*inputHistoryItem).size() == 0)
+                {
+                    BMCWEB_LOG_ERROR
+                        << "Input history item association error! ";
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+
+                // Clear resourceNotFound response
+                asyncResp->res.clear();
+
+                std::vector<std::string> inputHistoryPath;
+                for (const auto& objpath : *inputHistoryItem)
+                {
+                    BMCWEB_LOG_DEBUG << "objpath: " << objpath;
+                    inputHistoryPath.push_back(objpath);
+                }
+
+                callback(inputHistoryPath);
+            }
+        };
+
+    // Attempt to get the input history items from associations
+    crow::connections::systemBus->async_method_call(
+        respHandler, "xyz.openbmc_project.ObjectMapper",
+        powerSupplyPath + "/input_history", "org.freedesktop.DBus.Properties",
+        "Get", "xyz.openbmc_project.Association", "endpoints");
+
+    BMCWEB_LOG_DEBUG << "getValidInputHistory exit";
 }
 
 /**
@@ -301,76 +389,94 @@ inline void requestRoutesPowerSupplyMetrics(App& app)
     BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/PowerSubsystem/"
                       "PowerSupplies/<str>/Metrics")
         .privileges({{"Login"}})
-        .methods(boost::beast::http::verb::get)(
-            [](const crow::Request&,
-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-               const std::string& chassisID, const std::string& powerSupplyID) {
-                auto getChassisID = [asyncResp, chassisID, powerSupplyID](
-                                        const std::optional<std::string>&
-                                            validChassisID) {
-                    if (!validChassisID)
-                    {
-                        BMCWEB_LOG_ERROR << "Not a valid chassis ID:"
-                                         << chassisID;
-                        messages::resourceNotFound(asyncResp->res, "Chassis",
-                                                   chassisID);
-                        return;
-                    }
+        .methods(
+            boost::beast::http::verb::
+                get)([](const crow::Request&,
+                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                        const std::string& chassisID,
+                        const std::string& powerSupplyID) {
+            auto getChassisID = [asyncResp, chassisID, powerSupplyID](
+                                    const std::optional<std::string>&
+                                        validChassisID) {
+                if (!validChassisID)
+                {
+                    BMCWEB_LOG_ERROR << "Not a valid chassis ID:" << chassisID;
+                    messages::resourceNotFound(asyncResp->res, "Chassis",
+                                               chassisID);
+                    return;
+                }
 
-                    if (chassisID != "chassis")
-                    {
-                        BMCWEB_LOG_ERROR << "No Metrics for chassis ID:"
-                                         << chassisID;
-                        messages::resourceNotFound(asyncResp->res, "Chassis",
-                                                   chassisID);
-                        return;
-                    }
+                BMCWEB_LOG_DEBUG << "ChassisID: " << chassisID;
 
-                    BMCWEB_LOG_DEBUG << "ChassisID: " << chassisID;
-
-                    auto getPowerSupplyHandler =
-                        [asyncResp, chassisID,
-                         powerSupplyID](const std::optional<std::string>&
-                                            validPowerSupplyPath,
-                                        [[maybe_unused]] const std::string&
-                                            validPowerSupplyService) {
-                            if (!validPowerSupplyPath)
-                            {
-                                BMCWEB_LOG_ERROR
-                                    << "Not a valid power supply ID:"
-                                    << powerSupplyID;
-                                messages::resourceNotFound(asyncResp->res,
-                                                           "PowerSupply",
-                                                           powerSupplyID);
-                                return;
-                            }
-
-                            BMCWEB_LOG_DEBUG << "PowerSupplyID: "
+                auto getPowerSupplyHandler =
+                    [asyncResp, chassisID, powerSupplyID](
+                        const std::optional<std::string>& validPowerSupplyPath,
+                        [[maybe_unused]] const std::string&
+                            validPowerSupplyService) {
+                        if (!validPowerSupplyPath)
+                        {
+                            BMCWEB_LOG_ERROR << "Not a valid power supply ID:"
                                              << powerSupplyID;
+                            messages::resourceNotFound(
+                                asyncResp->res, "PowerSupply", powerSupplyID);
+                            return;
+                        }
 
-                            asyncResp->res.jsonValue["@odata.type"] =
-                                "#PowerSupplyMetrics.v1_0_0.PowerSupplyMetrics";
-                            asyncResp->res.jsonValue["@odata.id"] =
-                                "/redfish/v1/Chassis/" + chassisID +
-                                "/PowerSubsystem/PowerSupplies/" +
-                                powerSupplyID + "/Metrics";
-                            asyncResp->res.jsonValue["Name"] =
-                                "Metrics for " + powerSupplyID;
-                            asyncResp->res.jsonValue["Id"] = "Metrics";
+                        BMCWEB_LOG_DEBUG << "PowerSupplyID: " << powerSupplyID;
+                        BMCWEB_LOG_DEBUG << "validPowerSupplyPath: "
+                                         << *validPowerSupplyPath;
 
-                            asyncResp->res.jsonValue["Oem"]["@odata.type"] =
-                                "#OemPowerSupplyMetrics.Oem";
-                            asyncResp->res
-                                .jsonValue["Oem"]["IBM"]["@odata.type"] =
-                                "#OemPowerSupplyMetrics.IBM";
-                            getValues(asyncResp, chassisID, powerSupplyID);
-                        };
-                    redfish::power_supply_utils::getValidPowerSupplyID(
-                        asyncResp, chassisID, powerSupplyID,
-                        std::move(getPowerSupplyHandler));
-                };
-                redfish::chassis_utils::getValidChassisID(
-                    asyncResp, chassisID, std::move(getChassisID));
-            });
+                        auto getInputHistoryItemHandler =
+                            [asyncResp, chassisID, powerSupplyID,
+                             validPowerSupplyPath](
+                                const std::optional<std::vector<std::string>>&
+                                    validInputHistoryItem) {
+                                if (!validInputHistoryItem)
+                                {
+                                    BMCWEB_LOG_ERROR
+                                        << "Not a valid input history item:";
+                                    messages::resourceNotFound(asyncResp->res,
+                                                               powerSupplyID,
+                                                               "Metrics");
+                                    return;
+                                }
+
+                                for (const auto& objpath :
+                                     *validInputHistoryItem)
+                                {
+                                    BMCWEB_LOG_DEBUG
+                                        << "validInputHistoryItemPath: "
+                                        << objpath;
+                                }
+
+                                asyncResp->res.jsonValue["@odata.type"] =
+                                    "#PowerSupplyMetrics.v1_0_0."
+                                    "PowerSupplyMetrics";
+                                asyncResp->res.jsonValue["@odata.id"] =
+                                    "/redfish/v1/Chassis/" + chassisID +
+                                    "/PowerSubsystem/PowerSupplies/" +
+                                    powerSupplyID + "/Metrics";
+                                asyncResp->res.jsonValue["Name"] =
+                                    "Metrics for " + powerSupplyID;
+                                asyncResp->res.jsonValue["Id"] = "Metrics";
+
+                                asyncResp->res.jsonValue["Oem"]["@odata.type"] =
+                                    "#OemPowerSupplyMetrics.Oem";
+                                asyncResp->res
+                                    .jsonValue["Oem"]["IBM"]["@odata.type"] =
+                                    "#OemPowerSupplyMetrics.IBM";
+                                getValues(asyncResp, *validInputHistoryItem);
+                            };
+                        getValidInputHistory(
+                            asyncResp, *validPowerSupplyPath,
+                            std::move(getInputHistoryItemHandler));
+                    };
+                redfish::power_supply_utils::getValidPowerSupplyID(
+                    asyncResp, chassisID, powerSupplyID,
+                    std::move(getPowerSupplyHandler));
+            };
+            redfish::chassis_utils::getValidChassisID(asyncResp, chassisID,
+                                                      std::move(getChassisID));
+        });
 }
 } // namespace redfish

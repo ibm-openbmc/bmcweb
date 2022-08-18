@@ -52,6 +52,9 @@ using MapperServiceMap =
 using MapperGetSubTreeResponse =
     std::vector<std::pair<std::string, MapperServiceMap>>;
 
+using MapperGetObject =
+    std::vector<std::pair<std::string, std::vector<std::string>>>;
+
 inline void escapePathForDbus(std::string& path)
 {
     const std::regex reg("[^A-Za-z0-9_/]");
