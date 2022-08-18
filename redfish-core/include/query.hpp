@@ -29,6 +29,8 @@
 
 #include <redfish_aggregator.hpp>
 
+#include <redfish_aggregator.hpp>
+
 namespace redfish
 {
 
