@@ -17,15 +17,24 @@
 
 #include "dbus_singleton.hpp"
 
-#include <sdbusplus/message.hpp>
+#include <boost/system/error_code.hpp> // IWYU pragma: keep
+#include <sdbusplus/message/native_types.hpp>
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <regex>
+#include <sstream>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <variant>
 #include <vector>
+
+// IWYU pragma: no_include <stddef.h>
+// IWYU pragma: no_include <stdint.h>
+// IWYU pragma: no_include <boost/system/detail/error_code.hpp>
 
 namespace dbus
 {
@@ -65,11 +74,6 @@ using DBusPropertiesMap = std::vector<std::pair<std::string, DbusVariantType>>;
 using DBusInteracesMap = std::vector<std::pair<std::string, DBusPropertiesMap>>;
 using ManagedObjectType =
     std::vector<std::pair<sdbusplus::message::object_path, DBusInteracesMap>>;
-
-using ManagedItem = std::pair<
-    sdbusplus::message::object_path,
-    std::vector<std::pair<
-        std::string, std::vector<std::pair<std::string, DbusVariantType>>>>>;
 
 // Map of service name to list of interfaces
 using MapperServiceMap =

@@ -4,7 +4,6 @@
 #include <openssl/crypto.h>
 
 #include <boost/callable_traits.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/url/url.hpp>
 #include <nlohmann/json.hpp>
 
@@ -14,6 +13,7 @@
 #include <cstdint>
 #include <ctime>
 #include <functional>
+#include <iomanip>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -537,87 +537,6 @@ inline bool base64Decode(const std::string_view input, std::string& output)
     }
 
     return true;
-}
-
-namespace details
-{
-constexpr uint64_t maxMilliSeconds = 253402300799999;
-constexpr uint64_t maxSeconds = 253402300799;
-inline std::string getDateTime(boost::posix_time::milliseconds timeSinceEpoch)
-{
-    boost::posix_time::ptime epoch(boost::gregorian::date(1970, 1, 1));
-    boost::posix_time::ptime time = epoch + timeSinceEpoch;
-    // append zero offset to the end according to the Redfish spec for Date-Time
-    return boost::posix_time::to_iso_extended_string(time) + "+00:00";
-}
-} // namespace details
-
-// Returns the formatted date time string.
-// Note that the maximum supported date is 9999-12-31T23:59:59+00:00, if
-// the given |secondsSinceEpoch| is too large, we return the maximum supported
-// date. This behavior is to avoid exceptions throwed by Boost.
-inline std::string getDateTimeUint(uint64_t secondsSinceEpoch)
-{
-    secondsSinceEpoch = std::min(secondsSinceEpoch, details::maxSeconds);
-    boost::posix_time::seconds boostSeconds(secondsSinceEpoch);
-    return details::getDateTime(
-        boost::posix_time::milliseconds(boostSeconds.total_milliseconds()));
-}
-
-// Returns the formatted date time string.
-// Note that the maximum supported date is 9999-12-31T23:59:59.999+00:00, if
-// the given |millisSecondsSinceEpoch| is too large, we return the maximum
-// supported date.
-inline std::string getDateTimeUintMs(uint64_t milliSecondsSinceEpoch)
-{
-    milliSecondsSinceEpoch =
-        std::min(details::maxMilliSeconds, milliSecondsSinceEpoch);
-    return details::getDateTime(
-        boost::posix_time::milliseconds(milliSecondsSinceEpoch));
-}
-
-inline std::string getDateTimeStdtime(std::time_t secondsSinceEpoch)
-{
-    // secondsSinceEpoch >= maxSeconds
-    if constexpr (std::cmp_less_equal(details::maxSeconds,
-                                      std::numeric_limits<std::time_t>::max()))
-    {
-        if (std::cmp_greater_equal(secondsSinceEpoch, details::maxSeconds))
-        {
-            secondsSinceEpoch = details::maxSeconds;
-        }
-    }
-    boost::posix_time::ptime time =
-        boost::posix_time::from_time_t(secondsSinceEpoch);
-    return boost::posix_time::to_iso_extended_string(time) + "+00:00";
-}
-
-/**
- * Returns the current Date, Time & the local Time Offset
- * infromation in a pair
- *
- * @param[in] None
- *
- * @return std::pair<std::string, std::string>, which consist
- * of current DateTime & the TimeOffset strings respectively.
- */
-inline std::pair<std::string, std::string> getDateTimeOffsetNow()
-{
-    std::time_t time = std::time(nullptr);
-    std::string dateTime = getDateTimeStdtime(time);
-
-    /* extract the local Time Offset value from the
-     * recevied dateTime string.
-     */
-    std::string timeOffset("Z00:00");
-    std::size_t lastPos = dateTime.size();
-    std::size_t len = timeOffset.size();
-    if (lastPos > len)
-    {
-        timeOffset = dateTime.substr(lastPos - len);
-    }
-
-    return std::make_pair(dateTime, timeOffset);
 }
 
 inline bool constantTimeStringCompare(const std::string_view a,

@@ -15,9 +15,19 @@
 */
 #pragma once
 
+#include <nlohmann/json.hpp>
+
+#include <array>
+#include <charconv>
+#include <cstddef>
+#include <iostream>
+#include <numeric>
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
+
+// IWYU pragma: no_include <stddef.h>
 
 namespace redfish::registries
 {
@@ -45,20 +55,69 @@ struct Message
 };
 using MessageEntry = std::pair<const char*, const Message>;
 
-inline void fillMessageArgs(const std::span<const std::string_view> messageArgs,
-                            std::string& msg)
+inline std::string
+    fillMessageArgs(const std::span<const std::string_view> messageArgs,
+                    std::string_view msg)
 {
-    int i = 0;
-    for (const std::string_view& messageArg : messageArgs)
+    std::string ret;
+    size_t reserve = msg.size();
+    for (const std::string_view& arg : messageArgs)
     {
-        std::string argStr = "%" + std::to_string(i + 1);
-        size_t argPos = msg.find(argStr);
-        if (argPos != std::string::npos)
-        {
-            msg.replace(argPos, argStr.length(), messageArg);
-        }
-        i++;
+        reserve += arg.size();
     }
+    ret.reserve(reserve);
+
+    for (size_t stringIndex = msg.find('%'); stringIndex != std::string::npos;
+         stringIndex = msg.find('%'))
+    {
+        ret += msg.substr(0, stringIndex);
+        msg.remove_prefix(stringIndex + 1);
+        size_t number = 0;
+        auto it = std::from_chars(msg.data(), &*msg.end(), number);
+        if (it.ec != std::errc())
+        {
+            return "";
+        }
+        msg.remove_prefix(1);
+        // Redfish message args are 1 indexed.
+        number--;
+        if (number >= messageArgs.size())
+        {
+            return "";
+        }
+        ret += messageArgs[number];
+    }
+    ret += msg;
+    return ret;
+}
+
+inline nlohmann::json::object_t
+    getLogFromRegistry(const Header& header,
+                       std::span<const MessageEntry> registry, size_t index,
+                       std::span<const std::string_view> args)
+{
+    const redfish::registries::MessageEntry& entry = registry[index];
+    // Intentionally make a copy of the string, so we can append in the
+    // parameters.
+    std::string msg = entry.second.message;
+    redfish::registries::fillMessageArgs(args, msg);
+    nlohmann::json jArgs = nlohmann::json::array();
+    for (const std::string_view arg : args)
+    {
+        jArgs.push_back(arg);
+    }
+    std::string msgId = header.id;
+    msgId += ".";
+    msgId += entry.first;
+
+    nlohmann::json::object_t response;
+    response["@odata.type"] = "#Message.v1_1_1.Message";
+    response["MessageId"] = std::move(msgId);
+    response["Message"] = std::move(msg);
+    response["MessageArgs"] = std::move(jArgs);
+    response["MessageSeverity"] = entry.second.messageSeverity;
+    response["Resolution"] = entry.second.resolution;
+    return response;
 }
 
 } // namespace redfish::registries

@@ -1,21 +1,55 @@
 #pragma once
+#include "bmcweb_config.h"
+
 #include "app.hpp"
 #include "async_resp.hpp"
 #include "error_messages.hpp"
 #include "http_request.hpp"
 #include "http_response.hpp"
-#include "routing.hpp"
+#include "logging.hpp"
 
+#include <sys/types.h>
+
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/beast/http/message.hpp> // IWYU pragma: keep
+#include <boost/beast/http/status.hpp>
+#include <boost/beast/http/verb.hpp>
+#include <boost/url/params_view.hpp>
+#include <boost/url/string.hpp>
+#include <nlohmann/json.hpp>
+
+#include <algorithm>
+#include <array>
+#include <cctype>
 #include <charconv>
+#include <compare>
+#include <cstdint>
+#include <functional>
+#include <iterator>
+#include <limits>
+#include <map>
+#include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
+
+// IWYU pragma: no_include <boost/url/impl/params_view.hpp>
+// IWYU pragma: no_include <boost/beast/http/impl/message.hpp>
+// IWYU pragma: no_include <boost/intrusive/detail/list_iterator.hpp>
+// IWYU pragma: no_include <boost/algorithm/string/detail/classification.hpp>
+// IWYU pragma: no_include <boost/iterator/iterator_facade.hpp>
+// IWYU pragma: no_include <boost/type_index/type_index_facade.hpp>
+// IWYU pragma: no_include <stdint.h>
 
 namespace redfish
 {
 namespace query_param
 {
+inline constexpr size_t maxEntriesPerPage = 1000;
 
 enum class ExpandType : uint8_t
 {
@@ -23,6 +57,112 @@ enum class ExpandType : uint8_t
     Links,
     NotLinks,
     Both,
+};
+
+// A simple implementation of Trie to help |recursiveSelect|.
+class SelectTrieNode
+{
+  public:
+    SelectTrieNode() = default;
+
+    const SelectTrieNode* find(const std::string& jsonKey) const
+    {
+        auto it = children.find(jsonKey);
+        if (it == children.end())
+        {
+            return nullptr;
+        }
+        return &it->second;
+    }
+
+    // Creates a new node if the key doesn't exist, returns the reference to the
+    // newly created node; otherwise, return the reference to the existing node
+    SelectTrieNode* emplace(std::string_view jsonKey)
+    {
+        auto [it, _] = children.emplace(jsonKey, SelectTrieNode{});
+        return &it->second;
+    }
+
+    bool empty() const
+    {
+        return children.empty();
+    }
+
+    void clear()
+    {
+        children.clear();
+    }
+
+    void setToSelected()
+    {
+        selected = true;
+    }
+
+    bool isSelected() const
+    {
+        return selected;
+    }
+
+  private:
+    std::map<std::string, SelectTrieNode, std::less<>> children;
+    bool selected = false;
+};
+
+// Validates the property in the $select parameter. Every character is among
+// [a-zA-Z0-9#@_.] (taken from Redfish spec, section 9.6 Properties)
+inline bool isSelectedPropertyAllowed(std::string_view property)
+{
+    // These a magic number, but with it it's less likely that this code
+    // introduces CVE; e.g., too large properties crash the service.
+    constexpr int maxPropertyLength = 60;
+    if (property.empty() || property.size() > maxPropertyLength)
+    {
+        return false;
+    }
+    for (char ch : property)
+    {
+        if (std::isalnum(static_cast<unsigned char>(ch)) == 0 && ch != '#' &&
+            ch != '@' && ch != '.')
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+struct SelectTrie
+{
+    SelectTrie() = default;
+
+    // Inserts a $select value; returns false if the nestedProperty is illegal.
+    bool insertNode(std::string_view nestedProperty)
+    {
+        if (nestedProperty.empty())
+        {
+            return false;
+        }
+        SelectTrieNode* currNode = &root;
+        size_t index = nestedProperty.find_first_of('/');
+        while (!nestedProperty.empty())
+        {
+            std::string_view property = nestedProperty.substr(0, index);
+            if (!isSelectedPropertyAllowed(property))
+            {
+                return false;
+            }
+            currNode = currNode->emplace(property);
+            if (index == std::string::npos)
+            {
+                break;
+            }
+            nestedProperty.remove_prefix(index + 1);
+            index = nestedProperty.find_first_of('/');
+        }
+        currNode->setToSelected();
+        return true;
+    }
+
+    SelectTrieNode root;
 };
 
 // The struct stores the parsed query parameters of the default Redfish route.
@@ -35,10 +175,13 @@ struct Query
     ExpandType expandType = ExpandType::None;
 
     // Skip
-    size_t skip = 0;
+    std::optional<size_t> skip = std::nullopt;
 
     // Top
-    size_t top = std::numeric_limits<size_t>::max();
+    std::optional<size_t> top = std::nullopt;
+
+    // Select
+    SelectTrie selectTrie = {};
 };
 
 // The struct defines how resource handlers in redfish-core/lib/ can handle
@@ -50,6 +193,7 @@ struct QueryCapabilities
     bool canDelegateTop = false;
     bool canDelegateSkip = false;
     uint8_t canDelegateExpandLevel = 0;
+    bool canDelegateSelect = false;
 };
 
 // Delegates query parameters according to the given |queryCapabilities|
@@ -84,17 +228,24 @@ inline Query delegate(const QueryCapabilities& queryCapabilities, Query& query)
     }
 
     // delegate top
-    if (queryCapabilities.canDelegateTop)
+    if (query.top && queryCapabilities.canDelegateTop)
     {
         delegated.top = query.top;
-        query.top = std::numeric_limits<size_t>::max();
+        query.top = std::nullopt;
     }
 
     // delegate skip
-    if (queryCapabilities.canDelegateSkip)
+    if (query.skip && queryCapabilities.canDelegateSkip)
     {
         delegated.skip = query.skip;
         query.skip = 0;
+    }
+
+    // delegate select
+    if (!query.selectTrie.root.empty() && queryCapabilities.canDelegateSelect)
+    {
+        delegated.selectTrie = std::move(query.selectTrie);
+        query.selectTrie.root.clear();
     }
     return delegated;
 }
@@ -171,13 +322,12 @@ inline QueryError getNumericParam(std::string_view value, size_t& param)
 
 inline QueryError getSkipParam(std::string_view value, Query& query)
 {
-    return getNumericParam(value, query.skip);
+    return getNumericParam(value, query.skip.emplace());
 }
 
-static constexpr size_t maxEntriesPerPage = 1000;
 inline QueryError getTopParam(std::string_view value, Query& query)
 {
-    QueryError ret = getNumericParam(value, query.top);
+    QueryError ret = getNumericParam(value, query.top.emplace());
     if (ret != QueryError::Ok)
     {
         return ret;
@@ -190,6 +340,38 @@ inline QueryError getTopParam(std::string_view value, Query& query)
     }
 
     return QueryError::Ok;
+}
+
+// Parses and validates the $select parameter.
+// As per OData URL Conventions and Redfish Spec, the $select values shall be
+// comma separated Resource Path
+// Ref:
+// 1. https://datatracker.ietf.org/doc/html/rfc3986#section-3.3
+// 2.
+// https://docs.oasis-open.org/odata/odata/v4.01/os/abnf/odata-abnf-construction-rules.txt
+inline bool getSelectParam(std::string_view value, Query& query)
+{
+    std::vector<std::string> properties;
+    boost::split(properties, value, boost::is_any_of(","));
+    if (properties.empty())
+    {
+        return false;
+    }
+    // These a magic number, but with it it's less likely that this code
+    // introduces CVE; e.g., too large properties crash the service.
+    constexpr int maxNumProperties = 10;
+    if (properties.size() > maxNumProperties)
+    {
+        return false;
+    }
+    for (const auto& property : properties)
+    {
+        if (!query.selectTrie.insertNode(property))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 inline std::optional<Query>
@@ -250,6 +432,14 @@ inline std::optional<Query>
                 return std::nullopt;
             }
         }
+        else if (key == "$select" && bmcwebInsecureEnableQueryParams)
+        {
+            if (!getSelectParam(value, ret))
+            {
+                messages::queryParameterValueFormatError(res, value, key);
+                return std::nullopt;
+            }
+        }
         else
         {
             // Intentionally ignore other errors Redfish spec, 7.3.1
@@ -265,6 +455,12 @@ inline std::optional<Query>
             // "Shall ignore unknown or unsupported query parameters that do
             // not begin with $ ."
         }
+    }
+
+    if (ret.expandType != ExpandType::None && !ret.selectTrie.root.empty())
+    {
+        messages::queryCombinationInvalid(res);
+        return std::nullopt;
     }
 
     return ret;
@@ -542,6 +738,11 @@ class MultiAsyncResp : public std::enable_shared_from_this<MultiAsyncResp>
 
 inline void processTopAndSkip(const Query& query, crow::Response& res)
 {
+    if (!query.skip && !query.top)
+    {
+        // No work to do.
+        return;
+    }
     nlohmann::json::object_t* obj =
         res.jsonValue.get_ptr<nlohmann::json::object_t*>();
     if (obj == nullptr)
@@ -572,13 +773,85 @@ inline void processTopAndSkip(const Query& query, crow::Response& res)
         return;
     }
 
-    // Per section 7.3.1 of the Redfish specification, $skip is run before $top
-    // Can only skip as many values as we have
-    size_t skip = std::min(arr->size(), query.skip);
-    arr->erase(arr->begin(), arr->begin() + static_cast<ssize_t>(skip));
+    if (query.skip)
+    {
+        // Per section 7.3.1 of the Redfish specification, $skip is run before
+        // $top Can only skip as many values as we have
+        size_t skip = std::min(arr->size(), *query.skip);
+        arr->erase(arr->begin(), arr->begin() + static_cast<ssize_t>(skip));
+    }
+    if (query.top)
+    {
+        size_t top = std::min(arr->size(), *query.top);
+        arr->erase(arr->begin() + static_cast<ssize_t>(top), arr->end());
+    }
+}
 
-    size_t top = std::min(arr->size(), query.top);
-    arr->erase(arr->begin() + static_cast<ssize_t>(top), arr->end());
+// Given a JSON subtree |currRoot|, this function erases leaves whose keys are
+// not in the |currNode| Trie node.
+inline void recursiveSelect(nlohmann::json& currRoot,
+                            const SelectTrieNode& currNode)
+{
+    nlohmann::json::object_t* object =
+        currRoot.get_ptr<nlohmann::json::object_t*>();
+    if (object != nullptr)
+    {
+        BMCWEB_LOG_DEBUG << "Current JSON is an object";
+        auto it = currRoot.begin();
+        while (it != currRoot.end())
+        {
+            auto nextIt = std::next(it);
+            BMCWEB_LOG_DEBUG << "key=" << it.key();
+            const SelectTrieNode* nextNode = currNode.find(it.key());
+            // Per the Redfish spec section 7.3.3, the service shall select
+            // certain properties as if $select was omitted. This applies to
+            // every TrieNode that contains leaves and the root.
+            constexpr std::array<std::string_view, 5> reservedProperties = {
+                "@odata.id", "@odata.type", "@odata.context", "@odata.etag",
+                "error"};
+            bool reserved =
+                std::find(reservedProperties.begin(), reservedProperties.end(),
+                          it.key()) != reservedProperties.end();
+            if (reserved || (nextNode != nullptr && nextNode->isSelected()))
+            {
+                it = nextIt;
+                continue;
+            }
+            if (nextNode != nullptr)
+            {
+                BMCWEB_LOG_DEBUG << "Recursively select: " << it.key();
+                recursiveSelect(*it, *nextNode);
+                it = nextIt;
+                continue;
+            }
+            BMCWEB_LOG_DEBUG << it.key() << " is getting removed!";
+            it = currRoot.erase(it);
+        }
+    }
+    nlohmann::json::array_t* array =
+        currRoot.get_ptr<nlohmann::json::array_t*>();
+    if (array != nullptr)
+    {
+        BMCWEB_LOG_DEBUG << "Current JSON is an array";
+        // Array index is omitted, so reuse the same Trie node
+        for (nlohmann::json& nextRoot : *array)
+        {
+            recursiveSelect(nextRoot, currNode);
+        }
+    }
+}
+
+// The current implementation of $select still has the following TODOs due to
+//  ambiguity and/or complexity.
+// 1. combined with $expand; https://github.com/DMTF/Redfish/issues/5058 was
+// created for clarification.
+// 2. respect the full odata spec; e.g., deduplication, namespace, star (*),
+// etc.
+inline void processSelect(crow::Response& intermediateResponse,
+                          const SelectTrieNode& trieRoot)
+{
+    BMCWEB_LOG_DEBUG << "Process $select quary parameter";
+    recursiveSelect(intermediateResponse.jsonValue, trieRoot);
 }
 
 inline void
@@ -607,7 +880,7 @@ inline void
         return;
     }
 
-    if (query.top != std::numeric_limits<size_t>::max() || query.skip != 0)
+    if (query.top || query.skip)
     {
         processTopAndSkip(query, intermediateResponse);
     }
@@ -615,17 +888,22 @@ inline void
     if (query.expandType != ExpandType::None)
     {
         BMCWEB_LOG_DEBUG << "Executing expand query";
-        // TODO(ed) this is a copy of the response object.  Admittedly,
-        // we're inherently doing something inefficient, but we shouldn't
-        // have to do a full copy
-        auto asyncResp = std::make_shared<bmcweb::AsyncResp>();
-        asyncResp->res.setCompleteRequestHandler(std::move(completionHandler));
-        asyncResp->res.jsonValue = std::move(intermediateResponse.jsonValue);
-        auto multi = std::make_shared<MultiAsyncResp>(app, asyncResp);
+        auto asyncResp = std::make_shared<bmcweb::AsyncResp>(
+            std::move(intermediateResponse));
 
+        asyncResp->res.setCompleteRequestHandler(std::move(completionHandler));
+        auto multi = std::make_shared<MultiAsyncResp>(app, asyncResp);
         multi->startQuery(query);
         return;
     }
+
+    // According to Redfish Spec Section 7.3.1, $select is the last parameter to
+    // to process
+    if (!query.selectTrie.root.empty())
+    {
+        processSelect(intermediateResponse, query.selectTrie.root);
+    }
+
     completionHandler(intermediateResponse);
 }
 

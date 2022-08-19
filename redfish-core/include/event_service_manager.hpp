@@ -235,15 +235,17 @@ inline int formatEventLogEntry(const std::string& logEntryID,
     // Get the Message from the MessageRegistry
     const registries::Message* message = registries::formatMessage(messageID);
 
-    std::string msg;
-    std::string severity;
-    if (message != nullptr)
+    if (message == nullptr)
     {
-        msg = message->message;
-        severity = message->messageSeverity;
+        return -1;
     }
 
-    redfish::registries::fillMessageArgs(messageArgs, msg);
+    std::string msg =
+        redfish::registries::fillMessageArgs(messageArgs, message->message);
+    if (msg.empty())
+    {
+        return -1;
+    }
 
     // Get the Created time from the timestamp. The log timestamp is in
     // RFC3339 format which matches the Redfish format except for the
@@ -258,7 +260,7 @@ inline int formatEventLogEntry(const std::string& logEntryID,
     // Fill in the log entry with the gathered data
     logEntryJson["EventId"] = logEntryID;
     logEntryJson["EventType"] = "Event";
-    logEntryJson["Severity"] = std::move(severity);
+    logEntryJson["Severity"] = message->messageSeverity;
     logEntryJson["Message"] = std::move(msg);
     logEntryJson["MessageId"] = messageID;
     logEntryJson["MessageArgs"] = messageArgs;
@@ -414,15 +416,15 @@ class Subscription : public persistent_data::UserSubscription
         logEntryArray.push_back({});
         nlohmann::json& logEntryJson = logEntryArray.back();
 
-        logEntryJson = {
-            {"EventId", "TestID"},
-            {"EventType", "Event"},
-            {"Severity", "OK"},
-            {"Message", "Generated test event"},
-            {"MessageId", "OpenBMC.0.2.TestEventLog"},
-            {"MessageArgs", nlohmann::json::array()},
-            {"EventTimestamp", crow::utility::getDateTimeOffsetNow().first},
-            {"Context", customText}};
+        logEntryJson = {{"EventId", "TestID"},
+                        {"EventType", "Event"},
+                        {"Severity", "OK"},
+                        {"Message", "Generated test event"},
+                        {"MessageId", "OpenBMC.0.2.TestEventLog"},
+                        {"MessageArgs", nlohmann::json::array()},
+                        {"EventTimestamp",
+                         redfish::time_utils::getDateTimeOffsetNow().first},
+                        {"Context", customText}};
 
         nlohmann::json msg;
         msg["@odata.type"] = "#Event.v1_4_0.Event";
@@ -606,7 +608,7 @@ class EventServiceManager
     std::streampos redfishLogFilePosition{0};
     size_t noOfEventLogSubscribers{0};
     size_t noOfMetricReportSubscribers{0};
-    std::shared_ptr<sdbusplus::bus::match::match> matchTelemetryMonitor;
+    std::shared_ptr<sdbusplus::bus::match_t> matchTelemetryMonitor;
     boost::container::flat_map<std::string, std::shared_ptr<Subscription>>
         subscriptionsMap;
 
@@ -1025,7 +1027,8 @@ class EventServiceManager
         nlohmann::json event = {
             {"EventId", eventId},
             {"MemberId", memberId},
-            {"EventTimestamp", crow::utility::getDateTimeOffsetNow().first},
+            {"EventTimestamp",
+             redfish::time_utils::getDateTimeOffsetNow().first},
             {"OriginOfCondition", origin}};
         for (nlohmann::json::iterator it = event.begin(); it != event.end();
              ++it)
@@ -1083,7 +1086,8 @@ class EventServiceManager
         {
             std::shared_ptr<Subscription> entry = it.second;
             nlohmann::json msgJson = {
-                {"Timestamp", crow::utility::getDateTimeOffsetNow().first},
+                {"Timestamp",
+                 redfish::time_utils::getDateTimeOffsetNow().first},
                 {"OriginOfCondition", "/ibm/v1/HMC/BroadcastService"},
                 {"Name", "Broadcast Message"},
                 {"Message", broadcastMsg}};
@@ -1337,7 +1341,7 @@ class EventServiceManager
     }
 
 #endif
-    static void getReadingsForReport(sdbusplus::message::message& msg)
+    static void getReadingsForReport(sdbusplus::message_t& msg)
     {
         if (msg.is_method_error())
         {
@@ -1409,7 +1413,7 @@ class EventServiceManager
                                "interface='org.freedesktop.DBus.Properties',"
                                "arg0=xyz.openbmc_project.Telemetry.Report";
 
-        matchTelemetryMonitor = std::make_shared<sdbusplus::bus::match::match>(
+        matchTelemetryMonitor = std::make_shared<sdbusplus::bus::match_t>(
             *crow::connections::systemBus, matchStr, getReadingsForReport);
     }
 };

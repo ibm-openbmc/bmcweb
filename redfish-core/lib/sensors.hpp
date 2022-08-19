@@ -58,7 +58,7 @@ static auto sensorPaths = std::to_array<std::string_view>({
     "/xyz/openbmc_project/sensors/power",
     "/xyz/openbmc_project/sensors/current",
     "/xyz/openbmc_project/sensors/airflow",
-               "/xyz/openbmc_project/sensors/humidity",
+    "/xyz/openbmc_project/sensors/humidity",
 #ifdef BMCWEB_NEW_POWERSUBSYSTEM_THERMALSUBSYSTEM
     "/xyz/openbmc_project/sensors/voltage",
     "/xyz/openbmc_project/sensors/fan_tach",
@@ -469,62 +469,6 @@ inline void reduceSensorList(
             }
         }
     }
-}
-
-/**
- * @brief Retrieves valid chassis path
- * @param asyncResp   Pointer to object holding response data
- * @param callback  Callback for next step to get valid chassis path
- */
-template <typename Callback>
-void getValidChassisPath(const std::shared_ptr<SensorsAsyncResp>& asyncResp,
-                         Callback&& callback)
-{
-    BMCWEB_LOG_DEBUG << "checkChassisId enter";
-    const std::array<const char*, 2> interfaces = {
-        "xyz.openbmc_project.Inventory.Item.Board",
-        "xyz.openbmc_project.Inventory.Item.Chassis"};
-
-    auto respHandler = [callback{std::forward<Callback>(callback)}, asyncResp](
-                           const boost::system::error_code ec,
-                           const dbus::utility::MapperGetSubTreePathsResponse&
-                               chassisPaths) mutable {
-        BMCWEB_LOG_DEBUG << "getValidChassisPath respHandler enter";
-        if (ec)
-        {
-            BMCWEB_LOG_ERROR << "getValidChassisPath respHandler DBUS error: "
-                             << ec;
-            messages::internalError(asyncResp->asyncResp->res);
-            return;
-        }
-
-        std::optional<std::string> chassisPath;
-        std::string chassisName;
-        for (const std::string& chassis : chassisPaths)
-        {
-            sdbusplus::message::object_path path(chassis);
-            chassisName = path.filename();
-            if (chassisName.empty())
-            {
-                BMCWEB_LOG_ERROR << "Failed to find '/' in " << chassis;
-                continue;
-            }
-            if (chassisName == asyncResp->chassisId)
-            {
-                chassisPath = chassis;
-                break;
-            }
-        }
-        callback(chassisPath);
-    };
-
-    // Get the Chassis Collection
-    crow::connections::systemBus->async_method_call(
-        respHandler, "xyz.openbmc_project.ObjectMapper",
-        "/xyz/openbmc_project/object_mapper",
-        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
-        "/xyz/openbmc_project/inventory", 0, interfaces);
-    BMCWEB_LOG_DEBUG << "checkChassisId exit";
 }
 
 /**

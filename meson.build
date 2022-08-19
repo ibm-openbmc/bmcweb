@@ -80,6 +80,7 @@ feature_map = {
   'redfish-dump-log'                            : '-DBMCWEB_ENABLE_REDFISH_DUMP_LOG',
   'redfish-host-logger'                         : '-DBMCWEB_ENABLE_REDFISH_HOST_LOGGER',
   'redfish-new-powersubsystem-thermalsubsystem' : '-DBMCWEB_NEW_POWERSUBSYSTEM_THERMALSUBSYSTEM',
+  'redfish-oem-manager-fan-data'                : '-DBMCWEB_ENABLE_REDFISH_OEM_MANAGER_FAN_DATA',
   'redfish-provisioning-feature'                : '-DBMCWEB_ENABLE_REDFISH_PROVISIONING_FEATURE',
   'redfish-post-to-old-updateservice'           : '-DBMCWEB_ENABLE_REDFISH_UPDATESERVICE_OLD_POST_URL',
   'redfish'                                     : '-DBMCWEB_ENABLE_REDFISH',
@@ -99,6 +100,11 @@ foreach option_key,option_value : feature_map
     if(option_key == 'mutual-tls-auth' or option_key == 'insecure-disable-ssl')
       if(get_option('insecure-disable-ssl').disabled() or get_option('mutual-tls-auth').disabled())
         add_project_arguments(option_value,language:'cpp')
+        summary(option_key,option_value, section : 'Enabled Features')
+      endif
+    elif (option_key in ['basic-auth', 'cookie-auth', 'session-auth', 'xtoken-auth', 'mutual-tls-auth'])
+      if (get_option('insecure-disable-auth').disabled())
+        add_project_arguments(option_value, language:'cpp')
         summary(option_key,option_value, section : 'Enabled Features')
       endif
     else
@@ -393,6 +399,8 @@ srcfiles_unittest = [
   'include/ut/openbmc_dbus_rest_test.cpp',
   'redfish-core/include/utils/query_param_test.cpp',
   'redfish-core/lib/ut/service_root_test.cpp',
+  'redfish-core/lib/ut/thermal_subsystem_test.cpp',
+  'redfish-core/lib/chassis_test.cpp',
   'redfish-core/ut/configfile_test.cpp',
   'redfish-core/ut/hex_utils_test.cpp',
   'redfish-core/ut/ip_utils_test.cpp',

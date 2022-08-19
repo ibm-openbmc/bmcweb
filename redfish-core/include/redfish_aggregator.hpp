@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/lexical_cast.hpp>
 #include <dbus_utility.hpp>
 #include <error_messages.hpp>
 #include <http_client.hpp>

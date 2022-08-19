@@ -30,7 +30,21 @@ namespace redfish
 {
 
 inline void
-    handleServiceRootGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+    handleServiceRootHead(App& app, const crow::Request& req,
+                          const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+
+    asyncResp->res.addHeader(
+        boost::beast::http::field::link,
+        "</redfish/v1/JsonSchemas/ServiceRoot/ServiceRoot.json>; rel=describedby");
+}
+
+inline void handleServiceRootGetImpl(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     std::string uuid = persistent_data::getConfig().systemUuid;
     asyncResp->res.jsonValue["@odata.type"] =
@@ -80,25 +94,29 @@ inline void
     protocolFeatures["ExpandQuery"]["NoLinks"] =
         bmcwebInsecureEnableQueryParams;
     protocolFeatures["FilterQuery"] = false;
-    protocolFeatures["OnlyMemberQuery"] = bmcwebInsecureEnableQueryParams;
-    protocolFeatures["SelectQuery"] = false;
+    protocolFeatures["OnlyMemberQuery"] = true;
+    protocolFeatures["SelectQuery"] = bmcwebInsecureEnableQueryParams;
     protocolFeatures["DeepOperations"]["DeepPOST"] = false;
     protocolFeatures["DeepOperations"]["DeepPATCH"] = false;
+}
+inline void
+    handleServiceRootGet(App& app, const crow::Request& req,
+                         const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    handleServiceRootHead(app, req, asyncResp);
+    handleServiceRootGetImpl(asyncResp);
 }
 
 inline void requestRoutesServiceRoot(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/")
+        .privileges(redfish::privileges::headServiceRoot)
+        .methods(boost::beast::http::verb::head)(
+            std::bind_front(handleServiceRootHead, std::ref(app)));
+    BMCWEB_ROUTE(app, "/redfish/v1/")
         .privileges(redfish::privileges::getServiceRoot)
         .methods(boost::beast::http::verb::get)(
-            [&app](const crow::Request& req,
-                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
-        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
-        {
-            return;
-        }
-        handleServiceRootGet(asyncResp);
-        });
+            std::bind_front(handleServiceRootGet, std::ref(app)));
 }
 
 } // namespace redfish

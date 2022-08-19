@@ -1,13 +1,23 @@
+#include "bmcweb_config.h"
+
 #include "query_param.hpp"
 
 #include <boost/system/result.hpp>
 #include <boost/url/url_view.hpp>
 #include <nlohmann/json.hpp>
 
-#include <cstddef>
+#include <new>
+#include <span>
 
-#include <gmock/gmock-matchers.h>
-#include <gtest/gtest.h>
+#include <gmock/gmock.h> // IWYU pragma: keep
+#include <gtest/gtest.h> // IWYU pragma: keep
+
+// IWYU pragma: no_include <gtest/gtest-message.h>
+// IWYU pragma: no_include <gtest/gtest-test-part.h>
+// IWYU pragma: no_include "gtest/gtest_pred_impl.h"
+// IWYU pragma: no_include <boost/url/impl/url_view.hpp>
+// IWYU pragma: no_include <gmock/gmock-matchers.h>
+// IWYU pragma: no_include <gtest/gtest-matchers.h>
 
 namespace redfish::query_param
 {
@@ -75,7 +85,7 @@ TEST(Delegate, TopNegative)
         .top = 42,
     };
     Query delegated = delegate(QueryCapabilities{}, query);
-    EXPECT_EQ(delegated.top, std::numeric_limits<size_t>::max());
+    EXPECT_EQ(delegated.top, std::nullopt);
     EXPECT_EQ(query.top, 42);
 }
 
@@ -89,7 +99,7 @@ TEST(Delegate, TopPositive)
     };
     Query delegated = delegate(capabilities, query);
     EXPECT_EQ(delegated.top, 42);
-    EXPECT_EQ(query.top, std::numeric_limits<size_t>::max());
+    EXPECT_EQ(query.top, std::nullopt);
 }
 
 TEST(Delegate, SkipNegative)
@@ -98,7 +108,7 @@ TEST(Delegate, SkipNegative)
         .skip = 42,
     };
     Query delegated = delegate(QueryCapabilities{}, query);
-    EXPECT_EQ(delegated.skip, 0);
+    EXPECT_EQ(delegated.skip, std::nullopt);
     EXPECT_EQ(query.skip, 42);
 }
 
@@ -148,6 +158,216 @@ TEST(FormatQueryForExpand, DelegatedSubQueriesHaveSameTypeAndOneLessLevels)
     EXPECT_EQ(formatQueryForExpand(
                   Query{.expandLevel = 2, .expandType = ExpandType::NotLinks}),
               "?$expand=.($levels=1)");
+}
+
+TEST(IsSelectedPropertyAllowed, NotAllowedCharactersReturnsFalse)
+{
+    EXPECT_FALSE(isSelectedPropertyAllowed("?"));
+    EXPECT_FALSE(isSelectedPropertyAllowed("!"));
+    EXPECT_FALSE(isSelectedPropertyAllowed("-"));
+    EXPECT_FALSE(isSelectedPropertyAllowed("/"));
+}
+
+TEST(IsSelectedPropertyAllowed, EmptyStringReturnsFalse)
+{
+    EXPECT_FALSE(isSelectedPropertyAllowed(""));
+}
+
+TEST(IsSelectedPropertyAllowed, TooLongStringReturnsFalse)
+{
+    std::string strUnderTest = "ab";
+    // 2^10
+    for (int i = 0; i < 10; ++i)
+    {
+        strUnderTest += strUnderTest;
+    }
+    EXPECT_FALSE(isSelectedPropertyAllowed(strUnderTest));
+}
+
+TEST(IsSelectedPropertyAllowed, ValidPropertReturnsTrue)
+{
+    EXPECT_TRUE(isSelectedPropertyAllowed("Chassis"));
+    EXPECT_TRUE(isSelectedPropertyAllowed("@odata.type"));
+    EXPECT_TRUE(isSelectedPropertyAllowed("#ComputerSystem.Reset"));
+    EXPECT_TRUE(isSelectedPropertyAllowed(
+        "BootSourceOverrideTarget@Redfish.AllowableValues"));
+}
+
+TEST(GetSelectParam, EmptyValueReturnsError)
+{
+    Query query;
+    EXPECT_FALSE(getSelectParam("", query));
+}
+
+TEST(GetSelectParam, EmptyPropertyReturnsError)
+{
+    Query query;
+    EXPECT_FALSE(getSelectParam(",", query));
+    EXPECT_FALSE(getSelectParam(",,", query));
+}
+
+TEST(GetSelectParam, InvalidPathPropertyReturnsError)
+{
+    Query query;
+    EXPECT_FALSE(getSelectParam("\0,\0", query));
+    EXPECT_FALSE(getSelectParam("%%%", query));
+}
+
+TEST(GetSelectParam, TrieNodesRespectAllProperties)
+{
+    Query query;
+    ASSERT_TRUE(getSelectParam("foo/bar,bar", query));
+    ASSERT_FALSE(query.selectTrie.root.empty());
+
+    const SelectTrieNode* child = query.selectTrie.root.find("foo");
+    ASSERT_NE(child, nullptr);
+    EXPECT_FALSE(child->isSelected());
+    ASSERT_NE(child->find("bar"), nullptr);
+    EXPECT_TRUE(child->find("bar")->isSelected());
+
+    ASSERT_NE(query.selectTrie.root.find("bar"), nullptr);
+    EXPECT_TRUE(query.selectTrie.root.find("bar")->isSelected());
+}
+
+SelectTrie getTrie(std::span<std::string_view> properties)
+{
+    SelectTrie trie;
+    for (auto const& property : properties)
+    {
+        EXPECT_TRUE(trie.insertNode(property));
+    }
+    return trie;
+}
+
+TEST(RecursiveSelect, ExpectedKeysAreSelectInSimpleObject)
+{
+    std::vector<std::string_view> properties = {"SelectMe"};
+    SelectTrie trie = getTrie(properties);
+    nlohmann::json root = R"({"SelectMe" : "foo", "OmitMe" : "bar"})"_json;
+    nlohmann::json expected = R"({"SelectMe" : "foo"})"_json;
+    recursiveSelect(root, trie.root);
+    EXPECT_EQ(root, expected);
+}
+
+TEST(RecursiveSelect, ExpectedKeysAreSelectInNestedObject)
+{
+    std::vector<std::string_view> properties = {
+        "SelectMe", "Prefix0/ExplicitSelectMe", "Prefix1", "Prefix2",
+        "Prefix4/ExplicitSelectMe"};
+    SelectTrie trie = getTrie(properties);
+    nlohmann::json root = R"(
+{
+  "SelectMe":[
+    "foo"
+  ],
+  "OmitMe":"bar",
+  "Prefix0":{
+    "ExplicitSelectMe":"123",
+    "OmitMe":"456"
+  },
+  "Prefix1":{
+    "ImplicitSelectMe":"123"
+  },
+  "Prefix2":[
+    {
+      "ImplicitSelectMe":"123"
+    }
+  ],
+  "Prefix3":[
+    "OmitMe"
+  ],
+  "Prefix4":[
+    {
+      "ExplicitSelectMe":"123",
+      "OmitMe": "456"
+    }
+  ]
+}
+)"_json;
+    nlohmann::json expected = R"(
+{
+  "SelectMe":[
+    "foo"
+  ],
+  "Prefix0":{
+    "ExplicitSelectMe":"123"
+  },
+  "Prefix1":{
+    "ImplicitSelectMe":"123"
+  },
+  "Prefix2":[
+    {
+      "ImplicitSelectMe":"123"
+    }
+  ],
+  "Prefix4":[
+    {
+      "ExplicitSelectMe":"123"
+    }
+  ]
+}
+)"_json;
+    recursiveSelect(root, trie.root);
+    EXPECT_EQ(root, expected);
+}
+
+TEST(RecursiveSelect, ReservedPropertiesAreSelected)
+{
+    nlohmann::json root = R"(
+{
+  "OmitMe":"bar",
+  "@odata.id":1,
+  "@odata.type":2,
+  "@odata.context":3,
+  "@odata.etag":4,
+  "Prefix1":{
+    "OmitMe":"bar",
+    "@odata.id":1,
+    "ExplicitSelectMe": 1
+  },
+  "Prefix2":[1, 2, 3],
+  "Prefix3":[
+    {
+      "OmitMe":"bar",
+      "@odata.id":1,
+      "ExplicitSelectMe": 1
+    }
+  ]
+}
+)"_json;
+    nlohmann::json expected = R"(
+{
+  "@odata.id":1,
+  "@odata.type":2,
+  "@odata.context":3,
+  "@odata.etag":4,
+  "Prefix1":{
+    "@odata.id":1,
+    "ExplicitSelectMe": 1
+  },
+  "Prefix3":[
+    {
+      "@odata.id":1,
+      "ExplicitSelectMe": 1
+    }
+  ]
+}
+)"_json;
+    auto ret = boost::urls::parse_relative_ref(
+        "/redfish/v1?$select=Prefix1/ExplicitSelectMe,Prefix3/ExplicitSelectMe");
+    ASSERT_TRUE(ret);
+    crow::Response res;
+    std::optional<Query> query = parseParameters(ret->params(), res);
+    if constexpr (bmcwebInsecureEnableQueryParams)
+    {
+        ASSERT_NE(query, std::nullopt);
+        recursiveSelect(root, query->selectTrie.root);
+        EXPECT_EQ(root, expected);
+    }
+    else
+    {
+        EXPECT_EQ(query, std::nullopt);
+    }
 }
 
 TEST(QueryParams, ParseParametersOnly)

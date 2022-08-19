@@ -1249,12 +1249,6 @@ class Router
         {
             asyncResp->res.addHeader(boost::beast::http::field::allow,
                                      allowHeader);
-
-            // If this is a header request, we're done.
-            if (req.method() == boost::beast::http::verb::head)
-            {
-                return;
-            }
         }
 
         const std::pair<unsigned, RoutingParams>& found = trie.find(req.url);
@@ -1368,7 +1362,7 @@ class Router
                 passwordExpired = false;
             }
 
-            // Get the userprivileges from the role
+            // Get the user's privileges from the role
             redfish::Privileges userPrivileges =
                 redfish::getUserPrivileges(userRole);
 
@@ -1377,10 +1371,10 @@ class Router
             // value from any previous use of this session.
             req.session->isConfigureSelfOnly = *passwordExpired;
 
-            // Modifyprivileges if isConfigureSelfOnly.
+            // Modify privileges if isConfigureSelfOnly.
             if (req.session->isConfigureSelfOnly)
             {
-                // Remove allprivileges except ConfigureSelf
+                // Remove all privileges except ConfigureSelf
                 userPrivileges = userPrivileges.intersection(
                     redfish::Privileges{"ConfigureSelf"});
                 BMCWEB_LOG_DEBUG << "Operation limited to ConfigureSelf";

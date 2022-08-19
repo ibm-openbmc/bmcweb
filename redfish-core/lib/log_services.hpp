@@ -27,6 +27,7 @@
 #include <unistd.h>
 
 #include <app.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/split.hpp>
@@ -37,6 +38,7 @@
 #include <error_messages.hpp>
 #include <query.hpp>
 #include <registries/privilege_registry.hpp>
+#include <utils/time_utils.hpp>
 
 #include <charconv>
 #include <filesystem>
@@ -177,7 +179,8 @@ inline static bool getEntryTimestamp(sd_journal* journal,
                          << strerror(-ret);
         return false;
     }
-    entryTimestamp = crow::utility::getDateTimeUint(timestamp / 1000 / 1000);
+    entryTimestamp =
+        redfish::time_utils::getDateTimeUint(timestamp / 1000 / 1000);
     return true;
 }
 
@@ -326,6 +329,69 @@ static bool
     return !redfishLogFiles.empty();
 }
 
+inline void parseDumpEntryFromDbusObject(
+    const dbus::utility::ManagedObjectType::value_type& object,
+    std::string& dumpStatus, uint64_t& size, uint64_t& timestamp,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    for (const auto& interfaceMap : object.second)
+    {
+        if (interfaceMap.first == "xyz.openbmc_project.Common.Progress")
+        {
+            for (const auto& propertyMap : interfaceMap.second)
+            {
+                if (propertyMap.first == "Status")
+                {
+                    const auto* status =
+                        std::get_if<std::string>(&propertyMap.second);
+                    if (status == nullptr)
+                    {
+                        messages::internalError(asyncResp->res);
+                        break;
+                    }
+                    dumpStatus = *status;
+                }
+            }
+        }
+        else if (interfaceMap.first == "xyz.openbmc_project.Dump.Entry")
+        {
+            for (const auto& propertyMap : interfaceMap.second)
+            {
+                if (propertyMap.first == "Size")
+                {
+                    const auto* sizePtr =
+                        std::get_if<uint64_t>(&propertyMap.second);
+                    if (sizePtr == nullptr)
+                    {
+                        messages::internalError(asyncResp->res);
+                        break;
+                    }
+                    size = *sizePtr;
+                    break;
+                }
+            }
+        }
+        else if (interfaceMap.first == "xyz.openbmc_project.Time.EpochTime")
+        {
+            for (const auto& propertyMap : interfaceMap.second)
+            {
+                if (propertyMap.first == "Elapsed")
+                {
+                    const uint64_t* usecsTimeStamp =
+                        std::get_if<uint64_t>(&propertyMap.second);
+                    if (usecsTimeStamp == nullptr)
+                    {
+                        messages::internalError(asyncResp->res);
+                        break;
+                    }
+                    timestamp = (*usecsTimeStamp / 1000 / 1000);
+                    break;
+                }
+            }
+        }
+    }
+}
+
 static std::string getDumpEntriesPath(const std::string& dumpType)
 {
     std::string entriesPath;
@@ -416,65 +482,8 @@ inline void
                 continue;
             }
 
-            for (auto& interfaceMap : object.second)
-            {
-                if (interfaceMap.first == "xyz.openbmc_project.Common.Progress")
-                {
-                    for (const auto& propertyMap : interfaceMap.second)
-                    {
-                        if (propertyMap.first == "Status")
-                        {
-                            const auto* status =
-                                std::get_if<std::string>(&propertyMap.second);
-                            if (status == nullptr)
-                            {
-                                messages::internalError(asyncResp->res);
-                                break;
-                            }
-                            dumpStatus = *status;
-                        }
-                    }
-                }
-                else if (interfaceMap.first == "xyz.openbmc_project.Dump.Entry")
-                {
-
-                    for (auto& propertyMap : interfaceMap.second)
-                    {
-                        if (propertyMap.first == "Size")
-                        {
-                            const auto* sizePtr =
-                                std::get_if<uint64_t>(&propertyMap.second);
-                            if (sizePtr == nullptr)
-                            {
-                                messages::internalError(asyncResp->res);
-                                break;
-                            }
-                            size = *sizePtr;
-                            break;
-                        }
-                    }
-                }
-                else if (interfaceMap.first ==
-                         "xyz.openbmc_project.Time.EpochTime")
-                {
-
-                    for (const auto& propertyMap : interfaceMap.second)
-                    {
-                        if (propertyMap.first == "Elapsed")
-                        {
-                            const uint64_t* usecsTimeStamp =
-                                std::get_if<uint64_t>(&propertyMap.second);
-                            if (usecsTimeStamp == nullptr)
-                            {
-                                messages::internalError(asyncResp->res);
-                                break;
-                            }
-                            timestamp = (*usecsTimeStamp / 1000 / 1000);
-                            break;
-                        }
-                    }
-                }
-            }
+            parseDumpEntryFromDbusObject(object, dumpStatus, size, timestamp,
+                                         asyncResp);
 
             if (dumpStatus !=
                     "xyz.openbmc_project.Common.Progress.OperationStatus.Completed" &&
@@ -488,7 +497,8 @@ inline void
             thisEntry["@odata.id"] = entriesPath + entryID;
             thisEntry["Id"] = entryID;
             thisEntry["EntryType"] = "Event";
-            thisEntry["Created"] = crow::utility::getDateTimeUint(timestamp);
+            thisEntry["Created"] =
+                redfish::time_utils::getDateTimeUint(timestamp);
             thisEntry["Name"] = dumpType + " Dump Entry";
 
             if (dumpType == "BMC")
@@ -553,63 +563,8 @@ inline void
             uint64_t size = 0;
             std::string dumpStatus;
 
-            for (const auto& interfaceMap : objectPath.second)
-            {
-                if (interfaceMap.first == "xyz.openbmc_project.Common.Progress")
-                {
-                    for (const auto& propertyMap : interfaceMap.second)
-                    {
-                        if (propertyMap.first == "Status")
-                        {
-                            const std::string* status =
-                                std::get_if<std::string>(&propertyMap.second);
-                            if (status == nullptr)
-                            {
-                                messages::internalError(asyncResp->res);
-                                break;
-                            }
-                            dumpStatus = *status;
-                        }
-                    }
-                }
-                else if (interfaceMap.first == "xyz.openbmc_project.Dump.Entry")
-                {
-                    for (const auto& propertyMap : interfaceMap.second)
-                    {
-                        if (propertyMap.first == "Size")
-                        {
-                            const uint64_t* sizePtr =
-                                std::get_if<uint64_t>(&propertyMap.second);
-                            if (sizePtr == nullptr)
-                            {
-                                messages::internalError(asyncResp->res);
-                                break;
-                            }
-                            size = *sizePtr;
-                            break;
-                        }
-                    }
-                }
-                else if (interfaceMap.first ==
-                         "xyz.openbmc_project.Time.EpochTime")
-                {
-                    for (const auto& propertyMap : interfaceMap.second)
-                    {
-                        if (propertyMap.first == "Elapsed")
-                        {
-                            const uint64_t* usecsTimeStamp =
-                                std::get_if<uint64_t>(&propertyMap.second);
-                            if (usecsTimeStamp == nullptr)
-                            {
-                                messages::internalError(asyncResp->res);
-                                break;
-                            }
-                            timestamp = *usecsTimeStamp / 1000 / 1000;
-                            break;
-                        }
-                    }
-                }
-            }
+            parseDumpEntryFromDbusObject(objectPath, dumpStatus, size,
+                                         timestamp, asyncResp);
 
             if (dumpStatus !=
                     "xyz.openbmc_project.Common.Progress.OperationStatus.Completed" &&
@@ -628,7 +583,7 @@ inline void
             asyncResp->res.jsonValue["Id"] = entryID;
             asyncResp->res.jsonValue["EntryType"] = "Event";
             asyncResp->res.jsonValue["Created"] =
-                crow::utility::getDateTimeUint(timestamp);
+                redfish::time_utils::getDateTimeUint(timestamp);
             asyncResp->res.jsonValue["Name"] = dumpType + " Dump Entry";
 
             if (dumpType == "BMC")
@@ -693,9 +648,9 @@ inline void
                            const std::string& dumpType)
 {
     std::shared_ptr<task::TaskData> task = task::TaskData::createTask(
-        [dumpId, dumpPath, dumpType](
-            boost::system::error_code err, sdbusplus::message::message& m,
-            const std::shared_ptr<task::TaskData>& taskData) {
+        [dumpId, dumpPath,
+         dumpType](boost::system::error_code err, sdbusplus::message_t& m,
+                   const std::shared_ptr<task::TaskData>& taskData) {
         if (err)
         {
             BMCWEB_LOG_ERROR << "Error in creating a dump";
@@ -773,6 +728,7 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             messages::internalError(asyncResp->res);
             return;
         }
+        dumpPath = "/redfish/v1/Systems/system/LogServices/Dump/";
     }
     else if (dumpType == "BMC")
     {
@@ -791,15 +747,60 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             messages::internalError(asyncResp->res);
             return;
         }
+        dumpPath = "/redfish/v1/Managers/bmc/LogServices/Dump/";
+    }
+    else
+    {
+        BMCWEB_LOG_ERROR << "CreateDump failed. Unknown dump type";
+        messages::internalError(asyncResp->res);
+        return;
     }
 
     crow::connections::systemBus->async_method_call(
         [asyncResp, payload(task::Payload(req)), dumpPath,
          dumpType](const boost::system::error_code ec,
+                   const sdbusplus::message::message& msg,
                    const uint32_t& dumpId) mutable {
         if (ec)
         {
             BMCWEB_LOG_ERROR << "CreateDump resp_handler got error " << ec;
+            const sd_bus_error* dbusError = msg.get_error();
+            if (dbusError == nullptr)
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            BMCWEB_LOG_ERROR << "CreateDump DBus error: " << dbusError->name
+                             << " and error msg: " << dbusError->message;
+            if (std::string_view(
+                    "xyz.openbmc_project.Common.Error.NotAllowed") ==
+                dbusError->name)
+            {
+                messages::resourceInStandby(asyncResp->res);
+                return;
+            }
+            if (std::string_view(
+                    "xyz.openbmc_project.Dump.Create.Error.Disabled") ==
+                dbusError->name)
+            {
+                messages::serviceDisabled(asyncResp->res, dumpPath);
+                return;
+            }
+            if (std::string_view(
+                    "xyz.openbmc_project.Common.Error.Unavailable") ==
+                dbusError->name)
+            {
+                messages::resourceInUse(asyncResp->res);
+                return;
+            }
+            // Other Dbus errors such as:
+            // xyz.openbmc_project.Common.Error.InvalidArgument &
+            // org.freedesktop.DBus.Error.InvalidArgs are all related to
+            // the dbus call that is made here in the bmcweb
+            // implementation and has nothing to do with the client's
+            // input in the request. Hence, returning internal error
+            // back to the client.
             messages::internalError(asyncResp->res);
             return;
         }
@@ -992,7 +993,7 @@ inline void requestRoutesEventLogService(App& app)
         asyncResp->res.jsonValue["OverWritePolicy"] = "WrapsWhenFull";
 
         std::pair<std::string, std::string> redfishDateTimeOffset =
-            crow::utility::getDateTimeOffsetNow();
+            redfish::time_utils::getDateTimeOffsetNow();
 
         asyncResp->res.jsonValue["DateTime"] = redfishDateTimeOffset.first;
         asyncResp->res.jsonValue["DateTimeLocalOffset"] =
@@ -1169,6 +1170,10 @@ inline void requestRoutesJournalEventLogEntryCollection(App& app)
         {
             return;
         }
+        size_t top =
+            delegatedQuery.top.value_or(query_param::maxEntriesPerPage);
+        size_t skip = delegatedQuery.skip.value_or(0);
+
         // Collections don't include the static data added by SubRoute
         // because it has a duplicate entry for members
         asyncResp->res.jsonValue["@odata.type"] =
@@ -1226,8 +1231,7 @@ inline void requestRoutesJournalEventLogEntryCollection(App& app)
                 entryCount++;
                 // Handle paging using skip (number of entries to skip from the
                 // start) and top (number of entries to display)
-                if (entryCount <= delegatedQuery.skip ||
-                    entryCount > delegatedQuery.skip + delegatedQuery.top)
+                if (entryCount <= skip || entryCount > skip + top)
                 {
                     continue;
                 }
@@ -1236,11 +1240,11 @@ inline void requestRoutesJournalEventLogEntryCollection(App& app)
             }
         }
         asyncResp->res.jsonValue["Members@odata.count"] = entryCount;
-        if (delegatedQuery.skip + delegatedQuery.top < entryCount)
+        if (skip + top < entryCount)
         {
             asyncResp->res.jsonValue["Members@odata.nextLink"] =
                 "/redfish/v1/Systems/system/LogServices/EventLog/Entries?$skip=" +
-                std::to_string(delegatedQuery.skip + delegatedQuery.top);
+                std::to_string(skip + top);
         }
         });
 }
@@ -1441,9 +1445,9 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                 thisEntry["Severity"] =
                     translateSeverityDbusToRedfish(*severity);
                 thisEntry["Created"] =
-                    crow::utility::getDateTimeUintMs(*timestamp);
+                    redfish::time_utils::getDateTimeUintMs(*timestamp);
                 thisEntry["Modified"] =
-                    crow::utility::getDateTimeUintMs(*updateTimestamp);
+                    redfish::time_utils::getDateTimeUintMs(*updateTimestamp);
                 if (filePath != nullptr)
                 {
                     thisEntry["AdditionalDataURI"] =
@@ -1564,9 +1568,9 @@ inline void requestRoutesDBusEventLogEntry(App& app)
             asyncResp->res.jsonValue["Severity"] =
                 translateSeverityDbusToRedfish(*severity);
             asyncResp->res.jsonValue["Created"] =
-                crow::utility::getDateTimeUintMs(*timestamp);
+                redfish::time_utils::getDateTimeUintMs(*timestamp);
             asyncResp->res.jsonValue["Modified"] =
-                crow::utility::getDateTimeUintMs(*updateTimestamp);
+                redfish::time_utils::getDateTimeUintMs(*updateTimestamp);
             if (filePath != nullptr)
             {
                 asyncResp->res.jsonValue["AdditionalDataURI"] =
@@ -1746,9 +1750,10 @@ inline void requestRoutesDBusEventLogEntryDownload(App& app)
             std::string_view strData(data.data(), data.size());
             std::string output = crow::utility::base64encode(strData);
 
-            asyncResp->res.addHeader("Content-Type",
+            asyncResp->res.addHeader(boost::beast::http::field::content_type,
                                      "application/octet-stream");
-            asyncResp->res.addHeader("Content-Transfer-Encoding", "Base64");
+            asyncResp->res.addHeader(
+                boost::beast::http::field::content_transfer_encoding, "Base64");
             asyncResp->res.body() = std::move(output);
             },
             "xyz.openbmc_project.Logging",
@@ -1892,13 +1897,16 @@ inline void requestRoutesSystemHostLoggerCollection(App& app)
             BMCWEB_LOG_ERROR << "fail to get host log file path";
             return;
         }
-
+        // If we weren't provided top and skip limits, use the defaults.
+        size_t skip = delegatedQuery.skip.value_or(0);
+        size_t top =
+            delegatedQuery.top.value_or(query_param::maxEntriesPerPage);
         size_t logCount = 0;
         // This vector only store the entries we want to expose that
         // control by skip and top.
         std::vector<std::string> logEntries;
-        if (!getHostLoggerEntries(hostLoggerFiles, delegatedQuery.skip,
-                                  delegatedQuery.top, logEntries, logCount))
+        if (!getHostLoggerEntries(hostLoggerFiles, skip, top, logEntries,
+                                  logCount))
         {
             messages::internalError(asyncResp->res);
             return;
@@ -1915,17 +1923,17 @@ inline void requestRoutesSystemHostLoggerCollection(App& app)
             for (size_t i = 0; i < logEntries.size(); i++)
             {
                 nlohmann::json::object_t hostLogEntry;
-                fillHostLoggerEntryJson(std::to_string(delegatedQuery.skip + i),
-                                        logEntries[i], hostLogEntry);
+                fillHostLoggerEntryJson(std::to_string(skip + i), logEntries[i],
+                                        hostLogEntry);
                 logEntryArray.push_back(std::move(hostLogEntry));
             }
 
             asyncResp->res.jsonValue["Members@odata.count"] = logCount;
-            if (delegatedQuery.skip + delegatedQuery.top < logCount)
+            if (skip + top < logCount)
             {
                 asyncResp->res.jsonValue["Members@odata.nextLink"] =
                     "/redfish/v1/Systems/system/LogServices/HostLogger/Entries?$skip=" +
-                    std::to_string(delegatedQuery.skip + delegatedQuery.top);
+                    std::to_string(skip + top);
             }
         }
         });
@@ -1971,7 +1979,7 @@ inline void requestRoutesSystemHostLoggerLogEntry(App& app)
         }
 
         size_t logCount = 0;
-        uint64_t top = 1;
+        size_t top = 1;
         std::vector<std::string> logEntries;
         // We can get specific entry by skip and top. For example, if we
         // want to get nth entry, we can set skip = n-1 and top = 1 to
@@ -2101,7 +2109,7 @@ inline void requestRoutesBMCJournalLogService(App& app)
         asyncResp->res.jsonValue["OverWritePolicy"] = "WrapsWhenFull";
 
         std::pair<std::string, std::string> redfishDateTimeOffset =
-            crow::utility::getDateTimeOffsetNow();
+            redfish::time_utils::getDateTimeOffsetNow();
         asyncResp->res.jsonValue["DateTime"] = redfishDateTimeOffset.first;
         asyncResp->res.jsonValue["DateTimeLocalOffset"] =
             redfishDateTimeOffset.second;
@@ -2190,6 +2198,11 @@ inline void requestRoutesBMCJournalLogEntryCollection(App& app)
         {
             return;
         }
+
+        size_t skip = delegatedQuery.skip.value_or(0);
+        size_t top =
+            delegatedQuery.top.value_or(query_param::maxEntriesPerPage);
+
         // Collections don't include the static data added by SubRoute
         // because it has a duplicate entry for members
         asyncResp->res.jsonValue["@odata.type"] =
@@ -2223,8 +2236,7 @@ inline void requestRoutesBMCJournalLogEntryCollection(App& app)
             entryCount++;
             // Handle paging using skip (number of entries to skip from
             // the start) and top (number of entries to display)
-            if (entryCount <= delegatedQuery.skip ||
-                entryCount > delegatedQuery.skip + delegatedQuery.top)
+            if (entryCount <= skip || entryCount > skip + top)
             {
                 continue;
             }
@@ -2246,11 +2258,11 @@ inline void requestRoutesBMCJournalLogEntryCollection(App& app)
             logEntryArray.push_back(std::move(bmcJournalLogEntry));
         }
         asyncResp->res.jsonValue["Members@odata.count"] = entryCount;
-        if (delegatedQuery.skip + delegatedQuery.top < entryCount)
+        if (skip + top < entryCount)
         {
             asyncResp->res.jsonValue["Members@odata.nextLink"] =
                 "/redfish/v1/Managers/bmc/LogServices/Journal/Entries?$skip=" +
-                std::to_string(delegatedQuery.skip + delegatedQuery.top);
+                std::to_string(skip + top);
         }
         });
 }
@@ -2369,7 +2381,7 @@ inline void
     asyncResp->res.jsonValue["OverWritePolicy"] = std::move(overWritePolicy);
 
     std::pair<std::string, std::string> redfishDateTimeOffset =
-        crow::utility::getDateTimeOffsetNow();
+        redfish::time_utils::getDateTimeOffsetNow();
     asyncResp->res.jsonValue["DateTime"] = redfishDateTimeOffset.first;
     asyncResp->res.jsonValue["DateTimeLocalOffset"] =
         redfishDateTimeOffset.second;
@@ -2569,7 +2581,7 @@ inline void requestRoutesSystemDumpService(App& app)
         asyncResp->res.jsonValue["OverWritePolicy"] = "WrapsWhenFull";
 
         std::pair<std::string, std::string> redfishDateTimeOffset =
-            crow::utility::getDateTimeOffsetNow();
+            redfish::time_utils::getDateTimeOffsetNow();
         asyncResp->res.jsonValue["DateTime"] = redfishDateTimeOffset.first;
         asyncResp->res.jsonValue["DateTimeLocalOffset"] =
             redfishDateTimeOffset.second;
@@ -2703,7 +2715,7 @@ inline void requestRoutesCrashdumpService(App& app)
         asyncResp->res.jsonValue["MaxNumberOfRecords"] = 3;
 
         std::pair<std::string, std::string> redfishDateTimeOffset =
-            crow::utility::getDateTimeOffsetNow();
+            redfish::time_utils::getDateTimeOffsetNow();
         asyncResp->res.jsonValue["DateTime"] = redfishDateTimeOffset.first;
         asyncResp->res.jsonValue["DateTimeLocalOffset"] =
             redfishDateTimeOffset.second;
@@ -2913,9 +2925,9 @@ inline void requestRoutesCrashdumpFile(App& app)
         "/redfish/v1/Systems/system/LogServices/Crashdump/Entries/<str>/<str>/")
         .privileges(redfish::privileges::getLogEntry)
         .methods(boost::beast::http::verb::get)(
-            [&app](const crow::Request& req,
-                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                   const std::string& logID, const std::string& fileName) {
+            [](const crow::Request& req,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+               const std::string& logID, const std::string& fileName) {
         // Do not call getRedfishRoute here since the crashdump file is not a
         // Redfish resource.
         auto getStoredLogCallback =
@@ -2963,7 +2975,8 @@ inline void requestRoutesCrashdumpFile(App& app)
 
             // Configure this to be a file download when accessed
             // from a browser
-            asyncResp->res.addHeader("Content-Disposition", "attachment");
+            asyncResp->res.addHeader(
+                boost::beast::http::field::content_disposition, "attachment");
         };
         crow::connections::systemBus->async_method_call(
             std::move(getStoredLogCallback), crashdumpObject,
@@ -3087,7 +3100,7 @@ inline void requestRoutesCrashdumpCollect(App& app)
                 return;
             }
             std::shared_ptr<task::TaskData> task = task::TaskData::createTask(
-                [](boost::system::error_code err, sdbusplus::message::message&,
+                [](boost::system::error_code err, sdbusplus::message_t&,
                    const std::shared_ptr<task::TaskData>& taskData) {
                 if (!err)
                 {
@@ -3185,7 +3198,7 @@ inline void requestRoutesPostCodesLogService(App& app)
             "/redfish/v1/Systems/system/LogServices/PostCodes/Entries";
 
         std::pair<std::string, std::string> redfishDateTimeOffset =
-            crow::utility::getDateTimeOffsetNow();
+            redfish::time_utils::getDateTimeOffsetNow();
         asyncResp->res.jsonValue["DateTime"] = redfishDateTimeOffset.first;
         asyncResp->res.jsonValue["DateTimeLocalOffset"] =
             redfishDateTimeOffset.second;
@@ -3292,7 +3305,7 @@ static void fillPostCodeEntry(
         // Get the Created time from the timestamp
         std::string entryTimeStr;
         entryTimeStr =
-            crow::utility::getDateTimeUint(usecSinceEpoch / 1000 / 1000);
+            redfish::time_utils::getDateTimeUint(usecSinceEpoch / 1000 / 1000);
 
         // assemble messageArgs: BootIndex, TimeOffset(100us), PostCode(hex)
         std::ostringstream hexCode;
@@ -3395,8 +3408,8 @@ static void getPostCodeForEntry(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 static void getPostCodeForBoot(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                                const uint16_t bootIndex,
                                const uint16_t bootCount,
-                               const uint64_t entryCount, const uint64_t skip,
-                               const uint64_t top)
+                               const uint64_t entryCount, size_t skip,
+                               size_t top)
 {
     crow::connections::systemBus->async_method_call(
         [aResp, bootIndex, bootCount, entryCount, skip,
@@ -3415,12 +3428,14 @@ static void getPostCodeForBoot(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         if (!postcode.empty())
         {
             endCount = entryCount + postcode.size();
-
-            if ((skip < endCount) && ((top + skip) > entryCount))
+            if (skip < endCount && (top + skip) > entryCount)
             {
-                uint64_t thisBootSkip = std::max(skip, entryCount) - entryCount;
+                uint64_t thisBootSkip =
+                    std::max(static_cast<uint64_t>(skip), entryCount) -
+                    entryCount;
                 uint64_t thisBootTop =
-                    std::min(top + skip, endCount) - entryCount;
+                    std::min(static_cast<uint64_t>(top + skip), endCount) -
+                    entryCount;
 
                 fillPostCodeEntry(aResp, postcode, bootIndex, 0, thisBootSkip,
                                   thisBootTop);
@@ -3434,7 +3449,7 @@ static void getPostCodeForBoot(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             getPostCodeForBoot(aResp, static_cast<uint16_t>(bootIndex + 1),
                                bootCount, endCount, skip, top);
         }
-        else
+        else if (skip + top < endCount)
         {
             aResp->res.jsonValue["Members@odata.nextLink"] =
                 "/redfish/v1/Systems/system/LogServices/PostCodes/Entries?$skip=" +
@@ -3449,7 +3464,7 @@ static void getPostCodeForBoot(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 
 static void
     getCurrentBootNumber(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-                         const uint64_t skip, const uint64_t top)
+                         size_t skip, size_t top)
 {
     uint64_t entryCount = 0;
     sdbusplus::asio::getProperty<uint16_t>(
@@ -3496,9 +3511,10 @@ inline void requestRoutesPostCodesEntryCollection(App& app)
             "Collection of POST Code Log Entries";
         asyncResp->res.jsonValue["Members"] = nlohmann::json::array();
         asyncResp->res.jsonValue["Members@odata.count"] = 0;
-
-        getCurrentBootNumber(asyncResp, delegatedQuery.skip,
-                             delegatedQuery.top);
+        size_t skip = delegatedQuery.skip.value_or(0);
+        size_t top =
+            delegatedQuery.top.value_or(query_param::maxEntriesPerPage);
+        getCurrentBootNumber(asyncResp, skip, top);
         });
 }
 
@@ -3609,9 +3625,10 @@ inline void requestRoutesPostCodesEntryAdditionalData(App& app)
             const char* d = reinterpret_cast<const char*>(c.data());
             std::string_view strData(d, c.size());
 
-            asyncResp->res.addHeader("Content-Type",
+            asyncResp->res.addHeader(boost::beast::http::field::content_type,
                                      "application/octet-stream");
-            asyncResp->res.addHeader("Content-Transfer-Encoding", "Base64");
+            asyncResp->res.addHeader(
+                boost::beast::http::field::content_transfer_encoding, "Base64");
             asyncResp->res.body() = crow::utility::base64encode(strData);
             },
             "xyz.openbmc_project.State.Boot.PostCode0",

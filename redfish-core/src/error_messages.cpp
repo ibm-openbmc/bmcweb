@@ -115,28 +115,8 @@ static nlohmann::json getLog(redfish::registries::base::Index name,
     {
         return {};
     }
-    const redfish::registries::MessageEntry& entry =
-        redfish::registries::base::registry[index];
-    // Intentionally make a copy of the string, so we can append in the
-    // parameters.
-    std::string msg = entry.second.message;
-    redfish::registries::fillMessageArgs(args, msg);
-    nlohmann::json jArgs = nlohmann::json::array();
-    for (const std::string_view arg : args)
-    {
-        jArgs.push_back(arg);
-    }
-    std::string msgId = redfish::registries::base::header.id;
-    msgId += ".";
-    msgId += entry.first;
-    nlohmann::json::object_t response;
-    response["@odata.type"] = "#Message.v1_1_1.Message";
-    response["MessageId"] = std::move(msgId);
-    response["Message"] = std::move(msg);
-    response["MessageArgs"] = std::move(jArgs);
-    response["MessageSeverity"] = entry.second.messageSeverity;
-    response["Resolution"] = entry.second.resolution;
-    return response;
+    return getLogFromRegistry(redfish::registries::base::header,
+                              redfish::registries::base::registry, index, args);
 }
 
 /**
@@ -359,7 +339,7 @@ nlohmann::json serviceTemporarilyUnavailable(std::string_view arg1)
 
 void serviceTemporarilyUnavailable(crow::Response& res, std::string_view arg1)
 {
-    res.addHeader("Retry-After", arg1);
+    res.addHeader(boost::beast::http::field::retry_after, arg1);
     res.result(boost::beast::http::status::service_unavailable);
     addMessageToErrorJson(res.jsonValue, serviceTemporarilyUnavailable(arg1));
 }
