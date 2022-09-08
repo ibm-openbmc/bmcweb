@@ -269,6 +269,12 @@ option(
     value : 'enabled',
     description: 'Enable Event Subscription through websocket'
 )
+option(
+    'audit-events',
+    type: 'feature',
+    value: 'disabled',
+    description: 'Enable audit events support for bmcweb'
+)
 
 # Insecure options. Every option that starts with a `insecure` flag should
 # not be enabled by default for any platform, unless the author fully comprehends

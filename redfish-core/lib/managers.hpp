@@ -20,6 +20,9 @@
 #endif
 #include "app.hpp"
 #include "dbus_utility.hpp"
+#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
+#include "audit_events.hpp"
+#endif
 #include "led.hpp"
 #include "query.hpp"
 #include "redfish_util.hpp"
@@ -103,7 +106,8 @@ inline void setLocationIndicatorActiveState(
  * @param[in] asyncResp - Shared pointer for completing asynchronous calls
  */
 inline void
-    doBMCGracefulRestart(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+    doBMCGracefulRestart(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                         const crow::Request& req)
 {
     const char* processName = "xyz.openbmc_project.State.BMC";
     const char* objectPath = "/xyz/openbmc_project/state/bmc0";
@@ -116,14 +120,29 @@ inline void
     dbus::utility::DbusVariantType dbusPropertyValue(propertyValue);
 
     crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
+        [asyncResp, req](const boost::system::error_code ec) {
         // Use "Set" method to set the property value.
+        std::string postPath =
+            "op=POST:/redfish/v1/Managers/bmc/Actions/Manager.Reset/";
         if (ec)
         {
             BMCWEB_LOG_DEBUG << "[Set] Bad D-Bus request error: " << ec;
             messages::internalError(asyncResp->res);
+#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
+            audit::audit_post_event(
+                AUDIT_USYS_CONFIG, postPath, req.session->username.c_str(),
+                boost::asio::ip::host_name().c_str(),
+                req.ipAddress.to_string().c_str(), NULL, false);
+#endif
             return;
         }
+
+#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
+        audit::audit_post_event(
+            AUDIT_USYS_CONFIG, postPath, req.session->username.c_str(),
+            boost::asio::ip::host_name().c_str(),
+            req.ipAddress.to_string().c_str(), NULL, true);
+#endif
 
         messages::success(asyncResp->res);
         },
@@ -194,7 +213,7 @@ inline void requestRoutesManagerResetAction(App& app)
         if (resetType == "GracefulRestart")
         {
             BMCWEB_LOG_DEBUG << "Proceeding with " << resetType;
-            doBMCGracefulRestart(asyncResp);
+            doBMCGracefulRestart(asyncResp, req);
             return;
         }
         if (resetType == "ForceRestart")
@@ -275,7 +294,7 @@ inline void requestRoutesManagerResetToDefaultsAction(App& app)
             }
             // Factory Reset doesn't actually happen until a reboot
             // Can't erase what the BMC is running on
-            doBMCGracefulRestart(asyncResp);
+            doBMCGracefulRestart(asyncResp, req);
             },
             "xyz.openbmc_project.Software.BMC.Updater",
             "/xyz/openbmc_project/software",
@@ -1852,7 +1871,8 @@ inline void
  */
 inline void
     setActiveFirmwareImage(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-                           const std::string& runningFirmwareTarget)
+                           const std::string& runningFirmwareTarget,
+                           const crow::Request& req)
 {
     // Get the Id from /redfish/v1/UpdateService/FirmwareInventory/<Id>
     std::string::size_type idPos = runningFirmwareTarget.rfind('/');
@@ -1876,7 +1896,7 @@ inline void
     // Make sure the image is valid before setting priority
     crow::connections::systemBus->async_method_call(
         [aResp, firmwareId,
-         runningFirmwareTarget](const boost::system::error_code ec,
+         runningFirmwareTarget, req](const boost::system::error_code ec,
                                 dbus::utility::ManagedObjectType& subtree) {
         if (ec)
         {
@@ -1932,14 +1952,14 @@ inline void
         // An addition could be a Redfish Setting like
         // ActiveSoftwareImageApplyTime and support OnReset
         crow::connections::systemBus->async_method_call(
-            [aResp](const boost::system::error_code ec2) {
+            [aResp, req](const boost::system::error_code ec2) {
             if (ec2)
             {
                 BMCWEB_LOG_DEBUG << "D-Bus response error setting.";
                 messages::internalError(aResp->res);
                 return;
             }
-            doBMCGracefulRestart(aResp);
+            doBMCGracefulRestart(aResp, req);
             },
 
             "xyz.openbmc_project.Software.BMC.Updater",
