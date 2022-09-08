@@ -19,6 +19,7 @@ option('hypervisor-serial-socket', type : 'feature', value : 'disabled', descrip
 option('bmc-shell-socket', type : 'feature', value : 'disabled', description : 'Enable BMC command shell WebSocket, which makes it possible to access secure shell. Path is \'/bmc-console\'.')
 option('static-hosting', type : 'feature', value : 'enabled', description : 'Enable serving files from the \'/usr/share/www\' directory as paths under \'/\'.')
 option('redfish-bmc-journal', type : 'feature', value : 'disabled', description : 'Enable BMC journal access through Redfish. Paths are under \'/redfish/v1/Managers/bmc/LogServices/Journal\'.')
+option('audit-events', type: 'feature', value: 'disabled', description: 'Enable audit events support for bmcweb')
 option('redfish-cpu-log', type : 'feature', value : 'disabled', description : '''Enable CPU log service transactions through Redfish. Paths are under \'/redfish/v1/Systems/system/LogServices/Crashdump'.''')
 option('redfish-dump-log', type : 'feature', value : 'disabled', description : 'Enable Dump log service transactions through Redfish. Paths are under \'/redfish/v1/Systems/system/LogServices/Dump\'and \'/redfish/v1/Managers/bmc/LogServices/Dump\'')
 option('redfish-dbus-log', type : 'feature', value : 'disabled', description : 'Enable DBUS log service transactions through Redfish. Paths are under \'/redfish/v1/Systems/system/LogServices/EventLog/Entries\'')

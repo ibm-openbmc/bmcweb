@@ -15,10 +15,14 @@
 */
 #pragma once
 
+#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
+#include "audit_events.hpp"
+#endif
 #include "error_messages.hpp"
 #include "persistent_data.hpp"
 
 #include <app.hpp>
+#include <boost/asio/ip/host_name.hpp>
 #include <registries/privilege_registry.hpp>
 
 namespace redfish
@@ -177,6 +181,12 @@ inline void requestRoutesSession(App& app)
                     messages::resourceAtUriUnauthorized(
                         asyncResp->res, std::string(req.url),
                         "Invalid username or password");
+#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
+                    audit::audit_acct_event(
+                        AUDIT_USER_LOGIN, username.c_str(), getuid(),
+                        boost::asio::ip::host_name().c_str(),
+                        req.ipAddress.to_string().c_str(), NULL, false);
+#endif
                     return;
                 }
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
@@ -209,6 +219,12 @@ inline void requestRoutesSession(App& app)
                     "Location",
                     "/redfish/v1/SessionService/Sessions/" + session->uniqueId);
                 asyncResp->res.result(boost::beast::http::status::created);
+#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
+                audit::audit_acct_event(
+                    AUDIT_USER_LOGIN, username.c_str(), getuid(),
+                    boost::asio::ip::host_name().c_str(),
+                    req.ipAddress.to_string().c_str(), NULL, true);
+#endif
                 if (session->isConfigureSelfOnly)
                 {
                     messages::passwordChangeRequired(

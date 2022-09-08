@@ -60,6 +60,7 @@ incdir = include_directories(
 ## create a MAP of  "options : feature_flag"
 
 feature_map = {
+  'audit-events'                    : '-DBMCWEB_ENABLE_LINUX_AUDIT_EVENTS',
   'insecure-disable-auth'           : '-DBMCWEB_INSECURE_DISABLE_AUTHENTICATION',
   'insecure-disable-csrf'           : '-DBMCWEB_INSECURE_DISABLE_CSRF_PREVENTION',
   'insecure-disable-ssl'            : '-DBMCWEB_INSECURE_DISABLE_SSL',
@@ -290,6 +291,11 @@ atomic =  cxx.find_library('atomic', required: true)
 openssl = dependency('openssl', required : true)
 bmcweb_dependencies += [pam, atomic, openssl]
 
+if get_option('audit-events').enabled()
+  audit = cxx.find_library('libaudit', required: true)
+  bmcweb_dependencies += audit
+endif
+
 sdbusplus = dependency('sdbusplus', required : false, include_type: 'system')
 if not sdbusplus.found()
   sdbusplus_proj = subproject('sdbusplus', required: true)
@@ -431,7 +437,7 @@ executable('bmcweb',srcfiles_bmcweb,
 if(get_option('tests').enabled())
   foreach src_test : srcfiles_unittest
     testname = src_test.split('/')[-1].split('.')[0]
-    test(testname,executable(testname, 
+    test(testname,executable(testname,
         [src_test,
         'src/boost_url.cpp'],
                 include_directories : incdir,
