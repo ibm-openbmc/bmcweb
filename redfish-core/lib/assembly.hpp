@@ -549,6 +549,26 @@ inline void setAssemblylocationIndicators(
                                 return;
                             }
                             messages::success(asyncResp->res);
+
+                            // Once the CM has been done, reset the fault LED.
+                            crow::connections::systemBus->async_method_call(
+                                [asyncResp](
+                                    const boost::system::error_code ec2) {
+                                    if (ec2)
+                                    {
+                                        BMCWEB_LOG_ERROR
+                                            << "Failed to reset fault LED"
+                                            << ec2;
+                                        messages::internalError(asyncResp->res);
+                                        return;
+                                    }
+                                },
+                                "xyz.openbmc_project.LED.GroupManager",
+                                "/xyz/openbmc_project/led/groups/"
+                                "rtc_battery_fault",
+                                "org.freedesktop.DBus.Properties", "Set",
+                                "xyz.openbmc_project.Led.Group", "Asserted",
+                                std::variant<bool>(false));
                         },
                         "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
                         "org.freedesktop.systemd1.Manager", "StartUnit",
