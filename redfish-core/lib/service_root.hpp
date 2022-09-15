@@ -20,8 +20,6 @@
 #include <registries/privilege_registry.hpp>
 #include <utils/systemd_utils.hpp>
 
-#include <filesystem>
-
 namespace redfish
 {
 
@@ -88,10 +86,8 @@ inline void
         },
         "xyz.openbmc_project.Settings",
         "/xyz/openbmc_project/ibmacf/allow_unauth_upload",
-        "org.freedesktop.DBus.Properties",
-        "Get",
-        "xyz.openbmc_project.Object.Enable",
-        "Enabled");
+        "org.freedesktop.DBus.Properties", "Get",
+        "xyz.openbmc_project.Object.Enable", "Enabled");
 }
 
 inline void
