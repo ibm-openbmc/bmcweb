@@ -382,7 +382,62 @@ inline void
 }
 
 /**
- * @brief Set location indicator for the assemblies associated to given chassis
+ * @brief API to reset fault LED.
+ * After concurrent maintenance has been performed successfully, fault LED needs
+ * to be reset.
+ * @param[in] asyncResp - Shared pointer for asynchronous calls.
+ * @param[in] assembly - Assembly object path.
+ */
+inline void
+    resetFaultLEDAfterCM(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                         const std::string& assembly)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp,
+         assembly](const boost::system::error_code ec,
+                   const std::variant<std::vector<std::string>>& resp) {
+            if (ec)
+            {
+                BMCWEB_LOG_DEBUG << "DBUS response error, ec: " << ec.value();
+                return;
+            }
+
+            const std::vector<std::string>* endpoints =
+                std::get_if<std::vector<std::string>>(&resp);
+
+            if (endpoints == nullptr)
+            {
+                BMCWEB_LOG_DEBUG << "No endpoints, skipping reset of fault LED";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            for (auto& endpoint : *endpoints)
+            {
+                crow::connections::systemBus->async_method_call(
+                    [asyncResp, endpoint](const boost::system::error_code ec2) {
+                        if (ec2)
+                        {
+                            BMCWEB_LOG_ERROR << "Failed to reset fault LED"
+                                             << ec2;
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+                    },
+                    "xyz.openbmc_project.LED.GroupManager", endpoint,
+                    "org.freedesktop.DBus.Properties", "Set",
+                    "xyz.openbmc_project.Led.Group", "Asserted",
+                    std::variant<bool>(false));
+            }
+        },
+        "xyz.openbmc_project.ObjectMapper", assembly + "/fault_led_group",
+        "org.freedesktop.DBus.Properties", "Get",
+        "xyz.openbmc_project.Association", "endpoints");
+}
+
+/**
+ * @brief Set location indicator for the assemblies associated to given
+ * chassis
  * @param[in] aResp - Shared pointer for asynchronous calls.
  * @param[in] chassis - Chassis the assemblies are associated with.
  * @param[in] assemblies - list of all the assemblies associated with the
@@ -540,7 +595,8 @@ inline void setAssemblylocationIndicators(
                 {
                     // Call systemd to start ADCSensor
                     crow::connections::systemBus->async_method_call(
-                        [asyncResp](const boost::system::error_code ec) {
+                        [asyncResp,
+                         assembly](const boost::system::error_code ec) {
                             if (ec)
                             {
                                 BMCWEB_LOG_ERROR << "Failed to Start ADCSensor:"
@@ -549,6 +605,9 @@ inline void setAssemblylocationIndicators(
                                 return;
                             }
                             messages::success(asyncResp->res);
+
+                            // Once the CM has been done, reset the fault LED.
+                            resetFaultLEDAfterCM(asyncResp, assembly);
                         },
                         "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
                         "org.freedesktop.systemd1.Manager", "StartUnit",
