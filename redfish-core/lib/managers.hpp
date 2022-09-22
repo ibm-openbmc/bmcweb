@@ -18,15 +18,11 @@
 #ifdef BMCWEB_ENABLE_IBM_USB_CODE_UPDATE
 #include "oem/ibm/usb_code_update.hpp"
 #endif
-#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
-#include "audit_events.hpp"
-#endif
 #include "led.hpp"
 #include "redfish_util.hpp"
 
 #include <app.hpp>
 #include <boost/algorithm/string/replace.hpp>
-#include <boost/asio/ip/host_name.hpp>
 #include <boost/date_time.hpp>
 #include <dbus_utility.hpp>
 #include <registries/privilege_registry.hpp>
@@ -102,8 +98,7 @@ inline void setLocationIndicatorActiveState(
  * @param[in] asyncResp - Shared pointer for completing asynchronous calls
  */
 inline void
-    doBMCGracefulRestart(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                         const crow::Request& req)
+    doBMCGracefulRestart(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     const char* processName = "xyz.openbmc_project.State.BMC";
     const char* objectPath = "/xyz/openbmc_project/state/bmc0";
@@ -116,29 +111,15 @@ inline void
     VariantType dbusPropertyValue(propertyValue);
 
     crow::connections::systemBus->async_method_call(
-        [asyncResp, req](const boost::system::error_code ec) {
+        [asyncResp](const boost::system::error_code ec) {
             // Use "Set" method to set the property value.
-            std::string postPath =
-                "op=POST:/redfish/v1/Managers/bmc/Actions/Manager.Reset/";
             if (ec)
             {
                 BMCWEB_LOG_DEBUG << "[Set] Bad D-Bus request error: " << ec;
                 messages::internalError(asyncResp->res);
-#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
-                audit::audit_post_event(
-                    AUDIT_USYS_CONFIG, postPath, req.session->username.c_str(),
-                    boost::asio::ip::host_name().c_str(),
-                    req.ipAddress.to_string().c_str(), NULL, false);
-#endif
                 return;
             }
 
-#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
-            audit::audit_post_event(
-                AUDIT_USYS_CONFIG, postPath, req.session->username.c_str(),
-                boost::asio::ip::host_name().c_str(),
-                req.ipAddress.to_string().c_str(), NULL, true);
-#endif
             messages::success(asyncResp->res);
         },
         processName, objectPath, "org.freedesktop.DBus.Properties", "Set",
@@ -204,7 +185,7 @@ inline void requestRoutesManagerResetAction(App& app)
                 if (resetType == "GracefulRestart")
                 {
                     BMCWEB_LOG_DEBUG << "Proceeding with " << resetType;
-                    doBMCGracefulRestart(asyncResp, req);
+                    doBMCGracefulRestart(asyncResp);
                     return;
                 }
                 if (resetType == "ForceRestart")
@@ -273,7 +254,7 @@ inline void requestRoutesManagerResetToDefaultsAction(App& app)
                 }
 
                 crow::connections::systemBus->async_method_call(
-                    [asyncResp, req](const boost::system::error_code ec) {
+                    [asyncResp](const boost::system::error_code ec) {
                         if (ec)
                         {
                             BMCWEB_LOG_DEBUG << "Failed to ResetToDefaults: "
@@ -283,7 +264,7 @@ inline void requestRoutesManagerResetToDefaultsAction(App& app)
                         }
                         // Factory Reset doesn't actually happen until a reboot
                         // Can't erase what the BMC is running on
-                        doBMCGracefulRestart(asyncResp, req);
+                        doBMCGracefulRestart(asyncResp);
                     },
                     "xyz.openbmc_project.Software.BMC.Updater",
                     "/xyz/openbmc_project/software",
@@ -1849,8 +1830,7 @@ inline void
  */
 inline void
     setActiveFirmwareImage(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-                           const std::string& runningFirmwareTarget,
-                           const crow::Request& req)
+                           const std::string& runningFirmwareTarget)
 {
     // Get the Id from /redfish/v1/UpdateService/FirmwareInventory/<Id>
     std::string::size_type idPos = runningFirmwareTarget.rfind('/');
@@ -1873,8 +1853,8 @@ inline void
 
     // Make sure the image is valid before setting priority
     crow::connections::systemBus->async_method_call(
-        [aResp, firmwareId, runningFirmwareTarget,
-         req](const boost::system::error_code ec, ManagedObjectType& subtree) {
+        [aResp, firmwareId, runningFirmwareTarget](
+            const boost::system::error_code ec, ManagedObjectType& subtree) {
             if (ec)
             {
                 BMCWEB_LOG_DEBUG << "D-Bus response error getting objects.";
@@ -1929,14 +1909,14 @@ inline void
             // An addition could be a Redfish Setting like
             // ActiveSoftwareImageApplyTime and support OnReset
             crow::connections::systemBus->async_method_call(
-                [aResp, req](const boost::system::error_code ec) {
+                [aResp](const boost::system::error_code ec) {
                     if (ec)
                     {
                         BMCWEB_LOG_DEBUG << "D-Bus response error setting.";
                         messages::internalError(aResp->res);
                         return;
                     }
-                    doBMCGracefulRestart(aResp, req);
+                    doBMCGracefulRestart(aResp);
                 },
 
                 "xyz.openbmc_project.Software.BMC.Updater",
@@ -2405,7 +2385,7 @@ inline void requestRoutesManager(App& app)
 
                     if (odataId)
                     {
-                        setActiveFirmwareImage(asyncResp, *odataId, req);
+                        setActiveFirmwareImage(asyncResp, *odataId);
                     }
                 }
             }
