@@ -15,9 +15,6 @@
 */
 #pragma once
 
-#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
-#include "audit_events.hpp"
-#endif
 #include "error_messages.hpp"
 #include "persistent_data.hpp"
 

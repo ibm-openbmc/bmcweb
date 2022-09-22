@@ -2,6 +2,9 @@
 #include "bmcweb_config.h"
 
 #include "authentication.hpp"
+#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
+#include "audit_events.hpp"
+#endif
 #include "http_response.hpp"
 #include "http_utility.hpp"
 #include "logging.hpp"
@@ -479,6 +482,32 @@ class Connection :
             return;
         }
         res = std::move(thisRes);
+
+#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
+        if (((req->method() == boost::beast::http::verb::post) &&
+             audit::checkPostAudit(*req)) ||
+            (req->method() == boost::beast::http::verb::patch) ||
+            (req->method() == boost::beast::http::verb::delete_))
+        {
+            if (res.result() == boost::beast::http::status::ok)
+            {
+                audit::auditEvent(*req,
+                                  ("op=" + std::string(req->methodString()) +
+                                   ":" + std::string(req->target()) + " ")
+                                      .c_str(),
+                                  true);
+            }
+            else
+            {
+                audit::auditEvent(*req,
+                                  ("op=" + std::string(req->methodString()) +
+                                   ":" + std::string(req->target()) + " ")
+                                      .c_str(),
+                                  false);
+            }
+        }
+#endif
+
         BMCWEB_LOG_INFO << "Response: " << this << ' ' << req->url << ' '
                         << res.resultInt() << " keepalive=" << req->keepAlive();
 

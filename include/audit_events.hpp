@@ -9,45 +9,15 @@
 namespace audit
 {
 
-void auditAcctEvent([[maybe_unused]] int type,
-                    [[maybe_unused]] const char* username,
-                    [[maybe_unused]] uid_t uid,
-                    [[maybe_unused]] const char* remoteHostName,
-                    [[maybe_unused]] const char* remoteIpAddress,
-                    [[maybe_unused]] const char* tty,
-                    [[maybe_unused]] bool success)
+inline bool checkPostAudit(const crow::Request& req)
 {
-#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
-    int auditfd;
-
-    const char* op = NULL;
-
-    auditfd = audit_open();
-
-    if (auditfd < 0)
+    if ((req.target() == "/redfish/v1/SessionService/Sessions") ||
+        (req.target() == "/redfish/v1/SessionService/Sessions/") ||
+        (req.target() == "/login"))
     {
-        BMCWEB_LOG_ERROR << "Error opening audit socket : " << strerror(errno);
-        return;
+        return false;
     }
-    if (type == AUDIT_USER_LOGIN)
-    {
-        op = "login";
-    }
-    else if (type == AUDIT_USER_LOGOUT)
-    {
-        op = "logout";
-    }
-
-    if (audit_log_acct_message(auditfd, type, NULL, op, username, uid,
-                               remoteHostName, remoteIpAddress, tty,
-                               int(success)) <= 0)
-    {
-        BMCWEB_LOG_ERROR << "Error writing audit message: " << strerror(errno);
-    }
-
-    close(auditfd);
-#endif
-    return;
+    return true;
 }
 
 inline void auditEvent([[maybe_unused]] const crow::Request& req,
