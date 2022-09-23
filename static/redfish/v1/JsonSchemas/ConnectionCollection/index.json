@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/ConnectionCollection",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "ConnectionCollection Schema File",
+    "Schema": "#ConnectionCollection.ConnectionCollection",
+    "Description": "ConnectionCollection Schema File Location",
+    "Id": "ConnectionCollection",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/ConnectionCollection.json",
+            "Uri": "/redfish/v1/JsonSchemas/ConnectionCollection/ConnectionCollection.json"
+        }
+    ],
+    "Location@odata.count": 1
+}

@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/AddressPoolCollection",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "AddressPoolCollection Schema File",
+    "Schema": "#AddressPoolCollection.AddressPoolCollection",
+    "Description": "AddressPoolCollection Schema File Location",
+    "Id": "AddressPoolCollection",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/AddressPoolCollection.json",
+            "Uri": "/redfish/v1/JsonSchemas/AddressPoolCollection/AddressPoolCollection.json"
+        }
+    ],
+    "Location@odata.count": 1
+}
