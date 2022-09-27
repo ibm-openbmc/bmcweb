@@ -16,7 +16,7 @@
 #pragma once
 
 #include "account_service.hpp"
-#include "assembly.hpp"
+#include "aggregation_service.hpp"
 #include "bios.hpp"
 #include "cable.hpp"
 #include "certificate_service.hpp"
@@ -77,6 +77,10 @@ class RedfishService
     explicit RedfishService(App& app)
     {
         requestAccountServiceRoutes(app);
+#ifdef BMCWEB_ENABLE_REDFISH_AGGREGATION
+        requestAggregationServiceRoutes(app);
+        requestAggregationSourcesRoutes(app);
+#endif
         requestRoutesRoles(app);
         requestRoutesRoleCollection(app);
         requestRoutesServiceRoot(app);

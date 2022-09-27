@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import os
 import shutil
 import xml.etree.ElementTree as ET
@@ -9,6 +8,7 @@ from io import BytesIO
 
 import generate_schema_enums
 import requests
+from generate_schema_collections import generate_top_collections
 
 VERSION = "DSP8010_2022.2"
 
@@ -27,6 +27,8 @@ WARNING = """/****************************************************************
 include_list = [
     "AccountService",
     "ActionInfo",
+    "AggregationService",
+    "AggregationSourceCollection",
     "Assembly",
     "AttributeRegistry",
     "Bios",
@@ -49,6 +51,8 @@ include_list = [
     "EventDestination",
     "EventDestinationCollection",
     "EventService",
+    "FabricAdapter",
+    "FabricAdapterCollection",
     "Fan",
     "FanCollection",
     "IPAddresses",
@@ -168,7 +172,6 @@ zip_ref = zipfile.ZipFile(zipBytesIO)
 
 
 class SchemaVersion:
-
     """
     A Python class for sorting Redfish schema versions.  Allows sorting Redfish
     versions in the way humans expect, by comparing version strings as lists
@@ -195,12 +198,12 @@ class SchemaVersion:
 
 
 # Remove the old files
-skip_prefixes = "Oem"
+skip_prefixes = ["Oem", "OpenBMC"]
 if os.path.exists(schema_path):
     files = [
         os.path.join(schema_path, f)
         for f in os.listdir(schema_path)
-        if not f.startswith(skip_prefixes)
+        if not any([f.startswith(prefix) for prefix in skip_prefixes])
     ]
     for f in files:
         os.remove(f)
@@ -208,7 +211,7 @@ if os.path.exists(json_schema_path):
     files = [
         os.path.join(json_schema_path, f)
         for f in os.listdir(json_schema_path)
-        if not f.startswith(skip_prefixes)
+        if not any([f.startswith(prefix) for prefix in skip_prefixes])
     ]
     for f in files:
         if os.path.isfile(f):
@@ -265,20 +268,21 @@ with open(metadata_index_path, "w") as metadata_index:
 
     for filename in csdl_filenames:
         # filename looks like Zone_v1.xml
-        filenamesplit = filename.split("_")
-        if filenamesplit[0] not in include_list:
-            print("excluding schema: " + filename)
-            continue
-
         with open(os.path.join(schema_path, filename), "wb") as schema_out:
+            content = zip_ref.read(os.path.join("csdl", filename))
+            content = content.replace(b"\r\n", b"\n")
+
+            schema_out.write(content)
+
+            filenamesplit = filename.split("_")
+            if filenamesplit[0] not in include_list:
+                continue
             metadata_index.write(
                 '    <edmx:Reference Uri="/redfish/v1/schema/'
                 + filename
                 + '">\n'
             )
 
-            content = zip_ref.read(os.path.join("csdl", filename))
-            content = content.replace(b"\r\n", b"\n")
             xml_root = ET.fromstring(content)
             edmx = "{http://docs.oasis-open.org/odata/ns/edmx}"
             edm = "{http://docs.oasis-open.org/odata/ns/edm}"
@@ -300,7 +304,6 @@ with open(metadata_index_path, "w") as metadata_index:
                                     + namespace
                                     + '"/>\n'
                                 )
-            schema_out.write(content)
             metadata_index.write("    </edmx:Reference>\n")
 
     metadata_index.write(
@@ -346,13 +349,13 @@ with open(metadata_index_path, "w") as metadata_index:
 
     metadata_index.write(
         '    <edmx:Reference Uri="'
-        '/redfish/v1/schema/OemAccountService_v1.xml">\n'
+        '/redfish/v1/schema/OpenBMCAccountService_v1.xml">\n'
     )
     metadata_index.write(
-        '        <edmx:Include Namespace="OemAccountService"/>\n'
+        '        <edmx:Include Namespace="OpenBMCAccountService"/>\n'
     )
     metadata_index.write(
-        '        <edmx:Include Namespace="OemAccountService.v1_0_0"/>\n'
+        '        <edmx:Include Namespace="OpenBMCAccountService.v1_0_0"/>\n'
     )
     metadata_index.write("    </edmx:Reference>\n")
 
@@ -497,3 +500,20 @@ with open(os.path.join(cpp_path, "schemas.hpp"), "w") as hpp_file:
 zip_ref.close()
 
 generate_schema_enums.main()
+generate_top_collections()
+
+# Now delete the xml schema files we aren't supporting
+if os.path.exists(schema_path):
+    files = [
+        os.path.join(schema_path, f)
+        for f in os.listdir(schema_path)
+        if not any([f.startswith(prefix) for prefix in skip_prefixes])
+    ]
+    for filename in files:
+        # filename will include the absolute path
+        filenamesplit = filename.split("/")
+        name = filenamesplit.pop()
+        namesplit = name.split("_")
+        if namesplit[0] not in include_list:
+            print("excluding schema: " + filename)
+            os.remove(filename)
