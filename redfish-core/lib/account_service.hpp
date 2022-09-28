@@ -1789,7 +1789,7 @@ inline void requestAccountServiceRoutes(App& app)
                 {"Name", "Account Service"},
                 {"Description", "Account Service"},
                 {"ServiceEnabled", true},
-                {"MaxPasswordLength", 20},
+                {"MaxPasswordLength", 64},
                 {"Accounts",
                  {{"@odata.id", "/redfish/v1/AccountService/Accounts"}}},
                 {"Roles", {{"@odata.id", "/redfish/v1/AccountService/Roles"}}},
