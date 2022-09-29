@@ -24,6 +24,7 @@
 #include "environment_metrics.hpp"
 #include "ethernet.hpp"
 #include "event_service.hpp"
+#include "fan.hpp"
 #include "hypervisor_system.hpp"
 #include "log_services.hpp"
 #include "manager_diagnostic_data.hpp"
@@ -83,6 +84,7 @@ class RedfishService
 #endif
 #ifdef BMCWEB_NEW_POWERSUBSYSTEM_THERMALSUBSYSTEM
         requestRoutesEnvironmentMetrics(app);
+        requestRoutesFanCollection(app);
         requestRoutesPowerSubsystem(app);
         requestRoutesPowerSupply(app);
         requestRoutesPowerSupplyCollection(app);
