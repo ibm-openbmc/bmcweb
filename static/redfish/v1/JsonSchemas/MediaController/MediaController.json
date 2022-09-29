@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/MediaController.v1_2_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/MediaController.v1_3_0.json",
     "$ref": "#/definitions/MediaController",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2022 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -87,6 +87,7 @@
         },
         "MediaController": {
             "additionalProperties": false,
+            "deprecated": "This schema has been deprecated in favor of the FabricAdapter schema.",
             "description": "The MediaController schema contains the definition of the media controller and its configuration.",
             "longDescription": "This resource contains the media controller in a Redfish implementation.",
             "patternProperties": {
@@ -238,7 +239,8 @@
                 "Id",
                 "Name"
             ],
-            "type": "object"
+            "type": "object",
+            "versionDeprecated": "v1_2_0"
         },
         "MediaControllerType": {
             "enum": [
@@ -313,6 +315,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.1",
-    "title": "#MediaController.v1_2_0.MediaController"
+    "release": "2022.1",
+    "title": "#MediaController.v1_3_0.MediaController"
 }

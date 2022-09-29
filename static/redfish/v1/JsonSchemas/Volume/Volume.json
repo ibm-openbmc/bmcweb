@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/swordfish/v1/Volume.v1_6_2.json",
+    "$id": "http://redfish.dmtf.org/schemas/swordfish/v1/Volume.v1_8_0.json",
     "$ref": "#/definitions/Volume",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2016-2020 Storage Networking Industry Association (SNIA), USA. All rights reserved. For the full SNIA copyright policy, see http://www.snia.org/about/corporate_info/copyright",
+    "copyright": "Copyright 2015-2022 Storage Networking Industry Association (SNIA), USA. All rights reserved.",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -553,6 +553,23 @@
                     ],
                     "versionAdded": "v1_5_0"
                 },
+                "LBAFormatsSupported": {
+                    "description": "A list of the LBA format types supported for the namespace, or potential namespaces.",
+                    "items": {
+                        "anyOf": [
+                            {
+                                "$ref": "http://redfish.dmtf.org/schemas/swordfish/v1/Volume.json#/definitions/LBAFormatType"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "longDescription": "This shall be a list of the LBA formats supported for the namespace, or potential namespaces.",
+                    "readonly": true,
+                    "type": "array",
+                    "versionAdded": "v1_8_0"
+                },
                 "MetadataTransferredAtEndOfDataLBA": {
                     "description": "This property indicates whether or not the metadata is transferred at the end of the LBA creating an extended data LBA.",
                     "longDescription": "This property shall indicate whether or not the metadata is transferred at the end of the LBA creating an extended data LBA.",
@@ -641,7 +658,7 @@
                 },
                 "SupportsDeallocatedOrUnwrittenLBError": {
                     "description": "This property indicates that the controller supports deallocated or unwritten logical block error for this namespace.",
-                    "longDescription": "This property shall indicate that the controller supports deallocated or unwritten logical block error for this namespace. .",
+                    "longDescription": "This property shall indicate that the controller supports deallocated or unwritten logical block error for this namespace.",
                     "readonly": true,
                     "type": [
                         "boolean",
@@ -1148,6 +1165,16 @@
                     "readonly": true,
                     "versionAdded": "v1_6_0"
                 },
+                "IsBootCapable": {
+                    "description": "This property indicates whether or not the Volume contains a boot image and is capable of booting.",
+                    "longDescription": "This property shall indicate whether or not the Volume contains a boot image and is capable of booting.  This property may be settable by an admin or client with visibility into the contents of the volume. This property should only be set to true when VolumeUsage is either not specified, or when VolumeUsage is set to Data or SystemData.",
+                    "readonly": false,
+                    "type": [
+                        "boolean",
+                        "null"
+                    ],
+                    "versionAdded": "v1_7_0"
+                },
                 "Links": {
                     "$ref": "#/definitions/Links",
                     "description": "Contains references to other resources that are related to this resource.",
@@ -1436,6 +1463,6 @@
         }
     },
     "owningEntity": "SNIA",
-    "release": "TP v1.2.1",
-    "title": "#Volume.v1_6_2.Volume"
+    "release": "WIP v1.2.4",
+    "title": "#Volume.v1_8_0.Volume"
 }

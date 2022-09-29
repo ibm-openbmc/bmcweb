@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/MemoryChunks.v1_4_1.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/MemoryChunks.v1_4_2.json",
     "$ref": "#/definitions/MemoryChunks",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2020 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2022 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -242,7 +242,7 @@
                     "items": {
                         "$ref": "#/definitions/InterleaveSet"
                     },
-                    "longDescription": "These properties shall represent the interleave sets for the memory chunk.",
+                    "longDescription": "These properties shall represent the interleave sets for the memory chunk.  If not specified by the client during a create operation, the memory chunk shall be created across all available memory within the memory domain.",
                     "type": "array"
                 },
                 "IsMirrorEnabled": {
@@ -296,6 +296,7 @@
                 }
             },
             "required": [
+                "AddressRangeType",
                 "@odata.id",
                 "@odata.type",
                 "Id",
@@ -327,5 +328,5 @@
     },
     "owningEntity": "DMTF",
     "release": "2020.3",
-    "title": "#MemoryChunks.v1_4_1.MemoryChunks"
+    "title": "#MemoryChunks.v1_4_2.MemoryChunks"
 }

@@ -4,7 +4,7 @@
   "@odata.type": "#JsonSchemaFileCollection.JsonSchemaFileCollection",
   "Name": "JsonSchemaFile Collection",
   "Description": "Collection of JsonSchemaFiles",
-  "Members@odata.count": 139,
+  "Members@odata.count": 141,
   "Members": [
     {
       "@odata.id": "/redfish/v1/JsonSchemas/AccelerationFunction"
@@ -328,6 +328,9 @@
       "@odata.id": "/redfish/v1/JsonSchemas/SecureBootDatabase"
     },
     {
+      "@odata.id": "/redfish/v1/JsonSchemas/SecurityPolicy"
+    },
+    {
       "@odata.id": "/redfish/v1/JsonSchemas/Sensor"
     },
     {
@@ -389,6 +392,9 @@
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/Triggers"
+    },
+    {
+      "@odata.id": "/redfish/v1/JsonSchemas/TrustedComponent"
     },
     {
       "@odata.id": "/redfish/v1/JsonSchemas/USBController"
