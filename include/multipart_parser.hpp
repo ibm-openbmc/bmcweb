@@ -371,4 +371,3 @@ class MultipartParser
     size_t headerFieldMark = 0;
     size_t headerValueMark = 0;
 };
-

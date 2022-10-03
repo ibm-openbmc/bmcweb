@@ -297,7 +297,11 @@ TEST_F(MultipartTest, TestUnknownHeaderIsCorrectlyParsed)
 
     req.body() =
         "----end\r\n"
-        "t-DiPpcccc:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccgcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaa\r\n"
+        "t-DiPpcccc:"
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        "cccccccccccccccccccccgcccccccccccccccccccccccccccccccccccccccccccccccc"
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaa\r\n"
         "\r\n"
         "Data1\r\n"
         "----end--\r\n";
@@ -312,19 +316,26 @@ TEST_F(MultipartTest, TestUnknownHeaderIsCorrectlyParsed)
 
     EXPECT_EQ(
         parser.mime_fields[0].fields.at("t-DiPpcccc"),
-        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccgcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaa");
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        "cccccccccccccccccccccgcccccccccccccccccccccccccccccccccccccccccccccccc"
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaa");
     EXPECT_EQ(parser.mime_fields[0].content, "Data1");
 }
 
 TEST_F(MultipartTest, TestErrorMissingSeparatorBetweenMimeFieldsAndData)
 {
-    req.set(
-        "Content-Type",
-        "multipart/form-data; boundary=---------------------------d74496d66958873e");
+    req.set("Content-Type",
+            "multipart/form-data; "
+            "boundary=---------------------------d74496d66958873e");
 
     req.body() =
         "-----------------------------d74496d66958873e\r\n"
-        "t-DiPpcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccgcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaa\r\n"
+        "t-"
+        "DiPpcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        "cccccccccccccccccccccccccccccgcccccccccccccccccccccccccccccccccccccccc"
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaa\r\n"
         "Data1"
         "-----------------------------d74496d66958873e--";
 
@@ -336,9 +347,9 @@ TEST_F(MultipartTest, TestErrorMissingSeparatorBetweenMimeFieldsAndData)
 
 TEST_F(MultipartTest, TestDataWithoutMimeFields)
 {
-    req.set(
-        "Content-Type",
-        "multipart/form-data; boundary=---------------------------d74496d66958873e");
+    req.set("Content-Type",
+            "multipart/form-data; "
+            "boundary=---------------------------d74496d66958873e");
 
     req.body() = "-----------------------------d74496d66958873e\r\n"
                  "\r\n"
@@ -364,11 +375,13 @@ TEST_F(MultipartTest, TestErrorMissingFinalBoundry)
 {
     req.set("Content-Type", "multipart/form-data; boundary=--XX");
 
-    req.body() =
-        "----XX\r\n"
-        "Content-Disposition: form-data; name=\"Test2\"\r\n\r\n"
-        "t-DiPpccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccAAAAAAAAAAAAAAABCDz\r\n"
-        "\335\r\n\r\n";
+    req.body() = "----XX\r\n"
+                 "Content-Disposition: form-data; name=\"Test2\"\r\n\r\n"
+                 "t-"
+                 "DiPpccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                 "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                 "ccccAAAAAAAAAAAAAAABCDz\r\n"
+                 "\335\r\n\r\n";
 
     crow::Request reqIn(req, ec);
     ParserError rc = parser.parse(reqIn);

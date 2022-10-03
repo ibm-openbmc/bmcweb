@@ -25,6 +25,7 @@ inline void requestRoutes(App& app)
             boost::beast::http::verb::
                 post)([](const crow::Request& req,
                          const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+            MultipartParser parser;
             std::string_view contentType = req.getHeaderValue("content-type");
             std::string_view username;
             std::string_view password;
@@ -126,13 +127,12 @@ inline void requestRoutes(App& app)
             else if (boost::starts_with(contentType, "multipart/form-data"))
             {
                 looksLikePhosphorRest = true;
-                std::error_code ec;
-                MultipartParser parser(req, ec);
-                if (ec)
+                ParserError ec = parser.parse(req);
+                if (ec != ParserError::PARSER_SUCCESS)
                 {
                     // handle error
-                    BMCWEB_LOG_ERROR << "MIME parse failed, ec : " << ec.value()
-                                     << " , ec message : " << ec.message();
+                    BMCWEB_LOG_ERROR << "MIME parse failed, ec : "
+                                     << static_cast<int>(ec);
                     asyncResp->res.result(
                         boost::beast::http::status::bad_request);
                     return;
