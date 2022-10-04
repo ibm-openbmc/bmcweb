@@ -271,6 +271,61 @@ inline void getFanState(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         });
 }
 
+inline void getFanAsset(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                        const std::string& service, const std::string& path)
+{
+    sdbusplus::asio::getAllProperties(
+        *crow::connections::systemBus, service, path,
+        "xyz.openbmc_project.Inventory.Decorator.Asset",
+        [asyncResp](const boost::system::error_code& ec,
+                    const dbus::utility::DBusPropertiesMap& propertiesList) {
+        if (ec)
+        {
+            if (ec.value() != EBADR)
+            {
+                messages::internalError(asyncResp->res);
+            }
+            return;
+        }
+
+        const std::string* partNumber = nullptr;
+        const std::string* serialNumber = nullptr;
+        const std::string* manufacturer = nullptr;
+        const std::string* model = nullptr;
+
+        const bool success = sdbusplus::unpackPropertiesNoThrow(
+            dbus_utils::UnpackErrorPrinter(), propertiesList, "PartNumber",
+            partNumber, "SerialNumber", serialNumber, "Manufacturer",
+            manufacturer, "Model", model);
+
+        if (!success)
+        {
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        if (partNumber != nullptr)
+        {
+            asyncResp->res.jsonValue["PartNumber"] = *partNumber;
+        }
+
+        if (serialNumber != nullptr)
+        {
+            asyncResp->res.jsonValue["SerialNumber"] = *serialNumber;
+        }
+
+        if (manufacturer != nullptr)
+        {
+            asyncResp->res.jsonValue["Manufacturer"] = *manufacturer;
+        }
+
+        if (model != nullptr)
+        {
+            asyncResp->res.jsonValue["Model"] = *model;
+        }
+        });
+}
+
 inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                      const std::string& chassisId, const std::string& fanId,
                      const std::optional<std::string>& validChassisPath)
@@ -318,6 +373,7 @@ inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             }
 
             getFanState(asyncResp, object.begin()->first, fanPath);
+            getFanAsset(asyncResp, object.begin()->first, fanPath);
             });
         });
 }
