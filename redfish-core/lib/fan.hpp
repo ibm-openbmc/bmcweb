@@ -326,6 +326,28 @@ inline void getFanAsset(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         });
 }
 
+inline void getFanLocation(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                           const std::string& service, const std::string& path)
+{
+    sdbusplus::asio::getProperty<std::string>(
+        *crow::connections::systemBus, service, path,
+        "xyz.openbmc_project.Inventory.Decorator.LocationCode", "LocationCode",
+        [asyncResp](const boost::system::error_code& ec,
+                    const std::string& value) {
+        if (ec)
+        {
+            if (ec.value() != EBADR)
+            {
+                messages::internalError(asyncResp->res);
+            }
+            return;
+        }
+
+        asyncResp->res.jsonValue["Location"]["PartLocation"]["ServiceLabel"] =
+            value;
+        });
+}
+
 inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                      const std::string& chassisId, const std::string& fanId,
                      const std::optional<std::string>& validChassisPath)
@@ -374,6 +396,7 @@ inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
             getFanState(asyncResp, object.begin()->first, fanPath);
             getFanAsset(asyncResp, object.begin()->first, fanPath);
+            getFanLocation(asyncResp, object.begin()->first, fanPath);
             });
         });
 }
