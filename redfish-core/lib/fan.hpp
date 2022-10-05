@@ -348,6 +348,32 @@ inline void getFanLocation(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         });
 }
 
+inline void
+    getFanSpeedPercent(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                       const std::string& service, const std::string& path,
+                       const std::string& chassisId, const std::string& fanId)
+{
+    sdbusplus::asio::getProperty<double>(
+        *crow::connections::systemBus, service, path,
+        "xyz.openbmc_project.Sensor.Value", "Value",
+        [asyncResp, chassisId, fanId](const boost::system::error_code& ec,
+                                      double value) {
+        if (ec)
+        {
+            if (ec.value() != EBADR)
+            {
+                messages::internalError(asyncResp->res);
+            }
+            return;
+        }
+
+        asyncResp->res.jsonValue["SpeedPercent"]["Reading"] = value;
+        asyncResp->res.jsonValue["SpeedPercent"]["DataSourceUri"] =
+            crow::utility::urlFromPieces("redfish", "v1", "Chassis", chassisId,
+                                         "Sensors", "Fans", fanId);
+        });
+}
+
 inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                      const std::string& chassisId, const std::string& fanId,
                      const std::optional<std::string>& validChassisPath)
@@ -376,9 +402,9 @@ inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
         dbus::utility::getDbusObject(
             fanPath, {},
-            [asyncResp, fanPath,
-             fanSensorPath](const boost::system::error_code& ec,
-                            const dbus::utility::MapperGetObject& object) {
+            [asyncResp, fanPath, fanSensorPath, chassisId,
+             fanId](const boost::system::error_code& ec,
+                    const dbus::utility::MapperGetObject& object) {
             if (ec || object.empty())
             {
                 messages::internalError(asyncResp->res);
@@ -388,6 +414,8 @@ inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             if (!fanSensorPath.empty())
             {
                 getFanHealth(asyncResp, object.begin()->first, fanSensorPath);
+                getFanSpeedPercent(asyncResp, object.begin()->first,
+                                   fanSensorPath, chassisId, fanId);
             }
             else
             {
