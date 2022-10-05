@@ -9,9 +9,11 @@
  * should be first pushed to the relevant registry in the DMTF
  * github organization.
  ***************************************************************/
-// clang-format off
+#include "privileges.hpp"
 
-#include <privileges.hpp>
+#include <array>
+
+// clang-format off
 
 namespace redfish::privileges
 {

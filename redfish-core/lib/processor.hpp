@@ -149,7 +149,7 @@ inline void getCpuDataByInterface(
             else if (property.first == "EffectiveFamily")
             {
                 const uint16_t* value = std::get_if<uint16_t>(&property.second);
-                if (value != nullptr)
+                if (value != nullptr && *value != 2)
                 {
                     aResp->res.jsonValue["ProcessorId"]["EffectiveFamily"] =
                         "0x" + intToHexString(*value, 4);
@@ -163,8 +163,11 @@ inline void getCpuDataByInterface(
                     messages::internalError(aResp->res);
                     return;
                 }
-                aResp->res.jsonValue["ProcessorId"]["EffectiveModel"] =
-                    "0x" + intToHexString(*value, 4);
+                if (*value != 0)
+                {
+                    aResp->res.jsonValue["ProcessorId"]["EffectiveModel"] =
+                        "0x" + intToHexString(*value, 4);
+                }
             }
             else if (property.first == "Id")
             {
@@ -184,8 +187,11 @@ inline void getCpuDataByInterface(
                     messages::internalError(aResp->res);
                     return;
                 }
-                aResp->res.jsonValue["ProcessorId"]["MicrocodeInfo"] =
-                    "0x" + intToHexString(*value, 8);
+                if (*value != 0)
+                {
+                    aResp->res.jsonValue["ProcessorId"]["MicrocodeInfo"] =
+                        "0x" + intToHexString(*value, 8);
+                }
             }
             else if (property.first == "Step")
             {
@@ -195,8 +201,11 @@ inline void getCpuDataByInterface(
                     messages::internalError(aResp->res);
                     return;
                 }
-                aResp->res.jsonValue["ProcessorId"]["Step"] =
-                    "0x" + intToHexString(*value, 4);
+                if (*value != 0)
+                {
+                    aResp->res.jsonValue["ProcessorId"]["Step"] =
+                        "0x" + intToHexString(*value, 4);
+                }
             }
         }
     }
@@ -344,7 +353,7 @@ inline void getCpuAssetData(std::shared_ptr<bmcweb::AsyncResp> aResp,
             aResp->res.jsonValue["PartNumber"] = *partNumber;
         }
 
-        if (sparePartNumber != nullptr)
+        if (sparePartNumber != nullptr && !sparePartNumber->empty())
         {
             aResp->res.jsonValue["SparePartNumber"] = *sparePartNumber;
         }
@@ -1147,15 +1156,23 @@ inline void requestRoutesProcessorCollection(App& app)
     /**
      * Functions triggers appropriate requests on DBus
      */
-    BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/Processors/")
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/Processors/")
         .privileges(redfish::privileges::getProcessorCollection)
         .methods(boost::beast::http::verb::get)(
             [&app](const crow::Request& req,
-                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                   const std::string& systemName) {
         if (!redfish::setUpRedfishRoute(app, req, asyncResp))
         {
             return;
         }
+        if (systemName != "system")
+        {
+            messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                       systemName);
+            return;
+        }
+
         asyncResp->res.jsonValue["@odata.type"] =
             "#ProcessorCollection.ProcessorCollection";
         asyncResp->res.jsonValue["Name"] = "Processor Collection";
@@ -1176,16 +1193,24 @@ inline void requestRoutesProcessor(App& app)
      * Functions triggers appropriate requests on DBus
      */
 
-    BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/Processors/<str>/")
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/Processors/<str>/")
         .privileges(redfish::privileges::getProcessor)
         .methods(boost::beast::http::verb::get)(
             [&app](const crow::Request& req,
                    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                   const std::string& systemName,
                    const std::string& processorId) {
         if (!redfish::setUpRedfishRoute(app, req, asyncResp))
         {
             return;
         }
+        if (systemName != "system")
+        {
+            messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                       systemName);
+            return;
+        }
+
         asyncResp->res.jsonValue["@odata.type"] =
             "#Processor.v1_11_0.Processor";
         asyncResp->res.jsonValue["@odata.id"] =
@@ -1196,16 +1221,24 @@ inline void requestRoutesProcessor(App& app)
             std::bind_front(getProcessorData, asyncResp, processorId));
         });
 
-    BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/Processors/<str>/")
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/Processors/<str>/")
         .privileges(redfish::privileges::patchProcessor)
         .methods(boost::beast::http::verb::patch)(
             [&app](const crow::Request& req,
                    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                   const std::string& systemName,
                    const std::string& processorId) {
         if (!redfish::setUpRedfishRoute(app, req, asyncResp))
         {
             return;
         }
+        if (systemName != "system")
+        {
+            messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                       systemName);
+            return;
+        }
+
         std::optional<nlohmann::json> appliedConfigJson;
         if (!json_util::readJsonPatch(req, asyncResp->res,
                                       "AppliedOperatingConfig",

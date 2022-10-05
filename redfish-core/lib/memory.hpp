@@ -119,6 +119,10 @@ inline std::string translateMemoryTypeToRedfish(const std::string& memoryType)
     {
         return "HBM2";
     }
+    if (memoryType == "xyz.openbmc_project.Inventory.Item.Dimm.DeviceType.HBM3")
+    {
+        return "HBM3";
+    }
     // This is values like Other or Unknown
     // Also D-Bus values:
     // DRAM
@@ -418,9 +422,10 @@ inline void
     const bool success = sdbusplus::unpackPropertiesNoThrow(
         dbus_utils::UnpackErrorPrinter(), properties, "MemoryDataWidth",
         memoryDataWidth, "MemorySizeInKB", memorySizeInKB, "PartNumber",
-        partNumber, "SerialNumber", serialNumber, "Present", present,
-        "MemoryTotalWidth", memoryTotalWidth, "ECC", ecc, "FormFactor",
-        formFactor, "AllowedSpeedsMT", allowedSpeedsMT, "MemoryAttributes",
+        partNumber, "SerialNumber", serialNumber, "Manufacturer", manufacturer,
+        "RevisionCode", revisionCode, "Present", present, "MemoryTotalWidth",
+        memoryTotalWidth, "ECC", ecc, "FormFactor", formFactor,
+        "AllowedSpeedsMT", allowedSpeedsMT, "MemoryAttributes",
         memoryAttributes, "MemoryConfiguredSpeedInMhz",
         memoryConfiguredSpeedInMhz, "MemoryType", memoryType, "Channel",
         channel, "MemoryController", memoryController, "Slot", slot, "Socket",
@@ -764,15 +769,23 @@ inline void requestRoutesMemoryCollection(App& app)
     /**
      * Functions triggers appropriate requests on DBus
      */
-    BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/Memory/")
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/Memory/")
         .privileges(redfish::privileges::getMemoryCollection)
         .methods(boost::beast::http::verb::get)(
             [&app](const crow::Request& req,
-                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                   const std::string& systemName) {
         if (!redfish::setUpRedfishRoute(app, req, asyncResp))
         {
             return;
         }
+        if (systemName != "system")
+        {
+            messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                       systemName);
+            return;
+        }
+
         asyncResp->res.jsonValue["@odata.type"] =
             "#MemoryCollection.MemoryCollection";
         asyncResp->res.jsonValue["Name"] = "Memory Module Collection";
@@ -790,16 +803,23 @@ inline void requestRoutesMemory(App& app)
     /**
      * Functions triggers appropriate requests on DBus
      */
-    BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/Memory/<str>/")
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/Memory/<str>/")
         .privileges(redfish::privileges::getMemory)
         .methods(boost::beast::http::verb::get)(
             [&app](const crow::Request& req,
                    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                   const std::string& dimmId) {
+                   const std::string& systemName, const std::string& dimmId) {
         if (!redfish::setUpRedfishRoute(app, req, asyncResp))
         {
             return;
         }
+        if (systemName != "system")
+        {
+            messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                       systemName);
+            return;
+        }
+
         getDimmData(asyncResp, dimmId);
         });
 }
