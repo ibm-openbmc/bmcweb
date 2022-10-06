@@ -157,7 +157,7 @@ inline void afterGetPowerWatts(
 {
     if (ec)
     {
-        if (ec.value() != EBADR)
+        if (ec != boost::system::errc::io_error)
         {
             BMCWEB_LOG_ERROR("DBUS response error for PowerWatts {}", ec);
             messages::internalError(asyncResp->res);
@@ -179,41 +179,48 @@ inline void afterGetPowerWatts(
     }
 }
 
-inline void handleTotalPowerSensor(
+inline void handleTotalPowerList(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& chassisId, const std::string& sensorPath,
-    const std::string& serviceName, const boost::system::error_code& ec,
-    const std::vector<std::string>& purposeList)
+    const std::string& chassisId, const boost::system::error_code& ec,
+    const std::shared_ptr<sensor_utils::SensorServicePathList>& sensorList)
 {
-    BMCWEB_LOG_DEBUG("handleTotalPowerSensor: {}", sensorPath);
+    BMCWEB_LOG_DEBUG("handleTotalPowerList: {}", sensorList->size());
+
     if (ec)
     {
-        if (ec.value() != EBADR)
+        if (ec != boost::system::errc::io_error)
         {
-            BMCWEB_LOG_ERROR("D-Bus response error for {} Sensor.Purpose: {}",
-                             sensorPath, ec);
+            BMCWEB_LOG_ERROR("D-Bus response error {}", ec);
             messages::internalError(asyncResp->res);
         }
         return;
     }
 
-    for (const std::string& purposeStr : purposeList)
+    // TotalPower cannot be supplied by multiple sensors
+    if (sensorList->size() != 1)
     {
-        if (purposeStr ==
-            "xyz.openbmc_project.Sensor.Purpose.SensorPurpose.TotalPower")
+        if (sensorList->empty())
         {
-            sdbusplus::asio::getAllProperties(
-                *crow::connections::systemBus, serviceName, sensorPath,
-                "xyz.openbmc_project.Sensor.Value",
-                [asyncResp, chassisId, sensorPath](
-                    const boost::system::error_code& ec1,
-                    const dbus::utility::DBusPropertiesMap& propertiesList) {
-                    afterGetPowerWatts(asyncResp, chassisId, sensorPath, ec1,
-                                       propertiesList);
-                });
+            // None found, not an error
             return;
         }
+        BMCWEB_LOG_ERROR("Too many total power sensors found {}. Expected 1.",
+                         sensorList->size());
+        messages::internalError(asyncResp->res);
+        return;
     }
+
+    const std::string& serviceName = (*sensorList)[0].first;
+    const std::string& sensorPath = (*sensorList)[0].second;
+    sdbusplus::asio::getAllProperties(
+        *crow::connections::systemBus, serviceName, sensorPath,
+        "xyz.openbmc_project.Sensor.Value",
+        [asyncResp, chassisId,
+         sensorPath](const boost::system::error_code& ec1,
+                     const dbus::utility::DBusPropertiesMap& propertiesList) {
+            afterGetPowerWatts(asyncResp, chassisId, sensorPath, ec1,
+                               propertiesList);
+        });
 }
 
 inline void getTotalPowerSensor(
@@ -221,30 +228,61 @@ inline void getTotalPowerSensor(
     const std::string& chassisId, const boost::system::error_code& ec,
     const sensor_utils::SensorServicePathList& sensorsServiceAndPath)
 {
+    BMCWEB_LOG_DEBUG("getTotalPowerSensor {}", sensorsServiceAndPath.size());
+
     if (ec)
     {
-        if (ec.value() != EBADR)
+        if (ec != boost::system::errc::io_error)
         {
             BMCWEB_LOG_ERROR("DBUS response error {}", ec);
             messages::internalError(asyncResp->res);
         }
+        // None found, not an error
         return;
     }
 
-    for (const auto& [serviceName, sensorPath] : sensorsServiceAndPath)
+    if (sensorsServiceAndPath.empty())
     {
-        dbus::utility::getProperty<std::vector<std::string>>(
-            serviceName, sensorPath, "xyz.openbmc_project.Sensor.Purpose",
-            "Purpose",
-            std::bind_front(handleTotalPowerSensor, asyncResp, chassisId,
-                            sensorPath, serviceName));
+        // No power sensors implement Sensor.Purpose, not an error
+        return;
     }
+
+    // Create vector to hold list of sensors with totalPower purpose
+    std::shared_ptr<sensor_utils::SensorServicePathList> sensorList =
+        std::make_shared<sensor_utils::SensorServicePathList>();
+
+    sensor_utils::getSensorsByPurpose(
+        asyncResp, sensorsServiceAndPath,
+        sensor_utils::SensorPurpose::totalPower, sensorList,
+        std::bind_front(handleTotalPowerList, asyncResp, chassisId));
 }
 
+/**
+ * @brief Find sensor providing totalPower and fill in response
+ *
+ * Multiple D-Bus calls are needed to find the sensor providing the totalPower
+ * details:
+ *
+ * 1. Retrieve list of power sensors associated with specified chassis which
+ * implement the Sensor.Purpose interface.
+ *
+ * 2. For each of those power sensors retrieve the actual purpose of the sensor
+ * to find the sensor implementing totalPower purpose. Expect no more than
+ * one sensor to implement this purpose.
+ *
+ * 3. If a totalPower sensor is found then retrieve its properties to fill in
+ * PowerWatts in the response.
+ *
+ * @param asyncResp Response data
+ * @param validChassisPath Path to chassis, caller confirms path is valid
+ * @param chassisId Chassis id matching <validChassisPath>
+ */
 inline void getPowerWatts(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                           const std::string& validChassisPath,
                           const std::string& chassisId)
 {
+    BMCWEB_LOG_DEBUG("getPowerWatts: {}", validChassisPath);
+
     constexpr std::array<std::string_view, 1> interfaces = {
         "xyz.openbmc_project.Sensor.Purpose"};
     sensor_utils::getAllSensorObjects(
