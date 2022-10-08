@@ -26,6 +26,7 @@
 #include "utils/json_utils.hpp"
 #include "utils/pcie_util.hpp"
 #include "utils/sw_utils.hpp"
+#include "utils/systems_utils.hpp"
 #include "utils/time_utils.hpp"
 
 #include <asm-generic/errno.h>
@@ -2808,7 +2809,16 @@ inline void handleComputerSystemGet(
             aRsp->res.jsonValue["Links"]["Chassis"] = std::move(chassisArray);
         });
 
-    getSystemLocationIndicatorActive(asyncResp);
+    systems_utils::getValidSystemsPath(
+        asyncResp, systemName,
+        [asyncResp,
+         systemName](const std::optional<std::string>& validSystemsPath) {
+            if (validSystemsPath)
+            {
+                getLocationIndicatorActive(asyncResp, *validSystemsPath);
+            }
+        });
+
     // TODO (Gunnar): Remove IndicatorLED after enough time has passed
     getIndicatorLedState(asyncResp);
     getComputerSystem(asyncResp);
@@ -2951,7 +2961,20 @@ inline void handleComputerSystemPatch(
 
     if (locationIndicatorActive)
     {
-        setSystemLocationIndicatorActive(asyncResp, *locationIndicatorActive);
+        systems_utils::getValidSystemsPath(
+            asyncResp, systemName,
+            [asyncResp, systemName,
+             locationIndicatorActive{*locationIndicatorActive}](
+                const std::optional<std::string>& validSystemsPath) {
+                if (!validSystemsPath)
+                {
+                    messages::resourceNotFound(asyncResp->res, "Systems",
+                                               systemName);
+                    return;
+                }
+                setLocationIndicatorActive(asyncResp, *validSystemsPath,
+                                           locationIndicatorActive);
+            });
     }
 
     // TODO (Gunnar): Remove IndicatorLED after enough time has
