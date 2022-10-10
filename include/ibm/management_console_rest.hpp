@@ -294,12 +294,13 @@ inline void
     if (boost::istarts_with(contentType, "multipart/form-data"))
     {
         BMCWEB_LOG_DEBUG << "This is a multipart upload";
-        MultipartParser parser(req, ec);
-        if (ec)
+        MultipartParser parser;
+        ParserError ec = parser.parse(req);
+        if (ec != ParserError::PARSER_SUCCESS)
         {
             // handle error
-            BMCWEB_LOG_ERROR << "MIME parse failed, ec : " << ec.value()
-                             << " , ec message : " << ec.message();
+            BMCWEB_LOG_ERROR << "MIME parse failed, ec : "
+                             << static_cast<int>(ec);
             asyncResp->res.result(boost::beast::http::status::bad_request);
             asyncResp->res.jsonValue["Description"] = badRequestMsg;
             return;
