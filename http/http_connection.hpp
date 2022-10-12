@@ -388,6 +388,18 @@ class Connection :
             asyncResp->res.setCompleteRequestHandler(nullptr);
             return;
         }
+
+        std::string url(req->target());
+        if (boost::contains(url, "/Dump/Entries/") &&
+            boost::ends_with(url, "/attachment"))
+        {
+            BMCWEB_LOG_DEBUG << "upgrade stream connection";
+            handler->handleUpgrade(*req, res, std::move(adaptor));
+            // delete lambda with self shared_ptr
+            // to enable connection destruction
+            asyncResp->res.completeRequestHandler(nullptr);
+            return;
+        }
         handler->handle(thisReq, asyncResp);
     }
 
