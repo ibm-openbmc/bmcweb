@@ -185,12 +185,10 @@ inline void requestRoutes(App& app)
                 }
                 else
                 {
-                    std::string unsupportedClientId = "";
                     auto session =
                         persistent_data::SessionStore::getInstance()
                             .generateUserSession(
-                                username, req.ipAddress.to_string(),
-                                unsupportedClientId,
+                                username, req.ipAddress.to_string(), std::nullopt,
                                 persistent_data::PersistenceType::TIMEOUT,
                                 isConfigureSelfOnly);
 
