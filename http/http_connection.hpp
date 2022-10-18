@@ -489,7 +489,8 @@ class Connection :
             (req->method() == boost::beast::http::verb::patch) ||
             (req->method() == boost::beast::http::verb::delete_))
         {
-            if (res.result() == boost::beast::http::status::ok)
+            // Look for good return codes and if so we know the operation passed
+            if ((res.resultInt() >= 200) && (res.resultInt() < 300))
             {
                 audit::auditEvent(*req,
                                   ("op=" + std::string(req->methodString()) +
@@ -506,7 +507,7 @@ class Connection :
                                   false);
             }
         }
-#endif
+#endif // BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
 
         BMCWEB_LOG_INFO << "Response: " << this << ' ' << req->url << ' '
                         << res.resultInt() << " keepalive=" << req->keepAlive();
