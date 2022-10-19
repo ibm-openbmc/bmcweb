@@ -223,12 +223,15 @@ class ConfigFile
             if (p.second->persistence !=
                 persistent_data::PersistenceType::SINGLE_REQUEST)
             {
-                sessions.push_back({
-                    {"unique_id", p.second->uniqueId},
-                    {"username", p.second->username},
-                    {"client_ip", p.second->clientIp},
-                    {"client_id", p.second->clientId},
-                });
+                nlohmann::json::object_t session;
+                session["unique_id"] = p.second->uniqueId;
+                session["username"] = p.second->username;
+                session["client_ip"] = p.second->clientIp;
+                if (p.second->clientId)
+                {
+                    session["client_id"] = *p.second->clientId;
+                }
+                sessions.push_back(std::move(session));
             }
         }
 
@@ -311,16 +314,17 @@ class ConfigFile
             if (p.second->persistence !=
                 persistent_data::PersistenceType::SINGLE_REQUEST)
             {
-                sessions.push_back({
-                    {"unique_id", p.second->uniqueId},
-                    {"session_token", p.second->sessionToken},
-                    {"username", p.second->username},
-                    {"csrf_token", p.second->csrfToken},
-                    {"client_ip", p.second->clientIp},
-#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
-                    {"client_id", p.second->clientId},
-#endif
-                });
+                nlohmann::json::object_t session;
+                session["unique_id"] = p.second->uniqueId;
+                session["session_token"] = p.second->sessionToken;
+                session["username"] = p.second->username;
+                session["csrf_token"] = p.second->csrfToken;
+                session["client_ip"] = p.second->clientIp;
+                if (p.second->clientId)
+                {
+                    session["client_id"] = *p.second->clientId;
+                }
+                sessions.push_back(std::move(session));
             }
         }
         nlohmann::json& subscriptions = data["subscriptions"];
