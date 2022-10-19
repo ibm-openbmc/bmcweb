@@ -1713,11 +1713,13 @@ inline void uploadACF(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
 // This is called when someone either is not authenticated or is not
 // authorized to upload an ACF, and they are trying to upload an ACF;
-// uploading an ACF might still be allowed.
+// in this condition, uploading an ACF is allowed when
+// AllowUnauthACFUpload is true.
 inline void triggerUnauthenticatedACFUpload(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     std::optional<nlohmann::json> oem)
 {
+    std::vector<uint8_t> decodedAcf;
     std::optional<nlohmann::json> ibm;
     if (!redfish::json_util::readJson(*oem, asyncResp->res, "IBM", ibm))
     {
@@ -1726,53 +1728,52 @@ inline void triggerUnauthenticatedACFUpload(
         return;
     }
 
-    std::optional<nlohmann::json> acf;
     if (ibm)
     {
+        std::optional<nlohmann::json> acf;
         if (!redfish::json_util::readJson(*ibm, asyncResp->res, "ACF", acf))
         {
             BMCWEB_LOG_ERROR << "Illegal Property ";
             messages::propertyMissing(asyncResp->res, "ACF");
             return;
         }
-    }
 
-    std::vector<uint8_t> decodedAcf;
-    if (acf)
-    {
-        std::optional<std::string> acfFile;
-        if (acf.value().contains("ACFFile") &&
-            acf.value()["ACFFile"] == nullptr)
+        if (acf)
         {
-            acfFile = "";
-        }
-        else
-        {
-            if (!redfish::json_util::readJson(*acf, asyncResp->res,
-                                              "ACFFile", acfFile))
+            std::optional<std::string> acfFile;
+            if (acf.value().contains("ACFFile") &&
+                acf.value()["ACFFile"] == nullptr)
             {
-                BMCWEB_LOG_ERROR << "Illegal Property ";
-                messages::propertyMissing(asyncResp->res, "ACFFile");
-                return;
+                acfFile = "";
             }
+            else
+            {
+                if (!redfish::json_util::readJson(*acf, asyncResp->res,
+                                                  "ACFFile", acfFile))
+                {
+                    BMCWEB_LOG_ERROR << "Illegal Property ";
+                    messages::propertyMissing(asyncResp->res, "ACFFile");
+                    return;
+                }
 
-            std::string sDecodedAcf;
-            if (!crow::utility::base64Decode(*acfFile, sDecodedAcf))
-            {
-                BMCWEB_LOG_ERROR << "base64 decode failure ";
-                messages::internalError(asyncResp->res);
-                return;
-            }
-            try
-            {
-                std::copy(sDecodedAcf.begin(), sDecodedAcf.end(),
-                          std::back_inserter(decodedAcf));
-            }
-            catch (const std::exception& e)
-            {
-                BMCWEB_LOG_ERROR << e.what();
-                messages::internalError(asyncResp->res);
-                return;
+                std::string sDecodedAcf;
+                if (!crow::utility::base64Decode(*acfFile, sDecodedAcf))
+                {
+                    BMCWEB_LOG_ERROR << "base64 decode failure ";
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                try
+                {
+                    std::copy(sDecodedAcf.begin(), sDecodedAcf.end(),
+                              std::back_inserter(decodedAcf));
+                }
+                catch (const std::exception& e)
+                {
+                    BMCWEB_LOG_ERROR << e.what();
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
             }
         }
     }
