@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/USBControllerCollection",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "USBControllerCollection Schema File",
+    "Schema": "#USBControllerCollection.USBControllerCollection",
+    "Description": "USBControllerCollection Schema File Location",
+    "Id": "USBControllerCollection",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/USBControllerCollection.json",
+            "Uri": "/redfish/v1/JsonSchemas/USBControllerCollection/USBControllerCollection.json"
+        }
+    ],
+    "Location@odata.count": 1
+}

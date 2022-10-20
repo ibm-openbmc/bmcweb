@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/AggregationSourceCollection",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "AggregationSourceCollection Schema File",
+    "Schema": "#AggregationSourceCollection.AggregationSourceCollection",
+    "Description": "AggregationSourceCollection Schema File Location",
+    "Id": "AggregationSourceCollection",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/AggregationSourceCollection.json",
+            "Uri": "/redfish/v1/JsonSchemas/AggregationSourceCollection/AggregationSourceCollection.json"
+        }
+    ],
+    "Location@odata.count": 1
+}

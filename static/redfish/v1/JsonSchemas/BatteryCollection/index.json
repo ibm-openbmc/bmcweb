@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/BatteryCollection",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "BatteryCollection Schema File",
+    "Schema": "#BatteryCollection.BatteryCollection",
+    "Description": "BatteryCollection Schema File Location",
+    "Id": "BatteryCollection",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/BatteryCollection.json",
+            "Uri": "/redfish/v1/JsonSchemas/BatteryCollection/BatteryCollection.json"
+        }
+    ],
+    "Location@odata.count": 1
+}
