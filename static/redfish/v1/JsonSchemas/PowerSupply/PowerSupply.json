@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/PowerSupply.v1_3_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/PowerSupply.v1_5_0.json",
     "$ref": "#/definitions/PowerSupply",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2022 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -165,9 +165,11 @@
                 },
                 "Outlet": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Outlet.json#/definitions/Outlet",
+                    "deprecated": "This property has been deprecated in favor of the PowerOutlets property to allow for consistent modeling of power supplies with multiple outlet support.",
                     "description": "A link to the outlet connected to this power supply.",
                     "longDescription": "This property shall contain a link to a resource of type Outlet that represents the outlet connected to this power supply.",
-                    "readonly": false
+                    "readonly": false,
+                    "versionDeprecated": "v1_4_0"
                 },
                 "PowerOutlets": {
                     "description": "An array of links to the outlets that provide power to this power supply.",
@@ -180,6 +182,19 @@
                     "versionAdded": "v1_2_0"
                 },
                 "PowerOutlets@odata.count": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
+                },
+                "PoweringChassis": {
+                    "description": "An array of links to the chassis that are directly powered by this power supply.",
+                    "items": {
+                        "$ref": "http://redfish.dmtf.org/schemas/v1/Chassis.json#/definitions/Chassis"
+                    },
+                    "longDescription": "This property shall contain an array of links to resources of type Chassis that represent the chassis directly powered by this power supply.  This property shall not be present if the power supply is only providing power to its containing parent chassis.",
+                    "readonly": true,
+                    "type": "array",
+                    "versionAdded": "v1_4_0"
+                },
+                "PoweringChassis@odata.count": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
                 }
             },
@@ -447,6 +462,20 @@
                     "description": "The OEM extension property.",
                     "longDescription": "This property shall contain the OEM extensions.  All values for properties that this object contains shall conform to the Redfish Specification-described requirements."
                 },
+                "OutputNominalVoltageType": {
+                    "anyOf": [
+                        {
+                            "$ref": "http://redfish.dmtf.org/schemas/v1/Circuit.json#/definitions/NominalVoltageType"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "The nominal output voltage type of this power supply.",
+                    "longDescription": "This property shall contain the nominal voltage type of the single output line of this power supply.  This property is intended to describe power supply types that connect to additional power infrastructure components, such as a rectifier component in a modular power system.  This property shall not be present for power supplies not intended to connect to additional power infrastructure components.",
+                    "readonly": true,
+                    "versionAdded": "v1_5_0"
+                },
                 "OutputRails": {
                     "description": "The output power rails provided by this power supply.",
                     "items": {
@@ -525,6 +554,16 @@
                     ],
                     "versionAdded": "v1_1_0"
                 },
+                "Replaceable": {
+                    "description": "An indication of whether this component can be independently replaced as allowed by the vendor's replacement policy.",
+                    "longDescription": "This property shall indicate whether this component can be independently replaced as allowed by the vendor's replacement policy.  A value of `false` indicates the component needs to be replaced by policy, as part of another component.  If the `LocationType` property of this component contains `Embedded`, this property shall contain `false`.",
+                    "readonly": true,
+                    "type": [
+                        "boolean",
+                        "null"
+                    ],
+                    "versionAdded": "v1_5_0"
+                },
                 "SerialNumber": {
                     "description": "The serial number for this power supply.",
                     "longDescription": "This property shall contain the serial number as defined by the manufacturer for this power supply.",
@@ -571,12 +610,17 @@
             "enum": [
                 "AC",
                 "DC",
-                "ACorDC"
+                "ACorDC",
+                "DCRegulator"
             ],
             "enumDescriptions": {
                 "AC": "Alternating Current (AC) power supply.",
                 "ACorDC": "The power supply supports both DC or AC.",
-                "DC": "Direct Current (DC) power supply."
+                "DC": "Direct Current (DC) power supply.",
+                "DCRegulator": "Direct Current (DC) voltage regulator."
+            },
+            "enumVersionAdded": {
+                "DCRegulator": "v1_5_0"
             },
             "type": "string"
         },
@@ -620,6 +664,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.4",
-    "title": "#PowerSupply.v1_3_0.PowerSupply"
+    "release": "2022.2",
+    "title": "#PowerSupply.v1_5_0.PowerSupply"
 }

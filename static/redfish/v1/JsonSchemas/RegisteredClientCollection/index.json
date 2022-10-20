@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/RegisteredClientCollection",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "RegisteredClientCollection Schema File",
+    "Schema": "#RegisteredClientCollection.RegisteredClientCollection",
+    "Description": "RegisteredClientCollection Schema File Location",
+    "Id": "RegisteredClientCollection",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/RegisteredClientCollection.json",
+            "Uri": "/redfish/v1/JsonSchemas/RegisteredClientCollection/RegisteredClientCollection.json"
+        }
+    ],
+    "Location@odata.count": 1
+}

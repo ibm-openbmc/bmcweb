@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/PowerDistributionCollection",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "PowerDistributionCollection Schema File",
+    "Schema": "#PowerDistributionCollection.PowerDistributionCollection",
+    "Description": "PowerDistributionCollection Schema File Location",
+    "Id": "PowerDistributionCollection",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/PowerDistributionCollection.json",
+            "Uri": "/redfish/v1/JsonSchemas/PowerDistributionCollection/PowerDistributionCollection.json"
+        }
+    ],
+    "Location@odata.count": 1
+}

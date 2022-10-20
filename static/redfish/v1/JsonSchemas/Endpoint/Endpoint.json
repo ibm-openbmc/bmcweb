@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Endpoint.v1_6_1.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Endpoint.v1_7_0.json",
     "$ref": "#/definitions/Endpoint",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2022 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -551,11 +551,11 @@
                     "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
                 },
                 "ConnectedPorts": {
-                    "description": "An array of links to the ports that connect to this endpoint.",
+                    "description": "An array of links to the switch ports or remote device ports at the other end of the link.",
                     "items": {
                         "$ref": "http://redfish.dmtf.org/schemas/v1/Port.json#/definitions/Port"
                     },
-                    "longDescription": "This property shall contain an array of links to resources of type Port that represent ports associated with this endpoint.",
+                    "longDescription": "This property shall contain an array of links to resources of type Port that represent the switch ports or remote device ports to which this endpoint is connected.",
                     "readonly": true,
                     "type": "array",
                     "versionAdded": "v1_4_0"
@@ -574,6 +574,19 @@
                     "versionAdded": "v1_5_0"
                 },
                 "Connections@odata.count": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
+                },
+                "LocalPorts": {
+                    "description": "An array of links to the device ports that this endpoint represents.",
+                    "items": {
+                        "$ref": "http://redfish.dmtf.org/schemas/v1/Port.json#/definitions/Port"
+                    },
+                    "longDescription": "This property shall contain an array of links to resources of type Port that represent the device ports that this endpoint represents.",
+                    "readonly": true,
+                    "type": "array",
+                    "versionAdded": "v1_7_0"
+                },
+                "LocalPorts@odata.count": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
                 },
                 "MutuallyExclusiveEndpoints": {
@@ -607,13 +620,15 @@
                     "longDescription": "This property shall contain the OEM extensions.  All values for properties contained in this object shall conform to the Redfish Specification-described requirements."
                 },
                 "Ports": {
+                    "deprecated": "This property has been deprecated in favor of the ConnectedPorts and LocalPorts properties to clarify the semantics of each port referenced.",
                     "description": "An array of links to the physical ports associated with this endpoint.",
                     "items": {
                         "$ref": "http://redfish.dmtf.org/schemas/v1/Port.json#/definitions/Port"
                     },
                     "longDescription": "This property shall contain an array of links to resources of type Port that are utilized by this endpoint.",
                     "readonly": true,
-                    "type": "array"
+                    "type": "array",
+                    "versionDeprecated": "v1_7_0"
                 },
                 "Ports@odata.count": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
@@ -740,6 +755,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.1",
-    "title": "#Endpoint.v1_6_1.Endpoint"
+    "release": "2022.1",
+    "title": "#Endpoint.v1_7_0.Endpoint"
 }

@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/MemoryDomain.v1_3_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/MemoryDomain.v1_4_0.json",
     "$ref": "#/definitions/MemoryDomain",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2019 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2022 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -51,7 +51,21 @@
                 }
             },
             "properties": {
+                "FabricAdapters": {
+                    "description": "An array of links to the fabric adapters providing this memory domain.",
+                    "items": {
+                        "$ref": "http://redfish.dmtf.org/schemas/v1/FabricAdapter.json#/definitions/FabricAdapter"
+                    },
+                    "longDescription": "This property shall contain an array of links to resources of type FabricAdapter with which this memory domain is associated.",
+                    "readonly": true,
+                    "type": "array",
+                    "versionAdded": "v1_4_0"
+                },
+                "FabricAdapters@odata.count": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
+                },
                 "MediaControllers": {
+                    "deprecated": "This property has been deprecated in favor of the FabricAdapters property.",
                     "description": "An array of links to the media controllers for this memory domain.",
                     "items": {
                         "$ref": "http://redfish.dmtf.org/schemas/v1/MediaController.json#/definitions/MediaController"
@@ -59,7 +73,8 @@
                     "longDescription": "This property shall contain an array of links to Resources of type MediaController that are associated with this memory domain.",
                     "readonly": true,
                     "type": "array",
-                    "versionAdded": "v1_3_0"
+                    "versionAdded": "v1_3_0",
+                    "versionDeprecated": "v1_4_0"
                 },
                 "MediaControllers@odata.count": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
@@ -257,6 +272,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2019.4",
-    "title": "#MemoryDomain.v1_3_0.MemoryDomain"
+    "release": "2022.1",
+    "title": "#MemoryDomain.v1_4_0.MemoryDomain"
 }

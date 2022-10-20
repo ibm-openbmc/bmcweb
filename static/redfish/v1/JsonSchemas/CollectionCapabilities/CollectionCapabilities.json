@@ -1,7 +1,7 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/CollectionCapabilities.v1_3_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/CollectionCapabilities.v1_4_0.json",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2022 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Capability": {
             "additionalProperties": false,
@@ -139,17 +139,20 @@
                 "ComputerSystemConstrainedComposition",
                 "VolumeCreation",
                 "ResourceBlockComposition",
-                "ResourceBlockConstrainedComposition"
+                "ResourceBlockConstrainedComposition",
+                "RegisterResourceBlock"
             ],
             "enumDescriptions": {
                 "ComputerSystemComposition": "This capability describes a client creating a new computer system resource from a set of disaggregated hardware.",
                 "ComputerSystemConstrainedComposition": "This capability describes a client creating a new computer system resource from a set of constraints.",
+                "RegisterResourceBlock": "This capability describes a client creating a new resource block from an existing computer system to enable it to be used by the compostition service.",
                 "ResourceBlockComposition": "This capability describes a client creating a new resource block from a set of other resource blocks.",
                 "ResourceBlockConstrainedComposition": "This capability describes a client creating a new resource block from a set of constraints.",
                 "VolumeCreation": "This capability describes a client creating a new volume resource as part of an existing storage subsystem."
             },
             "enumVersionAdded": {
                 "ComputerSystemConstrainedComposition": "v1_1_0",
+                "RegisterResourceBlock": "v1_4_0",
                 "ResourceBlockComposition": "v1_3_0",
                 "ResourceBlockConstrainedComposition": "v1_3_0"
             },
@@ -157,6 +160,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2020.4",
-    "title": "#CollectionCapabilities.v1_3_0"
+    "release": "2022.1",
+    "title": "#CollectionCapabilities.v1_4_0"
 }

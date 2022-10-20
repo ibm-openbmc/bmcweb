@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/FacilityCollection",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "FacilityCollection Schema File",
+    "Schema": "#FacilityCollection.FacilityCollection",
+    "Description": "FacilityCollection Schema File Location",
+    "Id": "FacilityCollection",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/FacilityCollection.json",
+            "Uri": "/redfish/v1/JsonSchemas/FacilityCollection/FacilityCollection.json"
+        }
+    ],
+    "Location@odata.count": 1
+}

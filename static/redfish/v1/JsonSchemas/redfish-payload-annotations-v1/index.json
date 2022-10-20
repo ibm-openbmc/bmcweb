@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/redfish-payload-annotations-v1",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "redfish-payload-annotations-v1 Schema File",
+    "Schema": "#redfish-payload-annotations-v1.redfish-payload-annotations-v1",
+    "Description": "redfish-payload-annotations-v1 Schema File Location",
+    "Id": "redfish-payload-annotations-v1",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/redfish-payload-annotations-v1.json",
+            "Uri": "/redfish/v1/JsonSchemas/redfish-payload-annotations-v1/redfish-payload-annotations-v1.json"
+        }
+    ],
+    "Location@odata.count": 1
+}
