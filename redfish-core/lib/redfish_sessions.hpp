@@ -33,7 +33,7 @@ inline void fillSessionObject(crow::Response& res,
     res.jsonValue["UserName"] = session.username;
     res.jsonValue["@odata.id"] =
         "/redfish/v1/SessionService/Sessions/" + session.uniqueId;
-    res.jsonValue["@odata.type"] = "#Session.v1_3_0.Session";
+    res.jsonValue["@odata.type"] = "#Session.v1_5_0.Session";
     res.jsonValue["Name"] = "User Session";
     res.jsonValue["Description"] = "Manager User Session";
     res.jsonValue["ClientOriginIPAddress"] = session.clientIp;
