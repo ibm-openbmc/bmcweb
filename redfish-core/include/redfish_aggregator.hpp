@@ -231,8 +231,7 @@ class RedfishAggregator
             }
             handler(satelliteInfo);
             },
-            "xyz.openbmc_project.EntityManager",
-            "/xyz/openbmc_project/inventory",
+            "xyz.openbmc_project.EntityManager", "/",
             "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
     }
 
