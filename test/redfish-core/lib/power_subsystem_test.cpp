@@ -1,5 +1,5 @@
 #include "async_resp.hpp"
-#include "thermal_subsystem.hpp"
+#include "power_subsystem.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -16,24 +16,25 @@ namespace
 constexpr const char* chassisId = "ChassisId";
 constexpr const char* validChassisPath = "ChassisPath";
 
-void assertThemalCollectionGet(crow::Response& res)
+void assertPowerSubsystemCollectionGet(crow::Response& res)
 {
     nlohmann::json& json = res.jsonValue;
-    EXPECT_EQ(json["@odata.type"], "#ThermalSubsystem.v1_0_0.ThermalSubsystem");
-    EXPECT_EQ(json["Name"], "Thermal Subsystem");
-    EXPECT_EQ(json["Id"], "ThermalSubsystem");
+    EXPECT_EQ(json["@odata.type"], "#PowerSubsystem.v1_1_0.PowerSubsystem");
+    EXPECT_EQ(json["Name"], "Power Subsystem");
+    EXPECT_EQ(json["Id"], "PowerSubsystem");
     EXPECT_EQ(json["@odata.id"],
-              "/redfish/v1/Chassis/ChassisId/ThermalSubsystem");
+              "/redfish/v1/Chassis/ChassisId/PowerSubsystem");
     EXPECT_EQ(json["Status"]["State"], "Enabled");
     EXPECT_EQ(json["Status"]["Health"], "OK");
 }
 
-TEST(ThermalSubsystemCollectionTest,
-     ThermalSubsystemCollectionStaticAttributesAreExpected)
+TEST(PowerSubsystemCollectionTest,
+     PowerSubsystemCollectionStaticAttributesAreExpected)
 {
     auto shareAsyncResp = std::make_shared<bmcweb::AsyncResp>();
-    shareAsyncResp->res.setCompleteRequestHandler(assertThemalCollectionGet);
-    doThermalSubsystemCollection(
+    shareAsyncResp->res.setCompleteRequestHandler(
+        assertPowerSubsystemCollectionGet);
+    doPowerSubsystemCollection(
         shareAsyncResp, chassisId,
         std::make_optional<std::string>(validChassisPath));
 }
