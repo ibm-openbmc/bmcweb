@@ -441,22 +441,23 @@ class Connection :
             (req->method() == boost::beast::http::verb::patch) ||
             (req->method() == boost::beast::http::verb::delete_))
         {
+
             // Look for good return codes and if so we know the operation passed
             if ((res.resultInt() >= 200) && (res.resultInt() < 300))
             {
-                audit::auditEvent(*req,
-                                  ("op=" + std::string(req->methodString()) +
+                audit::auditEvent(("op=" + std::string(req->methodString()) +
                                    ":" + std::string(req->target()) + " ")
                                       .c_str(),
-                                  true);
+                                  userSession->username,
+                                  req->ipAddress.to_string(), true);
             }
             else
             {
-                audit::auditEvent(*req,
-                                  ("op=" + std::string(req->methodString()) +
+                audit::auditEvent(("op=" + std::string(req->methodString()) +
                                    ":" + std::string(req->target()) + " ")
                                       .c_str(),
-                                  false);
+                                  userSession->username,
+                                  req->ipAddress.to_string(), false);
             }
         }
 #endif // BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
