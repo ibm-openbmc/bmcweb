@@ -237,6 +237,10 @@ def main():
                                  'resource_event_message_registry.hpp',
                                  'resource_event'))
 
+    if "license" in registries:
+        files.append(make_getter('License.1.0.0',
+                                 'license_message_registry.hpp',
+                                 'license'))
     update_registries(files)
 
     if "privilege" in registries:

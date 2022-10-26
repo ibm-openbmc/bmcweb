@@ -17,6 +17,7 @@
 
 #include "registries.hpp"
 #include "registries/base_message_registry.hpp"
+#include "registries/license_message_registry.hpp"
 #include "registries/openbmc_message_registry.hpp"
 #include "registries/resource_event_message_registry.hpp"
 #include "registries/task_event_message_registry.hpp"
@@ -47,11 +48,11 @@ inline void handleMessageRegistryFileCollectionGet(
     asyncResp->res.jsonValue["Name"] = "MessageRegistryFile Collection";
     asyncResp->res.jsonValue["Description"] =
         "Collection of MessageRegistryFiles";
-    asyncResp->res.jsonValue["Members@odata.count"] = 4;
+    asyncResp->res.jsonValue["Members@odata.count"] = 5;
 
     nlohmann::json& members = asyncResp->res.jsonValue["Members"];
     for (const char* memberName :
-         std::to_array({"Base", "TaskEvent", "ResourceEvent", "OpenBMC"}))
+         std::to_array({"Base", "TaskEvent", "ResourceEvent", "OpenBMC", "License"}))
     {
         nlohmann::json::object_t member;
         member["@odata.id"] = crow::utility::urlFromPieces(
@@ -103,6 +104,11 @@ inline void handleMessageRoutesMessageRegistryFileGet(
     {
         header = &registries::resource_event::header;
         url = registries::resource_event::url;
+    }
+    else if (registry == "License")
+    {
+        header = &message_registries::license::header;
+        url = message_registries::license::url;
     }
     else
     {
@@ -189,6 +195,15 @@ inline void handleMessageRegistryGet(
         header = &registries::resource_event::header;
         for (const registries::MessageEntry& entry :
              registries::resource_event::registry)
+        {
+            registryEntries.emplace_back(&entry);
+        }
+    }
+    else if (registry == "License")
+    {
+        header = &message_registries::license::header;
+        for (const message_registries::MessageEntry& entry :
+             message_registries::license::registry)
         {
             registryEntries.emplace_back(&entry);
         }

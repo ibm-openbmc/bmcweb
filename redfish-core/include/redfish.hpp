@@ -23,6 +23,7 @@
 #include "../lib/ethernet.hpp"
 #include "../lib/event_service.hpp"
 #include "../lib/hypervisor_system.hpp"
+#include "../lib/license_service.hpp"
 #include "../lib/log_services.hpp"
 #include "../lib/manager_diagnostic_data.hpp"
 #include "../lib/managers.hpp"
@@ -130,6 +131,12 @@ class RedfishService
         requestRoutesFaultLogDumpEntryCollection(app);
         requestRoutesFaultLogDumpEntry(app);
         requestRoutesFaultLogDumpClear(app);
+#endif
+
+#ifdef BMCWEB_ENABLE_REDFISH_LICENSE
+         requestRoutesLicenseService(app);
+         requestRoutesLicenseEntryCollection(app);
+         requestRoutesLicenseEntry(app);
 #endif
 
 #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES

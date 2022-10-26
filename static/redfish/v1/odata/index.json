@@ -55,6 +55,11 @@
             "kind": "Singleton",
             "name": "UpdateService",
             "url": "/redfish/v1/UpdateService"
+        },
+        {
+            "kind": "Singleton",
+            "name": "LicenseService",
+            "url": "/redfish/v1/LicenseService"
         }
     ]
 }

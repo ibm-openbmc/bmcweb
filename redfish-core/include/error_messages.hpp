@@ -1046,6 +1046,11 @@ nlohmann::json operationNotAllowed();
 
 void operationNotAllowed(crow::Response& res);
 
+void addMessageToErrorJson(nlohmann::json& target,
+                           const nlohmann::json& message);
+
+void addMessageToJson(nlohmann::json& target, const nlohmann::json& message,
+                      const std::string& fieldPath);
 } // namespace messages
 
 } // namespace redfish
