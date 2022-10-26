@@ -1,10 +1,11 @@
 #pragma once
 
-#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
 #include <libaudit.h>
 
 #include <boost/asio/ip/host_name.hpp>
-#endif
+
+#include <cstring>
+#include <string>
 
 namespace audit
 {
@@ -20,11 +21,9 @@ inline bool checkPostAudit(const crow::Request& req)
     return true;
 }
 
-inline void auditEvent([[maybe_unused]] const crow::Request& req,
-                       [[maybe_unused]] const char* opPath,
-                       [[maybe_unused]] bool success)
+inline void auditEvent(const char* opPath, const std::string& userName,
+                       const std::string& ipAddress, bool success)
 {
-#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
     int auditfd;
 
     char cnfgBuff[256];
@@ -41,7 +40,7 @@ inline void auditEvent([[maybe_unused]] const crow::Request& req,
     strncpy(cnfgBuff, opPath, std::strlen(opPath) + 1);
 
     // encode user account name to ensure it is in an appropriate format
-    user = audit_encode_nv_string("acct", req.session->username.c_str(), 0);
+    user = audit_encode_nv_string("acct", userName.c_str(), 0);
     if (user == NULL)
     {
         BMCWEB_LOG_ERROR << "Error appending user to audit msg : "
@@ -56,14 +55,12 @@ inline void auditEvent([[maybe_unused]] const crow::Request& req,
 
     if (audit_log_user_message(auditfd, AUDIT_USYS_CONFIG, cnfgBuff,
                                boost::asio::ip::host_name().c_str(),
-                               req.ipAddress.to_string().c_str(), NULL,
-                               int(success)) <= 0)
+                               ipAddress.c_str(), NULL, int(success)) <= 0)
     {
         BMCWEB_LOG_ERROR << "Error writing audit message: " << strerror(errno);
     }
 
     close(auditfd);
-#endif
     return;
 }
 
