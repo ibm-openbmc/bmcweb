@@ -445,22 +445,33 @@ class Connection :
             (req->method() == boost::beast::http::verb::delete_))
         {
 
-            // Look for good return codes and if so we know the operation passed
-            if ((res.resultInt() >= 200) && (res.resultInt() < 300))
+            if (userSession != nullptr)
             {
-                audit::auditEvent(("op=" + std::string(req->methodString()) +
-                                   ":" + std::string(req->target()) + " ")
-                                      .c_str(),
-                                  userSession->username,
-                                  req->ipAddress.to_string(), true);
+                // Look for good return codes and if so we know the operation
+                // passed
+                if ((res.resultInt() >= 200) && (res.resultInt() < 300))
+                {
+                    audit::auditEvent(
+                        ("op=" + std::string(req->methodString()) + ":" +
+                         std::string(req->target()) + " ")
+                            .c_str(),
+                        userSession->username, req->ipAddress.to_string(),
+                        true);
+                }
+                else
+                {
+                    audit::auditEvent(
+                        ("op=" + std::string(req->methodString()) + ":" +
+                         std::string(req->target()) + " ")
+                            .c_str(),
+                        userSession->username, req->ipAddress.to_string(),
+                        false);
+                }
             }
             else
             {
-                audit::auditEvent(("op=" + std::string(req->methodString()) +
-                                   ":" + std::string(req->target()) + " ")
-                                      .c_str(),
-                                  userSession->username,
-                                  req->ipAddress.to_string(), false);
+                BMCWEB_LOG_ERROR
+                    << "UserSession is null, not able to log audit event!";
             }
         }
 #endif // BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
