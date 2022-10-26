@@ -437,8 +437,7 @@ class Connection :
         }
 
 #ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
-        if (((req->method() == boost::beast::http::verb::post) &&
-             audit::checkPostAudit(*req)) ||
+        if ((req->method() == boost::beast::http::verb::post) ||
             (req->method() == boost::beast::http::verb::patch) ||
             (req->method() == boost::beast::http::verb::delete_))
         {

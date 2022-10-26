@@ -9,17 +9,6 @@
 namespace audit
 {
 
-inline bool checkPostAudit(const crow::Request& req)
-{
-    if ((req.target() == "/redfish/v1/SessionService/Sessions") ||
-        (req.target() == "/redfish/v1/SessionService/Sessions/") ||
-        (req.target() == "/login"))
-    {
-        return false;
-    }
-    return true;
-}
-
 inline void auditEvent([[maybe_unused]] const crow::Request& req,
                        [[maybe_unused]] const char* opPath,
                        [[maybe_unused]] bool success)
