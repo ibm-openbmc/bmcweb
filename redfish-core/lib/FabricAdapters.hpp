@@ -253,7 +253,7 @@ inline void
 inline void getAdapter(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                        const std::string& adapter)
 {
-    aResp->res.jsonValue["@odata.type"] = "#FabricAdapter.v1_2_0.FabricAdapter";
+    aResp->res.jsonValue["@odata.type"] = "#FabricAdapter.v1_4_0.FabricAdapter";
     aResp->res.jsonValue["@odata.id"] =
         "/redfish/v1/Systems/system/FabricAdapters/" + adapter;
 
@@ -269,7 +269,7 @@ inline void getAdapter(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 if (ec.value() == boost::system::errc::io_error)
                 {
                     messages::resourceNotFound(
-                        aResp->res, "#FabricAdapter.v1_2_0.FabricAdapter",
+                        aResp->res, "#FabricAdapter.v1_4_0.FabricAdapter",
                         adapter);
                     return;
                 }
@@ -305,6 +305,7 @@ inline void getAdapter(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 aResp->res.jsonValue["Name"] = adapterId;
 
                 getAdapterProperties(aResp, objectPath, serviceMap);
+                getLocationIndicatorActive(aResp, objectPath);
                 return;
             }
             BMCWEB_LOG_ERROR << "Adapter not found";
@@ -391,6 +392,58 @@ inline void requestRoutesFabricAdapters(App& app)
                const std::string& fabricAdapter) {
                 BMCWEB_LOG_DEBUG << "Adapter =" << fabricAdapter;
                 getAdapter(asyncResp, fabricAdapter);
+            });
+
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/FabricAdapters/<str>/")
+        .privileges(redfish::privileges::patchFabricAdapter)
+        .methods(boost::beast::http::verb::patch)(
+            [](const crow::Request& req,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+               const std::string& fabricAdapter) {
+                std::optional<bool> locationIndicatorActive;
+                if (!json_util::readJson(req, asyncResp->res,
+                                         "LocationIndicatorActive",
+                                         locationIndicatorActive))
+                {
+                    return;
+                }
+
+                crow::connections::systemBus->async_method_call(
+                    [fabricAdapter, locationIndicatorActive, asyncResp](
+                        const boost::system::error_code ec,
+                        const crow::openbmc_mapper::GetSubTreeType& subtree) {
+                        if (ec)
+                        {
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+
+                        for (const auto& [objectPath, serviceMap] : subtree)
+                        {
+                            std::string adapterId =
+                                fabric_util::buildFabricUniquePath(objectPath);
+                            if (adapterId.empty() || adapterId != fabricAdapter)
+                            {
+                                continue;
+                            }
+
+                            if (locationIndicatorActive)
+                            {
+                                setLocationIndicatorActive(
+                                    asyncResp, objectPath,
+                                    *locationIndicatorActive);
+                            }
+                            return;
+                        }
+                        messages::resourceNotFound(
+                            asyncResp->res, "FabricAdapter", fabricAdapter);
+                    },
+                    "xyz.openbmc_project.ObjectMapper",
+                    "/xyz/openbmc_project/object_mapper",
+                    "xyz.openbmc_project.ObjectMapper", "GetSubTree",
+                    "/xyz/openbmc_project/inventory", 0,
+                    std::array<const char*, 1>{
+                        "xyz.openbmc_project.Inventory.Item.FabricAdapter"});
             });
 }
 } // namespace redfish
