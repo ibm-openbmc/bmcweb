@@ -38,7 +38,7 @@ inline void auditEvent([[maybe_unused]] const crow::Request& req,
         return;
     }
 
-    strcpy(cnfgBuff, opPath);
+    strncpy(cnfgBuff, opPath, std::strlen(opPath) + 1);
 
     // encode user account name to ensure it is in an appropriate format
     user = audit_encode_nv_string("acct", req.session->username.c_str(), 0);
