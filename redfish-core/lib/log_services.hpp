@@ -2230,9 +2230,9 @@ inline void requestRoutesDBusEventLogEntry(App& app)
             const std::string* subsystem = nullptr;
             const std::string* filePath = nullptr;
             const std::string* resolution = nullptr;
-            bool resolved = false;
+            const bool* resolved = nullptr;
             const bool* hidden = nullptr;
-            bool serviceProviderNotified = false;
+            const bool* serviceProviderNotified = nullptr;
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
             const bool* managementSystemAck = nullptr;
 #endif
@@ -2258,6 +2258,7 @@ inline void requestRoutesDBusEventLogEntry(App& app)
 
             if (id == nullptr || eventId == nullptr || severity == nullptr ||
                 timestamp == nullptr || updateTimestamp == nullptr ||
+                resolved == nullptr || serviceProviderNotified == nullptr ||
                 hidden == nullptr || subsystem == nullptr
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
                 || managementSystemAck == nullptr
@@ -2285,7 +2286,7 @@ inline void requestRoutesDBusEventLogEntry(App& app)
             asyncResp->res.jsonValue["Id"] = std::to_string(*id);
             asyncResp->res.jsonValue["Message"] =
                 (*eventId).substr(0, 8) + " event in subsystem: " + *subsystem;
-            asyncResp->res.jsonValue["Resolved"] = resolved;
+            asyncResp->res.jsonValue["Resolved"] = *resolved;
             asyncResp->res.jsonValue["EventId"] = *eventId;
             if ((resolution != nullptr) && (!(*resolution).empty()))
             {
@@ -2299,7 +2300,7 @@ inline void requestRoutesDBusEventLogEntry(App& app)
             asyncResp->res.jsonValue["Modified"] =
                 redfish::time_utils::getDateTimeUintMs(*updateTimestamp);
             asyncResp->res.jsonValue["ServiceProviderNotified"] =
-                serviceProviderNotified;
+                *serviceProviderNotified;
             if (filePath != nullptr)
             {
                 asyncResp->res.jsonValue["AdditionalDataURI"] =
@@ -2433,9 +2434,9 @@ inline void requestRoutesDBusCELogEntry(App& app)
             const std::string* subsystem = nullptr;
             const std::string* filePath = nullptr;
             const std::string* resolution = nullptr;
-            bool resolved = false;
+            const bool* resolved = nullptr;
             const bool* hidden = nullptr;
-            bool serviceProviderNotified = false;
+            const bool* serviceProviderNotified = nullptr;
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
             const bool* managementSystemAck = nullptr;
 #endif
@@ -2461,7 +2462,8 @@ inline void requestRoutesDBusCELogEntry(App& app)
 
             if (id == nullptr || eventId == nullptr || severity == nullptr ||
                 timestamp == nullptr || updateTimestamp == nullptr ||
-                hidden == nullptr || subsystem == nullptr
+                hidden == nullptr || subsystem == nullptr ||
+                resolved == nullptr || serviceProviderNotified == nullptr
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
                 || managementSystemAck == nullptr
 #endif
@@ -2488,7 +2490,7 @@ inline void requestRoutesDBusCELogEntry(App& app)
             asyncResp->res.jsonValue["Id"] = std::to_string(*id);
             asyncResp->res.jsonValue["Message"] =
                 (*eventId).substr(0, 8) + " event in subsystem: " + *subsystem;
-            asyncResp->res.jsonValue["Resolved"] = resolved;
+            asyncResp->res.jsonValue["Resolved"] = *resolved;
             asyncResp->res.jsonValue["EventId"] = *eventId;
             if ((resolution != nullptr) && (!(*resolution).empty()))
             {
@@ -2502,7 +2504,7 @@ inline void requestRoutesDBusCELogEntry(App& app)
             asyncResp->res.jsonValue["Modified"] =
                 redfish::time_utils::getDateTimeUintMs(*updateTimestamp);
             asyncResp->res.jsonValue["ServiceProviderNotified"] =
-                serviceProviderNotified;
+                *serviceProviderNotified;
             if (filePath != nullptr)
             {
                 asyncResp->res.jsonValue["AdditionalDataURI"] =
