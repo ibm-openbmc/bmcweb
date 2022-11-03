@@ -1825,7 +1825,7 @@ inline void triggerUnauthenticatedACFUpload(
                         }
                         isActive = *isACFWindowActive;
                     }
-                    
+
                     if (isActive == true)
                     {
                         uploadACF(asyncResp, decodedAcf);
