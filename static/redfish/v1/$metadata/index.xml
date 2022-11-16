@@ -2842,4 +2842,8 @@
         <edmx:Include Namespace="OemLogEntryAttachment"/>
         <edmx:Include Namespace="OemLogEntryAttachment.v1_0_0"/>
     </edmx:Reference>
+    <edmx:Reference Uri="/redfish/v1/schema/OemServiceRoot_v1.xml">
+        <edmx:Include Namespace="OemServiceRoot"/>
+        <edmx:Include Namespace="OemServiceRoot.v1_0_0"/>
+    </edmx:Reference>
 </edmx:Edmx>
