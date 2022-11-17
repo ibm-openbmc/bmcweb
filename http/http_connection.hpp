@@ -702,12 +702,15 @@ class Connection :
     {
         cancelDeadlineTimer();
 
-        std::chrono::seconds timeout(15);
+        std::chrono::seconds timeout(120);
         // allow slow uploads for logged in users
         bool loggedIn = userSession != nullptr;
         if (loggedIn)
         {
-            timeout = std::chrono::seconds(60);
+            // drop all connections after 26 minutes, this time limit
+            // is so high to support our large code update images on
+            // slow networks Need a better way to do this
+            timeout = std::chrono::seconds(1560);
             return;
         }
 
