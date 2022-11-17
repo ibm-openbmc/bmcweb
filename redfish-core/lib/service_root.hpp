@@ -15,6 +15,8 @@
 */
 #pragma once
 
+#include "utils/dbus_utils.hpp"
+
 #include <bmcweb_config.h>
 
 #include <app.hpp>
@@ -24,10 +26,114 @@
 #include <persistent_data.hpp>
 #include <query.hpp>
 #include <registries/privilege_registry.hpp>
+#include <sdbusplus/asio/property.hpp>
+#include <sdbusplus/unpack_properties.hpp>
 #include <utils/systemd_utils.hpp>
+#include <utils/time_utils.hpp>
 
 namespace redfish
 {
+
+inline void
+    handleServiceRootOem(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code ec,
+                    const dbus::utility::MapperGetSubTreeResponse& subtree) {
+        if (ec)
+        {
+            BMCWEB_LOG_DEBUG << "DBUS response error";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        // Iterate over all retrieved ObjectPaths.
+        for (const auto& object : subtree)
+        {
+            const std::string& path = object.first;
+            BMCWEB_LOG_DEBUG << "Got path: " << path;
+            const std::vector<std::pair<std::string, std::vector<std::string>>>&
+                connectionNames = object.second;
+            if (connectionNames.empty())
+            {
+                continue;
+            }
+
+            for (const auto& connection : connectionNames)
+            {
+                for (const auto& interfaceName : connection.second)
+                {
+                    if (interfaceName ==
+                        "xyz.openbmc_project.Inventory.Item.System")
+                    {
+                        sdbusplus::asio::getAllProperties(
+                            *crow::connections::systemBus, connection.first,
+                            path,
+                            "xyz.openbmc_project.Inventory.Decorator.Asset",
+                            [asyncResp](const boost::system::error_code ec2,
+                                        const dbus::utility::DBusPropertiesMap&
+                                            propertiesList) {
+                            if (ec2)
+                            {
+                                // doesn't have to include this
+                                // interface
+                                return;
+                            }
+                            BMCWEB_LOG_DEBUG << "Got " << propertiesList.size()
+                                             << " properties for system";
+
+                            const std::string* serialNumber = nullptr;
+                            const std::string* model = nullptr;
+
+                            const bool success =
+                                sdbusplus::unpackPropertiesNoThrow(
+                                    dbus_utils::UnpackErrorPrinter(),
+                                    propertiesList, "SerialNumber",
+                                    serialNumber, "Model", model);
+
+                            if (!success)
+                            {
+                                messages::internalError(asyncResp->res);
+                                return;
+                            }
+
+                            if (serialNumber != nullptr)
+                            {
+                                asyncResp->res
+                                    .jsonValue["Oem"]["IBM"]["SerialNumber"] =
+                                    *serialNumber;
+                            }
+
+                            if (model != nullptr)
+                            {
+                                asyncResp->res
+                                    .jsonValue["Oem"]["IBM"]["Model"] = *model;
+                            }
+                            });
+                    }
+                }
+            }
+        }
+        },
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetSubTree",
+        "/xyz/openbmc_project/inventory", int32_t(0),
+        std::array<const char*, 1>{
+            "xyz.openbmc_project.Inventory.Decorator.Asset",
+        });
+
+    std::pair<std::string, std::string> redfishDateTimeOffset =
+        redfish::time_utils::getDateTimeOffsetNow();
+
+    asyncResp->res.jsonValue["Oem"]["IBM"]["DateTime"] =
+        redfishDateTimeOffset.first;
+    asyncResp->res.jsonValue["Oem"]["IBM"]["DateTimeLocalOffset"] =
+        redfishDateTimeOffset.second;
+
+    asyncResp->res.jsonValue["Oem"]["@odata.type"] = "#OemServiceRoot.Oem";
+    asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
+        "#OemServiceRoot.IBM";
+}
 
 inline void
     handleServiceRootHead(App& app, const crow::Request& req,
@@ -105,6 +211,7 @@ inline void
 {
     handleServiceRootHead(app, req, asyncResp);
     handleServiceRootGetImpl(asyncResp);
+    handleServiceRootOem(asyncResp);
 }
 
 inline void requestRoutesServiceRoot(App& app)
