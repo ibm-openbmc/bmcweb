@@ -787,6 +787,11 @@ class RedfishAggregator
         using crow::utility::OrMorePaths;
         using crow::utility::readUrlSegments;
         const boost::urls::url_view url = thisReq.urlView;
+        // UpdateService is the only top level resource that is not a Collection
+        if (readUrlSegments(url, "redfish", "v1", "UpdateService"))
+        {
+            return Result::LocalHandle;
+        }
 
         // We don't need to aggregate JsonSchemas due to potential issues such
         // as version mismatches between aggregator and satellite BMCs.  For
