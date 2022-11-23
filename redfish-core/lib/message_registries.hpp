@@ -17,6 +17,7 @@
 
 #include "registries.hpp"
 #include "registries/base_message_registry.hpp"
+#include "registries/bios_registry.hpp"
 #include "registries/openbmc_message_registry.hpp"
 #include "registries/resource_event_message_registry.hpp"
 #include "registries/task_event_message_registry.hpp"
@@ -47,11 +48,12 @@ inline void handleMessageRegistryFileCollectionGet(
     asyncResp->res.jsonValue["Name"] = "MessageRegistryFile Collection";
     asyncResp->res.jsonValue["Description"] =
         "Collection of MessageRegistryFiles";
-    asyncResp->res.jsonValue["Members@odata.count"] = 4;
+    asyncResp->res.jsonValue["Members@odata.count"] = 5;
 
     nlohmann::json& members = asyncResp->res.jsonValue["Members"];
     for (const char* memberName :
-         std::to_array({"Base", "TaskEvent", "ResourceEvent", "OpenBMC"}))
+         std::to_array({"Base", "TaskEvent", "ResourceEvent", "OpenBMC",
+                        "BiosAttributeRegistry"}))
     {
         nlohmann::json::object_t member;
         member["@odata.id"] = crow::utility::urlFromPieces(
@@ -103,6 +105,11 @@ inline void handleMessageRoutesMessageRegistryFileGet(
     {
         header = &registries::resource_event::header;
         url = registries::resource_event::url;
+    }
+    else if (registry == "BiosAttributeRegistry")
+    {
+        header = &registries::bios::header;
+        dmtf.clear();
     }
     else
     {
