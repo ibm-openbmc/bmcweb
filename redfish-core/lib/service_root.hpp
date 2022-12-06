@@ -29,15 +29,17 @@ inline void
     // Redfish property ACFWindowActive = true when D-Bus property
     // allow_unauth_upload is true (Redfish property AllowUnauthACFUpload).
     crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec, 
+        [asyncResp](const boost::system::error_code ec,
                     const std::variant<bool>& allowed) {
             if (ec)
             {
-                BMCWEB_LOG_ERROR << "D-Bus response error reading allow_unauth_upload: " << ec;
+                BMCWEB_LOG_ERROR
+                    << "D-Bus response error reading allow_unauth_upload: "
+                    << ec;
                 messages::internalError(asyncResp->res);
                 return;
             }
-            const bool *allowUnauthACFUpload = std::get_if<bool>(&allowed);
+            const bool* allowUnauthACFUpload = std::get_if<bool>(&allowed);
             if (allowUnauthACFUpload == nullptr)
             {
                 BMCWEB_LOG_ERROR << "nullptr for allow_unauth_upload";
@@ -67,7 +69,8 @@ inline void
                     }
                     else
                     {
-                        const bool* isACFWindowActive = std::get_if<bool>(&retVal);
+                        const bool* isACFWindowActive =
+                            std::get_if<bool>(&retVal);
                         if (isACFWindowActive == nullptr)
                         {
                             BMCWEB_LOG_ERROR << "nullptr for ACFWindowActive";
