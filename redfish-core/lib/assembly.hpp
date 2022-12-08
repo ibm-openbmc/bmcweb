@@ -314,8 +314,95 @@ inline void
     }
 }
 
+void startOrStopADCSensor(const bool start,
+                          const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    std::string method{"StartUnit"};
+    if (!start)
+    {
+        method = "StopUnit";
+    }
+
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code ec) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "Failed to start or stop ADCSensor:" << ec;
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        messages::success(asyncResp->res);
+        },
+        "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
+        "org.freedesktop.systemd1.Manager", method,
+        "xyz.openbmc_project.adcsensor.service", "replace");
+}
+
+void doBatteryCM(const std::string& assembly, const bool readyToRemove,
+                 const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    if (readyToRemove)
+    {
+        // Stop the adcsensor service so it doesn't monitor the battery
+        startOrStopADCSensor(false, asyncResp);
+        return;
+    }
+
+    // Find the service that has the OperationalStatus iface, set the
+    // Functional property back to true, and then start the adcsensor service.
+    crow::connections::systemBus->async_method_call(
+        [asyncResp, assembly](const boost::system::error_code ec,
+                              const dbus::utility::MapperGetObject& object) {
+        if (ec)
+        {
+            BMCWEB_LOG_DEBUG << "DBUS response error";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        for (const auto& [serviceName, interfaceList] : object)
+        {
+            auto ifaceIt = std::find(
+                interfaceList.begin(), interfaceList.end(),
+                "xyz.openbmc_project.State.Decorator.OperationalStatus");
+
+            if (ifaceIt == interfaceList.end())
+            {
+                continue;
+            }
+
+            crow::connections::systemBus->async_method_call(
+                [asyncResp, assembly](const boost::system::error_code ec2) {
+                if (ec2)
+                {
+                    BMCWEB_LOG_ERROR << "Failed to set functional property "
+                                        "on battery "
+                                     << ec2;
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                startOrStopADCSensor(true, asyncResp);
+                },
+                serviceName, assembly, "org.freedesktop.DBus.Properties", "Set",
+                "xyz.openbmc_project.State.Decorator."
+                "OperationalStatus",
+                "Functional", std::variant<bool>(true));
+            return;
+        }
+
+        BMCWEB_LOG_ERROR << "No OperationalStatus interface on " << assembly;
+        messages::internalError(asyncResp->res);
+        },
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetObject", assembly,
+        std::array<const char*, 1>{
+            "xyz.openbmc_project.State.Decorator.OperationalStatus"});
+}
+
 /**
- * @brief Set location indicator for the assemblies associated to given chassis
+ * @brief Set location indicator for the assemblies associated to given
+ * chassis
  * @param[in] aResp - Shared pointer for asynchronous calls.
  * @param[in] chassis - Chassis the assemblies are associated with.
  * @param[in] assemblies - list of all the assemblies associated with the
@@ -456,42 +543,7 @@ inline void setAssemblylocationIndicators(
             if (sdbusplus::message::object_path(assembly).filename() ==
                 "tod_battery")
             {
-                if (readytoremove.value())
-                {
-                    // Call systemd to stop ADCSensor
-                    crow::connections::systemBus->async_method_call(
-                        [asyncResp](const boost::system::error_code ec) {
-                        if (ec)
-                        {
-                            BMCWEB_LOG_ERROR << "Failed to Stop ADCSensor:"
-                                             << ec;
-                            messages::internalError(asyncResp->res);
-                            return;
-                        }
-                        messages::success(asyncResp->res);
-                        },
-                        "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager", "StopUnit",
-                        "xyz.openbmc_project.adcsensor.service", "replace");
-                }
-                else if (!readytoremove.value())
-                {
-                    // Call systemd to start ADCSensor
-                    crow::connections::systemBus->async_method_call(
-                        [asyncResp](const boost::system::error_code ec) {
-                        if (ec)
-                        {
-                            BMCWEB_LOG_ERROR << "Failed to Start ADCSensor:"
-                                             << ec;
-                            messages::internalError(asyncResp->res);
-                            return;
-                        }
-                        messages::success(asyncResp->res);
-                        },
-                        "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-                        "org.freedesktop.systemd1.Manager", "StartUnit",
-                        "xyz.openbmc_project.adcsensor.service", "replace");
-                }
+                doBatteryCM(assembly, readytoremove.value(), asyncResp);
             }
             else
             {
