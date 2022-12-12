@@ -391,8 +391,11 @@ inline void
         for (const auto& file : std::filesystem::directory_iterator(loc))
         {
             const std::filesystem::path& pathObj = file.path();
-            pathObjList.push_back("/ibm/v1/Host/ConfigFiles/" +
-                                  pathObj.filename().string());
+            if (std::filesystem::is_regular_file(pathObj))
+            {
+                pathObjList.push_back("/ibm/v1/Host/ConfigFiles/" +
+                                      pathObj.filename().string());
+            }
         }
     }
     asyncResp->res.jsonValue["@odata.type"] =
@@ -456,7 +459,7 @@ inline void handleFileGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     BMCWEB_LOG_DEBUG << "HandleGet on SaveArea files on path: " << fileID;
     std::filesystem::path loc(
         "/var/lib/bmcweb/ibm-management-console/configfiles/" + fileID);
-    if (!std::filesystem::exists(loc))
+    if (!std::filesystem::exists(loc) || !std::filesystem::is_regular_file(loc))
     {
         BMCWEB_LOG_ERROR << loc << " Not found";
         asyncResp->res.result(boost::beast::http::status::not_found);
