@@ -2846,4 +2846,8 @@
         <edmx:Include Namespace="OemServiceRoot"/>
         <edmx:Include Namespace="OemServiceRoot.v1_0_0"/>
     </edmx:Reference>
+    <edmx:Reference Uri="/redfish/v1/schema/OemManagerAccount.v1_0_0.xml">
+        <edmx:Include Namespace="OemManagerAccount"/>
+        <edmx:Include Namespace="OemManagerAccount.v1_0_0"/>
+    </edmx:Reference>
 </edmx:Edmx>

@@ -22,6 +22,7 @@
 #include <persistent_data.hpp>
 #include <query.hpp>
 #include <registries/privilege_registry.hpp>
+#include <roles.hpp>
 #include <sdbusplus/asio/property.hpp>
 #include <sdbusplus/unpack_properties.hpp>
 #include <utils/dbus_utils.hpp>
@@ -88,6 +89,10 @@ inline std::string getRoleIdFromPrivilege(std::string_view role)
     {
         return "Operator";
     }
+    if (role == "priv-oemibmserviceagent")
+    {
+        return "OemIBMServiceAgent";
+    }
     if (role.empty() || (role == "priv-noaccess"))
     {
         return "NoAccess";
@@ -107,6 +112,10 @@ inline std::string getPrivilegeFromRoleId(std::string_view role)
     if (role == "Operator")
     {
         return "priv-operator";
+    }
+    if (role == "OemIBMServiceAgent")
+    {
+        return "priv-oemibmserviceagent";
     }
     if ((role == "NoAccess") || (role.empty()))
     {
@@ -315,6 +324,13 @@ inline void handleRoleMapPatch(
                                      localRole))
             {
                 continue;
+            }
+
+            // Do not allow mapping to a Restricted LocalRole
+            if (localRole && redfish::isRestrictedRole(*localRole))
+            {
+                messages::restrictedRole(asyncResp->res, *localRole);
+                return;
             }
 
             // Update existing RoleMapping Object
@@ -844,6 +860,107 @@ inline void
         ldapConfigInterface, "UserNameAttribute",
         dbus::utility::DbusVariantType(userNameAttribute));
 }
+
+inline void getAcfProperties(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::tuple<std::vector<uint8_t>, bool, std::string>& messageFDbus)
+{
+    asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
+        "#OemManagerAccount.v1_0_0.IBM";
+    asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["@odata.type"] =
+        "#OemManagerAccount.v1_0_0.ACF";
+    // Get messages from call to InstallACF and add values to json
+    std::vector<uint8_t> acfFile = std::get<0>(messageFDbus);
+    std::string decodeACFFile(acfFile.begin(), acfFile.end());
+    std::string encodedACFFile = crow::utility::base64encode(decodeACFFile);
+
+    bool acfInstalled = std::get<1>(messageFDbus);
+    std::string expirationDate = std::get<2>(messageFDbus);
+
+    asyncResp->res
+        .jsonValue["Oem"]["IBM"]["ACF"]["WarningLongDatedExpiration"] = nullptr;
+    asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["ACFFile"] = nullptr;
+    asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["ExpirationDate"] = nullptr;
+
+    if (acfInstalled)
+    {
+        asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["ExpirationDate"] =
+            expirationDate;
+
+        asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["ACFFile"] =
+            encodedACFFile;
+
+        std::time_t result = std::time(nullptr);
+
+        // YYYY-MM-DD format
+        // Parse expirationDate to get difference between now and expiration
+        std::string expirationDateCpy = expirationDate;
+        std::string delimiter = "-";
+        std::vector<int> parseTime;
+
+        char* endPtr = nullptr;
+        size_t pos = 0;
+        std::string token;
+        // expirationDate should be exactly 10 characters
+        if (expirationDateCpy.length() != 10)
+        {
+            BMCWEB_LOG_ERROR << "expirationDate format invalid";
+            asyncResp->res = {};
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        while ((pos = expirationDateCpy.find(delimiter)) != std::string::npos)
+        {
+            token = expirationDateCpy.substr(0, pos);
+            parseTime.push_back(
+                static_cast<int>(std::strtol(token.c_str(), &endPtr, 10)));
+
+            if (*endPtr != '\0')
+            {
+                BMCWEB_LOG_ERROR << "expirationDate format enum";
+                asyncResp->res = {};
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            expirationDateCpy.erase(0, pos + delimiter.length());
+        }
+        parseTime.push_back(static_cast<int>(
+            std::strtol(expirationDateCpy.c_str(), &endPtr, 10)));
+
+        // Expect 3 sections. YYYY MM DD
+        if (*endPtr != '\0' && parseTime.size() != 3)
+        {
+            BMCWEB_LOG_ERROR << "expirationDate format invalid";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        std::tm tm{}; // zero initialise
+        tm.tm_year = parseTime.at(0) - 1900;
+        tm.tm_mon = parseTime.at(1) - 1;
+        tm.tm_mday = parseTime.at(2);
+
+        std::time_t t = std::mktime(&tm);
+        u_int diffTime = static_cast<u_int>(std::difftime(t, result));
+        // BMC date is displayed if exp date > 30 days
+        // 30 days = 30 * 24 * 60 * 60 seconds
+        if (diffTime > 2592000)
+        {
+            asyncResp->res
+                .jsonValue["Oem"]["IBM"]["ACF"]["WarningLongDatedExpiration"] =
+                true;
+        }
+        else
+        {
+            asyncResp->res
+                .jsonValue["Oem"]["IBM"]["ACF"]["WarningLongDatedExpiration"] =
+                false;
+        }
+    }
+    asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["ACFInstalled"] =
+        acfInstalled;
+}
+
 /**
  * @brief updates the LDAP group attribute and updates the
           json response with the new value.
@@ -1297,6 +1414,138 @@ inline void updateUserProperties(std::shared_ptr<bmcweb::AsyncResp> asyncResp,
         });
 }
 
+inline void uploadACF(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                      const std::vector<uint8_t>& decodedAcf)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code ec,
+                    sdbusplus::message::message& m,
+                    const std::tuple<std::vector<uint8_t>, bool, std::string>&
+                        messageFDbus) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "DBUS response error: " << ec;
+            if (strcmp(m.get_error()->name, "xyz.openbmc_project.Certs.Error."
+                                            "InvalidCertificate") == 0)
+            {
+                redfish::messages::invalidUpload(
+                    asyncResp->res,
+                    "/redfish/v1/AccountService/Accounts/service",
+                    "Invalid Certificate");
+            }
+            else
+            {
+                messages::internalError(asyncResp->res);
+            }
+            return;
+        }
+        getAcfProperties(asyncResp, messageFDbus);
+        },
+        "xyz.openbmc_project.Certs.ACF."
+        "Manager",
+        "/xyz/openbmc_project/certs/ACF", "xyz.openbmc_project.Certs.ACF",
+        "InstallACF", decodedAcf);
+}
+
+inline void triggerUnauthenticatedACFUpload(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    std::optional<nlohmann::json> oem)
+{
+    std::optional<nlohmann::json> ibm;
+    if (!redfish::json_util::readJson(*oem, asyncResp->res, "IBM", ibm))
+    {
+        BMCWEB_LOG_ERROR << "Illegal Property ";
+        messages::propertyMissing(asyncResp->res, "IBM");
+        return;
+    }
+
+    if (ibm)
+    {
+        std::optional<nlohmann::json> acf;
+        if (!redfish::json_util::readJson(*ibm, asyncResp->res, "ACF", acf))
+        {
+            BMCWEB_LOG_ERROR << "Illegal Property ";
+            messages::propertyMissing(asyncResp->res, "ACF");
+            return;
+        }
+
+        if (acf)
+        {
+            std::vector<uint8_t> decodedAcf;
+            std::optional<std::string> acfFile;
+            if (acf.value().contains("ACFFile") &&
+                acf.value()["ACFFile"] == nullptr)
+            {
+                acfFile = "";
+            }
+            else
+            {
+                if (!redfish::json_util::readJson(*acf, asyncResp->res,
+                                                  "ACFFile", acfFile))
+                {
+                    BMCWEB_LOG_ERROR << "Illegal Property ";
+                    messages::propertyMissing(asyncResp->res, "ACFFile");
+                    return;
+                }
+
+                std::string sDecodedAcf;
+                if (!crow::utility::base64Decode(*acfFile, sDecodedAcf))
+                {
+                    BMCWEB_LOG_ERROR << "base64 decode failure ";
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                try
+                {
+                    std::copy(sDecodedAcf.begin(), sDecodedAcf.end(),
+                              std::back_inserter(decodedAcf));
+                }
+                catch (const std::exception& e)
+                {
+                    BMCWEB_LOG_ERROR << e.what();
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+            }
+
+            crow::connections::systemBus->async_method_call(
+                [asyncResp, decodedAcf](const boost::system::error_code ec,
+                                        const std::variant<bool>& retVal) {
+                if (ec)
+                {
+                    BMCWEB_LOG_ERROR
+                        << "Failed to read ACFWindowActive property";
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+
+                const bool* isACFWindowActive = std::get_if<bool>(&retVal);
+
+                if (isACFWindowActive == nullptr)
+                {
+                    BMCWEB_LOG_ERROR << "nullptr for ACFWindowActive";
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+
+                if (*isACFWindowActive)
+                {
+                    uploadACF(asyncResp, decodedAcf);
+                    return;
+                }
+
+                BMCWEB_LOG_ERROR << "ACF window not set to "
+                                    "active from panel";
+                messages::insufficientPrivilege(asyncResp->res);
+                return;
+                },
+                "com.ibm.PanelApp", "/com/ibm/panel_app",
+                "org.freedesktop.DBus.Properties", "Get", "com.ibm.panel",
+                "ACFWindowActive");
+        }
+    }
+}
+
 inline void handleAccountServiceHead(
     App& app, const crow::Request& req,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
@@ -1627,6 +1876,13 @@ inline void handleAccountCollectionPost(
         return;
     }
 
+    // Don't allow new accounts to have a Restricted Role.
+    if (redfish::isRestrictedRole(*roleId))
+    {
+        messages::restrictedRole(asyncResp->res, *roleId);
+        return;
+    }
+
     std::string priv = getPrivilegeFromRoleId(*roleId);
     if (priv.empty())
     {
@@ -1666,6 +1922,20 @@ inline void handleAccountCollectionPost(
             messages::internalError(asyncResp->res);
             return;
         }
+
+        // Create (modified) modGroupsList from allGroupsList that
+        // does not contain the ipmi group.
+        std::vector<std::string> modGroupsList;
+
+        for (const auto& group : allGroupsList)
+        {
+            if (group != "ipmi")
+            {
+                modGroupsList.push_back(group);
+            }
+        }
+
+        const std::vector<std::string>* pModGroupsList = &modGroupsList;
 
         crow::connections::systemBus->async_method_call(
             [asyncResp, username, password](const boost::system::error_code ec2,
@@ -1711,7 +1981,7 @@ inline void handleAccountCollectionPost(
             },
             "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
             "xyz.openbmc_project.User.Manager", "CreateUser", username,
-            allGroupsList, *roleId, *enabled);
+            *pModGroupsList, *roleId, *enabled);
         });
 }
 
@@ -1896,6 +2166,25 @@ inline void
             "/redfish/v1/AccountService/Accounts/" + accountName;
         asyncResp->res.jsonValue["Id"] = accountName;
         asyncResp->res.jsonValue["UserName"] = accountName;
+
+        if (accountName == "service")
+        {
+            crow::connections::systemBus->async_method_call(
+                [asyncResp](const boost::system::error_code ec2,
+                            const std::tuple<std::vector<uint8_t>, bool,
+                                             std::string>& messageFDbus) {
+                if (ec2)
+                {
+                    BMCWEB_LOG_ERROR << "DBUS response error: " << ec2;
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                getAcfProperties(asyncResp, messageFDbus);
+                },
+                "xyz.openbmc_project.Certs.ACF.Manager",
+                "/xyz/openbmc_project/certs/ACF",
+                "xyz.openbmc_project.Certs.ACF", "GetACFInfo");
+        }
         },
         "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
@@ -1920,6 +2209,16 @@ inline void
     sdbusplus::message::object_path tempObjPath(rootUserDbusPath);
     tempObjPath /= username;
     const std::string userPath(tempObjPath);
+
+    // Don't DELETE accounts which have a Restricted Role (the service account).
+    // Implementation note: Ideally this would get the user's RoleId
+    // but that would take an additional D-Bus operation.
+    if (username == "service")
+    {
+        BMCWEB_LOG_ERROR << "Attempt to DELETE user who has a Restricted Role";
+        messages::restrictedRole(asyncResp->res, "OemIBMServiceAgent");
+        return;
+    }
 
     crow::connections::systemBus->async_method_call(
         [asyncResp, username](const boost::system::error_code ec) {
@@ -1956,10 +2255,36 @@ inline void
     std::optional<bool> enabled;
     std::optional<std::string> roleId;
     std::optional<bool> locked;
+    std::optional<nlohmann::json> oem;
 
     if (req.session == nullptr)
     {
         messages::internalError(asyncResp->res);
+        return;
+    }
+
+    if (!json_util::readJsonPatch(
+            req, asyncResp->res, "UserName", newUserName, "Password", password,
+            "RoleId", roleId, "Enabled", enabled, "Locked", locked, "Oem", oem))
+    {
+        return;
+    }
+
+    // Unauthenticated user
+    if (req.session == nullptr)
+    {
+        // If user is service
+        if (username == "service")
+        {
+            if (oem)
+            {
+                // allow unauthenticated ACF upload based on panel
+                // function 74 state.
+                triggerUnauthenticatedACFUpload(asyncResp, oem);
+                return;
+            }
+        }
+        messages::insufficientPrivilege(asyncResp->res);
         return;
     }
 
@@ -1968,19 +2293,18 @@ inline void
     Privileges configureUsers = {"ConfigureUsers"};
     bool userHasConfigureUsers =
         effectiveUserPrivileges.isSupersetOf(configureUsers);
-    if (userHasConfigureUsers)
+    if (!userHasConfigureUsers)
     {
-        // Users with ConfigureUsers can modify for all users
-        if (!json_util::readJsonPatch(req, asyncResp->res, "UserName",
-                                      newUserName, "Password", password,
-                                      "RoleId", roleId, "Enabled", enabled,
-                                      "Locked", locked))
+        // Irrespective of role can patch ACF if function
+        // 74 is active from panel.
+        if (oem && (username == "service"))
         {
+            // allow unauthenticated ACF upload based on panel
+            // function 74 state.
+            triggerUnauthenticatedACFUpload(asyncResp, oem);
             return;
         }
-    }
-    else
-    {
+
         // ConfigureSelf accounts can only modify their own account
         if (username != req.session->username)
         {
@@ -1993,6 +2317,95 @@ inline void
                                       password))
         {
             return;
+        }
+    }
+
+    // For accounts which have a Restricted Role, restrict which properties
+    // can be patched.  Allow only Locked, Enabled, and Oem.
+    // Do not even allow the service user to change these properties.
+    // Implementation note: Ideally this would get the user's RoleId
+    // but that would take an additional D-Bus operation.
+    if ((username == "service") && (newUserName || password || roleId))
+    {
+        BMCWEB_LOG_ERROR << "Attempt to PATCH user who has a Restricted Role";
+        messages::restrictedRole(asyncResp->res, "OemIBMServiceAgent");
+        return;
+    }
+
+    // Don't allow PATCHing an account to have a Restricted role.
+    if (roleId && redfish::isRestrictedRole(*roleId))
+    {
+        BMCWEB_LOG_ERROR << "Attempt to PATCH user to have a Restricted Role";
+        messages::restrictedRole(asyncResp->res, *roleId);
+        return;
+    }
+
+    if (oem)
+    {
+        std::optional<nlohmann::json> ibm;
+        if (!redfish::json_util::readJson(*oem, asyncResp->res, "IBM", ibm))
+        {
+            BMCWEB_LOG_ERROR << "Illegal Property ";
+            messages::propertyMissing(asyncResp->res, "IBM");
+            return;
+        }
+        if (ibm)
+        {
+            std::optional<nlohmann::json> acf;
+            if (!redfish::json_util::readJson(*ibm, asyncResp->res, "ACF", acf))
+            {
+                BMCWEB_LOG_ERROR << "Illegal Property ";
+                messages::propertyMissing(asyncResp->res, "ACF");
+                return;
+            }
+            if (acf && (username == "service"))
+            {
+                std::vector<uint8_t> decodedAcf;
+                std::optional<std::string> acfFile;
+                if (acf.value().contains("ACFFile") &&
+                    acf.value()["ACFFile"] == nullptr)
+                {
+                    acfFile = "";
+                }
+                else
+                {
+                    if (!redfish::json_util::readJson(*acf, asyncResp->res,
+                                                      "ACFFile", acfFile))
+                    {
+                        BMCWEB_LOG_ERROR << "Illegal Property ";
+                        messages::propertyMissing(asyncResp->res, "ACFFile");
+                        return;
+                    }
+
+                    std::string sDecodedAcf;
+                    if (!crow::utility::base64Decode(*acfFile, sDecodedAcf))
+                    {
+                        BMCWEB_LOG_ERROR << "base64 decode failure ";
+                        messages::internalError(asyncResp->res);
+                        return;
+                    }
+                    try
+                    {
+                        std::copy(sDecodedAcf.begin(), sDecodedAcf.end(),
+                                  std::back_inserter(decodedAcf));
+                    }
+                    catch (const std::exception& e)
+                    {
+                        BMCWEB_LOG_ERROR << e.what();
+                        messages::internalError(asyncResp->res);
+                        return;
+                    }
+                }
+
+                uploadACF(asyncResp, decodedAcf);
+            }
+            else if (acf && (username != "service"))
+            {
+                messages::resourceAtUriUnauthorized(
+                    asyncResp->res, req.urlView,
+                    "ACF properties access not allowed by non service "
+                    "user");
+            }
         }
     }
 
