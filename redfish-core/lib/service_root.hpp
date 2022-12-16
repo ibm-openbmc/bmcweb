@@ -68,8 +68,8 @@ inline void
                         BMCWEB_LOG_ERROR
                             << "Failed to read ACFWindowActive property";
                         // The Panel app doesn't run on simulated systems.
-                        asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
-                            false;
+                        asyncResp->res
+                            .jsonValue["Oem"]["IBM"]["ACFWindowActive"] = false;
                         return;
                     }
                     const bool* isACFWindowActive = std::get_if<bool>(&retVal);
