@@ -26,8 +26,14 @@ namespace redfish
 inline void
     handleACFWindowActive(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    // Redfish property ACFWindowActive = true when D-Bus property
-    // allow_unauth_upload is true (Redfish property AllowUnauthACFUpload).
+    // Redfish property ACFWindowActive=true when either of these is true:
+    //  - D-Bus property allow_unauth_upload.  (This is aka the Redfish
+    //    property AllowUnauthACFUpload which the BMC admin can control.)
+    //  - D-Bus property ACFWindowActive.  (This is aka the Redfish
+    //    property ACFWindowActive under /redfish/v1/AccountService/
+    //    Accounts/service property Oem.IBM.ACF.  The value is provided by
+    //    the PanelApp and is true when panel function 74 is active.)
+    // Check D-Bus property allow_unauth_upload first.
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code ec,
                     const std::variant<bool>& allowed) {
@@ -53,35 +59,28 @@ inline void
                 return;
             }
 
-            // ACFWindowActive = true also when D-Bus property ACFWindowActive
-            // is true (OpPanel function 74).  Otherwise, the Window is not
-            // active.
+            // Check D-Bus property ACFWindowActive
             crow::connections::systemBus->async_method_call(
                 [asyncResp](const boost::system::error_code ec,
                             const std::variant<bool>& retVal) {
-                    bool isActive;
                     if (ec)
                     {
                         BMCWEB_LOG_ERROR
                             << "Failed to read ACFWindowActive property";
                         // The Panel app doesn't run on simulated systems.
-                        isActive = false;
+                        asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
+                            false;
+                        return;
                     }
-                    else
+                    const bool* isACFWindowActive = std::get_if<bool>(&retVal);
+                    if (isACFWindowActive == nullptr)
                     {
-                        const bool* isACFWindowActive =
-                            std::get_if<bool>(&retVal);
-                        if (isACFWindowActive == nullptr)
-                        {
-                            BMCWEB_LOG_ERROR << "nullptr for ACFWindowActive";
-                            messages::internalError(asyncResp->res);
-                            return;
-                        }
-                        isActive = *isACFWindowActive;
+                        BMCWEB_LOG_ERROR << "nullptr for ACFWindowActive";
+                        messages::internalError(asyncResp->res);
+                        return;
                     }
-
                     asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
-                        isActive;
+                        *isACFWindowActive;
                 },
                 "com.ibm.PanelApp", "/com/ibm/panel_app",
                 "org.freedesktop.DBus.Properties", "Get", "com.ibm.panel",

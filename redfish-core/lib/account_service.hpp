@@ -1207,6 +1207,12 @@ inline void getAcfProperties(
                 return;
             }
             const bool* allowed = std::get_if<bool>(&retval);
+            if (allowed == nullptr)
+            {
+                BMCWEB_LOG_ERROR << "Property 'allowed' is not bool";
+                messages::internalError(asyncResp->res);
+                return;
+            }
             asyncResp->res
                 .jsonValue["Oem"]["IBM"]["ACF"]["AllowUnauthACFUpload"] =
                 *allowed;
