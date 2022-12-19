@@ -26,30 +26,70 @@ namespace redfish
 inline void
     handleACFWindowActive(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
+    // Redfish property ACFWindowActive=true when either of these is true:
+    //  - D-Bus property allow_unauth_upload.  (This is aka the Redfish
+    //    property AllowUnauthACFUpload which the BMC admin can control.)
+    //  - D-Bus property ACFWindowActive.  (This is aka the Redfish
+    //    property ACFWindowActive under /redfish/v1/AccountService/
+    //    Accounts/service property Oem.IBM.ACF.  The value is provided by
+    //    the PanelApp and is true when panel function 74 is active.)
+    // Check D-Bus property allow_unauth_upload first.
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code ec,
-                    const std::variant<bool>& retVal) {
+                    const std::variant<bool>& allowed) {
             if (ec)
             {
-                BMCWEB_LOG_ERROR << "Failed to read ACFWindowActive property";
-                // Default value when panel app is unreachable.
-                asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
-                    false;
-                return;
-            }
-            const bool* isACFWindowActive = std::get_if<bool>(&retVal);
-            if (isACFWindowActive == nullptr)
-            {
-                BMCWEB_LOG_ERROR << "nullptr for ACFWindowActive";
+                BMCWEB_LOG_ERROR
+                    << "D-Bus response error reading allow_unauth_upload: "
+                    << ec;
                 messages::internalError(asyncResp->res);
                 return;
             }
-            asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
-                *isACFWindowActive;
+            const bool* allowUnauthACFUpload = std::get_if<bool>(&allowed);
+            if (allowUnauthACFUpload == nullptr)
+            {
+                BMCWEB_LOG_ERROR << "nullptr for allow_unauth_upload";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            if (*allowUnauthACFUpload == true)
+            {
+                asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
+                    *allowUnauthACFUpload;
+                return;
+            }
+
+            // Check D-Bus property ACFWindowActive
+            crow::connections::systemBus->async_method_call(
+                [asyncResp](const boost::system::error_code ec,
+                            const std::variant<bool>& retVal) {
+                    if (ec)
+                    {
+                        BMCWEB_LOG_ERROR
+                            << "Failed to read ACFWindowActive property";
+                        // The Panel app doesn't run on simulated systems.
+                        asyncResp->res
+                            .jsonValue["Oem"]["IBM"]["ACFWindowActive"] = false;
+                        return;
+                    }
+                    const bool* isACFWindowActive = std::get_if<bool>(&retVal);
+                    if (isACFWindowActive == nullptr)
+                    {
+                        BMCWEB_LOG_ERROR << "nullptr for ACFWindowActive";
+                        messages::internalError(asyncResp->res);
+                        return;
+                    }
+                    asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
+                        *isACFWindowActive;
+                },
+                "com.ibm.PanelApp", "/com/ibm/panel_app",
+                "org.freedesktop.DBus.Properties", "Get", "com.ibm.panel",
+                "ACFWindowActive");
         },
-        "com.ibm.PanelApp", "/com/ibm/panel_app",
-        "org.freedesktop.DBus.Properties", "Get", "com.ibm.panel",
-        "ACFWindowActive");
+        "xyz.openbmc_project.Settings",
+        "/xyz/openbmc_project/ibmacf/allow_unauth_upload",
+        "org.freedesktop.DBus.Properties", "Get",
+        "xyz.openbmc_project.Object.Enable", "Enabled");
 }
 
 inline void
