@@ -25,6 +25,7 @@
 
 #include <boost/asio/io_context.hpp>
 #include <event_dbus_monitor.hpp>
+#include <obmc_hypervisor.hpp>
 #include <sdbusplus/asio/connection.hpp>
 #include <sdbusplus/bus.hpp>
 #include <sdbusplus/server.hpp>
@@ -105,6 +106,9 @@ static int run()
 
 #ifdef BMCWEB_ENABLE_HOST_SERIAL_WEBSOCKET
     crow::obmc_console::requestRoutes(app);
+#endif
+#ifdef BMCWEB_ENABLE_HYPERVISOR_SERIAL_WEBSOCKET
+    crow::obmc_hypervisor::requestRoutes(app);
 #endif
 
 #ifdef BMCWEB_ENABLE_VM_WEBSOCKET
