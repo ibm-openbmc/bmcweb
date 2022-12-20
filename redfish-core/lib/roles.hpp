@@ -66,10 +66,6 @@ inline bool getAssignedPrivFromRole(std::string_view role,
     {
         privArray = {"Login", "ConfigureSelf"};
     }
-    else if (role == "NoAccess")
-    {
-        privArray = nlohmann::json::array();
-    }
     else
     {
         return false;

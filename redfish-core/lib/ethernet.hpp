@@ -360,7 +360,7 @@ inline bool extractEthernetInterfaceData(
                 }
             }
 
-            if (objpath.first == "/xyz/openbmc_project/network/config/dhcp")
+            if (objpath.first == "/xyz/openbmc_project/network/dhcp")
             {
                 if (ifacePair.first ==
                     "xyz.openbmc_project.Network.DHCPConfiguration")
@@ -1040,7 +1040,7 @@ inline void
 
     crow::connections::systemBus->async_method_call(
         [asyncResp, macAddress](const boost::system::error_code ec,
-                                const sdbusplus::message::message& msg) {
+                                const sdbusplus::message_t& msg) {
         if (ec)
         {
             const sd_bus_error* err = msg.get_error();
@@ -1121,8 +1121,7 @@ inline void setDHCPv4Config(const std::string& propertyName, const bool& value,
             return;
         }
         },
-        "xyz.openbmc_project.Network",
-        "/xyz/openbmc_project/network/config/dhcp",
+        "xyz.openbmc_project.Network", "/xyz/openbmc_project/network/dhcp",
         "org.freedesktop.DBus.Properties", "Set",
         "xyz.openbmc_project.Network.DHCPConfiguration", propertyName,
         dbus::utility::DbusVariantType{value});
@@ -1597,7 +1596,7 @@ inline void parseInterfaceData(
 
     if (ethData.nicEnabled)
     {
-        jsonResponse["LinkStatus"] = "LinkUp";
+        jsonResponse["LinkStatus"] = ethData.linkUp ? "LinkUp" : "LinkDown";
         jsonResponse["Status"]["State"] = "Enabled";
     }
     else
@@ -1606,7 +1605,6 @@ inline void parseInterfaceData(
         jsonResponse["Status"]["State"] = "Disabled";
     }
 
-    jsonResponse["LinkStatus"] = ethData.linkUp ? "LinkUp" : "LinkDown";
     jsonResponse["SpeedMbps"] = ethData.speed;
     jsonResponse["MTUSize"] = ethData.mtuSize;
     jsonResponse["MACAddress"] = ethData.macAddress;

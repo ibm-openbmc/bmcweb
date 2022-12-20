@@ -15,13 +15,15 @@
 */
 #pragma once
 
+#include "generated/enums/account_service.hpp"
+#include "registries/privilege_registry.hpp"
+
 #include <app.hpp>
 #include <dbus_utility.hpp>
 #include <error_messages.hpp>
 #include <openbmc_dbus_rest.hpp>
 #include <persistent_data.hpp>
 #include <query.hpp>
-#include <registries/privilege_registry.hpp>
 #include <roles.hpp>
 #include <sdbusplus/asio/property.hpp>
 #include <sdbusplus/unpack_properties.hpp>
@@ -227,7 +229,8 @@ inline void parseLDAPConfigData(nlohmann::json& jsonResponse,
 
     ldap["ServiceEnabled"] = confData.serviceEnabled;
     ldap["ServiceAddresses"] = nlohmann::json::array({confData.uri});
-    ldap["Authentication"]["AuthenticationType"] = "UsernameAndPassword";
+    ldap["Authentication"]["AuthenticationType"] =
+        account_service::AuthenticationTypes::UsernameAndPassword;
     ldap["Authentication"]["Username"] = confData.bindDN;
     ldap["Authentication"]["Password"] = nullptr;
 
@@ -1361,10 +1364,6 @@ inline void updateUserProperties(std::shared_ptr<bmcweb::AsyncResp> asyncResp,
                                                  "RoleId");
                 return;
             }
-            if (priv == "priv-noaccess")
-            {
-                priv = "";
-            }
 
             crow::connections::systemBus->async_method_call(
                 [asyncResp](const boost::system::error_code ec) {
@@ -1889,18 +1888,7 @@ inline void handleAccountCollectionPost(
         messages::propertyValueNotInList(asyncResp->res, *roleId, "RoleId");
         return;
     }
-    // TODO: Following override will be reverted once support in
-    // phosphor-user-manager is added. In order to avoid dependency
-    // issues, this is added in bmcweb, which will removed, once
-    // phosphor-user-manager supports priv-noaccess.
-    if (priv == "priv-noaccess")
-    {
-        roleId = "";
-    }
-    else
-    {
-        roleId = priv;
-    }
+    roleId = priv;
 
     // Reading AllGroups property
     sdbusplus::asio::getProperty<std::vector<std::string>>(

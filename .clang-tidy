@@ -9,7 +9,6 @@ bugprone-branch-clone,
 bugprone-copy-constructor-init,
 bugprone-dangling-handle,
 bugprone-dynamic-static-initializers,
-bugprone-exception-escape,
 bugprone-fold-init-type,
 bugprone-forward-declaration-namespace,
 bugprone-forwarding-reference-overload,
@@ -315,3 +314,4 @@ CheckOptions:
   - { key: readability-identifier-naming.ParameterCase, value: camelBack }
   - { key: readability-identifier-naming.NamespaceCase, value: lower_case }
   - { key: readability-identifier-naming.StructCase,    value: CamelCase  }
+  - { key: cppcoreguidelines-macro-usage.AllowedRegexp, value: DEBUG*|NLOHMANN_JSON_SERIALIZE_ENUM }

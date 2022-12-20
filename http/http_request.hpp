@@ -45,8 +45,24 @@ struct Request
         }
     }
 
-    Request(const Request&) = delete;
-    Request(const Request&&) = delete;
+    Request(const Request& other) :
+        req(other.req), fields(req.base()), isSecure(other.isSecure),
+        body(req.body()), ioService(other.ioService),
+        ipAddress(other.ipAddress), session(other.session),
+        userRole(other.userRole)
+    {
+        setUrlInfo();
+    }
+
+    Request(Request&& other) noexcept :
+        req(std::move(other.req)), fields(req.base()), isSecure(other.isSecure),
+        body(req.body()), ioService(other.ioService),
+        ipAddress(std::move(other.ipAddress)),
+        session(std::move(other.session)), userRole(std::move(other.userRole))
+    {
+        setUrlInfo();
+    }
+
     Request& operator=(const Request&) = delete;
     Request& operator=(const Request&&) = delete;
     ~Request() = default;
@@ -100,16 +116,14 @@ struct Request
   private:
     bool setUrlInfo()
     {
-        auto result = boost::urls::parse_relative_ref(
-            boost::urls::string_view(target().data(), target().size()));
+        auto result = boost::urls::parse_relative_ref(target());
 
         if (!result)
         {
             return false;
         }
         urlView = *result;
-        url = std::string_view(urlView.encoded_path().data(),
-                               urlView.encoded_path().size());
+        url = urlView.encoded_path();
         return true;
     }
 };

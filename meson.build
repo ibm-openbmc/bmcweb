@@ -170,8 +170,8 @@ if (cxx.get_id() == 'gcc' and cxx.version().version_compare('>8.0'))
      '-Wduplicated-cond',
      '-Wduplicated-branches',
      '-Wlogical-op',
-     '-Wunused-parameter',
      '-Wnull-dereference',
+     '-Wunused-parameter',
      '-Wdouble-promotion',
      '-Wshadow',
      '-Wno-psabi',
@@ -243,7 +243,6 @@ cxx.get_supported_arguments([
   '-DBOOST_ASIO_NO_DEPRECATED',
   '-DBOOST_ASIO_SEPARATE_COMPILATION',
   '-DBOOST_BEAST_SEPARATE_COMPILATION',
-  '-DBOOST_BEAST_USE_STD_STRING_VIEW',
   '-DBOOST_EXCEPTION_DISABLE',
   '-DBOOST_URL_NO_SOURCE_LOCATION',
   '-DJSON_NOEXCEPTION',
@@ -287,20 +286,12 @@ else
 endif
 bmcweb_dependencies += nlohmann_json
 
-boost = dependency('boost',version : '>=1.80.0', required : false, include_type: 'system')
+boost = dependency('boost',version : '>=1.81.0', required : false, include_type: 'system')
 if not boost.found()
   boost = subproject('boost', required: true).get_variable('boost_dep')
   boost = boost.as_system('system')
 endif
 bmcweb_dependencies += boost
-
-if cxx.has_header('boost/url/url_view.hpp')
-  boost_url = declare_dependency()
-else
-  boost_url = subproject('boost-url', required: true).get_variable('boost_url_dep')
-  boost_url = boost_url.as_system('system')
-endif
-bmcweb_dependencies += boost_url
 
 if get_option('tests').enabled()
   gtest = dependency('gtest', main: true,disabler: true, required : false)
@@ -359,6 +350,7 @@ srcfiles_unittest = files(
   'test/http/crow_getroutes_test.cpp',
   'test/http/router_test.cpp',
   'test/http/utility_test.cpp',
+  'test/http/verb_test.cpp',
   'test/include/dbus_utility_test.cpp',
   'test/include/google/google_service_root_test.cpp',
   'test/include/http_utility_test.cpp',
@@ -368,6 +360,7 @@ srcfiles_unittest = files(
   'test/include/multipart_test.cpp',
   'test/include/openbmc_dbus_rest_test.cpp',
   'test/redfish-core/include/privileges_test.cpp',
+  'test/redfish-core/include/redfish_aggregator_test.cpp',
   'test/redfish-core/include/registries_test.cpp',
   'test/redfish-core/include/utils/hex_utils_test.cpp',
   'test/redfish-core/include/utils/ip_utils_test.cpp',

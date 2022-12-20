@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-import requests
-import zipfile
-from io import BytesIO
 
 import os
-from collections import OrderedDict, defaultdict
 import shutil
-import json
-
 import xml.etree.ElementTree as ET
+import zipfile
+from collections import OrderedDict, defaultdict
+from io import BytesIO
+
+import generate_schema_enums
+import requests
 
 VERSION = "DSP8010_2022.2"
 
@@ -42,7 +42,7 @@ include_list = [
     "ComputerSystemCollection",
     "Drive",
     "DriveCollection",
-    'EnvironmentMetrics',
+    "EnvironmentMetrics",
     "EthernetInterface",
     "EthernetInterfaceCollection",
     "Event",
@@ -166,12 +166,13 @@ zip_ref = zipfile.ZipFile(zipBytesIO)
 
 
 class SchemaVersion:
-    '''
+
+    """
     A Python class for sorting Redfish schema versions.  Allows sorting Redfish
     versions in the way humans expect, by comparing version strings as lists
     (ie 0_2_0 comes before 0_10_0) in the way humans expect.  It does case
     insensitive schema name comparisons
-    '''
+    """
 
     def __init__(self, key):
         key = str.casefold(key)
@@ -185,8 +186,7 @@ class SchemaVersion:
         if version.startswith("v"):
             version = version[1:]
         if any(char.isdigit() for char in version):
-            self.version_pieces.extend([int(x)
-                                       for x in version.split("_")])
+            self.version_pieces.extend([int(x) for x in version.split("_")])
 
     def __lt__(self, other):
         return self.version_pieces < other.version_pieces
@@ -254,7 +254,6 @@ json_schema_files = OrderedDict(
 
 csdl_filenames.sort(key=SchemaVersion)
 with open(metadata_index_path, "w") as metadata_index:
-
     metadata_index.write('<?xml version="1.0" encoding="UTF-8"?>\n')
     metadata_index.write(
         "<edmx:Edmx xmlns:edmx="
@@ -270,7 +269,6 @@ with open(metadata_index_path, "w") as metadata_index:
             continue
 
         with open(os.path.join(schema_path, filename), "wb") as schema_out:
-
             metadata_index.write(
                 '    <edmx:Reference Uri="/redfish/v1/schema/'
                 + filename
@@ -289,16 +287,14 @@ with open(metadata_index_path, "w") as metadata_index:
                             namespace = data_child.attrib["Namespace"]
                             if namespace.startswith("RedfishExtensions"):
                                 metadata_index.write(
-                                    "        "
-                                    '<edmx:Include Namespace="'
+                                    '        <edmx:Include Namespace="'
                                     + namespace
                                     + '"  Alias="Redfish"/>\n'
                                 )
 
                             else:
                                 metadata_index.write(
-                                    "        "
-                                    '<edmx:Include Namespace="'
+                                    '        <edmx:Include Namespace="'
                                     + namespace
                                     + '"/>\n'
                                 )
@@ -400,12 +396,15 @@ with open(metadata_index_path, "w") as metadata_index:
     metadata_index.write("    </edmx:Reference>\n")
 
     metadata_index.write(
-        "    <edmx:Reference Uri=\""
-        "/redfish/v1/schema/OemManagerAccount.v1_0_0.xml\">\n")
+        '    <edmx:Reference Uri="'
+        '/redfish/v1/schema/OemManagerAccount.v1_0_0.xml">\n'
+    )
     metadata_index.write(
-        "        <edmx:Include Namespace=\"OemManagerAccount\"/>\n")
+        '        <edmx:Include Namespace="OemManagerAccount"/>\n'
+    )
     metadata_index.write(
-        "        <edmx:Include Namespace=\"OemManagerAccount.v1_0_0\"/>\n")
+        '        <edmx:Include Namespace="OemManagerAccount.v1_0_0"/>\n'
+    )
     metadata_index.write("    </edmx:Reference>\n")
 
     metadata_index.write("</edmx:Edmx>\n")
@@ -433,6 +432,8 @@ with open(os.path.join(cpp_path, "schemas.hpp"), "w") as hpp_file:
     for schema_file in json_schema_files:
         hpp_file.write('        "{}",\n'.format(schema_file))
 
-    hpp_file.write("    };\n" "}\n")
+    hpp_file.write("    };\n}\n")
 
 zip_ref.close()
+
+generate_schema_enums.main()

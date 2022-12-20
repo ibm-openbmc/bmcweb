@@ -1551,6 +1551,7 @@ struct SetPIDValues : std::enable_shared_from_this<SetPIDValues>
                 std::string iface;
                 if (!createNewObject)
                 {
+                    bool findInterface = false;
                     for (const auto& interface : pathItr->second)
                     {
                         if (interface.first == pidConfigurationIface)
@@ -1559,7 +1560,8 @@ struct SetPIDValues : std::enable_shared_from_this<SetPIDValues>
                                 type == "FanControllers")
                             {
                                 iface = pidConfigurationIface;
-                                createNewObject = true;
+                                findInterface = true;
+                                break;
                             }
                         }
                         else if (interface.first == pidZoneConfigurationIface)
@@ -1567,7 +1569,8 @@ struct SetPIDValues : std::enable_shared_from_this<SetPIDValues>
                             if (type == "FanZones")
                             {
                                 iface = pidConfigurationIface;
-                                createNewObject = true;
+                                findInterface = true;
+                                break;
                             }
                         }
                         else if (interface.first == stepwiseConfigurationIface)
@@ -1575,9 +1578,16 @@ struct SetPIDValues : std::enable_shared_from_this<SetPIDValues>
                             if (type == "StepwiseControllers")
                             {
                                 iface = stepwiseConfigurationIface;
-                                createNewObject = true;
+                                findInterface = true;
+                                break;
                             }
                         }
+                    }
+
+                    // create new object if interface not found
+                    if (!findInterface)
+                    {
+                        createNewObject = true;
                     }
                 }
 
