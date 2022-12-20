@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import os
 import shutil
 import xml.etree.ElementTree as ET
@@ -165,13 +166,13 @@ zip_ref = zipfile.ZipFile(zipBytesIO)
 
 
 class SchemaVersion:
+
     """
     A Python class for sorting Redfish schema versions.  Allows sorting Redfish
     versions in the way humans expect, by comparing version strings as lists
     (ie 0_2_0 comes before 0_10_0) in the way humans expect.  It does case
     insensitive schema name comparisons
     """
-
 
     def __init__(self, key):
         key = str.casefold(key)
