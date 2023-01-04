@@ -514,8 +514,7 @@ void getChassis(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 std::span<std::string_view> sensorTypes, Callback&& callback)
 {
     BMCWEB_LOG_DEBUG << "getChassis enter";
-    const std::array<const char*, 2> interfaces = {
-        "xyz.openbmc_project.Inventory.Item.Board",
+    const std::array<const char*, 1> interfaces = {
         "xyz.openbmc_project.Inventory.Item.Chassis"};
     auto respHandler =
         [callback{std::forward<Callback>(callback)}, asyncResp,
