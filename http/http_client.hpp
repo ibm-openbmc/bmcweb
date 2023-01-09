@@ -368,7 +368,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                 }
                 else
                 {
-                    BMCWEB_LOG_ERROR << "INFO: Connection closed gracefully..."
+                    BMCWEB_LOG_DEBUG << "INFO: Connection closed gracefully..."
                                      << " Destination: " << self->host << ":"
                                      << self->port;
                 }
@@ -442,7 +442,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                 return;
             }
 
-            BMCWEB_LOG_ERROR << retryPolicyAction
+            BMCWEB_LOG_DEBUG << retryPolicyAction
                              << " is set. Cleanup the current event and "
                                 "reset retrycount for subId: "
                              << subId;
