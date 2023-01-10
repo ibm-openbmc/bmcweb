@@ -447,26 +447,30 @@ class Connection :
 
             if (userSession != nullptr)
             {
+                bool requestSuccess = false;
                 // Look for good return codes and if so we know the operation
                 // passed
                 if ((res.resultInt() >= 200) && (res.resultInt() < 300))
                 {
-                    audit::auditEvent(
-                        ("op=" + std::string(req->methodString()) + ":" +
-                         std::string(req->target()) + " ")
-                            .c_str(),
-                        userSession->username, req->ipAddress.to_string(),
-                        true);
+                    requestSuccess = true;
                 }
-                else
+
+                std::string additionalInfo = "";
+                // Exclude the body of account PATCH/POST
+                if ((req->method() == boost::beast::http::verb::patch ||
+                     req->method() == boost::beast::http::verb::post) &&
+                    !req->target().starts_with(
+                        "/redfish/v1/AccountService/Accounts"))
                 {
-                    audit::auditEvent(
-                        ("op=" + std::string(req->methodString()) + ":" +
-                         std::string(req->target()) + " ")
-                            .c_str(),
-                        userSession->username, req->ipAddress.to_string(),
-                        false);
+                    additionalInfo = req->body + " ";
                 }
+
+                audit::auditEvent(("op=" + std::string(req->methodString()) +
+                                   ":" + std::string(req->target()) + " " +
+                                   additionalInfo)
+                                      .c_str(),
+                                  userSession->username,
+                                  req->ipAddress.to_string(), requestSuccess);
             }
             else
             {
