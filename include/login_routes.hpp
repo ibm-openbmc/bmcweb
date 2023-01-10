@@ -1,5 +1,8 @@
 #pragma once
 
+#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
+#include "audit_events.hpp"
+#endif
 #include "multipart_parser.hpp"
 
 #include <app.hpp>
@@ -182,6 +185,13 @@ inline void requestRoutes(App& app)
                 {
                     asyncResp->res.result(
                         boost::beast::http::status::unauthorized);
+#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
+                    audit::auditEvent(("op=" + std::string(req.methodString()) +
+                                       ":" + std::string(req.target()) + " ")
+                                          .c_str(),
+                                      std::string(username),
+                                      req.ipAddress.to_string(), false);
+#endif
                 }
                 else
                 {
@@ -236,6 +246,13 @@ inline void requestRoutes(App& app)
                 BMCWEB_LOG_DEBUG << "Couldn't interpret password";
                 asyncResp->res.result(boost::beast::http::status::bad_request);
             }
+#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
+            audit::auditEvent(("op=" + std::string(req.methodString()) + ":" +
+                               std::string(req.target()) + " ")
+                                  .c_str(),
+                              std::string(username), req.ipAddress.to_string(),
+                              true);
+#endif
         });
 
     BMCWEB_ROUTE(app, "/logout")
