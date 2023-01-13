@@ -18,6 +18,7 @@
 #include "dbus_singleton.hpp"
 
 #include <boost/system/error_code.hpp> // IWYU pragma: keep
+#include <sdbusplus/asio/property.hpp>
 #include <sdbusplus/message/native_types.hpp>
 
 #include <array>
@@ -93,6 +94,7 @@ using MapperGetAncestorsResponse = std::vector<
               std::vector<std::pair<std::string, std::vector<std::string>>>>>;
 
 using MapperGetSubTreePathsResponse = std::vector<std::string>;
+using MapperEndPoints = std::vector<std::string>;
 
 inline void escapePathForDbus(std::string& path)
 {
@@ -171,6 +173,35 @@ inline void getSubTreePaths(
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", path, 0,
         interfaces);
+}
+
+inline void getAssociationEndPoints(
+    const std::string& path,
+    std::function<void(const boost::system::error_code&,
+                       const MapperEndPoints&)>&& callback)
+{
+    sdbusplus::asio::getProperty<MapperEndPoints>(
+        *crow::connections::systemBus, "xyz.openbmc_project.ObjectMapper", path,
+        "xyz.openbmc_project.Association", "endpoints",
+        [callback{std::move(callback)}](const boost::system::error_code& ec,
+                                        const MapperEndPoints& endpoints) {
+        callback(ec, endpoints);
+        });
+}
+
+inline void
+    getDbusObject(const std::string& path, std::span<const char*> interfaces,
+                  std::function<void(const boost::system::error_code&,
+                                     const MapperGetObject&)>&& callback)
+{
+    crow::connections::systemBus->async_method_call(
+        [callback{std::move(callback)}](const boost::system::error_code& ec,
+                                        const MapperGetObject& object) {
+        callback(ec, object);
+        },
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetObject", path, interfaces);
 }
 
 } // namespace utility

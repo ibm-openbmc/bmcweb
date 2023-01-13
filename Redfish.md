@@ -326,6 +326,29 @@ Fields common to all schemas
 - MinNumNeeded
 - MaxNumSupported
 
+#### /redfish/v1/Chassis/{ChassisId}/PowerSubsystem/PowerSupplies
+
+##### PowerSupplies
+
+- Description
+- Members
+- Members@odata.count
+
+#### /redfish/v1/Chassis/{ChassisId}/PowerSubsystem/PowerSupplies/{PowerSupplyId}
+
+##### PowerSupply
+
+- EfficiencyPercent
+- FirmwareVersion
+- Location
+- LocationIndicatorActive
+- Manufacturer
+- Model
+- PartNumber
+- SerialNumber
+- SparePartNumber
+- Status
+
 ### /redfish/v1/EventService/
 
 #### EventService
