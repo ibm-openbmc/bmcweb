@@ -165,7 +165,7 @@ inline void getLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         ledGroup, interfaces,
         [aResp, ledGroup](const boost::system::error_code& ec,
                           const dbus::utility::MapperGetObject& object) {
-        if (ec || object.size() != 1)
+        if (ec || object.empty())
         {
             BMCWEB_LOG_ERROR << "DBUS response error " << ec.message();
             messages::internalError(aResp->res);
@@ -178,7 +178,10 @@ inline void getLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             [aResp](const boost::system::error_code& ec1, bool assert) {
             if (ec1)
             {
-                messages::internalError(aResp->res);
+                if (ec1.value() != EBADR)
+                {
+                    messages::internalError(aResp->res);
+                }
                 return;
             }
 
@@ -196,7 +199,7 @@ inline void setLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         [aResp, ledGroup,
          ledState](const boost::system::error_code& ec,
                    const dbus::utility::MapperGetObject& object) {
-        if (ec || object.size() != 1)
+        if (ec || object.empty())
         {
             BMCWEB_LOG_ERROR << "DBUS response error " << ec.message();
             messages::internalError(aResp->res);
@@ -209,7 +212,10 @@ inline void setLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             [aResp](const boost::system::error_code& ec1) {
             if (ec1)
             {
-                messages::internalError(aResp->res);
+                if (ec1.value() != EBADR)
+                {
+                    messages::internalError(aResp->res);
+                }
                 return;
             }
             });
@@ -234,9 +240,12 @@ inline void
         objPath + "/identifying",
         [aResp](const boost::system::error_code& ec,
                 const dbus::utility::MapperEndPoints& endpoints) {
-        if (ec.value() != EBADR)
+        if (ec)
         {
-            messages::internalError(aResp->res);
+            if (ec.value() != EBADR)
+            {
+                messages::internalError(aResp->res);
+            }
             return;
         }
 
@@ -266,9 +275,12 @@ inline void
         objPath + "/identifying",
         [aResp, ledState](const boost::system::error_code& ec,
                           const dbus::utility::MapperEndPoints& endpoints) {
-        if (ec.value() != EBADR)
+        if (ec)
         {
-            messages::internalError(aResp->res);
+            if (ec.value() != EBADR)
+            {
+                messages::internalError(aResp->res);
+            }
             return;
         }
 

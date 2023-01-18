@@ -422,7 +422,7 @@ inline void
             [asyncResp,
              powerSupplyPath](const boost::system::error_code& ec,
                               const dbus::utility::MapperGetObject& object) {
-            if (ec || object.size() == 0)
+            if (ec || object.empty())
             {
                 messages::internalError(asyncResp->res);
                 return;
