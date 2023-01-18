@@ -792,7 +792,6 @@ class Connection :
             // is so high to support our large code update images on
             // slow networks Need a better way to do this
             timeout = std::chrono::seconds(1560);
-            return;
         }
 
         std::weak_ptr<Connection<Adaptor, Handler>> weakSelf = weak_from_this();
