@@ -112,6 +112,9 @@ class Lock
 
     Lock()
     {
+        // Remove the persistent file
+        std::filesystem::remove(fileName);
+        lockTable.clear();
         transactionId = lockTable.empty() ? 0 : prev(lockTable.end())->first;
     }
 
