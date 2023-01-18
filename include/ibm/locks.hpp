@@ -553,6 +553,7 @@ inline bool Lock::isConflictRecord(const LockRequest& refLockRecord1,
     }
 
     uint32_t i = 0;
+    uint32_t segStartIndex = 0;
     for (const auto& p : std::get<4>(refLockRecord1))
     {
 
@@ -590,23 +591,21 @@ inline bool Lock::isConflictRecord(const LockRequest& refLockRecord1,
 
         // compare segment data
 
-        for (uint32_t j = 0; j < p.second; j++)
+        for (uint32_t segLenItr = 0; segLenItr < p.second; segLenItr++)
         {
-            // if the segment data is different, then the locks is on a
-            // different resource so no conflict between the lock
-            // records.
-            // BMC is little endian, but the resourceID is formed by
-            // the Management Console in such a way that, the first byte
-            // from the MSB Position corresponds to the First Segment
-            // data. Therefore we need to convert the incoming
-            // resourceID into Big Endian before processing further.
-            if (!(checkByte(
-                    boost::endian::endian_reverse(std::get<3>(refLockRecord1)),
-                    boost::endian::endian_reverse(std::get<3>(refLockRecord2)),
-                    j)))
+            for (uint32_t segItr = segStartIndex;
+                 segItr < segStartIndex + p.second; segItr++)
             {
-                return false;
+                if (!(checkByte(boost::endian::endian_reverse(
+                                    std::get<3>(refLockRecord1)),
+                                boost::endian::endian_reverse(
+                                    std::get<3>(refLockRecord2)),
+                                segItr)))
+                {
+                    return false;
+                }
             }
+            segStartIndex = segStartIndex + p.second;
         }
 
         ++i;
