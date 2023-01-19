@@ -492,7 +492,8 @@ inline void
         }
         if (validityStatus.first && (validityStatus.second == 1))
         {
-            BMCWEB_LOG_ERROR << "There is a conflict within itself";
+            BMCWEB_LOG_ERROR
+                << "handleAcquireLockAPI: There is a conflict within itself";
             asyncResp->res.result(boost::beast::http::status::conflict);
             return;
         }
@@ -546,7 +547,8 @@ inline void
             }
         }
 
-        BMCWEB_LOG_ERROR << "There is a conflict with the lock table";
+        BMCWEB_LOG_ERROR
+            << "handleAcquireLockAPI: There is a conflict with the lock table";
 
         asyncResp->res.result(boost::beast::http::status::conflict);
         nlohmann::json returnJson;
@@ -614,7 +616,8 @@ inline void
     }
 
     // valid rid, but the current hmc does not own all the locks
-    BMCWEB_LOG_DEBUG << "Current HMC does not own all the locks";
+    BMCWEB_LOG_DEBUG
+        << "handleReleaseLockAPI: Current HMC does not own all the locks";
     asyncResp->res.result(boost::beast::http::status::unauthorized);
 
     auto var = statusRelease.second;
