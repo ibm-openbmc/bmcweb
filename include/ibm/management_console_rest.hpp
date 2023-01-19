@@ -288,6 +288,9 @@ inline void
                                 "config files directory. ec : "
                              << ec;
         }
+        std::string origin = "/ibm/v1/Host/ConfigFiles";
+        redfish::EventServiceManager::getInstance().sendEvent(
+            redfish::messages::resourceRemoved(), origin, "IBMConfigFile");
     }
 }
 
@@ -354,6 +357,9 @@ inline void
         {
             BMCWEB_LOG_DEBUG << "File removed!\n";
             asyncResp->res.jsonValue["Description"] = "File Deleted";
+            std::string origin = "/ibm/v1/Host/ConfigFiles/" + fileID;
+            redfish::EventServiceManager::getInstance().sendEvent(
+                redfish::messages::resourceRemoved(), origin, "IBMConfigFile");
         }
         else
         {
