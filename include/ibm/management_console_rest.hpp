@@ -6,8 +6,8 @@
 #include <async_resp.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/predicate.hpp>
-#include <boost/container/flat_map.hpp>
 #include <boost/beast/http/rfc7230.hpp>
+#include <boost/container/flat_map.hpp>
 #include <boost/container/flat_set.hpp>
 #include <dbus_utility.hpp>
 #include <error_messages.hpp>
@@ -50,7 +50,7 @@ constexpr size_t maxSaveareaDirSize =
 constexpr size_t minSaveareaFileSize =
     100; // Allow save area file size of minimum 100B
 constexpr size_t maxSaveareaFileSize =
-    500000; // Allow save area file size upto 500KB
+    25000000; // Allow save area file size upto 25MB
 constexpr size_t maxBroadcastMsgSize =
     1000; // Allow Broadcast message size upto 1KB
 
@@ -808,7 +808,6 @@ inline void
     asyncResp->res.result(boost::beast::http::status::ok);
     asyncResp->res.jsonValue["Records"] = lockRecords;
 }
-
 
 inline void
     deleteVMIDbusEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
