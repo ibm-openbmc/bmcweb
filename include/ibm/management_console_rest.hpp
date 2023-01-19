@@ -539,10 +539,10 @@ inline void
             {
                 asyncResp->res.result(boost::beast::http::status::ok);
 
-                auto var = std::get<uint32_t>(conflictStatus.second);
+                auto id = std::get<uint32_t>(conflictStatus.second);
                 nlohmann::json returnJson;
-                returnJson["id"] = var;
-                asyncResp->res.jsonValue["TransactionID"] = var;
+                returnJson["id"] = id;
+                asyncResp->res.jsonValue["TransactionID"] = id;
                 return;
             }
         }

@@ -112,9 +112,6 @@ class Lock
 
     Lock()
     {
-        // Remove the persistent file
-        std::filesystem::remove(fileName);
-        lockTable.clear();
         transactionId = lockTable.empty() ? 0 : prev(lockTable.end())->first;
     }
 
@@ -264,7 +261,7 @@ inline RcAcquireLock Lock::acquireLock(const LockRequests& lockRequestStructure)
 
     if (status)
     {
-        BMCWEB_LOG_DEBUG << "There is a conflict within itself";
+        BMCWEB_LOG_ERROR << "There is a conflict within itself";
         return std::make_pair(true, std::make_pair(status, 1));
     }
     BMCWEB_LOG_DEBUG << "The request is not conflicting within itself";
