@@ -345,10 +345,26 @@ inline void handleRoleMapPatch(
                 {
                     crow::connections::systemBus->async_method_call(
                         [asyncResp, roleMapObjData, serverType, index,
-                         remoteGroup](const boost::system::error_code ec) {
+                         remoteGroup](const boost::system::error_code ec,
+                                      const sdbusplus::message::message& msg) {
                         if (ec)
                         {
                             BMCWEB_LOG_ERROR << "DBUS response error: " << ec;
+                            const sd_bus_error* dbusError = msg.get_error();
+                            if (dbusError == nullptr)
+                            {
+                                messages::internalError(asyncResp->res);
+                                return;
+                            }
+                            if ((strcmp(dbusError->name,
+                                        "xyz.openbmc_project.Common.Error."
+                                        "InvalidArgument") == 0))
+                            {
+                                messages::propertyValueIncorrect(asyncResp->res,
+                                                                 "RemoteGroup",
+                                                                 *remoteGroup);
+                                return;
+                            }
                             messages::internalError(asyncResp->res);
                             return;
                         }
@@ -369,10 +385,26 @@ inline void handleRoleMapPatch(
                 {
                     crow::connections::systemBus->async_method_call(
                         [asyncResp, roleMapObjData, serverType, index,
-                         localRole](const boost::system::error_code ec) {
+                         localRole](const boost::system::error_code ec,
+                                    const sdbusplus::message::message& msg) {
                         if (ec)
                         {
                             BMCWEB_LOG_ERROR << "DBUS response error: " << ec;
+                            const sd_bus_error* dbusError = msg.get_error();
+                            if (dbusError == nullptr)
+                            {
+                                messages::internalError(asyncResp->res);
+                                return;
+                            }
+
+                            if ((strcmp(dbusError->name,
+                                        "xyz.openbmc_project.Common.Error."
+                                        "InvalidArgument") == 0))
+                            {
+                                messages::propertyValueIncorrect(
+                                    asyncResp->res, "LocalRole", *localRole);
+                                return;
+                            }
                             messages::internalError(asyncResp->res);
                             return;
                         }
@@ -424,10 +456,27 @@ inline void handleRoleMapPatch(
 
                 crow::connections::systemBus->async_method_call(
                     [asyncResp, serverType, localRole,
-                     remoteGroup](const boost::system::error_code ec) {
+                     remoteGroup](const boost::system::error_code ec,
+                                  const sdbusplus::message::message& msg) {
                     if (ec)
                     {
                         BMCWEB_LOG_ERROR << "DBUS response error: " << ec;
+                        const sd_bus_error* dbusError = msg.get_error();
+                        if (dbusError == nullptr)
+                        {
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+
+                        if ((strcmp(dbusError->name,
+                                    "xyz.openbmc_project.Common.Error."
+                                    "InvalidArgument") == 0))
+                        {
+                            messages::propertyValueIncorrect(
+                                asyncResp->res, "RemoteRoleMapping",
+                                *localRole);
+                            return;
+                        }
                         messages::internalError(asyncResp->res);
                         return;
                     }
@@ -698,11 +747,27 @@ inline void handleServiceAddressPatch(
 {
     crow::connections::systemBus->async_method_call(
         [asyncResp, ldapServerElementName,
-         serviceAddressList](const boost::system::error_code ec) {
+         serviceAddressList](const boost::system::error_code ec,
+                             const sdbusplus::message::message& msg) {
         if (ec)
         {
             BMCWEB_LOG_DEBUG
                 << "Error Occurred in updating the service address";
+            const sd_bus_error* dbusError = msg.get_error();
+            if (dbusError == nullptr)
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            if ((strcmp(dbusError->name,
+                        "xyz.openbmc_project.Common.Error.InvalidArgument") ==
+                 0))
+            {
+                messages::propertyValueIncorrect(asyncResp->res,
+                                                 "ServiceAddresses",
+                                                 serviceAddressList.front());
+                return;
+            }
             messages::internalError(asyncResp->res);
             return;
         }
@@ -805,10 +870,26 @@ inline void
 {
     crow::connections::systemBus->async_method_call(
         [asyncResp, baseDNList,
-         ldapServerElementName](const boost::system::error_code ec) {
+         ldapServerElementName](const boost::system::error_code ec,
+                                const sdbusplus::message::message& msg) {
         if (ec)
         {
             BMCWEB_LOG_DEBUG << "Error Occurred in Updating the base DN";
+            const sd_bus_error* dbusError = msg.get_error();
+            if (dbusError == nullptr)
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            if ((strcmp(dbusError->name,
+                        "xyz.openbmc_project.Common.Error.InvalidArgument") ==
+                 0))
+            {
+                messages::propertyValueIncorrect(asyncResp->res,
+                                                 "BaseDistinguishedNames",
+                                                 baseDNList.front());
+                return;
+            }
             messages::internalError(asyncResp->res);
             return;
         }
