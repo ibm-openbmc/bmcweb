@@ -149,8 +149,7 @@ inline void handleChassisCollectionGet(
 
     collection_util::getCollectionMembers(
         asyncResp, boost::urls::url("/redfish/v1/Chassis"),
-        {"xyz.openbmc_project.Inventory.Item.Board",
-         "xyz.openbmc_project.Inventory.Item.Chassis"});
+        {"xyz.openbmc_project.Inventory.Item.Chassis"});
 }
 
 /**
@@ -215,8 +214,7 @@ inline void
     {
         return;
     }
-    const std::array<const char*, 2> interfaces = {
-        "xyz.openbmc_project.Inventory.Item.Board",
+    const std::array<const char*, 1> interfaces = {
         "xyz.openbmc_project.Inventory.Item.Chassis"};
 
     crow::connections::systemBus->async_method_call(
@@ -523,8 +521,7 @@ inline void
             "299 - \"IndicatorLED is deprecated. Use LocationIndicatorActive instead.\"");
     }
 
-    const std::array<const char*, 2> interfaces = {
-        "xyz.openbmc_project.Inventory.Item.Board",
+    const std::array<const char*, 1> interfaces = {
         "xyz.openbmc_project.Inventory.Item.Chassis"};
 
     const std::string& chassisId = param;
