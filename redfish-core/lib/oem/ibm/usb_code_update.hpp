@@ -92,7 +92,6 @@ inline void
                 if (ec)
                 {
                     BMCWEB_LOG_ERROR << "DBUS response error " << ec;
-                    messages::internalError(aResp->res);
                     return;
                 }
 
@@ -102,7 +101,6 @@ inline void
                 if (!usbCodeUpdateStatePtr)
                 {
                     BMCWEB_LOG_ERROR << "Can't get USB code update status!";
-                    messages::internalError(aResp->res);
                     return;
                 }
                 aResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
