@@ -183,12 +183,14 @@ inline void getValidPowerSupplyPath(
 
 inline void
     getPowerSupplyState(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                        const std::string& service, const std::string& path)
+                        const std::string& service, const std::string& path,
+                        bool available)
 {
     sdbusplus::asio::getProperty<bool>(
         *crow::connections::systemBus, service, path,
         "xyz.openbmc_project.Inventory.Item", "Present",
-        [asyncResp](const boost::system::error_code ec, const bool value) {
+        [asyncResp, available](const boost::system::error_code ec,
+                               const bool value) {
         if (ec)
         {
             if (ec.value() != EBADR)
@@ -202,17 +204,23 @@ inline void
         {
             asyncResp->res.jsonValue["Status"]["State"] = "Absent";
         }
+        else if (!available)
+        {
+            asyncResp->res.jsonValue["Status"]["State"] = "UnavailableOffline";
+        }
         });
 }
 
 inline void
     getPowerSupplyHealth(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                         const std::string& service, const std::string& path)
+                         const std::string& service, const std::string& path,
+                         bool available)
 {
     sdbusplus::asio::getProperty<bool>(
         *crow::connections::systemBus, service, path,
         "xyz.openbmc_project.State.Decorator.OperationalStatus", "Functional",
-        [asyncResp](const boost::system::error_code ec, const bool value) {
+        [asyncResp, available](const boost::system::error_code ec,
+                               const bool value) {
         if (ec)
         {
             if (ec.value() != EBADR)
@@ -222,10 +230,34 @@ inline void
             return;
         }
 
-        if (!value)
+        if (!value || !available)
         {
             asyncResp->res.jsonValue["Status"]["Health"] = "Critical";
         }
+        });
+}
+
+inline void getPowerSupplyStateAndHealth(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& service, const std::string& path)
+{
+    sdbusplus::asio::getProperty<bool>(
+        *crow::connections::systemBus, service, path,
+        "xyz.openbmc_project.State.Decorator.Availability", "Available",
+        [asyncResp, service, path](const boost::system::error_code ec,
+                                   const bool available) {
+        if (ec)
+        {
+            if (ec.value() != EBADR)
+            {
+                messages::internalError(asyncResp->res);
+            }
+            return;
+        }
+
+        getPowerSupplyState(asyncResp, service, path, available);
+
+        getPowerSupplyHealth(asyncResp, service, path, available);
         });
 }
 
@@ -428,10 +460,8 @@ inline void
                 return;
             }
 
-            getPowerSupplyState(asyncResp, object.begin()->first,
-                                powerSupplyPath);
-            getPowerSupplyHealth(asyncResp, object.begin()->first,
-                                 powerSupplyPath);
+            getPowerSupplyStateAndHealth(asyncResp, object.begin()->first,
+                                         powerSupplyPath);
             getPowerSupplyAsset(asyncResp, object.begin()->first,
                                 powerSupplyPath);
             getPowerSupplyFirmwareVersion(asyncResp, object.begin()->first,
