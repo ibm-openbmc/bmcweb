@@ -162,6 +162,20 @@ inline static int getJournalMetadata(sd_journal* journal,
     return ret;
 }
 
+inline std::optional<bool> getProviderNotifyAction(const std::string& notify)
+{
+    std::optional<bool> notifyAction;
+    if (notify == "xyz.openbmc_project.Logging.Entry.Notify.Notify")
+    {
+        notifyAction = true;
+    }
+    else if (notify == "xyz.openbmc_project.Logging.Entry.Notify.Inhibit")
+    {
+        notifyAction = false;
+    }
+    return notifyAction;
+}
+
 inline static int getJournalMetadata(sd_journal* journal,
                                      const std::string_view& field,
                                      const int& base, long int& contents)
@@ -1985,7 +1999,7 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                 const std::string* eventId = nullptr;
                 const bool* resolved = nullptr;
                 const bool* hidden = nullptr;
-                const bool* serviceProviderNotified = nullptr;
+                const std::string* notify = nullptr;
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
                 const bool* managementSystemAck = nullptr;
 #endif
@@ -2044,9 +2058,9 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                             else if (propertyMap.first ==
                                      "ServiceProviderNotify")
                             {
-                                serviceProviderNotified =
-                                    std::get_if<bool>(&propertyMap.second);
-                                if (serviceProviderNotified == nullptr)
+                                notify = std::get_if<std::string>(
+                                    &propertyMap.second);
+                                if (notify == nullptr)
                                 {
                                     messages::internalError(asyncResp->res);
                                     return;
@@ -2150,7 +2164,13 @@ inline void requestRoutesDBusEventLogEntryCollection(App& app)
                     redfish::time_utils::getDateTimeUintMs(*timestamp);
                 thisEntry["Modified"] =
                     redfish::time_utils::getDateTimeUintMs(*updateTimestamp);
-                thisEntry["ServiceProviderNotified"] = *serviceProviderNotified;
+                std::optional<bool> notifyAction =
+                    getProviderNotifyAction(*notify);
+                if (notifyAction)
+                {
+                    thisEntry["ServiceProviderNotified"] = *notifyAction;
+                }
+
                 thisEntry["Oem"]["IBM"]["@odata.id"] =
                     "/redfish/v1/Systems/system/LogServices/EventLog/Entries/" +
                     std::to_string(*id) + "/OemPelAttachment";
@@ -2236,7 +2256,7 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
                 const std::string* resolution = nullptr;
                 bool resolved = false;
                 const bool* hidden = nullptr;
-                bool serviceProviderNotified = false;
+                const std::string* notify = nullptr;
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
                 bool managementSystemAck = false;
 #endif
@@ -2296,15 +2316,13 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
                             else if (propertyMap.first ==
                                      "ServiceProviderNotify")
                             {
-                                const bool* serviceProviderNotifiedptr =
-                                    std::get_if<bool>(&propertyMap.second);
-                                if (serviceProviderNotifiedptr == nullptr)
+                                notify = std::get_if<std::string>(
+                                    &propertyMap.second);
+                                if (notify == nullptr)
                                 {
                                     messages::internalError(asyncResp->res);
                                     return;
                                 }
-                                serviceProviderNotified =
-                                    *serviceProviderNotifiedptr;
                             }
                         }
                         if (id == nullptr || severity == nullptr)
@@ -2405,7 +2423,13 @@ inline void requestRoutesDBusCELogEntryCollection(App& app)
                     redfish::time_utils::getDateTimeUintMs(*timestamp);
                 thisEntry["Modified"] =
                     redfish::time_utils::getDateTimeUintMs(*updateTimestamp);
-                thisEntry["ServiceProviderNotified"] = serviceProviderNotified;
+                std::optional<bool> notifyAction =
+                    getProviderNotifyAction(*notify);
+                if (notifyAction)
+                {
+                    thisEntry["ServiceProviderNotified"] = *notifyAction;
+                }
+
                 thisEntry["Oem"]["IBM"]["@odata.id"] =
                     "/redfish/v1/Systems/system/LogServices/CELog/Entries/" +
                     std::to_string(*id) + "/OemPelAttachment";
@@ -2488,7 +2512,7 @@ inline void requestRoutesDBusEventLogEntry(App& app)
             const std::string* resolution = nullptr;
             const bool* resolved = nullptr;
             const bool* hidden = nullptr;
-            const bool* serviceProviderNotified = nullptr;
+            const std::string* notify = nullptr;
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
             const bool* managementSystemAck = nullptr;
 #endif
@@ -2498,8 +2522,7 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                 timestamp, "UpdateTimestamp", updateTimestamp, "Severity",
                 severity, "EventId", eventId, "Resolved", resolved,
                 "Resolution", resolution, "Path", filePath, "Hidden", hidden,
-                "ServiceProviderNotify", serviceProviderNotified, "Subsystem",
-                subsystem
+                "ServiceProviderNotify", notify, "Subsystem", subsystem
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
                 ,
                 "ManagementSystemAck", managementSystemAck
@@ -2514,8 +2537,8 @@ inline void requestRoutesDBusEventLogEntry(App& app)
 
             if (id == nullptr || eventId == nullptr || severity == nullptr ||
                 timestamp == nullptr || updateTimestamp == nullptr ||
-                resolved == nullptr || serviceProviderNotified == nullptr ||
-                hidden == nullptr || subsystem == nullptr
+                resolved == nullptr || notify == nullptr || hidden == nullptr ||
+                subsystem == nullptr
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
                 || managementSystemAck == nullptr
 #endif
@@ -2555,8 +2578,12 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                 redfish::time_utils::getDateTimeUintMs(*timestamp);
             asyncResp->res.jsonValue["Modified"] =
                 redfish::time_utils::getDateTimeUintMs(*updateTimestamp);
-            asyncResp->res.jsonValue["ServiceProviderNotified"] =
-                *serviceProviderNotified;
+            std::optional<bool> notifyAction = getProviderNotifyAction(*notify);
+            if (notifyAction)
+            {
+                asyncResp->res.jsonValue["ServiceProviderNotified"] =
+                    *notifyAction;
+            }
             asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.id"] =
                 "/redfish/v1/Systems/system/LogServices/EventLog/Entries/" +
                 std::to_string(*id) + "/OemPelAttachment";
@@ -2695,7 +2722,7 @@ inline void requestRoutesDBusCELogEntry(App& app)
             const std::string* resolution = nullptr;
             const bool* resolved = nullptr;
             const bool* hidden = nullptr;
-            const bool* serviceProviderNotified = nullptr;
+            const std::string* notify = nullptr;
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
             const bool* managementSystemAck = nullptr;
 #endif
@@ -2705,8 +2732,7 @@ inline void requestRoutesDBusCELogEntry(App& app)
                 timestamp, "UpdateTimestamp", updateTimestamp, "Severity",
                 severity, "EventId", eventId, "Resolved", resolved,
                 "Resolution", resolution, "Path", filePath, "Hidden", hidden,
-                "ServiceProviderNotify", serviceProviderNotified, "Subsystem",
-                subsystem
+                "ServiceProviderNotify", notify, "Subsystem", subsystem
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
                 ,
                 "ManagementSystemAck", managementSystemAck
@@ -2722,7 +2748,7 @@ inline void requestRoutesDBusCELogEntry(App& app)
             if (id == nullptr || eventId == nullptr || severity == nullptr ||
                 timestamp == nullptr || updateTimestamp == nullptr ||
                 hidden == nullptr || subsystem == nullptr ||
-                resolved == nullptr || serviceProviderNotified == nullptr
+                resolved == nullptr || notify == nullptr
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
                 || managementSystemAck == nullptr
 #endif
@@ -2762,8 +2788,12 @@ inline void requestRoutesDBusCELogEntry(App& app)
                 redfish::time_utils::getDateTimeUintMs(*timestamp);
             asyncResp->res.jsonValue["Modified"] =
                 redfish::time_utils::getDateTimeUintMs(*updateTimestamp);
-            asyncResp->res.jsonValue["ServiceProviderNotified"] =
-                *serviceProviderNotified;
+            std::optional<bool> notifyAction = getProviderNotifyAction(*notify);
+            if (notifyAction)
+            {
+                asyncResp->res.jsonValue["ServiceProviderNotified"] =
+                    *notifyAction;
+            }
             asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.id"] =
                 "/redfish/v1/Systems/system/LogServices/CELog/Entries/" +
                 std::to_string(*id) + "/OemPelAttachment";
