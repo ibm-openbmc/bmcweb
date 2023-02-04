@@ -442,6 +442,10 @@ inline void
                     "/redfish/v1/Chassis/" + chassisId + "/Sensors";
                 asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
 
+                asyncResp->res.jsonValue["PCIeSlots"]["@odata.id"] =
+                    crow::utility::urlFromPieces("redfish", "v1", "Chassis",
+                                                 chassisId, "PCIeSlots");
+
                 nlohmann::json::array_t computerSystems;
                 nlohmann::json::object_t system;
                 system["@odata.id"] = "/redfish/v1/Systems/system";

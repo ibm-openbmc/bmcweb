@@ -35,6 +35,7 @@
 #include "metric_report_definition.hpp"
 #include "network_protocol.hpp"
 #include "pcie.hpp"
+#include "pcie_slots.hpp"
 #include "power.hpp"
 #include "power_subsystem.hpp"
 #include "power_supply.hpp"
@@ -97,6 +98,7 @@ class RedfishService
         requestRoutesManagerResetActionInfo(app);
         requestRoutesManagerResetToDefaultsAction(app);
         requestRoutesManagerDiagnosticData(app);
+        requestRoutesPCIeSlots(app);
         requestRoutesChassisCollection(app);
         requestRoutesChassis(app);
         requestRoutesChassisResetAction(app);
