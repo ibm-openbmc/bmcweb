@@ -1,11 +1,12 @@
 #pragma once
 
-#include <aggregation_utils.hpp>
+#include "aggregation_utils.hpp"
+#include "dbus_utility.hpp"
+#include "error_messages.hpp"
+#include "http_client.hpp"
+#include "http_connection.hpp"
+
 #include <boost/algorithm/string/predicate.hpp>
-#include <dbus_utility.hpp>
-#include <error_messages.hpp>
-#include <http_client.hpp>
-#include <http_connection.hpp>
 
 #include <array>
 
@@ -486,7 +487,7 @@ class RedfishAggregator
         }
 
         // We didn't recognize the prefix and need to return a 404
-        std::string_view nameStr = req.urlView.segments().back();
+        std::string nameStr = req.url().segments().back();
         messages::resourceNotFound(asyncResp->res, "", nameStr);
     }
 
@@ -518,7 +519,7 @@ class RedfishAggregator
             // don't need to write an error code
             if (isCollection == AggregationType::Resource)
             {
-                std::string_view nameStr = sharedReq->urlView.segments().back();
+                std::string nameStr = sharedReq->url().segments().back();
                 messages::resourceNotFound(asyncResp->res, "", nameStr);
             }
             return;
@@ -540,8 +541,7 @@ class RedfishAggregator
             return;
         }
 
-        const boost::urls::segments_view urlSegments =
-            thisReq.urlView.segments();
+        const boost::urls::segments_view urlSegments = thisReq.url().segments();
         boost::urls::url currentUrl("/");
         boost::urls::segments_view::iterator it = urlSegments.begin();
         const boost::urls::segments_view::const_iterator end =
@@ -879,7 +879,7 @@ class RedfishAggregator
     {
         using crow::utility::OrMorePaths;
         using crow::utility::readUrlSegments;
-        const boost::urls::url_view url = thisReq.urlView;
+        const boost::urls::url_view url = thisReq.url();
         // UpdateService is the only top level resource that is not a Collection
         if (readUrlSegments(url, "redfish", "v1", "UpdateService"))
         {

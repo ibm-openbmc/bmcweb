@@ -2581,7 +2581,7 @@ inline void
             else if (acf && (username != "service"))
             {
                 messages::resourceAtUriUnauthorized(
-                    asyncResp->res, req.urlView,
+                    asyncResp->res, req.url(),
                     "ACF properties access not allowed by non service "
                     "user");
             }

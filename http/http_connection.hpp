@@ -1,10 +1,14 @@
 #pragma once
 #include "bmcweb_config.h"
 
+#include "async_resp.hpp"
 #include "authentication.hpp"
 #include "http_response.hpp"
 #include "http_utility.hpp"
+#include "json_html_serializer.hpp"
 #include "logging.hpp"
+#include "security_headers.hpp"
+#include "ssl_key_handler.hpp"
 #include "utility.hpp"
 
 #include <boost/algorithm/string/predicate.hpp>
@@ -20,10 +24,6 @@
 #include <boost/beast/http/write.hpp>
 #include <boost/beast/ssl/ssl_stream.hpp>
 #include <boost/beast/websocket.hpp>
-#include <boost/url/url_view.hpp>
-#include <json_html_serializer.hpp>
-#include <security_headers.hpp>
-#include <ssl_key_handler.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -361,12 +361,14 @@ class Connection :
             return;
         }
 #ifndef BMCWEB_INSECURE_DISABLE_AUTHX
-        if (!crow::authentication::isOnAllowlist(req->url, req->method()) &&
+        if (!crow::authentication::isOnAllowlist(req->url().buffer(),
+                                                 req->method()) &&
             thisReq.session == nullptr)
         {
             BMCWEB_LOG_WARNING << "Authentication failed";
             forward_unauthorized::sendUnauthorized(
-                req->url, req->getHeaderValue("X-Requested-With"),
+                req->url().encoded_path(),
+                req->getHeaderValue("X-Requested-With"),
                 req->getHeaderValue("Accept"), res);
             completeRequest(res);
             return;
@@ -465,8 +467,10 @@ class Connection :
             return;
         }
         res = std::move(thisRes);
-        BMCWEB_LOG_INFO << "Response: " << this << ' ' << req->url << ' '
-                        << res.resultInt() << " keepalive=" << req->keepAlive();
+
+        BMCWEB_LOG_INFO << "Response: " << this << ' '
+                        << req->url().encoded_path() << ' ' << res.resultInt()
+                        << " keepalive=" << req->keepAlive();
 
         addSecurityHeaders(*req, res);
 

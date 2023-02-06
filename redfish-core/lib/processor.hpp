@@ -1583,7 +1583,9 @@ inline void requestRoutesOperatingConfigCollection(App& app)
         }
         asyncResp->res.jsonValue["@odata.type"] =
             "#OperatingConfigCollection.OperatingConfigCollection";
-        asyncResp->res.jsonValue["@odata.id"] = req.url;
+        asyncResp->res.jsonValue["@odata.id"] = crow::utility::urlFromPieces(
+            "redfish", "v1", "Systems", "system", "Processors", cpuName,
+            "OperatingConfigs");
         asyncResp->res.jsonValue["Name"] = "Operating Config Collection";
 
         // First find the matching CPU object so we know how to
@@ -1651,9 +1653,12 @@ inline void requestRoutesOperatingConfig(App& app)
         }
         // Ask for all objects implementing OperatingConfig so we can search
         // for one with a matching name
-        crow::connections::systemBus->async_method_call(
-            [asyncResp, cpuName, configName, reqUrl{req.url}](
-                boost::system::error_code ec,
+        constexpr std::array<std::string_view, 1> interfaces = {
+            "xyz.openbmc_project.Inventory.Item.Cpu.OperatingConfig"};
+        dbus::utility::getSubTree(
+            "/xyz/openbmc_project/inventory", 0, interfaces,
+            [asyncResp, cpuName, configName](
+                const boost::system::error_code& ec,
                 const dbus::utility::MapperGetSubTreeResponse& subtree) {
             if (ec)
             {
@@ -1686,7 +1691,9 @@ inline void requestRoutesOperatingConfig(App& app)
 
                 nlohmann::json& json = asyncResp->res.jsonValue;
                 json["@odata.type"] = "#OperatingConfig.v1_0_0.OperatingConfig";
-                json["@odata.id"] = reqUrl;
+                json["@odata.id"] = crow::utility::urlFromPieces(
+                    "redfish", "v1", "Systems", "system", "Processors", cpuName,
+                    "OperatingConfigs", configName);
                 json["Name"] = "Processor Profile";
                 json["Id"] = configName;
 
@@ -1699,13 +1706,7 @@ inline void requestRoutesOperatingConfig(App& app)
             }
             messages::resourceNotFound(asyncResp->res, "OperatingConfig",
                                        configName);
-            },
-            "xyz.openbmc_project.ObjectMapper",
-            "/xyz/openbmc_project/object_mapper",
-            "xyz.openbmc_project.ObjectMapper", "GetSubTree",
-            "/xyz/openbmc_project/inventory", 0,
-            std::array<const char*, 1>{
-                "xyz.openbmc_project.Inventory.Item.Cpu.OperatingConfig"});
+            });
         });
 }
 

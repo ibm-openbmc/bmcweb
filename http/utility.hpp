@@ -668,10 +668,10 @@ class UrlSegmentMatcherVisitor
     std::string_view segment;
 };
 
-inline bool readUrlSegments(const boost::urls::url_view& urlView,
+inline bool readUrlSegments(const boost::urls::url_view& url,
                             std::initializer_list<UrlSegment>&& segments)
 {
-    const boost::urls::segments_view& urlSegments = urlView.segments();
+    const boost::urls::segments_view& urlSegments = url.segments();
 
     if (!urlSegments.is_absolute())
     {
@@ -712,10 +712,9 @@ inline bool readUrlSegments(const boost::urls::url_view& urlView,
 } // namespace details
 
 template <typename... Args>
-inline bool readUrlSegments(const boost::urls::url_view& urlView,
-                            Args&&... args)
+inline bool readUrlSegments(const boost::urls::url_view& url, Args&&... args)
 {
-    return details::readUrlSegments(urlView, {std::forward<Args>(args)...});
+    return details::readUrlSegments(url, {std::forward<Args>(args)...});
 }
 
 inline boost::urls::url replaceUrlSegment(const boost::urls::url_view& urlView,
@@ -748,13 +747,13 @@ inline boost::urls::url replaceUrlSegment(const boost::urls::url_view& urlView,
     return url;
 }
 
-inline std::string setProtocolDefaults(const boost::urls::url_view& url)
+inline std::string setProtocolDefaults(const boost::urls::url_view& urlView)
 {
-    if (url.scheme() == "https")
+    if (urlView.scheme() == "https")
     {
         return "https";
     }
-    if (url.scheme() == "http")
+    if (urlView.scheme() == "http")
     {
         if (bmcwebInsecureEnableHttpPushStyleEventing)
         {
@@ -762,7 +761,7 @@ inline std::string setProtocolDefaults(const boost::urls::url_view& url)
         }
         return "";
     }
-    if (url.scheme() == "snmp")
+    if (urlView.scheme() == "snmp")
     {
         return "snmp";
     }
