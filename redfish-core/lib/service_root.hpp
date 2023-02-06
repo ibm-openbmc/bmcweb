@@ -154,11 +154,11 @@ inline void handleServiceRootGetImpl(
 {
     std::string uuid = persistent_data::getConfig().systemUuid;
     asyncResp->res.jsonValue["@odata.type"] =
-        "#ServiceRoot.v1_11_0.ServiceRoot";
+        "#ServiceRoot.v1_12_0.ServiceRoot";
     asyncResp->res.jsonValue["@odata.id"] = "/redfish/v1";
     asyncResp->res.jsonValue["Id"] = "RootService";
     asyncResp->res.jsonValue["Name"] = "Root Service";
-    asyncResp->res.jsonValue["RedfishVersion"] = "1.9.0";
+    asyncResp->res.jsonValue["RedfishVersion"] = "1.12.0";
     asyncResp->res.jsonValue["Links"]["Sessions"]["@odata.id"] =
         "/redfish/v1/SessionService/Sessions";
     asyncResp->res.jsonValue["AccountService"]["@odata.id"] =
@@ -204,6 +204,11 @@ inline void handleServiceRootGetImpl(
     protocolFeatures["SelectQuery"] = true;
     protocolFeatures["DeepOperations"]["DeepPOST"] = false;
     protocolFeatures["DeepOperations"]["DeepPATCH"] = false;
+
+#ifdef BMCWEB_ENABLE_REDFISH_LICENSE
+    asyncResp->res.jsonValue["LicenseService"] = {
+        {"@odata.id", "/redfish/v1/LicenseService"}};
+#endif
 }
 inline void
     handleServiceRootGet(App& app, const crow::Request& req,
