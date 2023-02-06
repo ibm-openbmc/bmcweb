@@ -1068,6 +1068,12 @@ void operationNotAllowed(crow::Response& res);
 nlohmann::json restrictedRole(const std::string& arg1);
 
 void restrictedRole(crow::Response& res, const std::string& arg1);
+
+void addMessageToErrorJson(nlohmann::json& target,
+                           const nlohmann::json& message);
+
+void addMessageToJson(nlohmann::json& target, const nlohmann::json& message,
+                      std::string_view fieldPath);
 } // namespace messages
 
 } // namespace redfish

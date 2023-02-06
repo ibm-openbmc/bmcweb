@@ -26,7 +26,7 @@ void assertServiceRootGet(crow::Response& res)
 {
     nlohmann::json& json = res.jsonValue;
     EXPECT_EQ(json["@odata.id"], "/redfish/v1");
-    EXPECT_EQ(json["@odata.type"], "#ServiceRoot.v1_11_0.ServiceRoot");
+    EXPECT_EQ(json["@odata.type"], "#ServiceRoot.v1_12_0.ServiceRoot");
 
     EXPECT_EQ(json["AccountService"]["@odata.id"],
               "/redfish/v1/AccountService");
@@ -52,7 +52,7 @@ void assertServiceRootGet(crow::Response& res)
     EXPECT_EQ(json["Managers"].size(), 1);
 
     EXPECT_EQ(json["Name"], "Root Service");
-    EXPECT_EQ(json["RedfishVersion"], "1.9.0");
+    EXPECT_EQ(json["RedfishVersion"], "1.12.0");
 
     EXPECT_EQ(json["Registries"]["@odata.id"], "/redfish/v1/Registries");
     EXPECT_EQ(json["Registries"].size(), 1);
