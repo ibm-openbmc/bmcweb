@@ -2,6 +2,7 @@
 
 #include "error_messages.hpp"
 #include "generated/enums/pcie_slots.hpp"
+#include "led.hpp"
 #include "utility.hpp"
 
 #include <app.hpp>
@@ -67,7 +68,8 @@ inline pcie_slots::SlotTypes dbusSlotTypeToRf(const std::string& slotType)
 inline void
     onPcieSlotGetAllDone(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                          const boost::system::error_code ec,
-                         const dbus::utility::DBusPropertiesMap& propertiesList)
+                         const dbus::utility::DBusPropertiesMap& propertiesList,
+                         const std::string& pcieSlotPath)
 {
     if (ec)
     {
@@ -140,6 +142,10 @@ inline void
     }
 
     slots.emplace_back(std::move(slot));
+
+    // Get pcie slot location indicator state
+    nlohmann::json& slotLIA = slots.back();
+    getLocationIndicatorActive(asyncResp, pcieSlotPath, slotLIA);
 }
 
 inline void onMapperAssociationDone(
@@ -188,9 +194,10 @@ inline void onMapperAssociationDone(
     sdbusplus::asio::getAllProperties(
         *crow::connections::systemBus, connectionName, pcieSlotPath,
         "xyz.openbmc_project.Inventory.Item.PCIeSlot",
-        [asyncResp](const boost::system::error_code& ec1,
-                    const dbus::utility::DBusPropertiesMap& propertiesList) {
-        onPcieSlotGetAllDone(asyncResp, ec1, propertiesList);
+        [asyncResp,
+         pcieSlotPath](const boost::system::error_code& ec1,
+                       const dbus::utility::DBusPropertiesMap& propertiesList) {
+        onPcieSlotGetAllDone(asyncResp, ec1, propertiesList, pcieSlotPath);
         });
 }
 

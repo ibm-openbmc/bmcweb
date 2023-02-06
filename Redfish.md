@@ -201,6 +201,7 @@ Fields common to all schemas
 
 - HotPluggable
 - Lanes
+- LocationIndicatorActive
 - PCIeType
 - SlotType
 
