@@ -40,23 +40,22 @@ inline void
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code ec,
                     const std::variant<bool>& retVal) {
-            if (ec)
-            {
-                BMCWEB_LOG_ERROR << "Failed to read ACFWindowActive property";
-                // Default value when panel app is unreachable.
-                asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
-                    false;
-                return;
-            }
-            const bool* isACFWindowActive = std::get_if<bool>(&retVal);
-            if (isACFWindowActive == nullptr)
-            {
-                BMCWEB_LOG_ERROR << "nullptr for ACFWindowActive";
-                messages::internalError(asyncResp->res);
-                return;
-            }
-            asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
-                *isACFWindowActive;
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "Failed to read ACFWindowActive property";
+            // Default value when panel app is unreachable.
+            asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] = false;
+            return;
+        }
+        const bool* isACFWindowActive = std::get_if<bool>(&retVal);
+        if (isACFWindowActive == nullptr)
+        {
+            BMCWEB_LOG_ERROR << "nullptr for ACFWindowActive";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
+            *isACFWindowActive;
         },
         "com.ibm.PanelApp", "/com/ibm/panel_app",
         "org.freedesktop.DBus.Properties", "Get", "com.ibm.panel",
