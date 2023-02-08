@@ -134,6 +134,14 @@ option(
 )
 
 option(
+     'redfish-license',
+     type : 'feature',
+     value : 'disabled',
+     description : '''Enable License transactions through Redfish. Paths are
+                      under /redfish/v1/LicenseService/Licenses/'''
+)
+
+option(
     'basic-auth',
     type: 'feature',
     value: 'enabled',

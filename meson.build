@@ -92,6 +92,7 @@ feature_map = {
   'static-hosting'                              : '-DBMCWEB_ENABLE_STATIC_HOSTING',
   'vm-websocket'                                : '-DBMCWEB_ENABLE_VM_WEBSOCKET',
   'xtoken-auth'                                 : '-DBMCWEB_ENABLE_XTOKEN_AUTHENTICATION',
+  'redfish-license'                             : '-DBMCWEB_ENABLE_REDFISH_LICENSE',
   #'vm-nbdproxy'                                : '-DBMCWEB_ENABLE_VM_NBDPROXY',
   'hw-isolation'                                : '-DBMCWEB_ENABLE_HW_ISOLATION',
 }
