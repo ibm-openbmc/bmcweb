@@ -132,7 +132,7 @@ inline void
                                     "InvalidArgument") == 0)
         {
             messages::propertyValueExternalConflict(
-                aResp->res, "Enabled", std::to_string(enabledPropVal));
+                aResp->res, "Enabled", std::to_string(enabledPropVal ? 1 : 0));
         }
         else if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
                                          "NotAllowed") == 0)
@@ -143,8 +143,9 @@ inline void
                                          "HardwareIsolation.Error."
                                          "IsolatedAlready") == 0)
         {
-            messages::resourceAlreadyExists(aResp->res, resourceName, "Enabled",
-                                            std::to_string(enabledPropVal));
+            messages::resourceAlreadyExists(
+                aResp->res, resourceName, "Enabled",
+                std::to_string(enabledPropVal ? 1 : 0));
         }
         else if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
                                          "TooManyResources") == 0)
@@ -419,11 +420,10 @@ inline void processHardwareIsolationReq(
  * @return True on success
  *         False on failure and set the error in the redfish response.
  */
-inline bool
-    setSeverity(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-                const sdbusplus::message::object_path& objPath,
-                const nlohmann::json_pointer<nlohmann::json>& severityPropPath,
-                const std::string& severityVal)
+inline bool setSeverity(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                        const sdbusplus::message::object_path& objPath,
+                        const nlohmann::json::json_pointer& severityPropPath,
+                        const std::string& severityVal)
 {
     if (severityVal == "xyz.openbmc_project.Logging.Event."
                        "SeverityLevel.Critical")
@@ -607,7 +607,7 @@ inline void
                                 sdbusplus::message::object_path errPath =
                                     std::get<2>(assoc);
                                 // we have only one condition
-                                nlohmann::json_pointer logEntryPropPath =
+                                nlohmann::json::json_pointer logEntryPropPath =
                                     "/Status/Conditions/0/LogEntry"_json_pointer;
                                 error_log_utils::setErrorLogUri(
                                     aResp, errPath, logEntryPropPath, true);
@@ -702,7 +702,7 @@ inline void
                         }
 
                         // we have only one condition
-                        nlohmann::json_pointer severityPropPath =
+                        nlohmann::json::json_pointer severityPropPath =
                             "/Status/Conditions/0/Severity"_json_pointer;
                         if (!setSeverity(aResp, hwStatusEventObj,
                                          severityPropPath, *severity))

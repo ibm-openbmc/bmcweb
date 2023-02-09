@@ -55,7 +55,7 @@ inline void getPrettyName(
 
         const std::string* value = std::get_if<std::string>(&prettyName);
 
-        if (!value)
+        if (value == nullptr)
         {
 
             BMCWEB_LOG_ERROR << "Failed to get Pretty Name for " << path;

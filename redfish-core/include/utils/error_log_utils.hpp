@@ -26,11 +26,11 @@ namespace error_log_utils
  *       might delete by the user via Redfish but, we should not throw
  *       internal error in that case, just log trace and return.
  */
-inline void setErrorLogUri(
-    const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-    const sdbusplus::message::object_path& errorLogObjPath,
-    const nlohmann::json_pointer<nlohmann::json>& errorLogPropPath,
-    const bool isLink)
+inline void
+    setErrorLogUri(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                   const sdbusplus::message::object_path& errorLogObjPath,
+                   const nlohmann::json::json_pointer& errorLogPropPath,
+                   const bool isLink)
 {
     // Get the Hidden Property
     crow::connections::systemBus->async_method_call(

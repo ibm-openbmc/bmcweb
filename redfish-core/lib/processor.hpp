@@ -900,7 +900,7 @@ inline void getProcessorPaths(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                               const std::string& processorId, Handler&& handler)
 {
     crow::connections::systemBus->async_method_call(
-        [processorId, aResp, handler{std::move(handler)}](
+        [processorId, aResp, handler{std::forward<Handler>(handler)}](
             const boost::system::error_code ec,
             const std::vector<std::string>& subTreePaths) {
         if (ec)
@@ -1035,7 +1035,7 @@ inline void
                 }
             }
 
-            if (present == false)
+            if (!present)
             {
                 aResp->res.jsonValue["Status"]["State"] = "Absent";
             }
@@ -1113,7 +1113,7 @@ inline void getSubProcessorData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 return;
             }
 
-            if (subtree.size() != 0)
+            if (!subtree.empty())
             {
                 // Object not found
                 messages::resourceNotFound(
