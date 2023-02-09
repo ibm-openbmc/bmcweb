@@ -94,6 +94,7 @@ feature_map = {
   'xtoken-auth'                                 : '-DBMCWEB_ENABLE_XTOKEN_AUTHENTICATION',
   'redfish-license'                             : '-DBMCWEB_ENABLE_REDFISH_LICENSE',
   #'vm-nbdproxy'                                : '-DBMCWEB_ENABLE_VM_NBDPROXY',
+  'ibm-led-extensions'                          : '-DBMCWEB_ENABLE_IBM_LED_EXTENSIONS',
 }
 
 # Get the options status and build a project summary to show which flags are
