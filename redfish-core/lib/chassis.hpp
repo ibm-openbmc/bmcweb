@@ -27,6 +27,7 @@
 #include <sdbusplus/unpack_properties.hpp>
 #include <utils/collection.hpp>
 #include <utils/dbus_utils.hpp>
+#include <utils/name_utils.hpp>
 
 namespace redfish
 {
@@ -269,7 +270,8 @@ inline void
                 "#Chassis.v1_16_0.Chassis";
             asyncResp->res.jsonValue["@odata.id"] =
                 "/redfish/v1/Chassis/" + chassisId;
-            asyncResp->res.jsonValue["Name"] = "Chassis Collection";
+            name_util::getPrettyName(asyncResp, path, connectionNames,
+                                     "/Name"_json_pointer);
             asyncResp->res.jsonValue["ChassisType"] = "RackMount";
             asyncResp->res.jsonValue["Actions"]["#Chassis.Reset"]["target"] =
                 "/redfish/v1/Chassis/" + chassisId + "/Actions/Chassis.Reset";
