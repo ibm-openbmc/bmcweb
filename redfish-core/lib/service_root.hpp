@@ -37,9 +37,11 @@ namespace redfish
 inline void
     handleACFWindowActive(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    crow::connections::systemBus->async_method_call(
+    sdbusplus::asio::getProperty<bool>(
+        *crow::connections::systemBus, "com.ibm.PanelApp", "/com/ibm/panel_app",
+        "com.ibm.panel", "ACFWindowActive",
         [asyncResp](const boost::system::error_code ec,
-                    const std::variant<bool>& retVal) {
+                    const bool isACFWindowActive) {
         if (ec)
         {
             BMCWEB_LOG_ERROR << "Failed to read ACFWindowActive property";
@@ -47,19 +49,9 @@ inline void
             asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] = false;
             return;
         }
-        const bool* isACFWindowActive = std::get_if<bool>(&retVal);
-        if (isACFWindowActive == nullptr)
-        {
-            BMCWEB_LOG_ERROR << "nullptr for ACFWindowActive";
-            messages::internalError(asyncResp->res);
-            return;
-        }
         asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
-            *isACFWindowActive;
-        },
-        "com.ibm.PanelApp", "/com/ibm/panel_app",
-        "org.freedesktop.DBus.Properties", "Get", "com.ibm.panel",
-        "ACFWindowActive");
+            isACFWindowActive;
+        });
 }
 
 inline void
