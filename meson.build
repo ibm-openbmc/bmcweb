@@ -68,6 +68,7 @@ feature_map = {
   'host-serial-socket'                          : '-DBMCWEB_ENABLE_HOST_SERIAL_WEBSOCKET',
   'hypervisor-serial-socket'                    : '-DBMCWEB_ENABLE_HYPERVISOR_SERIAL_WEBSOCKET',
   'ibm-management-console'                      : '-DBMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE',
+  'ibm-usb-code-update'                         : '-DBMCWEB_ENABLE_IBM_USB_CODE_UPDATE',
   'insecure-disable-auth'                       : '-DBMCWEB_INSECURE_DISABLE_AUTHX',
   'insecure-disable-csrf'                       : '-DBMCWEB_INSECURE_DISABLE_CSRF_PREVENTION',
   'insecure-disable-ssl'                        : '-DBMCWEB_INSECURE_DISABLE_SSL',
