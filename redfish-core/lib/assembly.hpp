@@ -44,6 +44,9 @@ inline void
         tempyArray.at(assemblyIndex)["Name"] =
             sdbusplus::message::object_path(assembly).filename();
 
+        // Set the default Status
+        tempyArray.at(assemblyIndex)["Status"]["Health"] = "OK";
+
         crow::connections::systemBus->async_method_call(
             [aResp, assemblyIndex, assembly](
                 const boost::system::error_code ec,
@@ -175,6 +178,36 @@ inline void
                             "xyz.openbmc_project.Inventory.Decorator."
                             "LocationCode",
                             "LocationCode");
+                    }
+                    else if (interface == "xyz.openbmc_project.State."
+                                          "Decorator.OperationalStatus")
+                    {
+                        sdbusplus::asio::getProperty<bool>(
+                            *crow::connections::systemBus, serviceName,
+                            assembly,
+                            "xyz.openbmc_project.State.Decorator.OperationalStatus",
+                            "Functional",
+                            [aResp, assemblyIndex](
+                                const boost::system::error_code& ec4,
+                                bool functional) {
+                            if (ec4)
+                            {
+                                BMCWEB_LOG_ERROR << "DBUS response error "
+                                                 << ec4;
+                                messages::internalError(aResp->res);
+                                return;
+                            }
+
+                            nlohmann::json& assemblyArray =
+                                aResp->res.jsonValue["Assemblies"];
+                            nlohmann::json& assemblyData =
+                                assemblyArray.at(assemblyIndex);
+
+                            if (!functional)
+                            {
+                                assemblyData["Status"]["Health"] = "Critical";
+                            }
+                            });
                     }
                     else if (interface == "xyz.openbmc_project.Inventory.Item")
                     {
