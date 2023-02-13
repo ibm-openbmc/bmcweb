@@ -171,7 +171,7 @@ inline void requestRoutesSystemPCIeDevice(App& app)
         }
 
         asyncResp->res.jsonValue = {
-            {"@odata.type", "#PCIeDevice.v1_6_0.PCIeDevice"},
+            {"@odata.type", "#PCIeDevice.v1_9_0.PCIeDevice"},
             {"@odata.id", "/redfish/v1/Systems/system/PCIeDevices/" + device},
             {"Name", "PCIe Device"},
             {"Id", device}};
@@ -236,6 +236,9 @@ inline void requestRoutesSystemPCIeDevice(App& app)
                         const std::string* serialNumber = nullptr;
                         const std::string* model = nullptr;
                         const std::string* sparePartNumber = nullptr;
+                        const std::string* prettyName = nullptr;
+                        const std::string* locationCode = nullptr;
+                        const bool* present = nullptr;
 
                         const bool success = sdbusplus::unpackPropertiesNoThrow(
                             dbus_utils::UnpackErrorPrinter(), pcieDevProperties,
@@ -243,7 +246,8 @@ inline void requestRoutesSystemPCIeDevice(App& app)
                             deviceType, "GenerationInUse", generationInUse,
                             "PartNumber", partNumber, "SerialNumber",
                             serialNumber, "Model", model, "SparePartNumber",
-                            sparePartNumber);
+                            sparePartNumber, "Name", prettyName, "LocationCode",
+                            locationCode, "Present", present);
 
                         if (!success)
                         {
@@ -304,6 +308,32 @@ inline void requestRoutesSystemPCIeDevice(App& app)
                         {
                             asyncResp->res.jsonValue["SparePartNumber"] =
                                 *sparePartNumber;
+                        }
+
+                        if (prettyName != nullptr)
+                        {
+                            asyncResp->res.jsonValue["Name"] = *prettyName;
+                        }
+
+                        if (locationCode != nullptr)
+                        {
+                            asyncResp->res
+                                .jsonValue["Slot"]["Location"]["PartLocation"]
+                                          ["ServiceLabel"] = *locationCode;
+                        }
+
+                        if (present != nullptr)
+                        {
+                            if (*present)
+                            {
+                                asyncResp->res.jsonValue["Status"]["State"] =
+                                    "Enabled";
+                            }
+                            else
+                            {
+                                asyncResp->res.jsonValue["Status"]["State"] =
+                                    "Absent";
+                            }
                         }
 
                         asyncResp->res.jsonValue["PCIeFunctions"] = {
