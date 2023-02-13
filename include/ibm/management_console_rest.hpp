@@ -1061,6 +1061,61 @@ void handleCsrRequest(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         "SignCSR", csrString);
 }
 
+inline void
+    handlePassThrough(const crow::Request& req,
+                      const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                      const std::string& name)
+{
+    std::vector<int32_t> command;
+    if (!redfish::json_util::readJsonPatch(req, asyncResp->res, "Send",
+                                           command))
+    {
+        BMCWEB_LOG_DEBUG << "Not a Valid JSON";
+        asyncResp->res.result(boost::beast::http::status::bad_request);
+        return;
+    }
+
+    if (command.empty())
+    {
+        BMCWEB_LOG_ERROR << "Command is empty";
+        asyncResp->res.result(boost::beast::http::status::bad_request);
+        return;
+    }
+
+    auto respHandler = [asyncResp](const boost::system::error_code ec,
+                                   const std::vector<int32_t>& resp) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "handlePassThrough respHandler got error, ec = "
+                             << ec.value();
+            asyncResp->res.result(
+                boost::beast::http::status::internal_server_error);
+            return;
+        }
+
+        if (resp.empty())
+        {
+            redfish::messages::internalError(asyncResp->res);
+            return;
+        }
+
+        std::string strData = "ai " + std::to_string(resp.size());
+        for (const auto& value : resp)
+        {
+            strData.append(" ");
+            strData.append(std::to_string(value));
+        }
+
+        asyncResp->res.addHeader("Content-Type", "application/octet-stream");
+        asyncResp->res.body() = std::move(strData);
+    };
+
+    crow::connections::systemBus->async_method_call(
+        respHandler, "org.open_power.OCC.Control",
+        "/org/open_power/control/" + name, "org.open_power.OCC.PassThrough",
+        "Send", command);
+}
+
 inline void requestRoutes(App& app)
 {
     // allowed only for admin
@@ -1259,6 +1314,15 @@ inline void requestRoutes(App& app)
             [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
         handleBroadcastService(req, asyncResp);
+        });
+
+    BMCWEB_ROUTE(app, "/ibm/v1/OCC/Control/<str>/Actions/PassThrough.Send")
+        .privileges({{"OemIBMPerformService"}})
+        .methods(boost::beast::http::verb::post)(
+            [](const crow::Request& req,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+               const std::string& name) {
+        handlePassThrough(req, asyncResp, name);
         });
 }
 
