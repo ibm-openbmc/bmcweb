@@ -35,6 +35,26 @@ namespace redfish
 {
 
 inline void
+    handleACFWindowActive(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    sdbusplus::asio::getProperty<bool>(
+        *crow::connections::systemBus, "com.ibm.PanelApp", "/com/ibm/panel_app",
+        "com.ibm.panel", "ACFWindowActive",
+        [asyncResp](const boost::system::error_code ec,
+                    const bool isACFWindowActive) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "Failed to read ACFWindowActive property";
+            // Default value when panel app is unreachable.
+            asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] = false;
+            return;
+        }
+        asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
+            isACFWindowActive;
+        });
+}
+
+inline void
     handleServiceRootOem(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     crow::connections::systemBus->async_method_call(
@@ -129,7 +149,7 @@ inline void
         redfishDateTimeOffset.first;
     asyncResp->res.jsonValue["Oem"]["IBM"]["DateTimeLocalOffset"] =
         redfishDateTimeOffset.second;
-
+    handleACFWindowActive(asyncResp);
     asyncResp->res.jsonValue["Oem"]["@odata.type"] = "#OemServiceRoot.Oem";
     asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
         "#OemServiceRoot.IBM";

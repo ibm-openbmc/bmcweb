@@ -1588,9 +1588,11 @@ inline void triggerUnauthenticatedACFUpload(
                 }
             }
 
-            crow::connections::systemBus->async_method_call(
+            sdbusplus::asio::getProperty<bool>(
+                *crow::connections::systemBus, "com.ibm.PanelApp",
+                "/com/ibm/panel_app", "com.ibm.panel", "ACFWindowActive",
                 [asyncResp, decodedAcf](const boost::system::error_code ec,
-                                        const std::variant<bool>& retVal) {
+                                        const bool isACFWindowActive) {
                 if (ec)
                 {
                     BMCWEB_LOG_ERROR
@@ -1599,29 +1601,15 @@ inline void triggerUnauthenticatedACFUpload(
                     return;
                 }
 
-                const bool* isACFWindowActive = std::get_if<bool>(&retVal);
-
-                if (isACFWindowActive == nullptr)
-                {
-                    BMCWEB_LOG_ERROR << "nullptr for ACFWindowActive";
-                    messages::internalError(asyncResp->res);
-                    return;
-                }
-
-                if (*isACFWindowActive)
+                if (isACFWindowActive)
                 {
                     uploadACF(asyncResp, decodedAcf);
                     return;
                 }
-
-                BMCWEB_LOG_ERROR << "ACF window not set to "
-                                    "active from panel";
+                BMCWEB_LOG_ERROR << "ACF window not active";
                 messages::insufficientPrivilege(asyncResp->res);
                 return;
-                },
-                "com.ibm.PanelApp", "/com/ibm/panel_app",
-                "org.freedesktop.DBus.Properties", "Get", "com.ibm.panel",
-                "ACFWindowActive");
+                });
         }
     }
 }
