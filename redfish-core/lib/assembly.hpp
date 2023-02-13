@@ -176,6 +176,45 @@ inline void
                             "LocationCode",
                             "LocationCode");
                     }
+                    else if (interface == "xyz.openbmc_project.Inventory.Item")
+                    {
+                        sdbusplus::asio::getProperty<bool>(
+                            *crow::connections::systemBus, serviceName,
+                            assembly, "xyz.openbmc_project.Inventory.Item",
+                            "Present",
+                            [aResp, assemblyIndex](
+                                const boost::system::error_code ec2,
+                                const std::variant<bool>& property) {
+                            if (ec2)
+                            {
+                                BMCWEB_LOG_DEBUG << "DBUS response error";
+                                messages::internalError(aResp->res);
+                                return;
+                            }
+
+                            nlohmann::json& assemblyArray =
+                                aResp->res.jsonValue["Assemblies"];
+                            nlohmann::json& assemblyData =
+                                assemblyArray.at(assemblyIndex);
+
+                            const bool* value = std::get_if<bool>(&property);
+
+                            if (value == nullptr)
+                            {
+                                // illegal value
+                                messages::internalError(aResp->res);
+                                return;
+                            }
+                            if (!*value)
+                            {
+                                assemblyData["Status"]["State"] = "Absent";
+                            }
+                            else
+                            {
+                                assemblyData["Status"]["State"] = "Enabled";
+                            }
+                            });
+                    }
                 }
             }
             },
