@@ -41,7 +41,7 @@ inline void
         }
 
         BMCWEB_LOG_ERROR(
-            "DBUS response error [{} : {}] when tried to isolate the given resource: {}", 
+            "DBUS response error [{} : {}] when tried to isolate the given resource: {}",
             ec.value(), ec.message(), resourceObjPath.str);
 
         const sd_bus_error* dbusError = msg.get_error();
