@@ -27,6 +27,11 @@ inline void getLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                 const dbus::utility::MapperGetObject& object) {
         if (ec || object.empty())
         {
+            if (ec.value() == 5) // generic:5 error
+            {
+                BMCWEB_LOG_DEBUG << "lamp test not available yet!!";
+                return;
+            }
             BMCWEB_LOG_ERROR << "DBUS response error " << ec.message();
             messages::internalError(aResp->res);
             return;
@@ -84,7 +89,7 @@ inline void setLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             *crow::connections::systemBus, object.begin()->first,
             "/xyz/openbmc_project/led/groups/lamp_test",
             "xyz.openbmc_project.Led.Group", "Asserted", state,
-            [aResp](const boost::system::error_code& ec1) {
+            [aResp, state](const boost::system::error_code& ec1) {
             if (ec1)
             {
                 if (ec1.value() != EBADR)
@@ -93,6 +98,19 @@ inline void setLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 }
                 return;
             }
+
+            crow::connections::systemBus->async_method_call(
+                [aResp](const boost::system::error_code& ec2) {
+                if (ec2)
+                {
+                    BMCWEB_LOG_DEBUG
+                        << "Panel Lamp test failed with error code " << ec2;
+                    messages::internalError(aResp->res);
+                    return;
+                }
+                },
+                "com.ibm.PanelApp", "/com/ibm/panel_app", "com.ibm.panel",
+                "TriggerPanelLampTest", state);
             });
         });
 }
