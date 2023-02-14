@@ -218,6 +218,8 @@ inline void
  * @param[in] interfaces - The redfish resource dbus interfaces which will use
  *                         to get the given resource dbus objects from
  *                         the inventory.
+ * @param[in] parentSubtreePath - The resource parent subtree path to get
+ *                                the resource object path.
  *
  * @return The redfish response in given response buffer.
  *
@@ -230,11 +232,11 @@ inline void
  *       - This function will do either isolate or deisolate based on the
  *         given "Enabled" property value.
  */
-inline void
-    processHardwareIsolationReq(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-                                const std::string& resourceName,
-                                const std::string& resourceId, bool enabled,
-                                const std::vector<const char*>& interfaces)
+inline void processHardwareIsolationReq(
+    const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+    const std::string& resourceName, const std::string& resourceId,
+    bool enabled, const std::vector<const char*>& interfaces,
+    const std::string& parentSubtreePath = "/xyz/openbmc_project/inventory")
 {
     std::vector<const char*> resourceIfaces(interfaces.begin(),
                                             interfaces.end());
@@ -323,7 +325,7 @@ inline void
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
-        "/xyz/openbmc_project/inventory", 0, resourceIfaces);
+        parentSubtreePath, 0, resourceIfaces);
 }
 
 /*

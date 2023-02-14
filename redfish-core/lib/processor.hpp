@@ -1991,6 +1991,7 @@ inline void requestRoutesSubProcessors(App& app)
  *        patched to do appropriate action.
  *
  * @param[in] asyncResp - The redfish response to return.
+ * @param[in] procObjPath - The parent processor object path.
  * @param[in] coreId - The patched Processor Core resource id.
  * @param[in] enabled - The patched "Enabled" member value.
  *
@@ -2006,12 +2007,14 @@ inline void requestRoutesSubProcessors(App& app)
  */
 inline void
     patchCpuCoreMemberEnabled(const std::shared_ptr<bmcweb::AsyncResp>& resp,
+                              const std::string& procObjPath,
                               const std::string& coreId, const bool enabled)
 {
     redfish::hw_isolation_utils::processHardwareIsolationReq(
         resp, "Core", coreId, enabled,
         std::vector<const char*>(procCoreInterfaces.begin(),
-                                 procCoreInterfaces.end()));
+                                 procCoreInterfaces.end()),
+        procObjPath);
 }
 
 /**
@@ -2033,7 +2036,7 @@ inline void
 inline void
     patchCpuCoreMembers(const crow::Request& req,
                         const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                        const std::string& /* processorId */,
+                        const std::string& processorId,
                         const std::string& coreId)
 {
     std::optional<bool> enabled;
@@ -2043,10 +2046,15 @@ inline void
         return;
     }
 
-    if (enabled.has_value())
-    {
-        patchCpuCoreMemberEnabled(asyncResp, coreId, *enabled);
-    }
+    auto callback = [asyncResp, coreId, enabled](const std::string& cpuPath) {
+        // Handle patched Enabled Redfish property
+        if (enabled.has_value())
+        {
+            patchCpuCoreMemberEnabled(asyncResp, cpuPath, coreId, *enabled);
+        }
+    };
+
+    getProcessorPaths(asyncResp, processorId, std::move(callback));
 }
 
 inline void requestRoutesSubProcessorsCore(App& app)
