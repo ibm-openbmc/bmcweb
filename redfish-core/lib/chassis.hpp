@@ -255,6 +255,50 @@ inline void
                     return; // no sensors = no failures
                 }
                 health->inventory = resp;
+
+                constexpr const std::array<const char*, 13>
+                    inventoryForChassis = {"xyz.openbmc_project.Inventory.Item."
+                                           "Dimm",
+                                           "xyz.openbmc_project.Inventory.Item."
+                                           "Cpu",
+                                           "xyz.openbmc_project.Inventory.Item."
+                                           "PowerSupply",
+                                           "xyz.openbmc_project.Inventory.Item."
+                                           "Fan",
+                                           "xyz.openbmc_project.Inventory.Item."
+                                           "PCIeSlot",
+                                           "xyz.openbmc_project.Inventory.Item."
+                                           "Vrm",
+                                           "xyz.openbmc_project.Inventory.Item."
+                                           "Tpm",
+                                           "xyz.openbmc_project.Inventory.Item."
+                                           "Panel",
+                                           "xyz.openbmc_project.Inventory.Item."
+                                           "Battery",
+                                           "xyz.openbmc_project.Inventory.Item."
+                                           "DiskBackplane",
+                                           "xyz.openbmc_project.Inventory.Item."
+                                           "Board",
+                                           "xyz.openbmc_project.Inventory.Item."
+                                           "Board.Motherboard",
+                                           "xyz.openbmc_project.Inventory.Item."
+                                           "Connector"};
+
+                crow::connections::systemBus->async_method_call(
+                    [health](const boost::system::error_code ec3,
+                             std::vector<std::string>& resp2) {
+                    if (ec3)
+                    {
+                        // no inventory
+                        return;
+                    }
+                    health->inventory.insert(health->inventory.end(),
+                                             resp2.begin(), resp2.end());
+                    },
+                    "xyz.openbmc_project.ObjectMapper",
+                    "/xyz/openbmc_project/object_mapper",
+                    "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", "/",
+                    int32_t(0), inventoryForChassis);
                 });
 
             health->populate();
