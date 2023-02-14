@@ -1541,7 +1541,7 @@ inline void handleAction(const crow::Request& req,
     BMCWEB_LOG_DEBUG << "handleAction on path: " << objectPath << " and method "
                      << methodName;
     nlohmann::json requestDbusData =
-        nlohmann::json::parse(req.body, nullptr, false);
+        nlohmann::json::parse(req.body(), nullptr, false);
 
     if (requestDbusData.is_discarded())
     {
@@ -1857,7 +1857,7 @@ inline void handlePut(const crow::Request& req,
     }
 
     nlohmann::json requestDbusData =
-        nlohmann::json::parse(req.body, nullptr, false);
+        nlohmann::json::parse(req.body(), nullptr, false);
 
     if (requestDbusData.is_discarded())
     {
@@ -2396,7 +2396,7 @@ inline void
         }
 
         nlohmann::json requestDbusData =
-            nlohmann::json::parse(req.body, nullptr, false);
+            nlohmann::json::parse(req.body(), nullptr, false);
 
         if (requestDbusData.is_discarded())
         {

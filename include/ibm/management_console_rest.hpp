@@ -367,7 +367,7 @@ inline void
     else
     {
         // Single file upload
-        const std::string& data = req.body;
+        const std::string& data = req.body();
         uploadStatus = saveConfigFile(data, fileID, asyncResp);
         if (!uploadStatus)
         {
