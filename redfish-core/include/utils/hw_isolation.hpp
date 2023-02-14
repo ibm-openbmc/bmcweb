@@ -41,7 +41,7 @@ inline void
         }
 
         BMCWEB_LOG_ERROR(
-            "DBUS response error [{} : {}] when tried to isolate the given resource: {}", 
+            "DBUS response error [{} : {}] when tried to isolate the given resource: ",
             ec.value(), ec.message(), resourceObjPath.str);
 
         const sd_bus_error* dbusError = msg.get_error();
@@ -51,14 +51,16 @@ inline void
             return;
         }
 
-        BMCWEB_LOG_ERROR("DBus ErrorName: {}  ErrorMsg: {}", dbusError->name, dbusError->message);
+        BMCWEB_LOG_ERROR("DBus ErrorName: {} ErrorMsg: {}", dbusError->name,
+                         dbusError->message);
 
         if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
                                     "InvalidArgument") == 0)
         {
             constexpr bool isolate = false;
-            messages::propertyValueIncorrect(aResp->res, "@odata.id",
-                                             std::to_string(isolate));
+            messages::propertyValueIncorrect(
+                aResp->res, "@odata.id",
+                std::to_string(static_cast<int>(isolate)));
         }
         else if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
                                          "NotAllowed") == 0)
@@ -84,7 +86,8 @@ inline void
         }
         else
         {
-            BMCWEB_LOG_ERROR ("DBus Error is unsupported so returning as Internal Error");
+            BMCWEB_LOG_ERROR(
+                "DBus Error is unsupported so returning as Internal Error");
             messages::internalError(aResp->res);
         }
         return;
@@ -127,7 +130,7 @@ inline void
         if (ec)
         {
             BMCWEB_LOG_ERROR(
-                "DBus response error [{} : {}] when tried to get the hardware isolation entry for the given resource dbus object path: {}",
+                "DBus response error [{} : {}] when tried to get the hardware isolation entry for the given resource dbus object path: ",
                 ec.value(), ec.message(), resourceObjPath.str);
             messages::internalError(aResp->res);
             return;
@@ -139,7 +142,8 @@ inline void
         if (endpoints == nullptr)
         {
             BMCWEB_LOG_ERROR(
-                "Failed to get Associations endpoints for the given object path: {}", resourceObjPath.str);
+                "Failed to get Associations endpoints for the given object path: {}",
+                resourceObjPath.str);
             messages::internalError(aResp->res);
             return;
         }
@@ -155,7 +159,9 @@ inline void
                 messages::success(aResp->res);
                 return;
             }
-            BMCWEB_LOG_ERROR("DBUS response error [{} : {}] when tried to isolate the given resource: {}",
+
+            BMCWEB_LOG_ERROR(
+                "DBUS response error [{} : {}] when tried to isolate the given resource: {}",
                 ec1.value(), ec1.message(), resourceIsolatedHwEntry);
 
             const sd_bus_error* dbusError = msg.get_error();
@@ -166,8 +172,8 @@ inline void
                 return;
             }
 
-            BMCWEB_LOG_ERROR("DBus ErrorName: {} ErrorMsg: {}", 
-                dbusError->name, dbusError->message);
+            BMCWEB_LOG_ERROR("DBus ErrorName: {} ErrorMsg: {}", dbusError->name,
+                             dbusError->message);
 
             if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
                                         "NotAllowed") == 0)
@@ -181,7 +187,8 @@ inline void
             }
             else
             {
-                BMCWEB_LOG_ERROR("DBus Error is unsupported so returning as Internal Error");
+                BMCWEB_LOG_ERROR(
+                    "DBus Error is unsupported so returning as Internal Error");
                 messages::internalError(aResp->res);
             }
             return;
@@ -238,7 +245,7 @@ inline void
         if (ec)
         {
             BMCWEB_LOG_ERROR(
-                "DBus response error [{} : {}] when tried to check the given resource is present in tne inventory", 
+                "DBus response error [{} : {}] when tried to check the given resource is present in the inventory",
                 ec.value(), ec.message());
             messages::internalError(aResp->res);
             return;
@@ -269,7 +276,7 @@ inline void
             if (ec1)
             {
                 BMCWEB_LOG_ERROR(
-                    "DBUS response error [{} : {}] when tried to get the HardwareIsolation dbus name to isolate: ", 
+                    "DBUS response error [{} : {}] when tried to get the HardwareIsolation dbus name to isolate: ",
                     ec1.value(), ec1.message(), resourceObjPath.str);
                 messages::internalError(aResp->res);
                 return;
@@ -277,14 +284,16 @@ inline void
 
             if (objType.size() > 1)
             {
-                BMCWEB_LOG_ERROR("More than one dbus service implemented HardwareIsolation");
+                BMCWEB_LOG_ERROR(
+                    "More than one dbus service implemented HardwareIsolation");
                 messages::internalError(aResp->res);
                 return;
             }
 
             if (objType[0].first.empty())
             {
-                BMCWEB_LOG_ERROR ("The retrieved HardwareIsolation dbus name is empty");
+                BMCWEB_LOG_ERROR(
+                    "The retrieved HardwareIsolation dbus name is empty");
                 messages::internalError(aResp->res);
                 return;
             }
