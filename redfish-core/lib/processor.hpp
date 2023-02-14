@@ -980,7 +980,7 @@ inline void getProcessorPaths(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             if (ec.value() == boost::system::errc::io_error)
             {
                 messages::resourceNotFound(
-                    aResp->res, "#Processor.v1_11_0.Processor", processorId);
+                    aResp->res, "#Processor.v1_12_0.Processor", processorId);
                 return;
             }
 
@@ -1001,7 +1001,7 @@ inline void getProcessorPaths(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         }
 
         // Object not found
-        messages::resourceNotFound(aResp->res, "#Processor.v1_11_0.Processor",
+        messages::resourceNotFound(aResp->res, "#Processor.v1_12_0.Processor",
                                    processorId);
     },
         "xyz.openbmc_project.ObjectMapper",
@@ -1146,7 +1146,7 @@ inline void getSubProcessorData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 }
 
                 aResp->res.jsonValue["@odata.type"] =
-                    "#Processor.v1_11_0.Processor";
+                    "#Processor.v1_12_0.Processor";
                 aResp->res.jsonValue["@odata.id"] =
                     std::string("/redfish/v1/Systems/system/Processors/")
                         .append(processorId)
@@ -1170,6 +1170,588 @@ inline void getSubProcessorData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                     aResp->res, "#Processor.v1_12_0.Processor", coreId);
                 return;
             }
+        },
+            "xyz.openbmc_project.ObjectMapper",
+            "/xyz/openbmc_project/object_mapper",
+            "xyz.openbmc_project.ObjectMapper", "GetSubTree", cpuPath, 0,
+            std::array<const char*, 1>{
+                "xyz.openbmc_project.Inventory.Item.CpuCore"});
+    };
+
+    getProcessorPaths(aResp, processorId, std::move(callback));
+}
+
+inline void
+    getSubProcessorMembers(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                           const std::string& processorId)
+{
+    auto callback = [aResp, processorId](const std::string& cpuPath) {
+        crow::connections::systemBus->async_method_call(
+            [processorId, aResp](const boost::system::error_code ec,
+                                 const std::vector<std::string>& subTreePaths) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR("DBUS response error");
+                // No processor objects found by mapper
+                if (ec.value() == boost::system::errc::io_error)
+                {
+                    messages::resourceNotFound(aResp->res,
+                                               "#Processor.v1_12_0.Processor",
+                                               processorId);
+                    return;
+                }
+
+                messages::internalError(aResp->res);
+                return;
+            }
+
+            aResp->res.jsonValue["@odata.type"] =
+                "#ProcessorCollection.ProcessorCollection";
+            aResp->res.jsonValue["@odata.id"] =
+                "/redfish/v1/Systems/system/Processors/" + processorId +
+                "/SubProcessors";
+            aResp->res.jsonValue["Name"] = "SubProcessor Collection";
+            nlohmann::json& members = aResp->res.jsonValue["Members"];
+            members = nlohmann::json::array();
+            std::string subProcessorsPath =
+                "/redfish/v1/Systems/system/Processors/" + processorId +
+                "/SubProcessors/";
+            for (const std::string& corePath : subTreePaths)
+            {
+                members.push_back(
+                    {{"@odata.id", subProcessorsPath +
+                                       sdbusplus::message::object_path(corePath)
+                                           .filename()}});
+            }
+            aResp->res.jsonValue["Members@odata.count"] = members.size();
+        },
+            "xyz.openbmc_project.ObjectMapper",
+            "/xyz/openbmc_project/object_mapper",
+            "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", cpuPath, 0,
+            std::array<const char*, 1>{
+                "xyz.openbmc_project.Inventory.Item.CpuCore"});
+    };
+
+    getProcessorPaths(aResp, processorId, std::move(callback));
+}
+
+/**
+ * Request all the properties for the given D-Bus object and fill out the
+ * related entries in the Redfish OperatingConfig response.
+ *
+ * @param[in,out]   asyncResp       Async HTTP response.
+ * @param[in]       service     D-Bus service name to query.
+ * @param[in]       objPath     D-Bus object to query.
+ */
+inline void
+    getOperatingConfigData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                           const std::string& service,
+                           const std::string& objPath)
+{
+    sdbusplus::asio::getAllProperties(
+        *crow::connections::systemBus, service, objPath,
+        "xyz.openbmc_project.Inventory.Item.Cpu.OperatingConfig",
+        [asyncResp](const boost::system::error_code& ec,
+                    const dbus::utility::DBusPropertiesMap& properties) {
+        if (ec)
+        {
+            BMCWEB_LOG_WARNING("D-Bus error: {}, {}", ec, ec.message());
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        const size_t* availableCoreCount = nullptr;
+        const uint32_t* baseSpeed = nullptr;
+        const uint32_t* maxJunctionTemperature = nullptr;
+        const uint32_t* maxSpeed = nullptr;
+        const uint32_t* powerLimit = nullptr;
+        const TurboProfileProperty* turboProfile = nullptr;
+        const BaseSpeedPrioritySettingsProperty* baseSpeedPrioritySettings =
+            nullptr;
+
+        const bool success = sdbusplus::unpackPropertiesNoThrow(
+            dbus_utils::UnpackErrorPrinter(), properties, "AvailableCoreCount",
+            availableCoreCount, "BaseSpeed", baseSpeed,
+            "MaxJunctionTemperature", maxJunctionTemperature, "MaxSpeed",
+            maxSpeed, "PowerLimit", powerLimit, "TurboProfile", turboProfile,
+            "BaseSpeedPrioritySettings", baseSpeedPrioritySettings);
+
+        if (!success)
+        {
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        nlohmann::json& json = asyncResp->res.jsonValue;
+
+        if (availableCoreCount != nullptr)
+        {
+            json["TotalAvailableCoreCount"] = *availableCoreCount;
+        }
+
+        if (baseSpeed != nullptr)
+        {
+            json["BaseSpeedMHz"] = *baseSpeed;
+        }
+
+        if (maxJunctionTemperature != nullptr)
+        {
+            json["MaxJunctionTemperatureCelsius"] = *maxJunctionTemperature;
+        }
+
+        if (maxSpeed != nullptr)
+        {
+            json["MaxSpeedMHz"] = *maxSpeed;
+        }
+
+        if (powerLimit != nullptr)
+        {
+            json["TDPWatts"] = *powerLimit;
+        }
+
+        if (turboProfile != nullptr)
+        {
+            nlohmann::json& turboArray = json["TurboProfile"];
+            turboArray = nlohmann::json::array();
+            for (const auto& [turboSpeed, coreCount] : *turboProfile)
+            {
+                nlohmann::json::object_t turbo;
+                turbo["ActiveCoreCount"] = coreCount;
+                turbo["MaxSpeedMHz"] = turboSpeed;
+                turboArray.emplace_back(std::move(turbo));
+            }
+        }
+
+        if (baseSpeedPrioritySettings != nullptr)
+        {
+            nlohmann::json& baseSpeedArray = json["BaseSpeedPrioritySettings"];
+            baseSpeedArray = nlohmann::json::array();
+            for (const auto& [baseSpeedMhz, coreList] :
+                 *baseSpeedPrioritySettings)
+            {
+                nlohmann::json::object_t speed;
+                speed["CoreCount"] = coreList.size();
+                speed["CoreIDs"] = coreList;
+                speed["BaseSpeedMHz"] = baseSpeedMhz;
+                baseSpeedArray.emplace_back(std::move(speed));
+            }
+        }
+    });
+}
+
+/**
+ * Handle the D-Bus response from attempting to set the CPU's AppliedConfig
+ * property. Main task is to translate error messages into Redfish errors.
+ *
+ * @param[in,out]   resp    HTTP response.
+ * @param[in]       setPropVal  Value which we attempted to set.
+ * @param[in]       ec      D-Bus response error code.
+ * @param[in]       msg     D-Bus response message.
+ */
+inline void
+    handleAppliedConfigResponse(const std::shared_ptr<bmcweb::AsyncResp>& resp,
+                                const std::string& setPropVal,
+                                const boost::system::error_code& ec,
+                                const sdbusplus::message_t& msg)
+{
+    if (!ec)
+    {
+        BMCWEB_LOG_DEBUG("Set Property succeeded");
+        return;
+    }
+
+    BMCWEB_LOG_DEBUG("Set Property failed: {}", ec);
+
+    const sd_bus_error* dbusError = msg.get_error();
+    if (dbusError == nullptr)
+    {
+        messages::internalError(resp->res);
+        return;
+    }
+
+    // The asio error code doesn't know about our custom errors, so we have to
+    // parse the error string. Some of these D-Bus -> Redfish translations are a
+    // stretch, but it's good to try to communicate something vaguely useful.
+    if (strcmp(dbusError->name,
+               "xyz.openbmc_project.Common.Error.InvalidArgument") == 0)
+    {
+        // Service did not like the object_path we tried to set.
+        messages::propertyValueIncorrect(
+            resp->res, "AppliedOperatingConfig/@odata.id", setPropVal);
+    }
+    else if (strcmp(dbusError->name,
+                    "xyz.openbmc_project.Common.Error.NotAllowed") == 0)
+    {
+        // Service indicates we can never change the config for this processor.
+        messages::propertyNotWritable(resp->res, "AppliedOperatingConfig");
+    }
+    else if (strcmp(dbusError->name,
+                    "xyz.openbmc_project.Common.Error.Unavailable") == 0)
+    {
+        // Service indicates the config cannot be changed right now, but maybe
+        // in a different system state.
+        messages::resourceInStandby(resp->res);
+    }
+    else
+    {
+        messages::internalError(resp->res);
+    }
+}
+
+/**
+ * Handle the PATCH operation of the AppliedOperatingConfig property. Do basic
+ * validation of the input data, and then set the D-Bus property.
+ *
+ * @param[in,out]   resp            Async HTTP response.
+ * @param[in]       processorId     Processor's Id.
+ * @param[in]       appliedConfigUri    New property value to apply.
+ * @param[in]       cpuObjectPath   Path of CPU object to modify.
+ * @param[in]       serviceMap      Service map for CPU object.
+ */
+inline void patchAppliedOperatingConfig(
+    const std::shared_ptr<bmcweb::AsyncResp>& resp,
+    const std::string& processorId, const std::string& appliedConfigUri,
+    const std::string& cpuObjectPath,
+    const dbus::utility::MapperServiceMap& serviceMap)
+{
+    // Check that the property even exists by checking for the interface
+    const std::string* controlService = nullptr;
+    for (const auto& [serviceName, interfaceList] : serviceMap)
+    {
+        if (std::ranges::find(interfaceList,
+                              "xyz.openbmc_project.Control.Processor."
+                              "CurrentOperatingConfig") != interfaceList.end())
+        {
+            controlService = &serviceName;
+            break;
+        }
+    }
+
+    if (controlService == nullptr)
+    {
+        messages::internalError(resp->res);
+        return;
+    }
+
+    // Check that the config URI is a child of the cpu URI being patched.
+    std::string expectedPrefix("/redfish/v1/Systems/system/Processors/");
+    expectedPrefix += processorId;
+    expectedPrefix += "/OperatingConfigs/";
+    if (!appliedConfigUri.starts_with(expectedPrefix) ||
+        expectedPrefix.size() == appliedConfigUri.size())
+    {
+        messages::propertyValueIncorrect(
+            resp->res, "AppliedOperatingConfig/@odata.id", appliedConfigUri);
+        return;
+    }
+
+    // Generate the D-Bus path of the OperatingConfig object, by assuming it's a
+    // direct child of the CPU object.
+    // Strip the expectedPrefix from the config URI to get the "filename", and
+    // append to the CPU's path.
+    std::string configBaseName = appliedConfigUri.substr(expectedPrefix.size());
+    sdbusplus::message::object_path configPath(cpuObjectPath);
+    configPath /= configBaseName;
+
+    BMCWEB_LOG_INFO("Setting config to {}", configPath.str);
+
+    // Set the property, with handler to check error responses
+    sdbusplus::asio::setProperty(
+        *crow::connections::systemBus, *controlService, cpuObjectPath,
+        "xyz.openbmc_project.Control.Processor.CurrentOperatingConfig",
+        "AppliedConfig", configPath,
+        [resp, appliedConfigUri](const boost::system::error_code& ec,
+                                 const sdbusplus::message_t& msg) {
+        handleAppliedConfigResponse(resp, appliedConfigUri, ec, msg);
+    });
+}
+
+inline void
+    handleProcessorHead(crow::App& app, const crow::Request& req,
+                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                        const std::string& /* systemName */,
+                        const std::string& /* processorId */)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+    asyncResp->res.addHeader(
+        boost::beast::http::field::link,
+        "</redfish/v1/JsonSchemas/Processor/Processor.json>; rel=describedby");
+}
+
+inline void handleProcessorCollectionHead(
+    crow::App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& /* systemName */)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+    asyncResp->res.addHeader(
+        boost::beast::http::field::link,
+        "</redfish/v1/JsonSchemas/ProcessorCollection/ProcessorCollection.json>; rel=describedby");
+}
+
+inline void requestRoutesOperatingConfigCollection(App& app)
+{
+    BMCWEB_ROUTE(app,
+                 "/redfish/v1/Systems/<str>/Processors/<str>/OperatingConfigs/")
+        .privileges(redfish::privileges::getOperatingConfigCollection)
+        .methods(boost::beast::http::verb::get)(
+            [&app](const crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                   const std::string& systemName, const std::string& cpuName) {
+        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+        {
+            return;
+        }
+
+        if constexpr (bmcwebEnableMultiHost)
+        {
+            // Option currently returns no systems.  TBD
+            messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                       systemName);
+            return;
+        }
+
+        if (systemName != "system")
+        {
+            messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                       systemName);
+            return;
+        }
+        asyncResp->res.jsonValue["@odata.type"] =
+            "#OperatingConfigCollection.OperatingConfigCollection";
+        asyncResp->res.jsonValue["@odata.id"] = boost::urls::format(
+            "/redfish/v1/Systems/system/Processors/{}/OperatingConfigs",
+            cpuName);
+        asyncResp->res.jsonValue["Name"] = "Operating Config Collection";
+
+        // First find the matching CPU object so we know how to
+        // constrain our search for related Config objects.
+        const std::array<std::string_view, 1> interfaces = {
+            "xyz.openbmc_project.Control.Processor.CurrentOperatingConfig"};
+        dbus::utility::getSubTreePaths(
+            "/xyz/openbmc_project/inventory", 0, interfaces,
+            [asyncResp, cpuName](
+                const boost::system::error_code& ec,
+                const dbus::utility::MapperGetSubTreePathsResponse& objects) {
+            if (ec)
+            {
+                BMCWEB_LOG_WARNING("D-Bus error: {}, {}", ec, ec.message());
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            for (const std::string& object : objects)
+            {
+                if (!isProcObjectMatched(
+                        cpuName, sdbusplus::message::object_path(object)))
+                {
+                    continue;
+                }
+
+                // Not expected that there will be multiple matching
+                // CPU objects, but if there are just use the first
+                // one.
+
+                // Use the common search routine to construct the
+                // Collection of all Config objects under this CPU.
+                constexpr std::array<std::string_view, 1> interface{
+                    "xyz.openbmc_project.Inventory.Item.Cpu.OperatingConfig"};
+                collection_util::getCollectionMembers(
+                    asyncResp,
+                    boost::urls::format(
+                        "/redfish/v1/Systems/system/Processors/{}/OperatingConfigs",
+                        cpuName),
+                    interface, object);
+                return;
+            }
+        });
+    });
+}
+
+inline void requestRoutesOperatingConfig(App& app)
+{
+    BMCWEB_ROUTE(
+        app,
+        "/redfish/v1/Systems/<str>/Processors/<str>/OperatingConfigs/<str>/")
+        .privileges(redfish::privileges::getOperatingConfig)
+        .methods(boost::beast::http::verb::get)(
+            [&app](const crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                   const std::string& systemName, const std::string& cpuName,
+                   const std::string& configName) {
+        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+        {
+            return;
+        }
+        if constexpr (bmcwebEnableMultiHost)
+        {
+            // Option currently returns no systems.  TBD
+            messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                       systemName);
+            return;
+        }
+
+        if (systemName != "system")
+        {
+            messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                       systemName);
+            return;
+        }
+        // Ask for all objects implementing OperatingConfig so we can search
+        // for one with a matching name
+        constexpr std::array<std::string_view, 1> interfaces = {
+            "xyz.openbmc_project.Inventory.Item.Cpu.OperatingConfig"};
+        dbus::utility::getSubTree(
+            "/xyz/openbmc_project/inventory", 0, interfaces,
+            [asyncResp, cpuName, configName](
+                const boost::system::error_code& ec,
+                const dbus::utility::MapperGetSubTreeResponse& subtree) {
+            if (ec)
+            {
+                BMCWEB_LOG_WARNING("D-Bus error: {}, {}", ec, ec.message());
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            const std::string expectedEnding = cpuName + '/' + configName;
+            for (const auto& [objectPath, serviceMap] : subtree)
+            {
+                if (!isProcObjectMatched(
+                        cpuName, sdbusplus::message::object_path(objectPath)
+                                     .parent_path()))
+                {
+                    continue;
+                }
+                // Ignore any configs without matching cpuX/configY
+                if (!objectPath.ends_with(expectedEnding) || serviceMap.empty())
+                {
+                    continue;
+                }
+
+                nlohmann::json& json = asyncResp->res.jsonValue;
+                json["@odata.type"] = "#OperatingConfig.v1_0_0.OperatingConfig";
+                json["@odata.id"] = boost::urls::format(
+                    "/redfish/v1/Systems/system/Processors/{}/OperatingConfigs/{}",
+                    cpuName, configName);
+                json["Name"] = "Processor Profile";
+                json["Id"] = configName;
+
+                // Just use the first implementation of the object - not
+                // expected that there would be multiple matching
+                // services
+                getOperatingConfigData(asyncResp, serviceMap.begin()->first,
+                                       objectPath);
+                return;
+            }
+            messages::resourceNotFound(asyncResp->res, "OperatingConfig",
+                                       configName);
+        });
+    });
+}
+
+inline void requestRoutesProcessorCollection(App& app)
+{
+    /**
+     * Functions triggers appropriate requests on DBus
+     */
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/Processors/")
+        .privileges(redfish::privileges::headProcessorCollection)
+        .methods(boost::beast::http::verb::head)(
+            std::bind_front(handleProcessorCollectionHead, std::ref(app)));
+
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/Processors/")
+        .privileges(redfish::privileges::getProcessorCollection)
+        .methods(boost::beast::http::verb::get)(
+            [&app](const crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                   const std::string& systemName) {
+        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+        {
+            return;
+        }
+        if constexpr (bmcwebEnableMultiHost)
+        {
+            // Option currently returns no systems.  TBD
+            messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                       systemName);
+            return;
+        }
+
+        if (systemName != "system")
+        {
+            messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                       systemName);
+            return;
+        }
+
+        asyncResp->res.addHeader(
+            boost::beast::http::field::link,
+            "</redfish/v1/JsonSchemas/ProcessorCollection/ProcessorCollection.json>; rel=describedby");
+
+        asyncResp->res.jsonValue["@odata.type"] =
+            "#ProcessorCollection.ProcessorCollection";
+        asyncResp->res.jsonValue["Name"] = "Processor Collection";
+
+        asyncResp->res.jsonValue["@odata.id"] =
+            "/redfish/v1/Systems/system/Processors";
+
+        crow::connections::systemBus->async_method_call(
+            [asyncResp](const boost::system::error_code ec,
+                        const std::vector<std::string>& objects) {
+            if (ec)
+            {
+                BMCWEB_LOG_DEBUG("DBUS response error");
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            nlohmann::json& members = asyncResp->res.jsonValue["Members"];
+            members = nlohmann::json::array();
+
+            for (const auto& object : objects)
+            {
+                sdbusplus::message::object_path path(object);
+                std::string leaf;
+
+                /**
+                 * @brief Workaround to handle DCM (Dual-Chip Module)
+                 *        package for Redfish
+                 *
+                 * Make sure processor modeled as dual chip module,
+                 * If yes then, replace redfish processor id as
+                 * "dcmN-cpuN" because redfish does not support chip
+                 * module concept.
+                 *
+                 * @note Inventory modeled as "dcmN/cpuN" so wherever
+                 *       using redfish processor id as "dcmN-cpuN" then
+                 *       that need to convert as "dcmN/cpuN" before
+                 *       validating the inventory processor object path
+                 */
+                if (path.parent_path().filename().find("dcm") !=
+                    std::string::npos)
+                {
+                    leaf = path.parent_path().filename() + "-" +
+                           path.filename();
+                }
+                else
+                {
+                    leaf = path.filename();
+                }
+
+                if (leaf.empty())
+                {
+                    continue;
+                }
+                std::string newPath = "/redfish/v1/Systems/system/Processors";
+                newPath += '/';
+                newPath += leaf;
+                members.push_back({{"@odata.id", std::move(newPath)}});
+            }
+            asyncResp->res.jsonValue["Members@odata.count"] = members.size();
         },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
@@ -2277,4 +2859,63 @@ inline void getSubProcessorData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             .methods(boost::beast::http::verb::patch)(patchCpuCoreMembers);
     }
 
+/**
+ * @brief API used to process the Processor Core "Enabled" member which is
+ *        patched to do appropriate action.
+ *
+ * @param[in] asyncResp - The redfish response to return.
+ * @param[in] coreId - The patched Processor Core resource id.
+ * @param[in] enabled - The patched "Enabled" member value.
+ *
+ * @return The redfish response in the given buffer.
+ *
+ * @note - The "Enabled" member of the Processor Core is used to enable
+ *         (aka isolate) or disable (aka deisolate) the resource from the
+ *         system boot so this function will call "processHardwareIsolationReq"
+ *         function which is used to handle the resource isolation request.
+ *       - The "Enabled" member of the Processor Core is mapped with
+ *         "xyz.openbmc_project.Object.Enable::Enabled" dbus property.
+ */
+inline void
+    patchCpuCoreMemberEnabled(const std::shared_ptr<bmcweb::AsyncResp>& resp,
+                              const std::string& coreId, const bool enabled)
+{
+    redfish::hw_isolation_utils::processHardwareIsolationReq(
+        resp, "Core", coreId, enabled,
+        std::vector<const char*>(procCoreInterfaces.begin(),
+                                 procCoreInterfaces.end()));
+}
+
+/**
+ * @brief API used to process the Processor Core members which are tried to
+ *        patch.
+ *
+ * @param[in] req - The redfish patched request to identify the patched members
+ * @param[in] asyncResp - The redfish response to return.
+ * @param[in] processorId - The patched Core Processor resource id (unused now)
+ * @param[in] coreId - The patched Processor Core resource id.
+ *
+ * @return The redfish response in the given buffer.
+ *
+ * @note This function will call the appropriate function to handle the patched
+ *       members of the Processor Core.
+ */
+inline void
+    patchCpuCoreMembers(const crow::Request& req,
+                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                        const std::string& /* processorId */,
+                        const std::string& coreId)
+{
+    std::optional<bool> enabled;
+
+    if (!json_util::readJsonPatch(req, asyncResp->res, "Enabled", enabled))
+    {
+        return;
+    }
+
+    if (enabled.has_value())
+    {
+        patchCpuCoreMemberEnabled(asyncResp, coreId, *enabled);
+    }
+}
 } // namespace redfish
