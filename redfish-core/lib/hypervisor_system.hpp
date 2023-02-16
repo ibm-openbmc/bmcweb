@@ -359,8 +359,7 @@ inline bool extractHypervisorInterfaceData(
                             }
                             else
                             {
-                                ethData.ipv6DefaultGateway =
-                                    defaultGateway6Str;
+                                ethData.ipv6DefaultGateway = defaultGateway6Str;
                             }
                         }
                     }
@@ -437,6 +436,80 @@ void getHypervisorIfaceData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
 
+inline bool translateDHCPEnabledToIPv6AutoConfig(const std::string& inputDHCP)
+{
+    return (inputDHCP == "xyz.openbmc_project.Network.EthernetInterface."
+                         "DHCPConf.v4v6stateless") ||
+           (inputDHCP == "xyz.openbmc_project.Network.EthernetInterface."
+                         "DHCPConf.v6stateless");
+}
+
+inline std::string
+    translateIPv6AutoConfigToDHCPEnabled(const std::string& inputDHCP,
+                                         const bool& ipv6AutoConfig)
+{
+    if (ipv6AutoConfig)
+    {
+        if ((inputDHCP ==
+             "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v4") ||
+            (inputDHCP ==
+             "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.both"))
+        {
+            return "xyz.openbmc_project.Network.EthernetInterface.DHCPConf."
+                   "v4v6stateless";
+        }
+        if ((inputDHCP ==
+             "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v6") ||
+            (inputDHCP ==
+             "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.none"))
+        {
+            return "xyz.openbmc_project.Network.EthernetInterface.DHCPConf."
+                   "v6stateless";
+        }
+    }
+    if (!ipv6AutoConfig)
+    {
+        if ((inputDHCP == "xyz.openbmc_project.Network.EthernetInterface."
+                          "DHCPConf.v4v6stateless") ||
+            (inputDHCP ==
+             "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.both"))
+        {
+            return "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v4";
+        }
+        if (inputDHCP == "xyz.openbmc_project.Network.EthernetInterface."
+                         "DHCPConf.v6stateless")
+        {
+            return "xyz.openbmc_project.Network.EthernetInterface.DHCPConf."
+                   "none";
+        }
+    }
+    return inputDHCP;
+}
+
+inline void handleHypSLAACAutoConfigPatch(
+    const std::string& ifaceId, const EthernetInterfaceData& ethData,
+    const bool& ipv6AutoConfigEnabled,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    const std::string dhcp = translateIPv6AutoConfigToDHCPEnabled(
+        ethData.dhcpEnabled, ipv6AutoConfigEnabled);
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code ec) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "D-Bus responses error: " << ec;
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        messages::success(asyncResp->res);
+        },
+        "xyz.openbmc_project.Network.Hypervisor",
+        "/xyz/openbmc_project/network/hypervisor/" + ifaceId,
+        "org.freedesktop.DBus.Properties", "Set",
+        "xyz.openbmc_project.Network.EthernetInterface", "DHCPEnabled",
+        std::variant<std::string>{dhcp});
+}
+
 inline void
     handleHostnamePatch(const std::string& hostName,
                         const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
@@ -466,7 +539,8 @@ inline void
 /**
  * @brief Creates a static IPv4/v6 entry
  *
- * @param[in] ifaceId      Id of interface upon which to create the IPv4/v6 entry
+ * @param[in] ifaceId      Id of interface upon which to create the IPv4/v6
+ * entry
  * @param[in] prefixLength IPv4/v6 prefix length
  * @param[in] gateway      IPv4/v6 address of this interfaces gateway
  * @param[in] address      IPv4/v6 address to assign to this interface
@@ -555,6 +629,8 @@ inline void parseInterfaceData(
     jsonResponse["HostName"] = ethData.hostName;
     jsonResponse["DHCPv4"]["DHCPEnabled"] =
         translateDhcpEnabledToBool(ethData.dhcpEnabled, true);
+    jsonResponse["StatelessAddressAutoConfig"]["IPv6AutoConfigEnabled"] =
+        translateDHCPEnabledToIPv6AutoConfig(ethData.dhcpEnabled);
 
     if (translateDhcpEnabledToBool(ethData.dhcpEnabled, false))
     {
@@ -602,7 +678,7 @@ inline void parseInterfaceData(
     ipv6AddrPolicyTable = nlohmann::json::array();
     bool ipv6IsActive = false;
 
-    for (auto& ipv6Config : ipv6Data)
+    for (const auto& ipv6Config : ipv6Data)
     {
         ipv6IsActive = ipv6Config.isActive;
         ipv6Array.push_back({{"Address", ipv6Config.address},
@@ -634,32 +710,61 @@ inline void parseInterfaceData(
 }
 
 inline void setIpv6DhcpOperatingMode(
-    const std::string& ifaceId, const std::string& operatingMode,
+    const std::string& ifaceId, const EthernetInterfaceData& ethData,
+    const std::string& operatingMode,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    std::string ipv6DHCP;
-    if (operatingMode == "Enabled")
-    {
-        ipv6DHCP = "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v6";
-    }
-    else if (operatingMode == "Disabled")
-    {
-        ipv6DHCP =
-            "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.none";
-    }
-    else
+    if (operatingMode != "Enabled" && operatingMode != "Disabled")
     {
         messages::propertyValueIncorrect(asyncResp->res, "OperatingMode",
                                          operatingMode);
         return;
     }
+    std::string ipv6DHCP;
+    if (ethData.dhcpEnabled ==
+            "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v4" ||
+        ethData.dhcpEnabled ==
+            "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.both" ||
+        ethData.dhcpEnabled ==
+            "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v4v6stateless")
+    {
+        if (operatingMode == "Enabled")
+        {
+            ipv6DHCP =
+                "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.both";
+        }
+        else if (operatingMode == "Disabled")
+        {
+            ipv6DHCP =
+                "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v4";
+        }
+    }
+    else if (
+        ethData.dhcpEnabled ==
+            "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.none" ||
+        ethData.dhcpEnabled ==
+            "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v6" ||
+        ethData.dhcpEnabled ==
+            "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v6stateless")
+    {
+        if (operatingMode == "Enabled")
+        {
+            ipv6DHCP =
+                "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v6";
+        }
+        else if (operatingMode == "Disabled")
+        {
+            ipv6DHCP =
+                "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.none";
+        }
+    }
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code ec) {
-            if (ec)
-            {
-                messages::internalError(asyncResp->res);
-                return;
-            }
+        if (ec)
+        {
+            messages::internalError(asyncResp->res);
+            return;
+        }
         },
         "xyz.openbmc_project.Network.Hypervisor",
         "/xyz/openbmc_project/network/hypervisor/" + ifaceId,
@@ -669,19 +774,62 @@ inline void setIpv6DhcpOperatingMode(
 }
 
 inline void setDHCPEnabled(const std::string& ifaceId,
+                           const EthernetInterfaceData& ethData,
                            const bool& ipv4DHCPEnabled,
                            const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     std::string ipv4DHCP;
-    if (ipv4DHCPEnabled)
+    if (ethData.dhcpEnabled ==
+            "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v6" ||
+        ethData.dhcpEnabled ==
+            "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.both")
     {
-        ipv4DHCP = "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v4";
+        if (ipv4DHCPEnabled)
+        {
+            ipv4DHCP =
+                "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.both";
+        }
+        else
+        {
+            ipv4DHCP =
+                "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v6";
+        }
     }
-    else
+    else if (
+        ethData.dhcpEnabled ==
+            "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.none" ||
+        ethData.dhcpEnabled ==
+            "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v4")
     {
-        ipv4DHCP =
-            "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.none";
+        if (ipv4DHCPEnabled)
+        {
+            ipv4DHCP =
+                "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v4";
+        }
+        else
+        {
+            ipv4DHCP =
+                "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.none";
+        }
     }
+    else if (
+        ethData.dhcpEnabled ==
+            "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v6stateless" ||
+        ethData.dhcpEnabled ==
+            "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v4v6stateless")
+    {
+        if (ipv4DHCPEnabled)
+        {
+            ipv4DHCP =
+                "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v4v6stateless";
+        }
+        else
+        {
+            ipv4DHCP =
+                "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v6stateless";
+        }
+    }
+
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code ec) {
         if (ec)
@@ -696,6 +844,7 @@ inline void setDHCPEnabled(const std::string& ifaceId,
         "xyz.openbmc_project.Network.EthernetInterface", "DHCPEnabled",
         std::variant<std::string>(ipv4DHCP));
 }
+
 inline void
     setIPv4InterfaceEnabled(const std::string& ifaceId, const bool& isActive,
                             const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
@@ -718,7 +867,7 @@ inline void
 
 inline void handleHypervisorIPv4StaticPatch(
     const std::string& clientIp, const std::string& ifaceId,
-    const nlohmann::json& input,
+    const nlohmann::json& input, const EthernetInterfaceData& ethData,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     if ((!input.is_array()) || input.empty())
@@ -816,7 +965,7 @@ inline void handleHypervisorIPv4StaticPatch(
                            "xyz.openbmc_project.Network.IP.Protocol.IPv4",
                            asyncResp);
         // Set the DHCPEnabled to false since the Static IPv4 is set
-        setDHCPEnabled(ifaceId, false, asyncResp);
+        setDHCPEnabled(ifaceId, ethData, false, asyncResp);
     }
     else
     {
@@ -829,7 +978,7 @@ inline void handleHypervisorIPv4StaticPatch(
 
 inline void handleHypervisorIPv6StaticPatch(
     const crow::Request& req, const std::string& ifaceId,
-    const nlohmann::json& input,
+    const nlohmann::json& input, const EthernetInterfaceData& ethData,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     if ((!input.is_array()) || input.empty())
@@ -894,7 +1043,7 @@ inline void handleHypervisorIPv6StaticPatch(
                            "xyz.openbmc_project.Network.IP.Protocol.IPv6",
                            asyncResp);
         // Set the DHCPEnabled to false since the Static IPv6 is set
-        setIpv6DhcpOperatingMode(ifaceId, "Disabled", asyncResp);
+        setIpv6DhcpOperatingMode(ifaceId, ethData, "Disabled", asyncResp);
     }
     else
     {
@@ -1049,8 +1198,7 @@ inline void requestRoutesHypervisorSystems(App& app)
             [asyncResp, ifaceId{std::string(id)}](
                 const bool& success, const EthernetInterfaceData& ethData,
                 const boost::container::flat_set<IPv4AddressData>& ipv4Data,
-                const boost::container::flat_set<IPv6AddressData>&
-                    ipv6Data) {
+                const boost::container::flat_set<IPv6AddressData>& ipv6Data) {
             if (!success)
             {
                 messages::resourceNotFound(asyncResp->res, "EthernetInterface",
@@ -1087,12 +1235,15 @@ inline void requestRoutesHypervisorSystems(App& app)
         std::optional<nlohmann::json> dhcpv6;
         std::optional<bool> ipv4DHCPEnabled;
         std::optional<std::string> ipv6OperatingMode;
+        std::optional<nlohmann::json> statelessAddressAutoConfig;
+        std::optional<bool> ipv6AutoConfigEnabled;
 
-        if (!json_util::readJsonPatch(req, asyncResp->res, "HostName", hostName,
-                                      "IPv4StaticAddresses", ipv4StaticAddresses,
-                                      "IPv6StaticAddresses", ipv6StaticAddresses,
-                                      "IPv4Addresses", ipv4Addresses, "DHCPv4",
-                                      dhcpv4, "DHCPv6", dhcpv6))
+        if (!json_util::readJsonPatch(
+                req, asyncResp->res, "HostName", hostName,
+                "IPv4StaticAddresses", ipv4StaticAddresses,
+                "IPv6StaticAddresses", ipv6StaticAddresses, "IPv4Addresses",
+                ipv4Addresses, "DHCPv4", dhcpv4, "DHCPv6", dhcpv6,
+                "StatelessAddressAutoConfig", statelessAddressAutoConfig))
         {
             return;
         }
@@ -1114,13 +1265,22 @@ inline void requestRoutesHypervisorSystems(App& app)
 
         if (dhcpv6)
         {
-            if (!json_util::readJson(*dhcpv6, asyncResp->res,
-                                     "OperatingMode", ipv6OperatingMode))
+            if (!json_util::readJson(*dhcpv6, asyncResp->res, "OperatingMode",
+                                     ipv6OperatingMode))
             {
                 return;
             }
         }
 
+        if (statelessAddressAutoConfig)
+        {
+            if (!json_util::readJson(*statelessAddressAutoConfig,
+                                     asyncResp->res, "IPv6AutoConfigEnabled",
+                                     ipv6AutoConfigEnabled))
+            {
+                return;
+            }
+        }
 
         const std::string& clientIp = req.session->clientIp;
         getHypervisorIfaceData(
@@ -1129,7 +1289,9 @@ inline void requestRoutesHypervisorSystems(App& app)
              ipv4StaticAddresses = std::move(ipv4StaticAddresses),
              ipv6StaticAddresses = std::move(ipv6StaticAddresses),
              ipv4DHCPEnabled, dhcpv4 = std::move(dhcpv4),
-             dhcpv6 = std::move(dhcpv6), ipv6OperatingMode](
+             dhcpv6 = std::move(dhcpv6), ipv6OperatingMode,
+             statelessAddressAutoConfig = std::move(statelessAddressAutoConfig),
+             ipv6AutoConfigEnabled](
                 const bool& success, const EthernetInterfaceData& ethData,
                 const boost::container::flat_set<IPv4AddressData>&,
                 const boost::container::flat_set<IPv6AddressData>&) {
@@ -1184,7 +1346,7 @@ inline void requestRoutesHypervisorSystems(App& app)
                 }
 
                 handleHypervisorIPv4StaticPatch(clientIp, ifaceId, ipv4Static,
-                                                asyncResp);
+                                                ethData, asyncResp);
             }
 
             if (ipv6StaticAddresses)
@@ -1220,19 +1382,17 @@ inline void requestRoutesHypervisorSystems(App& app)
                 // configured. Deleting the address originated from DHCP
                 // is not allowed.
                 if ((ipv6Json.is_null()) &&
-                    (translateDhcpEnabledToBool(ethData.dhcpEnabled,
-                                                false)))
+                    (translateDhcpEnabledToBool(ethData.dhcpEnabled, false)))
                 {
                     BMCWEB_LOG_ERROR
                         << "Failed to delete on ipv6StaticAddresses "
                            "as the interface is DHCP enabled";
                     messages::propertyValueConflict(
-                        asyncResp->res, "IPv6StaticAddresses",
-                        "DHCPEnabled");
+                        asyncResp->res, "IPv6StaticAddresses", "DHCPEnabled");
                     return;
                 }
-                handleHypervisorIPv6StaticPatch(req, ifaceId,
-                                                ipv6Static, asyncResp);
+                handleHypervisorIPv6StaticPatch(req, ifaceId, ipv6Static,
+                                                ethData, asyncResp);
             }
 
             if (hostName)
@@ -1242,13 +1402,19 @@ inline void requestRoutesHypervisorSystems(App& app)
 
             if (dhcpv4)
             {
-                setDHCPEnabled(ifaceId, *ipv4DHCPEnabled, asyncResp);
+                setDHCPEnabled(ifaceId, ethData, *ipv4DHCPEnabled, asyncResp);
             }
 
             if (dhcpv6)
             {
-                setIpv6DhcpOperatingMode(ifaceId, *ipv6OperatingMode,
+                setIpv6DhcpOperatingMode(ifaceId, ethData, *ipv6OperatingMode,
                                          asyncResp);
+            }
+
+            if (statelessAddressAutoConfig)
+            {
+                handleHypSLAACAutoConfigPatch(
+                    ifaceId, ethData, *ipv6AutoConfigEnabled, asyncResp);
             }
             });
         asyncResp->res.result(boost::beast::http::status::accepted);
