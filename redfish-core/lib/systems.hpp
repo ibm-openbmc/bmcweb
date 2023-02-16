@@ -1512,25 +1512,48 @@ inline void getPowerMode(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
             messages::internalError(aResp->res);
             return;
         }
+
         // Valid Power Mode object found, now read the current value
-        sdbusplus::asio::getProperty<std::string>(
+        sdbusplus::asio::getAllProperties(
             *crow::connections::systemBus, service, path,
-            "xyz.openbmc_project.Control.Power.Mode", "PowerMode",
+            "xyz.openbmc_project.Control.Power.Mode",
             [aResp](const boost::system::error_code ec2,
-                    const std::string& pmode) {
+                    const dbus::utility::DBusPropertiesMap& properties) {
             if (ec2)
             {
-                BMCWEB_LOG_DEBUG << "DBUS response error on PowerMode Get: "
+                // Service not available, no error, return no data
+                BMCWEB_LOG_DEBUG << "Service not available on Power."
+                                    "Mode properties GetAll: "
                                  << ec2;
+                return;
+            }
+
+            const bool* safeMode = nullptr;
+            const std::string* powerMode = nullptr;
+
+            const bool success = sdbusplus::unpackPropertiesNoThrow(
+                dbus_utils::UnpackErrorPrinter(), properties, "SafeMode",
+                safeMode, "PowerMode", powerMode);
+
+            if (!success)
+            {
                 messages::internalError(aResp->res);
                 return;
             }
 
-            aResp->res.jsonValue["PowerMode@Redfish.AllowableValues"] = {
-                "Static", "MaximumPerformance", "PowerSaving"};
+            if (safeMode != nullptr)
+            {
+                aResp->res.jsonValue["SafeMode"]["SafeMode"] = *safeMode;
+            }
+            if (powerMode != nullptr)
+            {
+                aResp->res.jsonValue["PowerMode@Redfish.AllowableValues"] = {
+                    "Static", "MaximumPerformance", "PowerSaving"};
 
-            BMCWEB_LOG_DEBUG << "Current power mode: " << pmode;
-            translatePowerMode(aResp, pmode);
+                BMCWEB_LOG_DEBUG << "Current power mode: " << *powerMode;
+
+                translatePowerMode(aResp, *powerMode);
+            }
             });
         },
         "xyz.openbmc_project.ObjectMapper",
