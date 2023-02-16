@@ -359,9 +359,9 @@ inline void
         }
     };
 
-    std::vector<std::string> interfaces = {
+    constexpr std::array<std::string_view, 1> interfaces = {
         "xyz.openbmc_project.Network.EthernetInterface"};
-    dbus::utility::getSubTree("/xyz/openbmc_project", interfaces,
+    dbus::utility::getSubTree("/xyz/openbmc_project", 0, interfaces,
                               std::move(respHandler));
 }
 
@@ -413,9 +413,9 @@ inline void
         }
     };
 
-    std::vector<std::string> interfaces = {
+    constexpr std::array<std::string_view, 1> interfaces = {
         "xyz.openbmc_project.Control.Service.Attributes"};
-    dbus::utility::getSubTree("/xyz/openbmc_project/control/service",
+    dbus::utility::getSubTree("/xyz/openbmc_project/control/service", 0,
                               interfaces, std::move(respHandler));
 }
 

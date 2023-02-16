@@ -62,10 +62,10 @@ void getValidSystemsPath(
     };
 
     // Get the Systems Collection
-    std::vector<std::string> interfaces = {
+    constexpr std::array<std::string_view, 1> interfaces = {
         "xyz.openbmc_project.Inventory.Item.System"};
-    dbus::utility::getSubTreePaths("/xyz/openbmc_project/inventory", interfaces,
-                                   std::move(respHandler));
+    dbus::utility::getSubTreePaths("/xyz/openbmc_project/inventory", 0,
+                                   interfaces, std::move(respHandler));
     BMCWEB_LOG_DEBUG << "checkSystemsId exit";
 }
 
