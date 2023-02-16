@@ -40,6 +40,10 @@ inline void doThermalSubsystemCollection(
         crow::utility::urlFromPieces("redfish", "v1", "Chassis", chassisId,
                                      "ThermalSubsystem", "Fans");
 
+    asyncResp->res.jsonValue["ThermalMetrics"]["@odata.id"] =
+        crow::utility::urlFromPieces("redfish", "v1", "Chassis", chassisId,
+                                     "ThermalSubsystem", "ThermalMetrics");
+
     asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
     asyncResp->res.jsonValue["Status"]["Health"] = "OK";
 }
