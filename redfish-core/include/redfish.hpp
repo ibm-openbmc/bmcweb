@@ -51,6 +51,7 @@
 #include "task.hpp"
 #include "telemetry_service.hpp"
 #include "thermal.hpp"
+#include "thermal_metrics.hpp"
 #include "thermal_subsystem.hpp"
 #include "trigger.hpp"
 #include "update_service.hpp"
@@ -92,6 +93,7 @@ class RedfishService
         requestRoutesPowerSupply(app);
         requestRoutesPowerSupplyCollection(app);
         requestRoutesThermalSubsystem(app);
+        requestRoutesThermalMetrics(app);
 #endif
         requestRoutesManagerCollection(app);
         requestRoutesManager(app);
