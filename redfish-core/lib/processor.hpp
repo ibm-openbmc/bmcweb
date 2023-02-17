@@ -747,9 +747,8 @@ inline void getProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
         for (const auto& [objectPath, serviceMap] : subtree)
         {
             // Ignore any objects which don't end with our desired cpu name
-            sdbusplus::message::object_path path(objectPath);
-            std::string name = path.filename();
-            if (name.empty() || !isProcObjectMatched(processorId, path))
+            if (!isProcObjectMatched(
+                    processorId, sdbusplus::message::object_path(objectPath)))
             {
                 continue;
             }
@@ -810,12 +809,12 @@ inline void getProcessorData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                              const std::string& objectPath,
                              const dbus::utility::MapperServiceMap& serviceMap)
 {
-    aResp->res.jsonValue["@odata.type"] = "#Processor.v1_12_0.Processor";
-    aResp->res.jsonValue["@odata.id"] =
-        "/redfish/v1/Systems/system/Processors/" + processorId;
-    aResp->res.jsonValue["SubProcessors"] = {
-        {"@odata.id", "/redfish/v1/Systems/system/Processors/" + processorId +
-                          "/SubProcessors"}};
+    aResp->res.addHeader(
+        boost::beast::http::field::link,
+        "</redfish/v1/JsonSchemas/Processor/Processor.json>; rel=describedby");
+    aResp->res.jsonValue["@odata.type"] = "#Processor.v1_11_0.Processor";
+    aResp->res.jsonValue["@odata.id"] = crow::utility::urlFromPieces(
+        "redfish", "v1", "Systems", "system", "Processors", processorId);
 
     for (const auto& [serviceName, interfaceList] : serviceMap)
     {
@@ -1657,6 +1656,13 @@ inline void requestRoutesOperatingConfig(App& app)
                     continue;
                 }
                 // Ignore any configs without matching cpuX/configY
+                if (!isProcObjectMatched(
+                        cpuName, sdbusplus::message::object_path(objectPath)
+                                     .parent_path()))
+                {
+                    continue;
+                }
+
                 if (!objectPath.ends_with(expectedEnding) || serviceMap.empty())
                 {
                     continue;
@@ -1725,8 +1731,9 @@ inline void requestRoutesProcessorCollection(App& app)
         asyncResp->res.jsonValue["@odata.id"] =
             "/redfish/v1/Systems/system/Processors";
 
-        crow::connections::systemBus->async_method_call(
-            [asyncResp](const boost::system::error_code ec,
+        dbus::utility::getSubTreePaths(
+            "/xyz/openbmc_project/inventory", 0, processorInterfaces,
+            [asyncResp](const boost::system::error_code& ec,
                         const std::vector<std::string>& objects) {
             if (ec)
             {
@@ -1771,17 +1778,14 @@ inline void requestRoutesProcessorCollection(App& app)
                 {
                     continue;
                 }
-                std::string newPath = "/redfish/v1/Systems/system/Processors";
-                newPath += '/';
-                newPath += leaf;
-                members.push_back({{"@odata.id", std::move(newPath)}});
+
+                nlohmann::json item;
+                item["@odata.id"] = crow::utility::urlFromPieces(
+                    "redfish", "v1", "Systems", "system", "Processors", leaf);
+                members.emplace_back(std::move(item));
             }
             asyncResp->res.jsonValue["Members@odata.count"] = members.size();
-            },
-            "xyz.openbmc_project.ObjectMapper",
-            "/xyz/openbmc_project/object_mapper",
-            "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
-            "/xyz/openbmc_project/inventory", 0, processorInterfaces);
+            });
         });
 }
 
@@ -1813,10 +1817,6 @@ inline void requestRoutesProcessor(App& app)
                                        systemName);
             return;
         }
-
-        asyncResp->res.addHeader(
-            boost::beast::http::field::link,
-            "</redfish/v1/JsonSchemas/Processor/Processor.json>; rel=describedby");
 
         getProcessorObject(
             asyncResp, processorId,
@@ -1880,9 +1880,14 @@ inline void requestRoutesSubProcessors(App& app)
                  "/redfish/v1/Systems/system/Processors/<str>/SubProcessors")
         .privileges(redfish::privileges::getProcessorCollection)
         .methods(boost::beast::http::verb::get)(
-            [](const crow::Request&,
-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-               const std::string& processorId) {
+            [&app](const crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                   const std::string& processorId) {
+        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+        {
+            return;
+        }
+
         getSubProcessorMembers(asyncResp, processorId);
         });
 }
@@ -1961,16 +1966,16 @@ inline void requestRoutesSubProcessorsCore(App& app)
         app, "/redfish/v1/Systems/system/Processors/<str>/SubProcessors/<str>")
         .privileges(redfish::privileges::getProcessor)
         .methods(boost::beast::http::verb::get)(
-            [](const crow::Request&,
-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-               const std::string& processorId, const std::string& coreId) {
+            [&app](const crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                   const std::string& processorId, const std::string& coreId) {
+        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+        {
+            return;
+        }
+
         getSubProcessorData(asyncResp, processorId, coreId);
         });
-
-    BMCWEB_ROUTE(
-        app, "/redfish/v1/Systems/system/Processors/<str>/SubProcessors/<str>")
-        .privileges(redfish::privileges::patchProcessor)
-        .methods(boost::beast::http::verb::patch)(patchCpuCoreMembers);
 }
 
 } // namespace redfish
