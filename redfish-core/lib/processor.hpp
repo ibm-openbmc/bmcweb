@@ -1489,10 +1489,15 @@ inline void setProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
                                std::optional<bool> locationIndicatorActive)
 {
     // GetSubTree on all interfaces which provide info about a Processor
-    crow::connections::systemBus->async_method_call(
+    constexpr std::array<std::string_view, 3> interfaces = {
+        "xyz.openbmc_project.Inventory.Item.Cpu",
+        "xyz.openbmc_project.Inventory.Item.Accelerator",
+        "xyz.openbmc_project.Association.Definitions"};
+    dbus::utility::getSubTree(
+        "/xyz/openbmc_project/inventory", 0, interfaces,
         [resp, processorId, locationIndicatorActive](
-            boost::system::error_code ec,
-            const dbus::utility::MapperGetSubTreeResponse& subtree) mutable {
+            const boost::system::error_code& ec,
+            const dbus::utility::MapperGetSubTreeResponse& subtree) {
         if (ec)
         {
             BMCWEB_LOG_DEBUG << "DBUS response error: " << ec;
@@ -1502,9 +1507,8 @@ inline void setProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
         for (const auto& [objectPath, serviceMap] : subtree)
         {
             // Ignore any objects which don't end with our desired cpu name
-            sdbusplus::message::object_path path(objectPath);
-            std::string name = path.filename();
-            if (name.empty() || !isProcObjectMatched(processorId, path))
+            if (!isProcObjectMatched(
+                    processorId, sdbusplus::message::object_path(objectPath)))
             {
                 continue;
             }
@@ -1538,17 +1542,9 @@ inline void setProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
                              locationIndicatorActive);
             return;
         }
-        messages::resourceNotFound(resp->res, "#Processor.v1_12_0.Processor",
+        messages::resourceNotFound(resp->res, "#Processor.v1_11_0.Processor",
                                    processorId);
-        },
-        "xyz.openbmc_project.ObjectMapper",
-        "/xyz/openbmc_project/object_mapper",
-        "xyz.openbmc_project.ObjectMapper", "GetSubTree",
-        "/xyz/openbmc_project/inventory", 0,
-        std::array<const char*, 3>{
-            "xyz.openbmc_project.Inventory.Item.Cpu",
-            "xyz.openbmc_project.Inventory.Item.Accelerator",
-            "xyz.openbmc_project.Association.Definitions"});
+        });
 }
 
 inline void requestRoutesOperatingConfigCollection(App& app)
@@ -1847,7 +1843,6 @@ inline void requestRoutesProcessor(App& app)
                 req, asyncResp->res, "AppliedOperatingConfig",
                 appliedConfigJson, "LocationIndicatorActive",
                 locationIndicatorActive))
-
         {
             return;
         }
