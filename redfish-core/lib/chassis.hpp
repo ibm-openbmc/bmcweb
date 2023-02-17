@@ -344,9 +344,10 @@ inline void
 
             const std::vector<std::string>& interfaces2 =
                 connectionNames[0].second;
-            const std::array<const char*, 2> hasIndicatorLed = {
+            const std::array<const char*, 3> hasIndicatorLed = {
                 "xyz.openbmc_project.Inventory.Item.Panel",
-                "xyz.openbmc_project.Inventory.Item.Board.Motherboard"};
+                "xyz.openbmc_project.Inventory.Item.Board.Motherboard",
+                "xyz.openbmc_project.Inventory.Item.Chassis"};
 
             const std::string assetTagInterface =
                 "xyz.openbmc_project.Inventory.Decorator.AssetTag";
@@ -605,9 +606,10 @@ inline void
             const std::vector<std::string>& interfaces3 =
                 connectionNames[0].second;
 
-            const std::array<const char*, 2> hasIndicatorLed = {
+            const std::array<const char*, 3> hasIndicatorLed = {
                 "xyz.openbmc_project.Inventory.Item.Panel",
-                "xyz.openbmc_project.Inventory.Item.Board.Motherboard"};
+                "xyz.openbmc_project.Inventory.Item.Board.Motherboard",
+                "xyz.openbmc_project.Inventory.Item.Chassis"};
             bool indicatorChassis = false;
             for (const char* interface : hasIndicatorLed)
             {
