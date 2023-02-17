@@ -117,7 +117,7 @@ void getThermalMetrics(
     const std::shared_ptr<SensorsAsyncResp>& sensorsAsyncResp,
     Callback&& callback)
 {
-    std::vector<std::string> interfaces = {
+    constexpr std::array<std::string_view, 2> interfaces = {
         "xyz.openbmc_project.Inventory.Item.Board",
         "xyz.openbmc_project.Inventory.Item.Chassis"};
 
@@ -203,8 +203,8 @@ void getThermalMetrics(
             callback(culledSensorList);
             });
     };
-    dbus::utility::getSubTreePaths("/xyz/openbmc_project/inventory", interfaces,
-                                   std::move(respHandler));
+    dbus::utility::getSubTreePaths("/xyz/openbmc_project/inventory", 0,
+                                   interfaces, std::move(respHandler));
 }
 
 /**

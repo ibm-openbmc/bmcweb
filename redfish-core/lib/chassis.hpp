@@ -147,9 +147,10 @@ inline void handleChassisCollectionGet(
     asyncResp->res.jsonValue["@odata.id"] = "/redfish/v1/Chassis";
     asyncResp->res.jsonValue["Name"] = "Chassis Collection";
 
+    constexpr std::array<std::string_view, 1> interfaces{
+        "xyz.openbmc_project.Inventory.Item.Chassis"};
     collection_util::getCollectionMembers(
-        asyncResp, boost::urls::url("/redfish/v1/Chassis"),
-        {"xyz.openbmc_project.Inventory.Item.Chassis"});
+        asyncResp, boost::urls::url("/redfish/v1/Chassis"), interfaces);
 }
 
 /**

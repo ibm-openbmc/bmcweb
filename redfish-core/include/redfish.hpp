@@ -24,6 +24,7 @@
 #include "environment_metrics.hpp"
 #include "ethernet.hpp"
 #include "event_service.hpp"
+#include "fabric_adapters.hpp"
 #include "fan.hpp"
 #include "hypervisor_system.hpp"
 #include "license_service.hpp"
@@ -243,6 +244,8 @@ class RedfishService
         requestRoutesEventService(app);
         requestRoutesEventDestinationCollection(app);
         requestRoutesEventDestination(app);
+        requestRoutesFabricAdapters(app);
+        requestRoutesFabricAdapterCollection(app);
         requestRoutesSubmitTestEvent(app);
 
         hypervisor::requestRoutesHypervisorSystems(app);

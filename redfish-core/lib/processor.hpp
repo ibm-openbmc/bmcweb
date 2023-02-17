@@ -36,7 +36,7 @@ namespace redfish
 {
 
 // Interfaces which imply a D-Bus object represents a Processor
-constexpr std::array<const char*, 2> processorInterfaces = {
+constexpr std::array<std::string_view, 2> processorInterfaces = {
     "xyz.openbmc_project.Inventory.Item.Cpu",
     "xyz.openbmc_project.Inventory.Item.Accelerator"};
 
@@ -1100,13 +1100,15 @@ inline void requestRoutesOperatingConfigCollection(App& app)
 
                 // Use the common search routine to construct the
                 // Collection of all Config objects under this CPU.
+                constexpr std::array<std::string_view, 1> interface {
+                    "xyz.openbmc_project.Inventory.Item.Cpu.OperatingConfig"
+                };
                 collection_util::getCollectionMembers(
                     asyncResp,
                     crow::utility::urlFromPieces("redfish", "v1", "Systems",
                                                  "system", "Processors",
                                                  cpuName, "OperatingConfigs"),
-                    {"xyz.openbmc_project.Inventory.Item.Cpu.OperatingConfig"},
-                    object.c_str());
+                    interface, object.c_str());
                 return;
             }
             },
@@ -1221,8 +1223,7 @@ inline void requestRoutesProcessorCollection(App& app)
         collection_util::getCollectionMembers(
             asyncResp,
             boost::urls::url("/redfish/v1/Systems/system/Processors"),
-            std::vector<const char*>(processorInterfaces.begin(),
-                                     processorInterfaces.end()));
+            processorInterfaces);
         });
 }
 

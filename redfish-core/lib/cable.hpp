@@ -226,9 +226,10 @@ inline void requestRoutesCableCollection(App& app)
         asyncResp->res.jsonValue["Name"] = "Cable Collection";
         asyncResp->res.jsonValue["Description"] = "Collection of Cable Entries";
 
+        constexpr std::array<std::string_view, 1> interfaces{
+            "xyz.openbmc_project.Inventory.Item.Cable"};
         collection_util::getCollectionMembers(
-            asyncResp, boost::urls::url("/redfish/v1/Cables"),
-            {"xyz.openbmc_project.Inventory.Item.Cable"});
+            asyncResp, boost::urls::url("/redfish/v1/Cables"), interfaces);
         });
 }
 

@@ -359,7 +359,8 @@ inline void requestRoutesMetricReportDefinitionCollection(App& app)
         asyncResp->res.jsonValue["@odata.id"] =
             "/redfish/v1/TelemetryService/MetricReportDefinitions";
         asyncResp->res.jsonValue["Name"] = "Metric Definition Collection";
-        const std::vector<const char*> interfaces{telemetry::reportInterface};
+        constexpr std::array<std::string_view, 1> interfaces{
+            telemetry::reportInterface};
         collection_util::getCollectionMembers(
             asyncResp,
             boost::urls::url(
