@@ -15,8 +15,6 @@
 */
 #pragma once
 
-#include "health.hpp"
-
 #include <app.hpp>
 #include <dbus_utility.hpp>
 #include <nlohmann/json.hpp>
@@ -418,6 +416,7 @@ inline void
     const std::string* sparePartNumber = nullptr;
     const std::string* model = nullptr;
     const std::string* locationCode = nullptr;
+    const bool* functional = nullptr;
 
     const bool success = sdbusplus::unpackPropertiesNoThrow(
         dbus_utils::UnpackErrorPrinter(), properties, "MemoryDataWidth",
@@ -430,7 +429,7 @@ inline void
         memoryConfiguredSpeedInMhz, "MemoryType", memoryType, "Channel",
         channel, "MemoryController", memoryController, "Slot", slot, "Socket",
         socket, "SparePartNumber", sparePartNumber, "Model", model,
-        "LocationCode", locationCode);
+        "LocationCode", locationCode, "Functional", functional);
 
     if (!success)
     {
@@ -593,6 +592,14 @@ inline void
             *locationCode;
     }
 
+    if (functional != nullptr)
+    {
+        if (!*functional)
+        {
+            aResp->res.jsonValue[jsonPtr]["Status"]["Health"] = "Critical";
+        }
+    }
+
     getPersistentMemoryProperties(aResp, properties, jsonPtr);
 }
 
@@ -601,10 +608,6 @@ inline void getDimmDataByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
                                  const std::string& service,
                                  const std::string& objPath)
 {
-    auto health = std::make_shared<HealthPopulate>(aResp);
-    health->selfPath = objPath;
-    health->populate();
-
     BMCWEB_LOG_DEBUG << "Get available system components.";
     sdbusplus::asio::getAllProperties(
         *crow::connections::systemBus, service, objPath, "",
