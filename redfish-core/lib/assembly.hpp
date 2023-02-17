@@ -784,8 +784,11 @@ inline void checkAssociation(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         return;
     }
 
-    aResp->res.jsonValue["Assemblies"] = nlohmann::json::array();
-    aResp->res.jsonValue["Assemblies@odata.count"] = 0;
+    if (!setLocationIndicatorActiveFlag)
+    {
+        aResp->res.jsonValue["Assemblies"] = nlohmann::json::array();
+        aResp->res.jsonValue["Assemblies@odata.count"] = 0;
+    }
 
     // check if this chassis hosts any association
     crow::connections::systemBus->async_method_call(
@@ -864,11 +867,15 @@ inline void getChassis(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 continue;
             }
 
-            aResp->res.jsonValue["@odata.type"] = "#Assembly.v1_3_0.Assembly";
-            aResp->res.jsonValue["@odata.id"] =
-                "/redfish/v1/Chassis/" + chassisID + "/Assembly";
-            aResp->res.jsonValue["Name"] = "Assembly Collection";
-            aResp->res.jsonValue["Id"] = "Assembly";
+            if (!setLocationIndicatorActiveFlag)
+            {
+                aResp->res.jsonValue["@odata.type"] =
+                    "#Assembly.v1_3_0.Assembly";
+                aResp->res.jsonValue["@odata.id"] =
+                    "/redfish/v1/Chassis/" + chassisID + "/Assembly";
+                aResp->res.jsonValue["Name"] = "Assembly Collection";
+                aResp->res.jsonValue["Id"] = "Assembly";
+            }
 
             checkAssociation(aResp, path, setLocationIndicatorActiveFlag, req);
             return;
