@@ -256,7 +256,7 @@ inline void requestRoutesBiosSettings(App& app)
                     "/redfish/v1/Systems/system/Bios/Settings";
                 asyncResp->res.jsonValue["@odata.type"] = "#Bios.v1_1_0.Bios";
                 asyncResp->res.jsonValue["Name"] = "Bios Settings";
-                asyncResp->res.jsonValue["Id"] = "BiosSettings";
+                asyncResp->res.jsonValue["Id"] = "Settings";
                 asyncResp->res.jsonValue["AttributeRegistry"] =
                     "BiosAttributeRegistry";
                 nlohmann::json attributes(nlohmann::json::value_t::object);
