@@ -37,45 +37,43 @@ inline void setErrorLogUri(
         [aResp, errorLogObjPath, errorLogPropPath,
          isLink](const boost::system::error_code ec,
                  std::variant<bool>& hiddenProperty) {
-            if (ec)
-            {
-                BMCWEB_LOG_ERROR << "DBus response error [" << ec.value()
-                                 << " : " << ec.message()
-                                 << "] when tried to get the Hidden property "
-                                 << "from the given error log object "
-                                 << errorLogObjPath.str;
-                return;
-            }
-            bool* hiddenPropVal = std::get_if<bool>(&hiddenProperty);
-            if (hiddenPropVal == nullptr)
-            {
-                BMCWEB_LOG_ERROR << "Failed to get the Hidden property value "
-                                 << "from the given error log object "
-                                 << errorLogObjPath.str;
-                return;
-            }
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR
+                << "DBus response error [" << ec.value() << " : "
+                << ec.message() << "] when tried to get the Hidden property "
+                << "from the given error log object " << errorLogObjPath.str;
+            return;
+        }
+        bool* hiddenPropVal = std::get_if<bool>(&hiddenProperty);
+        if (hiddenPropVal == nullptr)
+        {
+            BMCWEB_LOG_ERROR << "Failed to get the Hidden property value "
+                             << "from the given error log object "
+                             << errorLogObjPath.str;
+            return;
+        }
 
-            std::string errLogUri{"/redfish/v1/Systems/system/LogServices/"};
-            if (*hiddenPropVal)
-            {
-                errLogUri.append("CELog/Entries/");
-            }
-            else
-            {
-                errLogUri.append("EventLog/Entries/");
-            }
-            errLogUri.append(errorLogObjPath.filename());
+        std::string errLogUri{"/redfish/v1/Systems/system/LogServices/"};
+        if (*hiddenPropVal)
+        {
+            errLogUri.append("CELog/Entries/");
+        }
+        else
+        {
+            errLogUri.append("EventLog/Entries/");
+        }
+        errLogUri.append(errorLogObjPath.filename());
 
-            if (isLink)
-            {
-                aResp->res.jsonValue[errorLogPropPath] = {
-                    {"@odata.id", errLogUri}};
-            }
-            else
-            {
-                errLogUri.append("/attachment");
-                aResp->res.jsonValue[errorLogPropPath] = errLogUri;
-            }
+        if (isLink)
+        {
+            aResp->res.jsonValue[errorLogPropPath] = {{"@odata.id", errLogUri}};
+        }
+        else
+        {
+            errLogUri.append("/attachment");
+            aResp->res.jsonValue[errorLogPropPath] = errLogUri;
+        }
         },
         "xyz.openbmc_project.Logging", errorLogObjPath.str,
         "org.freedesktop.DBus.Properties", "Get",

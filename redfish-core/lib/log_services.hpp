@@ -15,6 +15,7 @@
 */
 #pragma once
 
+#include "assembly.hpp"
 #include "gzfile.hpp"
 #include "http_utility.hpp"
 #include "human_sort.hpp"
@@ -42,11 +43,9 @@
 #include <sdbusplus/asio/property.hpp>
 #include <sdbusplus/unpack_properties.hpp>
 #include <utils/dbus_utils.hpp>
-#include <utils/time_utils.hpp>
-#include <utils/name_utils.hpp>
 #include <utils/error_log_utils.hpp>
-
-#include "assembly.hpp"
+#include <utils/name_utils.hpp>
+#include <utils/time_utils.hpp>
 
 #include <charconv>
 #include <filesystem>
@@ -92,7 +91,7 @@ RedfishUriListType redfishUriList = {
      "/redfish/v1/Chassis/<str>/Assembly#/Assemblies"},
     {"xyz.openbmc_project.Inventory.Item.Board.Motherboard",
      "/redfish/v1/Chassis/<str>/Assembly#/Assemblies"}};
-     
+
 #endif // BMCWEB_ENABLE_HW_ISOLATION
 
 enum class DumpCreationProgress
@@ -1438,16 +1437,16 @@ inline void requestRoutesSystemLogServiceCollection(App& app)
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", "/", 0,
             std::array<const char*, 1>{postCodeIface});
-            
+
 #ifdef BMCWEB_ENABLE_HW_ISOLATION
-            nlohmann::json& logServiceArrayLocal =
-                asyncResp->res.jsonValue["Members"];
-            logServiceArrayLocal.push_back(
-                {{"@odata.id", "/redfish/v1/Systems/system/"
-                               "LogServices/HardwareIsolation"}});
-            asyncResp->res.jsonValue["Members@odata.count"] =
-                logServiceArrayLocal.size();
-#endif // BMCWEB_ENABLE_HW_ISOLATION            
+        nlohmann::json& logServiceArrayLocal =
+            asyncResp->res.jsonValue["Members"];
+        logServiceArrayLocal.push_back(
+            {{"@odata.id", "/redfish/v1/Systems/system/"
+                           "LogServices/HardwareIsolation"}});
+        asyncResp->res.jsonValue["Members@odata.count"] =
+            logServiceArrayLocal.size();
+#endif // BMCWEB_ENABLE_HW_ISOLATION
         });
 }
 
@@ -5494,266 +5493,260 @@ inline void getRedfishUriByDbusObjPath(
     const size_t entryJsonIdx)
 {
     crow::connections::systemBus->async_method_call(
-        [asyncResp, dbusObjPath, entryJsonIdx](
-            const boost::system::error_code ec, const dbus::utility::MapperGetObject& objType) {
-            if (ec || objType.empty())
-            {
-                BMCWEB_LOG_ERROR << "DBUS response error [" << ec.value()
-                                 << " : " << ec.message()
-                                 << "] when tried to get the RedfishURI of "
-                                 << "isolated hareware: " << dbusObjPath.str;
-                messages::internalError(asyncResp->res);
-                return;
-            }
+        [asyncResp, dbusObjPath,
+         entryJsonIdx](const boost::system::error_code ec,
+                       const dbus::utility::MapperGetObject& objType) {
+        if (ec || objType.empty())
+        {
+            BMCWEB_LOG_ERROR << "DBUS response error [" << ec.value() << " : "
+                             << ec.message()
+                             << "] when tried to get the RedfishURI of "
+                             << "isolated hareware: " << dbusObjPath.str;
+            messages::internalError(asyncResp->res);
+            return;
+        }
 
-            RedfishUriListType::const_iterator redfishUriIt;
-            for (const auto& service : objType)
+        RedfishUriListType::const_iterator redfishUriIt;
+        for (const auto& service : objType)
+        {
+            for (const auto& interface : service.second)
             {
-                for (const auto& interface : service.second)
-                {
-                    redfishUriIt = redfishUriList.find(interface);
-                    if (redfishUriIt != redfishUriList.end())
-                    {
-                        // Found the Redfish URI of the isolated hardware unit.
-                        break;
-                    }
-                }
+                redfishUriIt = redfishUriList.find(interface);
                 if (redfishUriIt != redfishUriList.end())
                 {
-                    // No need to check in the next service interface list
+                    // Found the Redfish URI of the isolated hardware unit.
                     break;
                 }
             }
+            if (redfishUriIt != redfishUriList.end())
+            {
+                // No need to check in the next service interface list
+                break;
+            }
+        }
 
-            if (redfishUriIt == redfishUriList.end())
+        if (redfishUriIt == redfishUriList.end())
+        {
+            BMCWEB_LOG_ERROR
+                << "The object[" << dbusObjPath.str
+                << "] interface is not found in the Redfish URI list. "
+                << "Please add the respective D-Bus interface name";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        // Fill the isolated hardware object id along with the Redfish URI
+        std::string redfishUri =
+            redfishUriIt->second + "/" + getIsolatedHwItemId(dbusObjPath);
+
+        // Make sure whether no need to fill the parent object id in the
+        // isolated hardware Redfish URI.
+        const std::string uriIdPattern{"<str>"};
+        size_t uriIdPos = redfishUri.rfind(uriIdPattern);
+        if (uriIdPos == std::string::npos)
+        {
+            if (entryJsonIdx > 0)
+            {
+                asyncResp->res.jsonValue["Members"][entryJsonIdx - 1]["Links"]
+                                        ["OriginOfCondition"] = {
+                    {"@odata.id", redfishUri}};
+            }
+            else
+            {
+                asyncResp->res.jsonValue["Links"]["OriginOfCondition"] = {
+                    {"@odata.id", redfishUri}};
+            }
+            return;
+        }
+
+        bool isChassisAssemblyUri = false;
+        std::string::size_type assemblyStartPos =
+            redfishUri.rfind("/Assembly#/Assemblies");
+        if (assemblyStartPos != std::string::npos)
+        {
+            // Redfish URI using path segment like DBus object path
+            // so using object_path type
+            if (sdbusplus::message::object_path(
+                    redfishUri.substr(0, assemblyStartPos))
+                    .parent_path()
+                    .filename() != "Chassis")
+            {
+                // Currently, bmcweb supporting only chassis
+                // assembly uri so return error if unsupported
+                // assembly uri added in the redfishUriList.
+                BMCWEB_LOG_ERROR << "Unsupported Assembly URI [" << redfishUri
+                                 << "] to fill in the OriginOfCondition. "
+                                 << "Please add support in the bmcweb";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            isChassisAssemblyUri = true;
+        }
+
+        // Fill the all parents Redfish URI id.
+        // For example, the processors id for the core.
+        // "/redfish/v1/Systems/system/Processors/<str>/SubProcessors/core0"
+        std::vector<std::pair<RedfishResourceDBusInterfaces, size_t>>
+            ancestorsIfaces;
+        while (uriIdPos != std::string::npos)
+        {
+            std::string parentRedfishUri = redfishUri.substr(0, uriIdPos - 1);
+            RedfishUriListType::const_iterator parentRedfishUriIt =
+                std::find_if(redfishUriList.begin(), redfishUriList.end(),
+                             [parentRedfishUri](const auto& ele) {
+                return parentRedfishUri == ele.second;
+                });
+
+            if (parentRedfishUriIt == redfishUriList.end())
             {
                 BMCWEB_LOG_ERROR
-                    << "The object[" << dbusObjPath.str
-                    << "] interface is not found in the Redfish URI list. "
-                    << "Please add the respective D-Bus interface name";
+                    << "Failed to fill Links:OriginOfCondition "
+                    << "because unable to get parent Redfish URI "
+                    << "[" << parentRedfishUri << "]"
+                    << "DBus interface for the identified "
+                    << "Redfish URI: " << redfishUri
+                    << " of the given DBus object path: " << dbusObjPath.str;
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            ancestorsIfaces.emplace_back(
+                std::make_pair(parentRedfishUriIt->first, uriIdPos));
+            uriIdPos = redfishUri.rfind(uriIdPattern,
+                                        uriIdPos - uriIdPattern.length());
+        }
+
+        // GetAncestors only accepts "as" for the interface list
+        std::vector<RedfishResourceDBusInterfaces> ancestorsIfacesOnly;
+        std::transform(
+            ancestorsIfaces.begin(), ancestorsIfaces.end(),
+            std::back_inserter(ancestorsIfacesOnly),
+            [](const std::pair<RedfishResourceDBusInterfaces, size_t>& p) {
+            return p.first;
+            });
+
+        crow::connections::systemBus->async_method_call(
+            [asyncResp, dbusObjPath, entryJsonIdx, redfishUri, uriIdPos,
+             uriIdPattern, ancestorsIfaces, isChassisAssemblyUri](
+                const boost::system::error_code ec1,
+                const boost::container::flat_map<
+                    std::string, boost::container::flat_map<
+                                     std::string, std::vector<std::string>>>&
+                    ancestors) mutable {
+            if (ec1)
+            {
+                BMCWEB_LOG_ERROR
+                    << "DBUS response error [" << ec1.value() << " : "
+                    << ec1.message() << "] when tried to fill the parent "
+                    << "objects id in the RedfishURI: " << redfishUri
+                    << " of the isolated hareware: " << dbusObjPath.str;
                 messages::internalError(asyncResp->res);
                 return;
             }
 
-            // Fill the isolated hardware object id along with the Redfish URI
-            std::string redfishUri =
-                redfishUriIt->second + "/" + getIsolatedHwItemId(dbusObjPath);
-
-            // Make sure whether no need to fill the parent object id in the
-            // isolated hardware Redfish URI.
-            const std::string uriIdPattern{"<str>"};
-            size_t uriIdPos = redfishUri.rfind(uriIdPattern);
-            if (uriIdPos == std::string::npos)
+            // tuple: assembly parent service name, object path, and
+            // interface
+            std::tuple<std::string, sdbusplus::message::object_path,
+                       std::string>
+                assemblyParent;
+            for (const auto& ancestorIface : ancestorsIfaces)
             {
-                if (entryJsonIdx > 0)
+                bool foundAncestor = false;
+                for (const auto& obj : ancestors)
                 {
-                    asyncResp->res.jsonValue["Members"][entryJsonIdx - 1]
-                                            ["Links"]["OriginOfCondition"] = {
-                        {"@odata.id", redfishUri}};
+                    for (const auto& service : obj.second)
+                    {
+                        for (const auto& interface : service.second)
+                        {
+                            if (interface == ancestorIface.first)
+                            {
+                                foundAncestor = true;
+                                redfishUri.replace(
+                                    ancestorIface.second, uriIdPattern.length(),
+                                    getIsolatedHwItemId(
+                                        sdbusplus::message::object_path(
+                                            obj.first)));
+                                if (isChassisAssemblyUri &&
+                                    interface ==
+                                        "xyz.openbmc_project.Inventory."
+                                        "Item.Chassis")
+                                {
+                                    assemblyParent = std::make_tuple(
+                                        service.first,
+                                        sdbusplus::message::object_path(
+                                            obj.first),
+                                        interface);
+                                }
+                                break;
+                            }
+                        }
+                        if (foundAncestor)
+                        {
+                            break;
+                        }
+                    }
+                    if (foundAncestor)
+                    {
+                        break;
+                    }
                 }
-                else
-                {
-                    asyncResp->res.jsonValue["Links"]["OriginOfCondition"] = {
-                        {"@odata.id", redfishUri}};
-                }
-                return;
-            }
 
-            bool isChassisAssemblyUri = false;
-            std::string::size_type assemblyStartPos =
-                redfishUri.rfind("/Assembly#/Assemblies");
-            if (assemblyStartPos != std::string::npos)
-            {
-                // Redfish URI using path segment like DBus object path
-                // so using object_path type
-                if (sdbusplus::message::object_path(
-                        redfishUri.substr(0, assemblyStartPos))
-                        .parent_path()
-                        .filename() != "Chassis")
-                {
-                    // Currently, bmcweb supporting only chassis
-                    // assembly uri so return error if unsupported
-                    // assembly uri added in the redfishUriList.
-                    BMCWEB_LOG_ERROR << "Unsupported Assembly URI ["
-                                     << redfishUri
-                                     << "] to fill in the OriginOfCondition. "
-                                     << "Please add support in the bmcweb";
-                    messages::internalError(asyncResp->res);
-                    return;
-                }
-                isChassisAssemblyUri = true;
-            }
-
-            // Fill the all parents Redfish URI id.
-            // For example, the processors id for the core.
-            // "/redfish/v1/Systems/system/Processors/<str>/SubProcessors/core0"
-            std::vector<std::pair<RedfishResourceDBusInterfaces, size_t>>
-                ancestorsIfaces;
-            while (uriIdPos != std::string::npos)
-            {
-                std::string parentRedfishUri =
-                    redfishUri.substr(0, uriIdPos - 1);
-                RedfishUriListType::const_iterator parentRedfishUriIt =
-                    std::find_if(redfishUriList.begin(), redfishUriList.end(),
-                                 [parentRedfishUri](const auto& ele) {
-                                     return parentRedfishUri == ele.second;
-                                 });
-
-                if (parentRedfishUriIt == redfishUriList.end())
+                if (!foundAncestor)
                 {
                     BMCWEB_LOG_ERROR
                         << "Failed to fill Links:OriginOfCondition "
-                        << "because unable to get parent Redfish URI "
-                        << "[" << parentRedfishUri << "]"
-                        << "DBus interface for the identified "
-                        << "Redfish URI: " << redfishUri
+                        << "because unable to get parent DBus path "
+                        << "for the identified parent interface : "
+                        << ancestorIface.first
                         << " of the given DBus object path: "
                         << dbusObjPath.str;
                     messages::internalError(asyncResp->res);
                     return;
                 }
-                ancestorsIfaces.emplace_back(
-                    std::make_pair(parentRedfishUriIt->first, uriIdPos));
-                uriIdPos = redfishUri.rfind(uriIdPattern,
-                                            uriIdPos - uriIdPattern.length());
             }
 
-            // GetAncestors only accepts "as" for the interface list
-            std::vector<RedfishResourceDBusInterfaces> ancestorsIfacesOnly;
-            std::transform(
-                ancestorsIfaces.begin(), ancestorsIfaces.end(),
-                std::back_inserter(ancestorsIfacesOnly),
-                [](const std::pair<RedfishResourceDBusInterfaces, size_t>& p) {
-                    return p.first;
-                });
+            if (entryJsonIdx > 0)
+            {
+                asyncResp->res.jsonValue["Members"][entryJsonIdx - 1]["Links"]
+                                        ["OriginOfCondition"] = {
+                    {"@odata.id", redfishUri}};
 
-            crow::connections::systemBus->async_method_call(
-                [asyncResp, dbusObjPath, entryJsonIdx, redfishUri, uriIdPos,
-                 uriIdPattern, ancestorsIfaces, isChassisAssemblyUri](
-                    const boost::system::error_code ec1,
-                    const boost::container::flat_map<
-                        std::string,
-                        boost::container::flat_map<std::string,
-                                                   std::vector<std::string>>>&
-                        ancestors) mutable {
-                    if (ec1)
-                    {
-                        BMCWEB_LOG_ERROR
-                            << "DBUS response error [" << ec1.value() << " : "
-                            << ec1.message()
-                            << "] when tried to fill the parent "
-                            << "objects id in the RedfishURI: " << redfishUri
-                            << " of the isolated hareware: " << dbusObjPath.str;
-                        messages::internalError(asyncResp->res);
-                        return;
-                    }
+                if (isChassisAssemblyUri)
+                {
+                    auto uriPropPath = "/Members"_json_pointer;
+                    uriPropPath /= entryJsonIdx - 1;
+                    uriPropPath /= "Links";
+                    uriPropPath /= "OriginOfCondition";
+                    uriPropPath /= "@odata.id";
 
-                    // tuple: assembly parent service name, object path, and
-                    // interface
-                    std::tuple<std::string, sdbusplus::message::object_path,
-                               std::string>
-                        assemblyParent;
-                    for (const auto& ancestorIface : ancestorsIfaces)
-                    {
-                        bool foundAncestor = false;
-                        for (const auto& obj : ancestors)
-                        {
-                            for (const auto& service : obj.second)
-                            {
-                                for (const auto& interface : service.second)
-                                {
-                                    if (interface == ancestorIface.first)
-                                    {
-                                        foundAncestor = true;
-                                        redfishUri.replace(
-                                            ancestorIface.second,
-                                            uriIdPattern.length(),
-                                            getIsolatedHwItemId(
-                                                sdbusplus::message::object_path(
-                                                    obj.first)));
-                                        if (isChassisAssemblyUri &&
-                                            interface ==
-                                                "xyz.openbmc_project.Inventory."
-                                                "Item.Chassis")
-                                        {
-                                            assemblyParent = std::make_tuple(
-                                                service.first,
-                                                sdbusplus::message::object_path(
-                                                    obj.first),
-                                                interface);
-                                        }
-                                        break;
-                                    }
-                                }
-                                if (foundAncestor)
-                                {
-                                    break;
-                                }
-                            }
-                            if (foundAncestor)
-                            {
-                                break;
-                            }
-                        }
+                    assembly::fillWithAssemblyId(
+                        asyncResp, std::get<0>(assemblyParent),
+                        std::get<1>(assemblyParent),
+                        std::get<2>(assemblyParent), uriPropPath, dbusObjPath,
+                        redfishUri);
+                }
+            }
+            else
+            {
+                asyncResp->res.jsonValue["Links"]["OriginOfCondition"] = {
+                    {"@odata.id", redfishUri}};
 
-                        if (!foundAncestor)
-                        {
-                            BMCWEB_LOG_ERROR
-                                << "Failed to fill Links:OriginOfCondition "
-                                << "because unable to get parent DBus path "
-                                << "for the identified parent interface : "
-                                << ancestorIface.first
-                                << " of the given DBus object path: "
-                                << dbusObjPath.str;
-                            messages::internalError(asyncResp->res);
-                            return;
-                        }
-                    }
+                if (isChassisAssemblyUri)
+                {
+                    auto uriPropPath = "/Links"_json_pointer;
+                    uriPropPath /= "OriginOfCondition";
 
-                    if (entryJsonIdx > 0)
-                    {
-                        asyncResp->res.jsonValue["Members"][entryJsonIdx - 1]
-                                                ["Links"]["OriginOfCondition"] =
-                            {{"@odata.id", redfishUri}};
-
-                        if (isChassisAssemblyUri)
-                        {
-                            auto uriPropPath = "/Members"_json_pointer;
-                            uriPropPath /= entryJsonIdx - 1;
-                            uriPropPath /= "Links";
-                            uriPropPath /= "OriginOfCondition";
-                            uriPropPath /= "@odata.id";
-
-                            assembly::fillWithAssemblyId(
-                                asyncResp, std::get<0>(assemblyParent),
-                                std::get<1>(assemblyParent),
-                                std::get<2>(assemblyParent), uriPropPath,
-                                dbusObjPath, redfishUri);
-                        }
-                    }
-                    else
-                    {
-                        asyncResp->res.jsonValue["Links"]["OriginOfCondition"] =
-                            {{"@odata.id", redfishUri}};
-
-                        if (isChassisAssemblyUri)
-                        {
-                            auto uriPropPath = "/Links"_json_pointer;
-                            uriPropPath /= "OriginOfCondition";
-                            uriPropPath /= "@odata.id";
-
-                            assembly::fillWithAssemblyId(
-                                asyncResp, std::get<0>(assemblyParent),
-                                std::get<1>(assemblyParent),
-                                std::get<2>(assemblyParent), uriPropPath,
-                                dbusObjPath, redfishUri);
-                        }
-                    }
-                },
-                "xyz.openbmc_project.ObjectMapper",
-                "/xyz/openbmc_project/object_mapper",
-                "xyz.openbmc_project.ObjectMapper", "GetAncestors",
-                dbusObjPath.str, ancestorsIfacesOnly);
+                    assembly::fillWithAssemblyId(
+                        asyncResp, std::get<0>(assemblyParent),
+                        std::get<1>(assemblyParent),
+                        std::get<2>(assemblyParent), uriPropPath, dbusObjPath,
+                        redfishUri);
+                }
+            }
+            },
+            "xyz.openbmc_project.ObjectMapper",
+            "/xyz/openbmc_project/object_mapper",
+            "xyz.openbmc_project.ObjectMapper", "GetAncestors", dbusObjPath.str,
+            ancestorsIfacesOnly);
         },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
@@ -5783,52 +5776,51 @@ inline void getPrettyNameByDbusObjPath(
         [asyncResp, dbusObjPath,
          entryJsonIdx](const boost::system::error_code ec,
                        const dbus::utility::MapperGetObject& objType) mutable {
-            if (ec || objType.empty())
-            {
-                BMCWEB_LOG_ERROR << "DBUS response error [" << ec.value()
-                                 << " : " << ec.message()
-                                 << "] when tried to get the dbus name"
-                                    "of isolated hareware: "
-                                 << dbusObjPath.str;
-                messages::internalError(asyncResp->res);
-                return;
-            }
+        if (ec || objType.empty())
+        {
+            BMCWEB_LOG_ERROR << "DBUS response error [" << ec.value() << " : "
+                             << ec.message()
+                             << "] when tried to get the dbus name"
+                                "of isolated hareware: "
+                             << dbusObjPath.str;
+            messages::internalError(asyncResp->res);
+            return;
+        }
 
-            if (objType.size() > 1)
-            {
-                BMCWEB_LOG_ERROR << "More than one dbus service implemented "
-                                    "the xyz.openbmc_project.Inventory.Item "
-                                    "interface to get the PrettyName";
-                messages::internalError(asyncResp->res);
-                return;
-            }
+        if (objType.size() > 1)
+        {
+            BMCWEB_LOG_ERROR << "More than one dbus service implemented "
+                                "the xyz.openbmc_project.Inventory.Item "
+                                "interface to get the PrettyName";
+            messages::internalError(asyncResp->res);
+            return;
+        }
 
-            if (objType[0].first.empty())
-            {
-                BMCWEB_LOG_ERROR << "The retrieved dbus name is empty for the "
-                                    "given dbus object: "
-                                 << dbusObjPath.str;
-                messages::internalError(asyncResp->res);
-                return;
-            }
+        if (objType[0].first.empty())
+        {
+            BMCWEB_LOG_ERROR << "The retrieved dbus name is empty for the "
+                                "given dbus object: "
+                             << dbusObjPath.str;
+            messages::internalError(asyncResp->res);
+            return;
+        }
 
-            if (entryJsonIdx > 0)
-            {
-                asyncResp->res
-                    .jsonValue["Members"][entryJsonIdx - 1]["Message"] =
-                    dbusObjPath.filename();
-                auto msgPropPath = "/Members"_json_pointer;
-                msgPropPath /= entryJsonIdx - 1;
-                msgPropPath /= "Message";
-                name_util::getPrettyName(asyncResp, dbusObjPath.str, objType,
-                                         msgPropPath);
-            }
-            else
-            {
-                asyncResp->res.jsonValue["Message"] = dbusObjPath.filename();
-                name_util::getPrettyName(asyncResp, dbusObjPath.str, objType,
-                                         "/Message"_json_pointer);
-            }
+        if (entryJsonIdx > 0)
+        {
+            asyncResp->res.jsonValue["Members"][entryJsonIdx - 1]["Message"] =
+                dbusObjPath.filename();
+            auto msgPropPath = "/Members"_json_pointer;
+            msgPropPath /= entryJsonIdx - 1;
+            msgPropPath /= "Message";
+            name_util::getPrettyName(asyncResp, dbusObjPath.str, objType,
+                                     msgPropPath);
+        }
+        else
+        {
+            asyncResp->res.jsonValue["Message"] = dbusObjPath.filename();
+            name_util::getPrettyName(asyncResp, dbusObjPath.str, objType,
+                                     "/Message"_json_pointer);
+        }
         },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
@@ -5965,8 +5957,8 @@ inline void fillSystemHardwareIsolationLogEntry(
                         messages::internalError(asyncResp->res);
                         break;
                     }
-                    entryJson["Created"] = redfish::time_utils::getDateTimeUint(
-                        (*elapsdTime));
+                    entryJson["Created"] =
+                        redfish::time_utils::getDateTimeUint((*elapsdTime));
                 }
             }
         }
@@ -6053,9 +6045,9 @@ inline void getSystemHardwareIsolationLogEntryCollection(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
 
-    auto getManagedObjectsHandler = [asyncResp](
-                                        const boost::system::error_code ec,
-                                        const GetManagedObjectsType& mgtObjs) {
+    auto getManagedObjectsHandler =
+        [asyncResp](const boost::system::error_code ec,
+                    const GetManagedObjectsType& mgtObjs) {
         if (ec)
         {
             BMCWEB_LOG_ERROR
@@ -6100,39 +6092,40 @@ inline void getSystemHardwareIsolationLogEntryCollection(
     // Get the DBus name of HardwareIsolation service
     crow::connections::systemBus->async_method_call(
         [asyncResp, getManagedObjectsHandler](
-            const boost::system::error_code ec, const dbus::utility::MapperGetObject& objType) {
-            if (ec || objType.empty())
-            {
-                BMCWEB_LOG_ERROR << "DBUS response error [" << ec.value()
-                                 << " : " << ec.message()
-                                 << "] when tried to get the HardwareIsolation "
-                                    "dbus name";
-                messages::internalError(asyncResp->res);
-                return;
-            }
+            const boost::system::error_code ec,
+            const dbus::utility::MapperGetObject& objType) {
+        if (ec || objType.empty())
+        {
+            BMCWEB_LOG_ERROR << "DBUS response error [" << ec.value() << " : "
+                             << ec.message()
+                             << "] when tried to get the HardwareIsolation "
+                                "dbus name";
+            messages::internalError(asyncResp->res);
+            return;
+        }
 
-            if (objType.size() > 1)
-            {
-                BMCWEB_LOG_ERROR << "More than one dbus service implemented "
-                                    "the HardwareIsolation service";
-                messages::internalError(asyncResp->res);
-                return;
-            }
+        if (objType.size() > 1)
+        {
+            BMCWEB_LOG_ERROR << "More than one dbus service implemented "
+                                "the HardwareIsolation service";
+            messages::internalError(asyncResp->res);
+            return;
+        }
 
-            if (objType[0].first.empty())
-            {
-                BMCWEB_LOG_ERROR << "The retrieved HardwareIsolation dbus "
-                                    "name is empty";
-                messages::internalError(asyncResp->res);
-                return;
-            }
+        if (objType[0].first.empty())
+        {
+            BMCWEB_LOG_ERROR << "The retrieved HardwareIsolation dbus "
+                                "name is empty";
+            messages::internalError(asyncResp->res);
+            return;
+        }
 
-            // Fill the Redfish LogEntry schema for the retrieved
-            // HardwareIsolation entries
-            crow::connections::systemBus->async_method_call(
-                getManagedObjectsHandler, objType[0].first,
-                "/xyz/openbmc_project/hardware_isolation",
-                "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
+        // Fill the Redfish LogEntry schema for the retrieved
+        // HardwareIsolation entries
+        crow::connections::systemBus->async_method_call(
+            getManagedObjectsHandler, objType[0].first,
+            "/xyz/openbmc_project/hardware_isolation",
+            "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
         },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
@@ -6164,10 +6157,9 @@ inline void getSystemHardwareIsolationLogEntryById(
         std::string("/xyz/openbmc_project/hardware_isolation/entry") + "/" +
         entryId);
 
-    auto getManagedObjectsRespHandler = [asyncResp, entryObjPath](
-                                            const boost::system::error_code ec,
-                                            const GetManagedObjectsType&
-                                                mgtObjs) {
+    auto getManagedObjectsRespHandler =
+        [asyncResp, entryObjPath](const boost::system::error_code ec,
+                                  const GetManagedObjectsType& mgtObjs) {
         if (ec)
         {
             BMCWEB_LOG_ERROR
@@ -6198,10 +6190,10 @@ inline void getSystemHardwareIsolationLogEntryById(
         }
     };
 
-    auto getObjectRespHandler = [asyncResp, entryId, entryObjPath,
-                                 getManagedObjectsRespHandler](
-                                    const boost::system::error_code ec,
-                                    const dbus::utility::MapperGetObject& objType) {
+    auto getObjectRespHandler =
+        [asyncResp, entryId, entryObjPath, getManagedObjectsRespHandler](
+            const boost::system::error_code ec,
+            const dbus::utility::MapperGetObject& objType) {
         if (ec || objType.empty())
         {
             BMCWEB_LOG_ERROR << "DBUS response error [" << ec.value() << " : "
@@ -6273,93 +6265,90 @@ inline void deleteSystemHardwareIsolationLogEntryById(
     // Make sure the given entry id is present in hardware isolation
     // entries and get the DBus name of that entry
     crow::connections::systemBus->async_method_call(
-        [asyncResp, entryId, entryObjPath](const boost::system::error_code ec,
-                                           const dbus::utility::MapperGetObject& objType) {
-            if (ec || objType.empty())
+        [asyncResp, entryId,
+         entryObjPath](const boost::system::error_code ec,
+                       const dbus::utility::MapperGetObject& objType) {
+        if (ec || objType.empty())
+        {
+            BMCWEB_LOG_ERROR << "DBUS response error [" << ec.value() << " : "
+                             << ec.message()
+                             << "] when tried to get the HardwareIsolation "
+                                "dbus name the given object path: "
+                             << entryObjPath.str;
+            if (ec.value() == EBADR)
             {
-                BMCWEB_LOG_ERROR << "DBUS response error [" << ec.value()
-                                 << " : " << ec.message()
-                                 << "] when tried to get the HardwareIsolation "
-                                    "dbus name the given object path: "
-                                 << entryObjPath.str;
-                if (ec.value() == EBADR)
-                {
-                    messages::resourceNotFound(asyncResp->res, "Entry",
-                                               entryId);
-                }
-                else
-                {
-                    messages::internalError(asyncResp->res);
-                }
+                messages::resourceNotFound(asyncResp->res, "Entry", entryId);
+            }
+            else
+            {
+                messages::internalError(asyncResp->res);
+            }
+            return;
+        }
+
+        if (objType.size() > 1)
+        {
+            BMCWEB_LOG_ERROR << "More than one dbus service implemented "
+                                "the HardwareIsolation service";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        if (objType[0].first.empty())
+        {
+            BMCWEB_LOG_ERROR << "The retrieved HardwareIsolation dbus "
+                                "name is empty";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        // Delete the respective dbus entry object
+        crow::connections::systemBus->async_method_call(
+            [asyncResp, entryObjPath](const boost::system::error_code ec1,
+                                      const sdbusplus::message::message& msg) {
+            if (!ec1)
+            {
+                messages::success(asyncResp->res);
                 return;
             }
 
-            if (objType.size() > 1)
+            BMCWEB_LOG_ERROR << "DBUS response error [" << ec1.value() << " : "
+                             << ec1.message()
+                             << "] when tried to delete the given "
+                             << "entry: " << entryObjPath.str;
+
+            const sd_bus_error* dbusError = msg.get_error();
+
+            if (dbusError == nullptr)
             {
-                BMCWEB_LOG_ERROR << "More than one dbus service implemented "
-                                    "the HardwareIsolation service";
                 messages::internalError(asyncResp->res);
                 return;
             }
 
-            if (objType[0].first.empty())
+            BMCWEB_LOG_ERROR << "DBus ErrorName: " << dbusError->name
+                             << " ErrorMsg: " << dbusError->message;
+
+            if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
+                                        "NotAllowed") == 0)
             {
-                BMCWEB_LOG_ERROR << "The retrieved HardwareIsolation dbus "
-                                    "name is empty";
-                messages::internalError(asyncResp->res);
-                return;
+                messages::chassisPowerStateOffRequired(asyncResp->res,
+                                                       "chassis");
             }
-
-            // Delete the respective dbus entry object
-            crow::connections::systemBus->async_method_call(
-                [asyncResp,
-                 entryObjPath](const boost::system::error_code ec1,
-                               const sdbusplus::message::message& msg) {
-                    if (!ec1)
-                    {
-                        messages::success(asyncResp->res);
-                        return;
-                    }
-
-                    BMCWEB_LOG_ERROR << "DBUS response error [" << ec1.value()
-                                     << " : " << ec1.message()
-                                     << "] when tried to delete the given "
-                                     << "entry: " << entryObjPath.str;
-
-                    const sd_bus_error* dbusError = msg.get_error();
-
-                    if (dbusError == nullptr)
-                    {
-                        messages::internalError(asyncResp->res);
-                        return;
-                    }
-
-                    BMCWEB_LOG_ERROR << "DBus ErrorName: " << dbusError->name
-                                     << " ErrorMsg: " << dbusError->message;
-
-                    if (strcmp(dbusError->name,
-                               "xyz.openbmc_project.Common.Error."
-                               "NotAllowed") == 0)
-                    {
-                        messages::chassisPowerStateOffRequired(asyncResp->res,
-                                                               "chassis");
-                    }
-                    else if (strcmp(dbusError->name,
-                                    "xyz.openbmc_project.Common.Error."
-                                    "InsufficientPermission") == 0)
-                    {
-                        messages::resourceCannotBeDeleted(asyncResp->res);
-                    }
-                    else
-                    {
-                        BMCWEB_LOG_ERROR << "DBus Error is unsupported so "
-                                            "returning as Internal Error";
-                        messages::internalError(asyncResp->res);
-                    }
-                    return;
-                },
-                objType[0].first, entryObjPath.str,
-                "xyz.openbmc_project.Object.Delete", "Delete");
+            else if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
+                                             "InsufficientPermission") == 0)
+            {
+                messages::resourceCannotBeDeleted(asyncResp->res);
+            }
+            else
+            {
+                BMCWEB_LOG_ERROR << "DBus Error is unsupported so "
+                                    "returning as Internal Error";
+                messages::internalError(asyncResp->res);
+            }
+            return;
+            },
+            objType[0].first, entryObjPath.str,
+            "xyz.openbmc_project.Object.Delete", "Delete");
         },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
@@ -6383,76 +6372,74 @@ inline void postSystemHardwareIsolationLogServiceClearLog(
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code ec,
                     const dbus::utility::MapperGetObject& objType) {
-            if (ec || objType.empty())
+        if (ec || objType.empty())
+        {
+            BMCWEB_LOG_ERROR << "DBUS response error [" << ec.value() << " : "
+                             << ec.message()
+                             << "] when tried to get the HardwareIsolation "
+                                "dbus name";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        if (objType.size() > 1)
+        {
+            BMCWEB_LOG_ERROR << "More than one dbus service implemented "
+                                "the HardwareIsolation service";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        if (objType[0].first.empty())
+        {
+            BMCWEB_LOG_ERROR << "The retrieved HardwareIsolation dbus "
+                                "name is empty";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        // Delete all HardwareIsolation entries
+        crow::connections::systemBus->async_method_call(
+            [asyncResp](const boost::system::error_code ec1,
+                        const sdbusplus::message::message& msg) {
+            if (!ec1)
             {
-                BMCWEB_LOG_ERROR << "DBUS response error [" << ec.value()
-                                 << " : " << ec.message()
-                                 << "] when tried to get the HardwareIsolation "
-                                    "dbus name";
+                messages::success(asyncResp->res);
+                return;
+            }
+
+            BMCWEB_LOG_ERROR << "DBUS response error [" << ec1.value() << " : "
+                             << ec1.message()
+                             << "] when tried to delete all HardwareIsolation "
+                                "entries";
+
+            const sd_bus_error* dbusError = msg.get_error();
+
+            if (dbusError == nullptr)
+            {
                 messages::internalError(asyncResp->res);
                 return;
             }
 
-            if (objType.size() > 1)
+            BMCWEB_LOG_ERROR << "DBus ErrorName: " << dbusError->name
+                             << " ErrorMsg: " << dbusError->message;
+
+            if (strcmp(dbusError->name, "xyz.openbmc_project.Common.Error."
+                                        "NotAllowed") == 0)
             {
-                BMCWEB_LOG_ERROR << "More than one dbus service implemented "
-                                    "the HardwareIsolation service";
-                messages::internalError(asyncResp->res);
-                return;
+                messages::chassisPowerStateOffRequired(asyncResp->res,
+                                                       "chassis");
             }
-
-            if (objType[0].first.empty())
+            else
             {
-                BMCWEB_LOG_ERROR << "The retrieved HardwareIsolation dbus "
-                                    "name is empty";
+                BMCWEB_LOG_ERROR << "DBus Error is unsupported so "
+                                    "returning as Internal Error";
                 messages::internalError(asyncResp->res);
-                return;
             }
-
-            // Delete all HardwareIsolation entries
-            crow::connections::systemBus->async_method_call(
-                [asyncResp](const boost::system::error_code ec1,
-                            const sdbusplus::message::message& msg) {
-                    if (!ec1)
-                    {
-                        messages::success(asyncResp->res);
-                        return;
-                    }
-
-                    BMCWEB_LOG_ERROR
-                        << "DBUS response error [" << ec1.value() << " : "
-                        << ec1.message()
-                        << "] when tried to delete all HardwareIsolation "
-                           "entries";
-
-                    const sd_bus_error* dbusError = msg.get_error();
-
-                    if (dbusError == nullptr)
-                    {
-                        messages::internalError(asyncResp->res);
-                        return;
-                    }
-
-                    BMCWEB_LOG_ERROR << "DBus ErrorName: " << dbusError->name
-                                     << " ErrorMsg: " << dbusError->message;
-
-                    if (strcmp(dbusError->name,
-                               "xyz.openbmc_project.Common.Error."
-                               "NotAllowed") == 0)
-                    {
-                        messages::chassisPowerStateOffRequired(asyncResp->res,
-                                                               "chassis");
-                    }
-                    else
-                    {
-                        BMCWEB_LOG_ERROR << "DBus Error is unsupported so "
-                                            "returning as Internal Error";
-                        messages::internalError(asyncResp->res);
-                    }
-                    return;
-                },
-                objType[0].first, "/xyz/openbmc_project/hardware_isolation",
-                "xyz.openbmc_project.Collection.DeleteAll", "DeleteAll");
+            return;
+            },
+            objType[0].first, "/xyz/openbmc_project/hardware_isolation",
+            "xyz.openbmc_project.Collection.DeleteAll", "DeleteAll");
         },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",

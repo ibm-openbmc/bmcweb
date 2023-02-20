@@ -943,167 +943,158 @@ inline void fillWithAssemblyId(
         [aResp, assemblyUriPropPath, assemblyParentObjPath, assembledObjPath,
          assembledUriVal](const boost::system::error_code ec,
                           const std::variant<associationList>& associations) {
-            if (ec)
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR
+                << "DBUS response error [" << ec.value() << " : "
+                << ec.message() << "] when tried to get the Associations from ["
+                << assemblyParentObjPath.str
+                << "] to fill Assembly id of the assembled object ["
+                << assembledObjPath.str << "]";
+            messages::internalError(aResp->res);
+            return;
+        }
+
+        const associationList* value =
+            std::get_if<associationList>(&associations);
+        if (value == nullptr)
+        {
+            BMCWEB_LOG_ERROR
+                << "Failed to get the Associations from ["
+                << assemblyParentObjPath.str
+                << "] to fill Assembly id of the assembled object ["
+                << assembledObjPath.str << "]";
+            messages::internalError(aResp->res);
+            return;
+        }
+
+        std::vector<std::string> assemblyAssoc;
+        for (const auto& association : *value)
+        {
+            if (std::get<0>(association) != "assembly")
             {
-                BMCWEB_LOG_ERROR
-                    << "DBUS response error [" << ec.value() << " : "
-                    << ec.message()
-                    << "] when tried to get the Associations from ["
-                    << assemblyParentObjPath.str
-                    << "] to fill Assembly id of the assembled object ["
-                    << assembledObjPath.str << "]";
+                continue;
+            }
+            assemblyAssoc.emplace_back(std::get<2>(association));
+        }
+
+        if (assemblyAssoc.empty())
+        {
+            BMCWEB_LOG_ERROR
+                << "No assembly associations in the ["
+                << assemblyParentObjPath.str
+                << "] to fill Assembly id of the assembled object ["
+                << assembledObjPath.str << "]";
+            messages::internalError(aResp->res);
+            return;
+        }
+
+        // Mak sure whether the retrieved assembly associations are
+        // implemented before finding the assembly id as per bmcweb
+        // Assembly design.
+        crow::connections::systemBus->async_method_call(
+            [aResp, assemblyUriPropPath, assemblyParentObjPath,
+             assembledObjPath, assemblyAssoc, assembledUriVal](
+                const boost::system::error_code ec1,
+                const std::vector<std::pair<
+                    std::string, std::vector<std::pair<
+                                     std::string, std::vector<std::string>>>>>&
+                    objects) {
+            if (ec1)
+            {
+                BMCWEB_LOG_ERROR << "DBUS response error [" << ec1.value()
+                                 << " : " << ec1.message()
+                                 << "] when tried to get the subtree to check "
+                                 << "assembled objects implementation of the ["
+                                 << assemblyParentObjPath.str
+                                 << "] to find assembled object id of the ["
+                                 << assembledObjPath.str
+                                 << "] to fill in the URI property";
                 messages::internalError(aResp->res);
                 return;
             }
 
-            const associationList* value =
-                std::get_if<associationList>(&associations);
-            if (value == nullptr)
+            if (objects.empty())
             {
                 BMCWEB_LOG_ERROR
-                    << "Failed to get the Associations from ["
-                    << assemblyParentObjPath.str
-                    << "] to fill Assembly id of the assembled object ["
-                    << assembledObjPath.str << "]";
+                    << "No objects in the [" << assemblyParentObjPath.str
+                    << "] to check assembled objects implementation "
+                    << "to fill the assembled object [ " << assembledObjPath.str
+                    << "] id in the URI property";
                 messages::internalError(aResp->res);
                 return;
             }
 
-            std::vector<std::string> assemblyAssoc;
-            for (const auto& association : *value)
+            std::vector<std::string> implAssemblyAssocs;
+            for (const auto& object : objects)
             {
-                if (std::get<0>(association) != "assembly")
+                auto it = std::find(assemblyAssoc.begin(), assemblyAssoc.end(),
+                                    object.first);
+                if (it != assemblyAssoc.end())
                 {
-                    continue;
+                    implAssemblyAssocs.emplace_back(*it);
                 }
-                assemblyAssoc.emplace_back(std::get<2>(association));
             }
 
-            if (assemblyAssoc.empty())
+            if (implAssemblyAssocs.empty())
             {
                 BMCWEB_LOG_ERROR
-                    << "No assembly associations in the ["
-                    << assemblyParentObjPath.str
-                    << "] to fill Assembly id of the assembled object ["
-                    << assembledObjPath.str << "]";
+                    << "The assembled objects of the ["
+                    << assemblyParentObjPath.str << "] are not implemented so "
+                    << "unable to fill the assembled object [ "
+                    << assembledObjPath.str << "] id in the URI property";
                 messages::internalError(aResp->res);
                 return;
             }
 
-            // Mak sure whether the retrieved assembly associations are
-            // implemented before finding the assembly id as per bmcweb
-            // Assembly design.
-            crow::connections::systemBus->async_method_call(
-                [aResp, assemblyUriPropPath, assemblyParentObjPath,
-                 assembledObjPath, assemblyAssoc, assembledUriVal](
-                    const boost::system::error_code ec1,
-                    const std::vector<
-                        std::pair<std::string,
-                                  std::vector<std::pair<
-                                      std::string, std::vector<std::string>>>>>&
-                        objects) {
-                    if (ec1)
-                    {
-                        BMCWEB_LOG_ERROR
-                            << "DBUS response error [" << ec1.value() << " : "
-                            << ec1.message()
-                            << "] when tried to get the subtree to check "
-                            << "assembled objects implementation of the ["
-                            << assemblyParentObjPath.str
-                            << "] to find assembled object id of the ["
-                            << assembledObjPath.str
-                            << "] to fill in the URI property";
-                        messages::internalError(aResp->res);
-                        return;
-                    }
+            // sort the implemented assemply object as per bmcweb design
+            // to match with Assembly GET and PATCH handler.
+            std::sort(implAssemblyAssocs.begin(), implAssemblyAssocs.end());
 
-                    if (objects.empty())
-                    {
-                        BMCWEB_LOG_ERROR
-                            << "No objects in the ["
-                            << assemblyParentObjPath.str
-                            << "] to check assembled objects implementation "
-                            << "to fill the assembled object [ "
-                            << assembledObjPath.str
-                            << "] id in the URI property";
-                        messages::internalError(aResp->res);
-                        return;
-                    }
+            auto assembledObjectIt =
+                std::find(implAssemblyAssocs.begin(), implAssemblyAssocs.end(),
+                          assembledObjPath.str);
 
-                    std::vector<std::string> implAssemblyAssocs;
-                    for (const auto& object : objects)
-                    {
-                        auto it = std::find(assemblyAssoc.begin(),
-                                            assemblyAssoc.end(), object.first);
-                        if (it != assemblyAssoc.end())
-                        {
-                            implAssemblyAssocs.emplace_back(*it);
-                        }
-                    }
+            if (assembledObjectIt == implAssemblyAssocs.end())
+            {
+                BMCWEB_LOG_ERROR << "The assembled object ["
+                                 << assembledObjPath.str << "] in the object ["
+                                 << assemblyParentObjPath.str
+                                 << "] is not implemented so unable to fill "
+                                 << "assembled object id in the URI property";
+                messages::internalError(aResp->res);
+                return;
+            }
 
-                    if (implAssemblyAssocs.empty())
-                    {
-                        BMCWEB_LOG_ERROR
-                            << "The assembled objects of the ["
-                            << assemblyParentObjPath.str
-                            << "] are not implemented so "
-                            << "unable to fill the assembled object [ "
-                            << assembledObjPath.str
-                            << "] id in the URI property";
-                        messages::internalError(aResp->res);
-                        return;
-                    }
+            auto assembledObjectId =
+                std::distance(implAssemblyAssocs.begin(), assembledObjectIt);
 
-                    // sort the implemented assemply object as per bmcweb design
-                    // to match with Assembly GET and PATCH handler.
-                    std::sort(implAssemblyAssocs.begin(),
-                              implAssemblyAssocs.end());
+            std::string::size_type assembledObjectNamePos =
+                assembledUriVal.rfind(assembledObjPath.filename());
 
-                    auto assembledObjectIt = std::find(
-                        implAssemblyAssocs.begin(), implAssemblyAssocs.end(),
-                        assembledObjPath.str);
+            if (assembledObjectNamePos == std::string::npos)
+            {
+                BMCWEB_LOG_ERROR << "The assembled object name ["
+                                 << assembledObjPath.filename() << "] is not "
+                                 << "found in the redfish property value ["
+                                 << assembledUriVal
+                                 << "] to replace with assembled object id ["
+                                 << assembledObjectId << "]";
+                messages::internalError(aResp->res);
+                return;
+            }
+            std::string uriValwithId(assembledUriVal);
+            uriValwithId.replace(assembledObjectNamePos,
+                                 assembledObjPath.filename().length(),
+                                 std::to_string(assembledObjectId));
 
-                    if (assembledObjectIt == implAssemblyAssocs.end())
-                    {
-                        BMCWEB_LOG_ERROR
-                            << "The assembled object [" << assembledObjPath.str
-                            << "] in the object [" << assemblyParentObjPath.str
-                            << "] is not implemented so unable to fill "
-                            << "assembled object id in the URI property";
-                        messages::internalError(aResp->res);
-                        return;
-                    }
-
-                    auto assembledObjectId = std::distance(
-                        implAssemblyAssocs.begin(), assembledObjectIt);
-
-                    std::string::size_type assembledObjectNamePos =
-                        assembledUriVal.rfind(assembledObjPath.filename());
-
-                    if (assembledObjectNamePos == std::string::npos)
-                    {
-                        BMCWEB_LOG_ERROR
-                            << "The assembled object name ["
-                            << assembledObjPath.filename() << "] is not "
-                            << "found in the redfish property value ["
-                            << assembledUriVal
-                            << "] to replace with assembled object id ["
-                            << assembledObjectId << "]";
-                        messages::internalError(aResp->res);
-                        return;
-                    }
-                    std::string uriValwithId(assembledUriVal);
-                    uriValwithId.replace(assembledObjectNamePos,
-                                         assembledObjPath.filename().length(),
-                                         std::to_string(assembledObjectId));
-
-                    aResp->res.jsonValue[assemblyUriPropPath] = uriValwithId;
-                },
-                "xyz.openbmc_project.ObjectMapper",
-                "/xyz/openbmc_project/object_mapper",
-                "xyz.openbmc_project.ObjectMapper", "GetSubTree",
-                "/xyz/openbmc_project/inventory", int32_t(0),
-                chassisAssemblyIfaces);
+            aResp->res.jsonValue[assemblyUriPropPath] = uriValwithId;
+            },
+            "xyz.openbmc_project.ObjectMapper",
+            "/xyz/openbmc_project/object_mapper",
+            "xyz.openbmc_project.ObjectMapper", "GetSubTree",
+            "/xyz/openbmc_project/inventory", int32_t(0),
+            chassisAssemblyIfaces);
         },
         assemblyParentServ, assemblyParentObjPath.str,
         "org.freedesktop.DBus.Properties", "Get",
