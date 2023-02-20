@@ -32,6 +32,8 @@ namespace redfish
 
 static constexpr char const* pcieDeviceInterface =
     "xyz.openbmc_project.Inventory.Item.PCIeDevice";
+static constexpr char const* pcieSlotInterface =
+    "xyz.openbmc_project.Inventory.Item.PCIeSlot";
 
 static inline void
     getPCIeDeviceList(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -72,6 +74,205 @@ static inline void
     };
     crow::connections::systemBus->async_method_call(
         std::move(getPCIeMapCallback), "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
+        "/xyz/openbmc_project/inventory", 0,
+        std::array<const char*, 1>{pcieDeviceInterface});
+}
+
+/**
+ * @brief Fill PCIeDevice Status and Health based on PCIeSlot Link Status
+ * @param[in,out]   resp        HTTP response.
+ * @param[in]       linkStatus  PCIeSlot Link Status.
+ */
+static inline void fillPcieDeviceStatus(crow::Response& resp,
+                                        const std::string& linkStatus)
+{
+    if (linkStatus ==
+        "xyz.openbmc_project.Inventory.Item.PCIeSlot.Status.Operational")
+    {
+        resp.jsonValue["Status"]["State"] = "Enabled";
+        resp.jsonValue["Status"]["Health"] = "OK";
+        return;
+    }
+
+    if (linkStatus ==
+        "xyz.openbmc_project.Inventory.Item.PCIeSlot.Status.Degraded")
+    {
+        resp.jsonValue["Status"]["State"] = "Enabled";
+        resp.jsonValue["Status"]["Health"] = "Critical";
+        return;
+    }
+
+    if (linkStatus ==
+        "xyz.openbmc_project.Inventory.Item.PCIeSlot.Status.Failed")
+    {
+        resp.jsonValue["Status"]["State"] = "UnavailableOffline";
+        resp.jsonValue["Status"]["Health"] = "Warning";
+        return;
+    }
+
+    if (linkStatus ==
+        "xyz.openbmc_project.Inventory.Item.PCIeSlot.Status.Inactive")
+    {
+        resp.jsonValue["Status"]["State"] = "StandbyOffline";
+        resp.jsonValue["Status"]["Health"] = "OK";
+        return;
+    }
+
+    if (linkStatus == "xyz.openbmc_project.Inventory.Item.PCIeSlot.Status.Open")
+    {
+        resp.jsonValue["Status"]["State"] = "Absent";
+        resp.jsonValue["Status"]["Health"] = "OK";
+        return;
+    }
+}
+
+/**
+ * @brief Get PCIeSlot properties.
+ * @param[in,out]   asyncResp       Async HTTP response.
+ * @param[in]       pcieSlotPath    Object path of the PCIeSlot.
+ * @param[in]       serviceMap      A map to hold Service and corresponding
+ * interface list for the given cable id.
+ */
+static inline void
+    getPcieSlotLinkStatus(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                          const std::string& pcieSlotPath,
+                          const dbus::utility::MapperServiceMap& serviceMap)
+{
+    for (const auto& [service, interfaces] : serviceMap)
+    {
+        for (const auto& interface : interfaces)
+        {
+            if (interface != "xyz.openbmc_project.Inventory.Item.PCIeSlot")
+            {
+                continue;
+            }
+
+            crow::connections::systemBus->async_method_call(
+                [asyncResp](const boost::system::error_code ec,
+                            const dbus::utility::DbusVariantType& property) {
+                if (ec)
+                {
+                    BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+
+                const std::string* value = std::get_if<std::string>(&property);
+                if (value == nullptr)
+                {
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+
+                std::string linkStatus = *value;
+                if (!linkStatus.empty())
+                {
+                    fillPcieDeviceStatus(asyncResp->res, linkStatus);
+                    return;
+                }
+                },
+                service, pcieSlotPath, "org.freedesktop.DBus.Properties", "Get",
+                interface, "LinkStatus");
+        }
+    }
+}
+
+/**
+ * @brief Get subtree map for PCIeSlots.
+ * @param[in,out]   asyncResp       Async HTTP response.
+ * @param[in]       pcieSlotPath    Object path of the PCIeSlot.
+ * @param[in]       pcieDevice      PCIe device name/ID.
+ */
+static inline void
+    getPcieSlotSubTree(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                       const std::string& pcieSlotPath,
+                       const std::string& pcieDevice)
+{
+    auto respHandler =
+        [asyncResp, pcieSlotPath,
+         pcieDevice](const boost::system::error_code ec,
+                     const dbus::utility::MapperGetSubTreeResponse& subTree) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "DBUS response error on GetSubTree"
+                             << ec.message();
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        if (subTree.empty())
+        {
+            BMCWEB_LOG_ERROR << "Can't find PCIeSlot D-Bus object!";
+            return;
+        }
+
+        for (const auto& [objectPath, serviceMap] : subTree)
+        {
+            if (objectPath.empty() || serviceMap.size() != 1)
+            {
+                BMCWEB_LOG_ERROR << "Error getting PCIeSlot D-Bus object!";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            if (pcieSlotPath != objectPath)
+            {
+                continue;
+            }
+
+            getPcieSlotLinkStatus(asyncResp, pcieSlotPath, serviceMap);
+            return;
+        }
+        BMCWEB_LOG_ERROR << "PCIe Slot not found for " << pcieDevice;
+    };
+
+    crow::connections::systemBus->async_method_call(
+        respHandler, "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetSubTree",
+        "/xyz/openbmc_project/inventory", 0,
+        std::array<const char*, 1>{pcieSlotInterface});
+}
+
+/**
+ * @brief Main method for adding Link Status to the requested device
+ * @param[in,out]   asyncResp       Async HTTP response.
+ * @param[in]       pcieDevice      PCIe device name/ID.
+ */
+static inline void addLinkStatusToPcieDevice(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& pcieDevice)
+{
+    auto respHandler =
+        [asyncResp, pcieDevice](
+            const boost::system::error_code ec,
+            const dbus::utility::MapperGetSubTreePathsResponse& subTreePaths) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "DBUS response error " << ec.message();
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        for (const std::string& objectPath : subTreePaths)
+        {
+            sdbusplus::message::object_path path(objectPath);
+            if (path.filename() != pcieDevice)
+            {
+                continue;
+            }
+
+            std::string pcieSlotPath = path.parent_path();
+
+            getPcieSlotSubTree(asyncResp, pcieSlotPath, pcieDevice);
+            break;
+        }
+    };
+
+    crow::connections::systemBus->async_method_call(
+        respHandler, "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
         "/xyz/openbmc_project/inventory", 0,
@@ -322,19 +523,8 @@ inline void requestRoutesSystemPCIeDevice(App& app)
                                           ["ServiceLabel"] = *locationCode;
                         }
 
-                        if (present != nullptr)
-                        {
-                            if (*present)
-                            {
-                                asyncResp->res.jsonValue["Status"]["State"] =
-                                    "Enabled";
-                            }
-                            else
-                            {
-                                asyncResp->res.jsonValue["Status"]["State"] =
-                                    "Absent";
-                            }
-                        }
+                        // Link status
+                        addLinkStatusToPcieDevice(asyncResp, device);
 
                         asyncResp->res.jsonValue["PCIeFunctions"] = {
                             {"@odata.id",
