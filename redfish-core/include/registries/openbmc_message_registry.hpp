@@ -567,6 +567,16 @@ constexpr std::array registry = {
             {"string"},
             "None.",
         }},
+    MessageEntry{
+        "HardwareIsolationReason",
+        {
+            "Indicates the condition that affects the health of this resource.",
+            "The reason for the resource isolation: %1",
+            "OK",
+            1,
+            {"string"},
+            "None.",
+        }},
     MessageEntry{"InvalidLoginAttempted",
                  {
                      "Indicates that a login was attempted on the specified "

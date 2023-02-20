@@ -24,6 +24,7 @@
 #include <sdbusplus/asio/property.hpp>
 #include <sdbusplus/unpack_properties.hpp>
 #include <utils/dbus_utils.hpp>
+#include <utils/name_utils.hpp>
 
 namespace redfish
 {
@@ -146,7 +147,12 @@ inline void
             storageController["@odata.id"] =
                 "/redfish/v1/Systems/system/Storage/1#/StorageControllers/" +
                 std::to_string(index);
-            storageController["Name"] = id;
+            auto namePointer = "/StorageControllers"_json_pointer;
+            namePointer /= index;
+            namePointer /= "Name";
+            name_util::getPrettyName(asyncResp, path, interfaceDict,
+                                     namePointer);
+
             storageController["MemberId"] = id;
             storageController["Status"]["State"] = "Enabled";
 
@@ -577,7 +583,8 @@ inline void requestRoutesDrive(App& app)
             asyncResp->res.jsonValue["@odata.type"] = "#Drive.v1_7_0.Drive";
             asyncResp->res.jsonValue["@odata.id"] =
                 "/redfish/v1/Systems/system/Storage/1/Drives/" + driveId;
-            asyncResp->res.jsonValue["Name"] = driveId;
+            name_util::getPrettyName(asyncResp, path, drive->second,
+                                     "/Name"_json_pointer);
             asyncResp->res.jsonValue["Id"] = driveId;
 
             if (connectionNames.size() != 1)

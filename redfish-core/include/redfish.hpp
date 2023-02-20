@@ -185,6 +185,8 @@ class RedfishService
         requestRoutesOperatingConfig(app);
         requestRoutesMemoryCollection(app);
         requestRoutesMemory(app);
+        requestRoutesSubProcessors(app);
+        requestRoutesSubProcessorsCore(app);
 
         requestRoutesSystemsCollection(app);
         requestRoutesSystems(app);
@@ -260,6 +262,10 @@ class RedfishService
 
         // Note, this must be the last route registered
         requestRoutesRedfish(app);
+
+#ifdef BMCWEB_ENABLE_HW_ISOLATION
+        requestRoutesSystemHardwareIsolationLogService(app);
+#endif
     }
 };
 
