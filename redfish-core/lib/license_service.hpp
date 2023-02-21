@@ -396,7 +396,7 @@ inline void
                     continue;
                 }
 
-                std::time_t expirationTime;
+                uint64_t expirationTime;
                 const uint32_t* deviceNumPtr = nullptr;
                 const std::string* serialNumPtr = nullptr;
                 const std::string* licenseNamePtr = nullptr;
@@ -461,8 +461,7 @@ inline void
                                     messages::internalError(asyncResp->res);
                                     break;
                                 }
-                                expirationTime =
-                                    static_cast<std::time_t>(*timePtr);
+                                expirationTime = *timePtr;
                             }
                             else if (propertyMap.first == "SerialNumber")
                             {
@@ -522,7 +521,7 @@ inline void
                 asyncResp->res.jsonValue["SerialNumber"] = *serialNumPtr;
                 asyncResp->res.jsonValue["Name"] = *licenseNamePtr;
                 asyncResp->res.jsonValue["ExpirationDate"] =
-                    crow::utility::getDateTime(expirationTime);
+                    crow::utility::getDateTimeUint(expirationTime);
                 translateLicenseTypeDbusToRedfish(asyncResp, *licenseTypePtr);
                 translateAuthorizationTypeDbusToRedfish(asyncResp,
                                                         *authorizationTypePtr);
