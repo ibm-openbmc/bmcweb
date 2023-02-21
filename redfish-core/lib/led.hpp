@@ -241,7 +241,7 @@ inline void
 
     nlohmann::json& jsonIn = jsonInput["LocationIndicatorActive"];
     dbus::utility::getAssociationEndPoints(
-        objPath + "/identify_led_group",
+        objPath + "/identifying",
         [aResp, &jsonIn](const boost::system::error_code& ec,
                          const dbus::utility::MapperEndPoints& endpoints) {
         if (ec)
@@ -283,7 +283,7 @@ inline void
     BMCWEB_LOG_DEBUG << "Set LocationIndicatorActive";
 
     dbus::utility::getAssociationEndPoints(
-        objPath + "/identify_led_group",
+        objPath + "/identifying",
         [aResp, ledState](const boost::system::error_code& ec,
                           const dbus::utility::MapperEndPoints& endpoints) {
         if (ec)
