@@ -272,15 +272,19 @@ inline void
                             *crow::connections::systemBus, serviceName,
                             assembly, "xyz.openbmc_project.Inventory.Item",
                             "Present",
-                            [aResp, assemblyIndex](
-                                const boost::system::error_code ec2,
-                                const std::variant<bool>& property) {
+                            [aResp, assemblyIndex,
+                             assembly](const boost::system::error_code ec2,
+                                       const std::variant<bool>& property) {
                             if (ec2)
                             {
                                 BMCWEB_LOG_DEBUG << "DBUS response error";
                                 messages::internalError(aResp->res);
                                 return;
                             }
+
+                            std::string fru =
+                                sdbusplus::message::object_path(assembly)
+                                    .filename();
 
                             nlohmann::json& assemblyArray =
                                 aResp->res.jsonValue["Assemblies"];
@@ -295,6 +299,22 @@ inline void
                                 messages::internalError(aResp->res);
                                 return;
                             }
+
+                            // Special handling for LCD and base
+                            // panel CM.
+                            if (fru == "panel0" || fru == "panel1")
+                            {
+                                assemblyData["Oem"]["OpenBMC"]["@odata.type"] =
+                                    "#OemAssembly.v1_0_"
+                                    "0.Assembly";
+
+                                // if panel is not present,
+                                // implies it is already
+                                // removed or can be placed.
+                                assemblyData["Oem"]["OpenBMC"]
+                                            ["ReadyToRemove"] = !(*value);
+                            }
+
                             if (!*value)
                             {
                                 assemblyData["Status"]["State"] = "Absent";
@@ -551,6 +571,42 @@ inline void setAssemblylocationIndicators(
                 "tod_battery")
             {
                 doBatteryCM(assembly, readytoremove.value(), asyncResp);
+            }
+
+            // Special handling for LCD and base panel. This is required to
+            // support concurrent maintenance for base and LCD panel.
+            else if (sdbusplus::message::object_path(assembly).filename() ==
+                         "panel0" ||
+                     sdbusplus::message::object_path(assembly).filename() ==
+                         "panel1")
+            {
+                // Based on the status of readytoremove flag, inventory data
+                // like CCIN and present property needs to be updated for this
+                // FRU.
+                // readytoremove as true implies FRU has been prepared for
+                // removal. Set action as "deleteFRUVPD". This is the api
+                // exposed by vpd-manager to clear CCIN and set present
+                // property as false for the FRU.
+                // readytoremove as false implies FRU has been replaced. Set
+                // action as "CollectFRUVPD". This is the api exposed by
+                // vpd-manager to recollect vpd for a given FRU.
+                std::string action =
+                    (readytoremove.value()) ? "deleteFRUVPD" : "CollectFRUVPD";
+
+                crow::connections::systemBus->async_method_call(
+                    [asyncResp, action](const boost::system::error_code ec) {
+                    if (ec)
+                    {
+                        BMCWEB_LOG_ERROR
+                            << "Call to Manager failed for action: " << action
+                            << " with error " << ec;
+                        messages::internalError(asyncResp->res);
+                        return;
+                    }
+                    },
+                    "com.ibm.VPD.Manager", "/com/ibm/VPD/Manager",
+                    "com.ibm.VPD.Manager", action,
+                    sdbusplus::message::object_path(assembly));
             }
             else
             {
