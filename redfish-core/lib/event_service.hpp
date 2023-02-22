@@ -675,7 +675,6 @@ inline void requestRoutesEventDestination(App& app)
                 return;
             }
             subValue->retryPolicy = *retryPolicy;
-            subValue->updateRetryPolicy();
         }
 
         EventServiceManager::getInstance().updateSubscriptionData();
