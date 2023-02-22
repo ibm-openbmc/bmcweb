@@ -1,13 +1,60 @@
 #pragma once
+#include <boost/system/error_code.hpp>
 #include <dbus_utility.hpp>
 #include <query.hpp>
 #include <sdbusplus/asio/property.hpp>
 #include <sdbusplus/unpack_properties.hpp>
+#include <utils/chassis_utils.hpp>
 #include <utils/dbus_utils.hpp>
 #include <utils/json_utils.hpp>
 
+#include <memory>
+#include <string>
+#include <variant>
+#include <vector>
+
 namespace redfish
 {
+
+/**
+ * @brief Api to get Cable Association.
+ * @param[in,out]   asyncResp       Async HTTP response.
+ * @param[in]       cableObjectPath Object path of the Cable with association.
+ * @param[in]       callback        callback method
+ */
+template <typename Callback>
+inline void
+    linkAssociatedCable(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                        const std::string& cableObjectPath, Callback&& callback)
+{
+
+    dbus::utility::getAssociationEndPoints(
+        cableObjectPath,
+        [asyncResp, callback](const boost::system::error_code& ec,
+                              const dbus::utility::MapperEndPoints& endpoints) {
+        if (ec)
+        {
+            if (ec.value() == EBADR)
+            {
+                // This cable have no association.
+                BMCWEB_LOG_DEBUG << "No association found";
+                return;
+            }
+            BMCWEB_LOG_ERROR << "DBUS response error" << ec.message();
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        if (endpoints.empty())
+        {
+            BMCWEB_LOG_DEBUG << "No association found for cable";
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        callback(endpoints);
+        });
+}
+
 /**
  * @brief Fill cable specific properties.
  * @param[in,out]   resp        HTTP response.
@@ -102,6 +149,170 @@ inline void
 {
     BMCWEB_LOG_DEBUG << "Get Properties for cable " << cableObjectPath;
 
+    // retrieve Upstream Resources
+    std::string upstreamResource = cableObjectPath + "/upstream_resource";
+    linkAssociatedCable(asyncResp, upstreamResource,
+                        [asyncResp](const std::vector<std::string>& value) {
+        nlohmann::json& linkArray =
+            asyncResp->res.jsonValue["Links"]["UpstreamResources"];
+        linkArray = nlohmann::json::array();
+
+        for (const auto& fullPath : value)
+        {
+            sdbusplus::message::object_path path(fullPath);
+            std::string leaf = path.filename();
+            if (leaf.empty())
+            {
+                continue;
+            }
+            linkArray.push_back(
+                {{"@odata.id",
+                  "/redfish/v1/Systems/system/PCIeDevices/" + leaf}});
+        }
+    });
+
+    // retrieve Downstream Resources
+    auto chassisAssociation =
+        [asyncResp,
+         cableObjectPath](std::vector<std::string>& updatedAssemblyList) {
+        std::string downstreamResource =
+            cableObjectPath + "/downstream_resource";
+        linkAssociatedCable(asyncResp, downstreamResource,
+                            [asyncResp, updatedAssemblyList](
+                                const std::vector<std::string>& value) {
+            nlohmann::json& linkArray =
+                asyncResp->res.jsonValue["Links"]["DownstreamResources"];
+            linkArray = nlohmann::json::array();
+
+            for (const auto& fullPath : value)
+            {
+                auto it = find(updatedAssemblyList.begin(),
+                               updatedAssemblyList.end(), fullPath);
+
+                // If element was found
+                if (it != updatedAssemblyList.end())
+                {
+
+                    uint index =
+                        static_cast<uint>(it - updatedAssemblyList.begin());
+                    linkArray.push_back(
+                        {{"@odata.id", "/redfish/v1/Chassis/chassis/"
+                                       "Assembly#/Assemblies/" +
+                                           std::to_string(index)}});
+                }
+                else
+                {
+                    BMCWEB_LOG_ERROR << "in Downstream Resources " << fullPath
+                                     << " isn't found in chassis assembly list";
+                }
+            }
+        });
+    };
+
+    redfish::chassis_utils::getChassisAssembly(asyncResp, "chassis",
+                                               std::move(chassisAssociation));
+
+    // retrieve Upstream Ports
+    std::string upstreamConnector = cableObjectPath + "/upstream_connector";
+    linkAssociatedCable(asyncResp, upstreamConnector,
+                        [asyncResp](const std::vector<std::string>& value) {
+        nlohmann::json& linkArray =
+            asyncResp->res.jsonValue["Links"]["UpstreamPorts"];
+        linkArray = nlohmann::json::array();
+
+        for (const auto& fullPath : value)
+        {
+            sdbusplus::message::object_path path(fullPath);
+            std::string leaf = path.filename();
+            if (leaf.empty())
+            {
+                continue;
+            }
+            std::string endpointLeaf = path.parent_path().filename();
+            if (endpointLeaf.empty())
+            {
+                continue;
+            }
+
+            //  insert/create link using endpointLeaf
+            endpointLeaf += "/Ports/";
+            endpointLeaf += leaf;
+            linkArray.push_back(
+                {{"@odata.id", "/redfish/v1/Systems/system/FabricAdapters/" +
+                                   endpointLeaf}});
+        }
+    });
+
+    // retrieve Downstream Ports
+    std::string downstreamConnector = cableObjectPath + "/downstream_connector";
+    linkAssociatedCable(asyncResp, downstreamConnector,
+                        [asyncResp](const std::vector<std::string>& value) {
+        nlohmann::json& linkArray =
+            asyncResp->res.jsonValue["Links"]["DownstreamPorts"];
+        linkArray = nlohmann::json::array();
+
+        for (const auto& fullPath : value)
+        {
+            sdbusplus::message::object_path path(fullPath);
+            std::string leaf = path.filename();
+            if (leaf.empty())
+            {
+                continue;
+            }
+            std::string endpointLeaf = path.parent_path().filename();
+            if (endpointLeaf.empty())
+            {
+                continue;
+            }
+
+            //  insert/create link suing endpointLeaf
+            endpointLeaf += "/Ports/";
+            endpointLeaf += leaf;
+            linkArray.push_back(
+                {{"@odata.id", "/redfish/v1/Systems/system/FabricAdapters/" +
+                                   endpointLeaf}});
+        }
+    });
+
+    // retrieve Upstream Chassis
+    std::string upstreamChassis = cableObjectPath + "/upstream_chassis";
+    linkAssociatedCable(asyncResp, upstreamChassis,
+                        [asyncResp](const std::vector<std::string>& value) {
+        nlohmann::json& linkArray =
+            asyncResp->res.jsonValue["Links"]["UpstreamChassis"];
+        linkArray = nlohmann::json::array();
+
+        for (const auto& fullPath : value)
+        {
+            sdbusplus::message::object_path path(fullPath);
+            std::string leaf = path.filename();
+            if (leaf.empty())
+            {
+                continue;
+            }
+            linkArray.push_back({{"@odata.id", "/redfish/v1/Chassis/" + leaf}});
+        }
+    });
+
+    // retrieve Downstream Chassis
+    std::string downstreamChassis = cableObjectPath + "/downstream_chassis";
+    linkAssociatedCable(asyncResp, downstreamChassis,
+                        [asyncResp](const std::vector<std::string>& value) {
+        nlohmann::json& linkArray =
+            asyncResp->res.jsonValue["Links"]["DownstreamChassis"];
+        linkArray = nlohmann::json::array();
+        for (const auto& fullPath : value)
+        {
+            sdbusplus::message::object_path path(fullPath);
+            std::string leaf = path.filename();
+            if (leaf.empty())
+            {
+                continue;
+            }
+            linkArray.push_back({{"@odata.id", "/redfish/v1/Chassis/" + leaf}});
+        }
+    });
+
     for (const auto& [service, interfaces] : serviceMap)
     {
         for (const auto& interface : interfaces)
@@ -127,8 +338,8 @@ inline void
                             const std::string& property) {
                 if (ec.value() == EBADR)
                 {
-                    // PartNumber is optional, ignore the failure if it doesn't
-                    // exist.
+                    // PartNumber is optional, ignore the failure if it
+                    // doesn't exist.
                     return;
                 }
                 if (ec)
@@ -159,9 +370,12 @@ inline void requestRoutesCable(App& app)
             return;
         }
         BMCWEB_LOG_DEBUG << "Cable Id: " << cableId;
-        auto respHandler =
+        constexpr std::array<std::string_view, 1> interfaces = {
+            "xyz.openbmc_project.Inventory.Item.Cable"};
+        dbus::utility::getSubTree(
+            "/xyz/openbmc_project/inventory", 0, interfaces,
             [asyncResp,
-             cableId](const boost::system::error_code ec,
+             cableId](const boost::system::error_code& ec,
                       const dbus::utility::MapperGetSubTreeResponse& subtree) {
             if (ec.value() == EBADR)
             {
@@ -194,15 +408,7 @@ inline void requestRoutesCable(App& app)
                 return;
             }
             messages::resourceNotFound(asyncResp->res, "Cable", cableId);
-        };
-
-        crow::connections::systemBus->async_method_call(
-            respHandler, "xyz.openbmc_project.ObjectMapper",
-            "/xyz/openbmc_project/object_mapper",
-            "xyz.openbmc_project.ObjectMapper", "GetSubTree",
-            "/xyz/openbmc_project/inventory", 0,
-            std::array<const char*, 1>{
-                "xyz.openbmc_project.Inventory.Item.Cable"});
+            });
         });
 }
 
@@ -225,7 +431,6 @@ inline void requestRoutesCableCollection(App& app)
         asyncResp->res.jsonValue["@odata.id"] = "/redfish/v1/Cables";
         asyncResp->res.jsonValue["Name"] = "Cable Collection";
         asyncResp->res.jsonValue["Description"] = "Collection of Cable Entries";
-
         constexpr std::array<std::string_view, 1> interfaces{
             "xyz.openbmc_project.Inventory.Item.Cable"};
         collection_util::getCollectionMembers(
