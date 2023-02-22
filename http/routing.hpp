@@ -1267,7 +1267,7 @@ class Router
         }
 
         if ((rules[ruleIndex]->getMethods() &
-             (1U << static_cast<size_t>(req.method()))) == 0)
+             (static_cast<size_t>(req.method()))) == 0)
         {
             BMCWEB_LOG_DEBUG << "Rule found but method mismatch: " << req.url
                              << " with " << req.methodString() << "("
