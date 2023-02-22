@@ -2,6 +2,7 @@
 
 #include "app.hpp"
 #include "fabric_adapters.hpp"
+#include "led.hpp"
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 
@@ -52,6 +53,10 @@ inline void getPortProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                         .jsonValue["Location"]["PartLocation"]["ServiceLabel"] =
                         value;
                     });
+            }
+            else if (interface == "xyz.openbmc_project.Association.Definitions")
+            {
+                getLocationIndicatorActive(aResp, portInvPath);
             }
         }
     }
@@ -292,6 +297,60 @@ inline void handlePortGet(App& app, const crow::Request& req,
         });
 }
 
+inline void
+    setPortProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                      const std::string& portInvPath,
+                      const dbus::utility::MapperServiceMap& serviceMap,
+                      const std::optional<bool>& locationIndicatorActive)
+{
+    for (const auto& connection : serviceMap)
+    {
+        for (const auto& interface : connection.second)
+        {
+            if (interface ==
+                    "xyz.openbmc_project.Inventory.Decorator.LocationCode" &&
+                locationIndicatorActive)
+            {
+                setLocationIndicatorActive(aResp, portInvPath,
+                                           *locationIndicatorActive);
+            }
+        }
+    }
+}
+
+inline void handlePortPatch(App& app, const crow::Request& req,
+                            const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                            const std::string& systemName,
+                            const std::string& adapterId,
+                            const std::string& portId)
+{
+    if (!redfish::setUpRedfishRoute(app, req, aResp))
+    {
+        return;
+    }
+
+    std::optional<bool> locationIndicatorActive;
+    if (!json_util::readJsonPatch(req, aResp->res, "LocationIndicatorActive",
+                                  locationIndicatorActive))
+    {
+        return;
+    }
+
+    getValidFabricAdapterPath(
+        adapterId, systemName, aResp,
+        [aResp, portId, locationIndicatorActive](const std::string& adapterPath,
+                                                 const std::string&) {
+        getValidPortPath(
+            aResp, adapterPath, portId,
+            [aResp, locationIndicatorActive](
+                const std::string& portPath,
+                const dbus::utility::MapperServiceMap& serviceMap) {
+            setPortProperties(aResp, portPath, serviceMap,
+                              locationIndicatorActive);
+            });
+        });
+}
+
 /**
  * Systems derived class for delivering port Schema.
  */
@@ -308,6 +367,12 @@ inline void requestRoutesPort(App& app)
         .privileges(redfish::privileges::getPort)
         .methods(boost::beast::http::verb::get)(
             std::bind_front(handlePortGet, std::ref(app)));
+
+    BMCWEB_ROUTE(app,
+                 "/redfish/v1/Systems/<str>/FabricAdapters/<str>/Ports/<str>/")
+        .privileges(redfish::privileges::patchPort)
+        .methods(boost::beast::http::verb::patch)(
+            std::bind_front(handlePortPatch, std::ref(app)));
 }
 
 } // namespace redfish
