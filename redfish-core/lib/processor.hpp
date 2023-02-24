@@ -970,7 +970,6 @@ inline void
 
             bool present = true;
             bool functional = true;
-            bool available = true;
 
             for (const auto& [interface, properties] : interfaces)
             {
@@ -1034,37 +1033,18 @@ inline void
                         }
                     }
                 }
-                else if (interface ==
-                         "xyz.openbmc_project.State.Decorator.Availability")
-                {
-                    for (const auto& [proName, proValue] : properties)
-                    {
-                        if (proName == "Available")
-                        {
-                            const bool* value = std::get_if<bool>(&proValue);
-                            if (value == nullptr)
-                            {
-                                messages::internalError(aResp->res);
-                                return;
-                            }
-                            available = *value;
-                        }
-                    }
-                }
             }
 
-            if (!available)
-            {
-                aResp->res.jsonValue["Status"]["State"] = "UnavailableOffline";
-            }
-            else if (!present)
+            if (!present)
             {
                 aResp->res.jsonValue["Status"]["State"] = "Absent";
             }
-
-            if (!functional)
+            else
             {
-                aResp->res.jsonValue["Status"]["Health"] = "Critical";
+                if (!functional)
+                {
+                    aResp->res.jsonValue["Status"]["Health"] = "Critical";
+                }
             }
 
 #ifdef BMCWEB_ENABLE_HW_ISOLATION
