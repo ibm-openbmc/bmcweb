@@ -2633,7 +2633,6 @@ inline void requestAccountServiceRoutes(App& app)
                                     "AllowUnauthACFUpload",
                                     allowUnauthACFUpload);
                             }
-                            
                             if (!rc)
                             {
                                 BMCWEB_LOG_ERROR << "Illegal Property ";
