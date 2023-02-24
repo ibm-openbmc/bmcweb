@@ -2618,10 +2618,22 @@ inline void requestAccountServiceRoutes(App& app)
                         {
                             std::optional<bool> allowUnauthACFUpload;
                             std::optional<std::string> acfFile;
-                            if (!redfish::json_util::readJson(
+                            bool rc;
+                            // Property ACFFile may be null or string
+                            if (acf.value().contains("ACFFile") &&
+                                (acf.value()["ACFFile"] == nullptr))
+                            {
+                                acfFile = "";
+                                rc = true;
+                            }
+                            else
+                            {
+                                rc = redfish::json_util::readJson(
                                     *acf, asyncResp->res, "ACFFile", acfFile,
                                     "AllowUnauthACFUpload",
-                                    allowUnauthACFUpload))
+                                    allowUnauthACFUpload);
+                            }
+                            if (!rc)
                             {
                                 BMCWEB_LOG_ERROR << "Illegal Property ";
                                 messages::propertyMissing(asyncResp->res,
