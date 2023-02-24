@@ -2389,6 +2389,7 @@ inline void requestRoutesManager(App& app)
                 }
             }
 #endif
+#else
             messages::propertyUnknown(asyncResp->res, "Oem");
             return;
 #endif
