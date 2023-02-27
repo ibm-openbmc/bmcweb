@@ -2,6 +2,8 @@
 
 #include "led.hpp"
 
+#include <sdbusplus/unpack_properties.hpp>
+#include <utils/dbus_utils.hpp>
 #include <utils/json_utils.hpp>
 
 #include <iterator>
@@ -21,6 +23,47 @@ constexpr std::array<const char*, 9> chassisAssemblyIfaces = {
     "xyz.openbmc_project.Inventory.Item.Connector",
     "xyz.openbmc_project.Inventory.Item.Drive",
     "xyz.openbmc_project.Inventory.Item.Board.Motherboard"};
+
+void assembleAssemblyProperties(
+    const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+    const dbus::utility::DBusPropertiesMap& properties,
+    nlohmann::json& assemblyData, const std::string& path)
+{
+    const std::string* partNumber = nullptr;
+    const std::string* serialNumber = nullptr;
+    const std::string* sparePartNumber = nullptr;
+    const std::string* model = nullptr;
+
+    const bool success = sdbusplus::unpackPropertiesNoThrow(
+        dbus_utils::UnpackErrorPrinter(), properties, "PartNumber", partNumber,
+        "SerialNumber", serialNumber, "SparePartNumber", sparePartNumber,
+        "Model", model);
+
+    if (!success)
+    {
+        messages::internalError(aResp->res);
+        BMCWEB_LOG_ERROR << "Could not read one or more properties from "
+                         << path;
+        return;
+    }
+
+    if (partNumber != nullptr)
+    {
+        assemblyData["PartNumber"] = *partNumber;
+    }
+    if (serialNumber != nullptr)
+    {
+        assemblyData["SerialNumber"] = *serialNumber;
+    }
+    if (sparePartNumber != nullptr)
+    {
+        assemblyData["SparePartNumber"] = *sparePartNumber;
+    }
+    if (model != nullptr)
+    {
+        assemblyData["Model"] = *model;
+    }
+}
 
 /**
  * @brief Get properties for the assemblies associated to given chassis
@@ -123,12 +166,13 @@ inline void
                     if (interface ==
                         "xyz.openbmc_project.Inventory.Decorator.Asset")
                     {
-                        crow::connections::systemBus->async_method_call(
-                            [aResp, assemblyIndex](
-                                const boost::system::error_code ec2,
-                                const std::vector<
-                                    std::pair<std::string, VariantType>>&
-                                    propertiesList) {
+                        sdbusplus::asio::getAllProperties(
+                            *crow::connections::systemBus, serviceName,
+                            assembly, interface,
+                            [aResp, assemblyIndex,
+                             assembly](const boost::system::error_code ec2,
+                                       const dbus::utility::DBusPropertiesMap&
+                                           properties) {
                             if (ec2)
                             {
                                 BMCWEB_LOG_DEBUG << "DBUS response error";
@@ -141,63 +185,9 @@ inline void
                             nlohmann::json& assemblyData =
                                 assemblyArray.at(assemblyIndex);
 
-                            for (const std::pair<std::string, VariantType>&
-                                     property : propertiesList)
-                            {
-                                if (property.first == "PartNumber")
-                                {
-                                    const std::string* value =
-                                        std::get_if<std::string>(
-                                            &property.second);
-                                    if (value == nullptr)
-                                    {
-                                        messages::internalError(aResp->res);
-                                        return;
-                                    }
-                                    assemblyData["PartNumber"] = *value;
-                                }
-                                else if (property.first == "SerialNumber")
-                                {
-                                    const std::string* value =
-                                        std::get_if<std::string>(
-                                            &property.second);
-                                    if (value == nullptr)
-                                    {
-                                        messages::internalError(aResp->res);
-                                        return;
-                                    }
-                                    assemblyData["SerialNumber"] = *value;
-                                }
-                                else if (property.first == "SparePartNumber")
-                                {
-                                    const std::string* value =
-                                        std::get_if<std::string>(
-                                            &property.second);
-                                    if (value == nullptr)
-                                    {
-                                        messages::internalError(aResp->res);
-                                        return;
-                                    }
-                                    assemblyData["SparePartNumber"] = *value;
-                                }
-                                else if (property.first == "Model")
-                                {
-                                    const std::string* value =
-                                        std::get_if<std::string>(
-                                            &property.second);
-                                    if (value == nullptr)
-                                    {
-                                        messages::internalError(aResp->res);
-                                        return;
-                                    }
-                                    assemblyData["Model"] = *value;
-                                }
-                            }
-                            },
-                            serviceName, assembly,
-                            "org.freedesktop.DBus.Properties", "GetAll",
-                            "xyz.openbmc_project.Inventory.Decorator."
-                            "Asset");
+                            assembleAssemblyProperties(aResp, properties,
+                                                       assemblyData, assembly);
+                            });
                     }
                     else if (interface == "xyz.openbmc_project.Inventory."
                                           "Decorator.LocationCode")
