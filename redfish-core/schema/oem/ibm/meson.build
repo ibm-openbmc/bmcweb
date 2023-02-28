@@ -2,6 +2,7 @@
 schemas = [
     'IBMFabricAdapter',
     'IBMManagerAccount',
+    'IBMPCIeDevice',
     'IBMPCIeSlots',
     'IBMServiceRoot',
 ]
