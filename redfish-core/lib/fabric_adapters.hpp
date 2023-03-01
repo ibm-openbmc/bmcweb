@@ -173,11 +173,36 @@ inline void
         });
 }
 
+inline void linkAsPCIeDevice(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                             const std::string& fabricAdapterPath)
+{
+    const std::string pcieDeviceName =
+        sdbusplus::message::object_path(fabricAdapterPath).filename();
+
+    if (pcieDeviceName.empty())
+    {
+        BMCWEB_LOG_ERROR << "Failed to find / in pcie device path";
+        messages::internalError(aResp->res);
+        return;
+    }
+
+    nlohmann::json& deviceArray = aResp->res.jsonValue["Links"]["PCIeDevices"];
+    deviceArray = nlohmann::json::array();
+
+    deviceArray.push_back(
+        {{"@odata.id",
+          "/redfish/v1/Systems/system/PCIeDevices/" + pcieDeviceName}});
+
+    aResp->res.jsonValue["Links"]["PCIeDevices@odata.count"] =
+        deviceArray.size();
+}
+
 inline void doAdapterGet(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                          const std::string& systemName,
                          const std::string& adapterId,
                          const std::string& fabricAdapterPath,
-                         const std::string& serviceName)
+                         const std::string& serviceName,
+                         const dbus::utility::InterfaceList& interfaces)
 {
     aResp->res.addHeader(boost::beast::http::field::link,
                          "</redfish/v1/JsonSchemas/FabricAdapter/"
@@ -195,6 +220,15 @@ inline void doAdapterGet(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
     getFabricAdapterAsset(aResp, serviceName, fabricAdapterPath);
     getFabricAdapterState(aResp, serviceName, fabricAdapterPath);
     getFabricAdapterHealth(aResp, serviceName, fabricAdapterPath);
+
+    // if the adapter also implements this interface, link the adapter schema to
+    // PCIeDevice schema for this adapter.
+    if (std::find(interfaces.begin(), interfaces.end(),
+                  "xyz.openbmc_project.Inventory.Item.PCIeDevice") !=
+        interfaces.end())
+    {
+        linkAsPCIeDevice(aResp, fabricAdapterPath);
+    }
 }
 
 inline bool checkFabricAdapterId(const std::string& adapterPath,
@@ -209,8 +243,9 @@ inline bool checkFabricAdapterId(const std::string& adapterPath,
 inline void getValidFabricAdapterPath(
     const std::string& adapterId, const std::string& systemName,
     const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-    std::function<void(const std::string& fabricAdapterPath,
-                       const std::string& serviceName)>&& callback)
+    std::function<void(
+        const std::string& fabricAdapterPath, const std::string& serviceName,
+        const dbus::utility::InterfaceList& interfaces)>&& callback)
 {
     if (systemName != "system")
     {
@@ -234,7 +269,8 @@ inline void getValidFabricAdapterPath(
         {
             if (checkFabricAdapterId(adapterPath, adapterId))
             {
-                callback(adapterPath, serviceMap.begin()->first);
+                callback(adapterPath, serviceMap.begin()->first,
+                         serviceMap.begin()->second);
                 return;
             }
         }
@@ -256,10 +292,12 @@ inline void
 
     getValidFabricAdapterPath(
         adapterId, systemName, aResp,
-        [aResp, systemName, adapterId](const std::string& fabricAdapterPath,
-                                       const std::string& serviceName) {
+        [aResp, systemName,
+         adapterId](const std::string& fabricAdapterPath,
+                    const std::string& serviceName,
+                    const dbus::utility::InterfaceList& interfaces) {
         doAdapterGet(aResp, systemName, adapterId, fabricAdapterPath,
-                     serviceName);
+                     serviceName, interfaces);
         });
 }
 
@@ -326,7 +364,8 @@ inline void
 
     getValidFabricAdapterPath(
         adapterId, systemName, aResp,
-        [aResp, systemName, adapterId](const std::string&, const std::string&) {
+        [aResp, systemName, adapterId](const std::string&, const std::string&,
+                                       const dbus::utility::InterfaceList&) {
         aResp->res.addHeader(boost::beast::http::field::link,
                              "</redfish/v1/JsonSchemas/FabricAdapter/"
                              "FabricAdapter.json>; rel=describedby");
