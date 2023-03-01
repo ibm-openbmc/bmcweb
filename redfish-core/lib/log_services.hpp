@@ -1871,29 +1871,22 @@ void getHiddenPropertyValue(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 {
     auto respHandler = [callback{std::forward<Callback>(callback)},
                         asyncResp](const boost::system::error_code ec,
-                                   std::variant<bool>& hiddenProperty) {
+                                   const bool& hiddenProperty) {
         if (ec)
         {
             BMCWEB_LOG_ERROR << "DBUS response error: " << ec;
             messages::internalError(asyncResp->res);
             return;
         }
-        bool* hiddenPropValPtr = std::get_if<bool>(&hiddenProperty);
-        if (hiddenPropValPtr == nullptr)
-        {
-            messages::internalError(asyncResp->res);
-            return;
-        }
-        bool hiddenPropVal = *hiddenPropValPtr;
-        callback(hiddenPropVal);
+
+        callback(hiddenProperty);
     };
 
     // Get the Hidden Property
-    crow::connections::systemBus->async_method_call(
-        respHandler, "xyz.openbmc_project.Logging",
+    sdbusplus::asio::getProperty<bool>(
+        *crow::connections::systemBus, "xyz.openbmc_project.Logging",
         "/xyz/openbmc_project/logging/entry/" + entryId,
-        "org.freedesktop.DBus.Properties", "Get",
-        "org.open_power.Logging.PEL.Entry", "Hidden");
+        "org.open_power.Logging.PEL.Entry", "Hidden", respHandler);
 }
 
 inline void updateProperty(const std::optional<bool>& resolved,

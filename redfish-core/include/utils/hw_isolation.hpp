@@ -187,10 +187,12 @@ inline void
 {
     // Get the HardwareIsolation entry by using the given resource
     // associations endpoints
-    crow::connections::systemBus->async_method_call(
+
+    dbus::utility::getAssociationEndPoints(
+        resourceObjPath.str + "/isolated_hw_entry",
         [aResp, resourceObjPath, hwIsolationDbusName](
             boost::system::error_code ec,
-            const std::variant<std::vector<std::string>>& vEndpoints) {
+            const dbus::utility::MapperEndPoints& vEndpoints) {
         if (ec)
         {
             BMCWEB_LOG_ERROR << "DBus response error [" << ec.value() << " : "
@@ -216,17 +218,7 @@ inline void
         }
 
         std::string resourceIsolatedHwEntry;
-        const std::vector<std::string>* endpoints =
-            std::get_if<std::vector<std::string>>(&(vEndpoints));
-        if (endpoints == nullptr)
-        {
-            BMCWEB_LOG_ERROR << "Failed to get Associations endpoints "
-                                "for the given object path: "
-                             << resourceObjPath.str;
-            messages::internalError(aResp->res);
-            return;
-        }
-        resourceIsolatedHwEntry = endpoints->back();
+        resourceIsolatedHwEntry = vEndpoints.back();
 
         // De-isolate the given resource
         crow::connections::systemBus->async_method_call(
@@ -275,11 +267,7 @@ inline void
             },
             hwIsolationDbusName, resourceIsolatedHwEntry,
             "xyz.openbmc_project.Object.Delete", "Delete");
-        },
-        "xyz.openbmc_project.ObjectMapper",
-        resourceObjPath.str + "/isolated_hw_entry",
-        "org.freedesktop.DBus.Properties", "Get",
-        "xyz.openbmc_project.Association", "endpoints");
+        });
 }
 
 /**
@@ -570,10 +558,11 @@ inline void
     getHwIsolationStatus(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                          const sdbusplus::message::object_path& resourceObjPath)
 {
-    crow::connections::systemBus->async_method_call(
-        [aResp, resourceObjPath](
-            boost::system::error_code ec,
-            const std::variant<std::vector<std::string>>& vEndpoints) {
+    dbus::utility::getAssociationEndPoints(
+        resourceObjPath.str + "/event_log",
+        [aResp,
+         resourceObjPath](boost::system::error_code ec,
+                          const dbus::utility::MapperEndPoints& vEndpoints) {
         if (ec)
         {
             if (ec.value() == EBADR)
@@ -592,20 +581,9 @@ inline void
             return;
         }
 
-        const std::vector<std::string>* endpoints =
-            std::get_if<std::vector<std::string>>(&(vEndpoints));
-        if (endpoints == nullptr)
-        {
-            BMCWEB_LOG_ERROR << "Failed to get Associations endpoints "
-                                "for the given object path: "
-                             << resourceObjPath.str;
-            messages::internalError(aResp->res);
-            return;
-        }
-
         bool found = false;
         std::string hwStatusEventObj;
-        for (const auto& endpoint : *endpoints)
+        for (const auto& endpoint : vEndpoints)
         {
             if (sdbusplus::message::object_path(endpoint)
                     .parent_path()
@@ -694,10 +672,7 @@ inline void
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetObject", hwStatusEventObj,
             std::array<const char*, 1>{"xyz.openbmc_project.Logging.Event"});
-        },
-        "xyz.openbmc_project.ObjectMapper", resourceObjPath.str + "/event_log",
-        "org.freedesktop.DBus.Properties", "Get",
-        "xyz.openbmc_project.Association", "endpoints");
+        });
 }
 
 } // namespace hw_isolation_utils
