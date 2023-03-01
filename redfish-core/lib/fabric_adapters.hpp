@@ -173,11 +173,36 @@ inline void
     });
 }
 
+inline void linkAsPCIeDevice(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                             const std::string& fabricAdapterPath)
+{
+    const std::string pcieDeviceName =
+        sdbusplus::message::object_path(fabricAdapterPath).filename();
+
+    if (pcieDeviceName.empty())
+    {
+        BMCWEB_LOG_ERROR << "Failed to find / in pcie device path";
+        messages::internalError(aResp->res);
+        return;
+    }
+
+    nlohmann::json& deviceArray = aResp->res.jsonValue["Links"]["PCIeDevices"];
+    deviceArray = nlohmann::json::array();
+
+    deviceArray.push_back(
+        {{"@odata.id",
+          "/redfish/v1/Systems/system/PCIeDevices/" + pcieDeviceName}});
+
+    aResp->res.jsonValue["Links"]["PCIeDevices@odata.count"] =
+        deviceArray.size();
+}
+
 inline void doAdapterGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                          const std::string& systemName,
                          const std::string& adapterId,
                          const std::string& fabricAdapterPath,
-                         const std::string& serviceName)
+                         const std::string& serviceName,
+                         const dbus::utility::InterfaceList& interfaces)
 {
     asyncResp->res.addHeader(
         boost::beast::http::field::link,
@@ -192,10 +217,26 @@ inline void doAdapterGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
     asyncResp->res.jsonValue["Status"]["Health"] = "OK";
 
+<<<<<<< HEAD
     getFabricAdapterLocation(asyncResp, serviceName, fabricAdapterPath);
     getFabricAdapterAsset(asyncResp, serviceName, fabricAdapterPath);
     getFabricAdapterState(asyncResp, serviceName, fabricAdapterPath);
     getFabricAdapterHealth(asyncResp, serviceName, fabricAdapterPath);
+=======
+    getFabricAdapterLocation(aResp, serviceName, fabricAdapterPath);
+    getFabricAdapterAsset(aResp, serviceName, fabricAdapterPath);
+    getFabricAdapterState(aResp, serviceName, fabricAdapterPath);
+    getFabricAdapterHealth(aResp, serviceName, fabricAdapterPath);
+
+    // if the adapter also implements this interface, link the adapter schema to
+    // PCIeDevice schema for this adapter.
+    if (std::find(interfaces.begin(), interfaces.end(),
+                  "xyz.openbmc_project.Inventory.Item.PCIeDevice") !=
+        interfaces.end())
+    {
+        linkAsPCIeDevice(aResp, fabricAdapterPath);
+    }
+>>>>>>> abd8fe20 (Link Fabric adapter to PCIeDevice schema (#583))
 }
 
 inline bool checkFabricAdapterId(const std::string& adapterPath,
@@ -209,9 +250,16 @@ inline bool checkFabricAdapterId(const std::string& adapterPath,
 
 inline void getValidFabricAdapterPath(
     const std::string& adapterId, const std::string& systemName,
+<<<<<<< HEAD
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     std::function<void(const std::string& fabricAdapterPath,
                        const std::string& serviceName)>&& callback)
+=======
+    const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+    std::function<void(
+        const std::string& fabricAdapterPath, const std::string& serviceName,
+        const dbus::utility::InterfaceList& interfaces)>&& callback)
+>>>>>>> abd8fe20 (Link Fabric adapter to PCIeDevice schema (#583))
 {
     if (systemName != "system")
     {
@@ -236,7 +284,8 @@ inline void getValidFabricAdapterPath(
         {
             if (checkFabricAdapterId(adapterPath, adapterId))
             {
-                callback(adapterPath, serviceMap.begin()->first);
+                callback(adapterPath, serviceMap.begin()->first,
+                         serviceMap.begin()->second);
                 return;
             }
         }
@@ -264,12 +313,23 @@ inline void
     }
 
     getValidFabricAdapterPath(
+<<<<<<< HEAD
         adapterId, systemName, asyncResp,
         [asyncResp, systemName, adapterId](const std::string& fabricAdapterPath,
                                            const std::string& serviceName) {
         doAdapterGet(asyncResp, systemName, adapterId, fabricAdapterPath,
                      serviceName);
     });
+=======
+        adapterId, systemName, aResp,
+        [aResp, systemName,
+         adapterId](const std::string& fabricAdapterPath,
+                    const std::string& serviceName,
+                    const dbus::utility::InterfaceList& interfaces) {
+        doAdapterGet(aResp, systemName, adapterId, fabricAdapterPath,
+                     serviceName, interfaces);
+        });
+>>>>>>> abd8fe20 (Link Fabric adapter to PCIeDevice schema (#583))
 }
 
 inline void handleFabricAdapterCollectionGet(
@@ -350,6 +410,7 @@ inline void
         return;
     }
 
+<<<<<<< HEAD
     if constexpr (bmcwebEnableMultiHost)
     {
         // Option currently returns no systems. TBD
@@ -364,6 +425,16 @@ inline void
             boost::beast::http::field::link,
             "</redfish/v1/JsonSchemas/FabricAdapter/FabricAdapter.json>; rel=describedby");
     });
+=======
+    getValidFabricAdapterPath(
+        adapterId, systemName, aResp,
+        [aResp, systemName, adapterId](const std::string&, const std::string&,
+                                       const dbus::utility::InterfaceList&) {
+        aResp->res.addHeader(boost::beast::http::field::link,
+                             "</redfish/v1/JsonSchemas/FabricAdapter/"
+                             "FabricAdapter.json>; rel=describedby");
+        });
+>>>>>>> abd8fe20 (Link Fabric adapter to PCIeDevice schema (#583))
 }
 
 inline void requestRoutesFabricAdapterCollection(App& app)
