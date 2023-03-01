@@ -26,6 +26,7 @@
 #include "oem/ibm/lamp_test.hpp"
 #include "oem/ibm/system_attention_indicator.hpp"
 #endif
+#include "oem/ibm/pcie_topology_refresh.hpp"
 
 #include <app.hpp>
 #include <boost/container/flat_map.hpp>
@@ -2237,19 +2238,19 @@ inline void requestRoutesSystemsCollection(App& app)
                         const std::string& /*hostName*/) {
             nlohmann::json& ifaceArray = asyncResp->res.jsonValue["Members"];
             ifaceArray = nlohmann::json::array();
-            auto& count = asyncResp->res.jsonValue["Members@odata.count"];
+            auto& resCount = asyncResp->res.jsonValue["Members@odata.count"];
 
             nlohmann::json::object_t system;
             system["@odata.id"] = "/redfish/v1/Systems/system";
             ifaceArray.push_back(std::move(system));
-            count = ifaceArray.size();
+            resCount = ifaceArray.size();
             if (!ec2)
             {
                 BMCWEB_LOG_DEBUG << "Hypervisor is available";
                 nlohmann::json::object_t hypervisor;
                 hypervisor["@odata.id"] = "/redfish/v1/Systems/hypervisor";
                 ifaceArray.push_back(std::move(hypervisor));
-                count = ifaceArray.size();
+                resCount = ifaceArray.size();
             }
             });
         });
@@ -2697,10 +2698,14 @@ inline void requestRoutesSystems(App& app)
                 std::optional<bool> lampTest;
                 std::optional<bool> partitionSAI;
                 std::optional<bool> platformSAI;
+                std::optional<bool> pcieTopologyRefresh;
+                std::optional<bool> savePCIeTopologyInfo;
                 if (!json_util::readJson(
                         *ibmOem, asyncResp->res, "LampTest", lampTest,
                         "PartitionSystemAttentionIndicator", partitionSAI,
-                        "PlatformSystemAttentionIndicator", platformSAI))
+                        "PlatformSystemAttentionIndicator", platformSAI,
+                        "PCIeTopologyRefresh", pcieTopologyRefresh,
+                        "SavePCIeTopologyInfo", savePCIeTopologyInfo))
                 {
                     return;
                 }
@@ -2718,7 +2723,26 @@ inline void requestRoutesSystems(App& app)
                     setSAI(asyncResp, "PlatformSystemAttentionIndicator",
                            *platformSAI);
                 }
+#else
+                std::optional<bool> pcieTopologyRefresh;
+                std::optional<bool> savePCIeTopologyInfo;
+                if (!json_util::readJson(
+                        *ibmOem, asyncResp->res, "PCIeTopologyRefresh",
+                        pcieTopologyRefresh, "SavePCIeTopologyInfo",
+                        savePCIeTopologyInfo))
+                {
+                    return;
+                }
 #endif
+                if (pcieTopologyRefresh)
+                {
+                    setPCIeTopologyRefresh(req, asyncResp,
+                                           *pcieTopologyRefresh);
+                }
+                if (savePCIeTopologyInfo)
+                {
+                    setSavePCIeTopologyInfo(asyncResp, *savePCIeTopologyInfo);
+                }
             }
         }
 
