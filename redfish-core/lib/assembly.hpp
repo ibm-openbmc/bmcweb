@@ -192,10 +192,12 @@ inline void
                     else if (interface == "xyz.openbmc_project.Inventory."
                                           "Decorator.LocationCode")
                     {
-                        crow::connections::systemBus->async_method_call(
-                            [aResp, assemblyIndex](
-                                const boost::system::error_code ec3,
-                                const std::variant<std::string>& property) {
+                        sdbusplus::asio::getProperty<std::string>(
+                            *crow::connections::systemBus, serviceName,
+                            assembly, interface, "LocationCode",
+                            [aResp,
+                             assemblyIndex](const boost::system::error_code ec3,
+                                            const std::string& property) {
                             if (ec3)
                             {
                                 BMCWEB_LOG_DEBUG << "DBUS response error";
@@ -208,23 +210,9 @@ inline void
                             nlohmann::json& assemblyData =
                                 assemblyArray.at(assemblyIndex);
 
-                            const std::string* value =
-                                std::get_if<std::string>(&property);
-
-                            if (value == nullptr)
-                            {
-                                // illegal value
-                                messages::internalError(aResp->res);
-                                return;
-                            }
                             assemblyData["Location"]["PartLocation"]
-                                        ["ServiceLabel"] = *value;
-                            },
-                            serviceName, assembly,
-                            "org.freedesktop.DBus.Properties", "Get",
-                            "xyz.openbmc_project.Inventory.Decorator."
-                            "LocationCode",
-                            "LocationCode");
+                                        ["ServiceLabel"] = property;
+                            });
                     }
                     else if (interface == "xyz.openbmc_project.State."
                                           "Decorator.OperationalStatus")
@@ -625,7 +613,7 @@ inline void setAssemblylocationIndicators(
  */
 inline void checkAssemblyInterface(
     const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-    const std::string& chassisPath, std::vector<std::string>& assemblies,
+    const std::string& chassisPath, dbus::utility::MapperEndPoints& assemblies,
     const bool& setLocationIndicatorActiveFlag, const crow::Request& req)
 {
     crow::connections::systemBus->async_method_call(
@@ -710,37 +698,25 @@ inline void
 
     // if there is assembly association, look
     // for endpoints
-    crow::connections::systemBus->async_method_call(
-        [aResp, chassisPath, setLocationIndicatorActiveFlag,
-         req](const boost::system::error_code ec,
-              const std::variant<std::vector<std::string>>& endpoints) {
-        if (ec)
-        {
-            BMCWEB_LOG_DEBUG << "DBUS response "
-                                "error";
-            messages::internalError(aResp->res);
+    dbus::utility::getAssociationEndPoints(
+        assemblyPath, [aResp, chassisPath, setLocationIndicatorActiveFlag,
+                       req](const boost::system::error_code ec,
+                            const dbus::utility::MapperEndPoints& endpoints) {
+            if (ec)
+            {
+                BMCWEB_LOG_DEBUG << "DBUS response "
+                                    "error";
+                messages::internalError(aResp->res);
+                return;
+            }
+
+            dbus::utility::MapperEndPoints sortedAssemblyList = endpoints;
+            std::sort(sortedAssemblyList.begin(), sortedAssemblyList.end());
+
+            checkAssemblyInterface(aResp, chassisPath, sortedAssemblyList,
+                                   setLocationIndicatorActiveFlag, req);
             return;
-        }
-
-        const std::vector<std::string>* assemblyList =
-            std::get_if<std::vector<std::string>>(&(endpoints));
-
-        if (assemblyList == nullptr)
-        {
-            BMCWEB_LOG_DEBUG << "No assembly found";
-            return;
-        }
-
-        std::vector<std::string> sortedAssemblyList = *assemblyList;
-        std::sort(sortedAssemblyList.begin(), sortedAssemblyList.end());
-
-        checkAssemblyInterface(aResp, chassisPath, sortedAssemblyList,
-                               setLocationIndicatorActiveFlag, req);
-        return;
-        },
-        "xyz.openbmc_project.ObjectMapper", assemblyPath,
-        "org.freedesktop.DBus.Properties", "Get",
-        "xyz.openbmc_project.Association", "endpoints");
+        });
 }
 
 /**
@@ -762,10 +738,12 @@ inline void checkForAssemblyAssociations(
     using associationList =
         std::vector<std::tuple<std::string, std::string, std::string>>;
 
-    crow::connections::systemBus->async_method_call(
+    sdbusplus::asio::getProperty<associationList>(
+        *crow::connections::systemBus, service, chassisPath,
+        "xyz.openbmc_project.Association.Definitions", "Associations",
         [aResp, chassisPath, setLocationIndicatorActiveFlag,
          req](const boost::system::error_code ec,
-              const std::variant<associationList>& associations) {
+              const associationList& associations) {
         if (ec)
         {
             BMCWEB_LOG_DEBUG << "DBUS response error";
@@ -773,17 +751,8 @@ inline void checkForAssemblyAssociations(
             return;
         }
 
-        const associationList* value =
-            std::get_if<associationList>(&associations);
-        if (value == nullptr)
-        {
-            BMCWEB_LOG_DEBUG << "DBUS response error";
-            messages::internalError(aResp->res);
-            return;
-        }
-
         bool isAssmeblyAssociation = false;
-        for (const auto& listOfAssociations : *value)
+        for (const auto& listOfAssociations : associations)
         {
             if (std::get<0>(listOfAssociations) != "assembly")
             {
@@ -801,9 +770,7 @@ inline void checkForAssemblyAssociations(
             getAssemblyEndpoints(aResp, chassisPath,
                                  setLocationIndicatorActiveFlag, req);
         }
-        },
-        service, chassisPath, "org.freedesktop.DBus.Properties", "Get",
-        "xyz.openbmc_project.Association.Definitions", "Associations");
+        });
 }
 
 /**
@@ -985,10 +952,13 @@ inline void fillWithAssemblyId(
     using associationList =
         std::vector<std::tuple<std::string, std::string, std::string>>;
 
-    crow::connections::systemBus->async_method_call(
+    sdbusplus::asio::getProperty<associationList>(
+        *crow::connections::systemBus, assemblyParentServ,
+        assemblyParentObjPath.str,
+        "xyz.openbmc_project.Association.Definitions", "Associations",
         [aResp, assemblyUriPropPath, assemblyParentObjPath, assembledObjPath,
          assembledUriVal](const boost::system::error_code ec,
-                          const std::variant<associationList>& associations) {
+                          const associationList& associations) {
         if (ec)
         {
             BMCWEB_LOG_ERROR
@@ -1001,21 +971,8 @@ inline void fillWithAssemblyId(
             return;
         }
 
-        const associationList* value =
-            std::get_if<associationList>(&associations);
-        if (value == nullptr)
-        {
-            BMCWEB_LOG_ERROR
-                << "Failed to get the Associations from ["
-                << assemblyParentObjPath.str
-                << "] to fill Assembly id of the assembled object ["
-                << assembledObjPath.str << "]";
-            messages::internalError(aResp->res);
-            return;
-        }
-
         std::vector<std::string> assemblyAssoc;
-        for (const auto& association : *value)
+        for (const auto& association : associations)
         {
             if (std::get<0>(association) != "assembly")
             {
@@ -1141,10 +1098,7 @@ inline void fillWithAssemblyId(
             "xyz.openbmc_project.ObjectMapper", "GetSubTree",
             "/xyz/openbmc_project/inventory", int32_t(0),
             chassisAssemblyIfaces);
-        },
-        assemblyParentServ, assemblyParentObjPath.str,
-        "org.freedesktop.DBus.Properties", "Get",
-        "xyz.openbmc_project.Association.Definitions", "Associations");
+        });
 }
 
 } // namespace assembly
