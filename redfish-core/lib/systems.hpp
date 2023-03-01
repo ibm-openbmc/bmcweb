@@ -18,6 +18,7 @@
 #include "hypervisor_system.hpp"
 #include "led.hpp"
 #include "logging.hpp"
+#include "oem/ibm/pcie_topology_refresh.hpp"
 #include "query.hpp"
 #include "redfish_util.hpp"
 #include "registries/privilege_registry.hpp"
@@ -3438,6 +3439,8 @@ inline void handleComputerSystemPatch(
     std::optional<uint64_t> ipsExitTime;
     std::optional<std::string> chapName;
     std::optional<std::string> chapSecret;
+    std::optional<bool> pcieTopologyRefresh;
+    std::optional<bool> savePCIeTopologyInfo;
 
     if (!json_util::readJsonPatch(                                         //
             req, asyncResp->res,                                           //
@@ -3461,7 +3464,9 @@ inline void handleComputerSystemPatch(
             "PowerMode", powerMode,                                        //
             "PowerRestorePolicy", powerRestorePolicy,                      //
             "Oem/IBM/ChapData/ChapName", chapName,                         //
-            "Oem/IBM/ChapData/ChapSecret", chapSecret                      //
+            "Oem/IBM/ChapData/ChapSecret", chapSecret,                     //
+            "Oem/IBM/PCIeTopologyRefresh", pcieTopologyRefresh,            //
+            "Oem/IBM/SavePCIeTopologyInfo", savePCIeTopologyInfo           //
             ))
     {
         return;
@@ -3538,6 +3543,15 @@ inline void handleComputerSystemPatch(
     if (chapName || chapSecret)
     {
         setChapData(asyncResp, chapName, chapSecret);
+    }
+
+    if (pcieTopologyRefresh)
+    {
+        setPCIeTopologyRefresh(req, asyncResp, *pcieTopologyRefresh);
+    }
+    if (savePCIeTopologyInfo)
+    {
+        setSavePCIeTopologyInfo(asyncResp, *savePCIeTopologyInfo);
     }
 }
 
