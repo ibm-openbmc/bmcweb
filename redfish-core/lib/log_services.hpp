@@ -565,7 +565,10 @@ inline void
         }
 
         nlohmann::json& entriesArray = asyncResp->res.jsonValue["Members"];
-        entriesArray = nlohmann::json::array();
+        if (entriesArray.empty())
+        {
+            entriesArray = nlohmann::json::array();
+        }
         std::string dumpEntryPath =
             "/xyz/openbmc_project/dump/" +
             std::string(boost::algorithm::to_lower_copy(dumpType)) + "/entry/";
