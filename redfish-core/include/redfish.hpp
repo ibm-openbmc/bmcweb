@@ -38,7 +38,6 @@
 #include "network_protocol.hpp"
 #include "pcie.hpp"
 #include "pcie_slots.hpp"
-#include "port.hpp"
 #include "power.hpp"
 #include "power_subsystem.hpp"
 #include "power_supply.hpp"
@@ -249,8 +248,6 @@ class RedfishService
         requestRoutesEventDestination(app);
         requestRoutesFabricAdapters(app);
         requestRoutesFabricAdapterCollection(app);
-        requestRoutesPort(app);
-        requestRoutesPortCollection(app);
         requestRoutesSubmitTestEvent(app);
 
         hypervisor::requestRoutesHypervisorSystems(app);
