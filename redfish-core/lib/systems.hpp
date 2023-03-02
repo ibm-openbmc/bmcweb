@@ -1544,7 +1544,11 @@ inline void getPowerMode(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
 
             if (safeMode != nullptr)
             {
-                aResp->res.jsonValue["SafeMode"]["SafeMode"] = *safeMode;
+                BMCWEB_LOG_DEBUG << "Safe mode: " << *safeMode;
+                nlohmann::json& oemSafeMode = aResp->res.jsonValue["Oem"];
+                oemSafeMode["@odata.type"] = "#OemComputerSystem.Oem";
+                oemSafeMode["IBM"]["@odata.type"] = "#OemComputerSystem.IBM";
+                oemSafeMode["IBM"]["SafeMode"] = *safeMode;
             }
             if (powerMode != nullptr)
             {
