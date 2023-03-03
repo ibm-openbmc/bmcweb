@@ -10,7 +10,7 @@ namespace redfish
 {
 
 static constexpr const char* usbCodeUpdateObjectPath =
-    "/xyz/openbmc_project/control/service/phosphor_2dusb_2dcode_2dupdate";
+    "/xyz/openbmc_project/control/service/_70hosphor_2dusb_2dcode_2dupdate";
 
 /**
  * @brief Get the service name of the path
