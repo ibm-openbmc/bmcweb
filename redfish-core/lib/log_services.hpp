@@ -2070,21 +2070,11 @@ void getHiddenPropertyValue(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     });
 }
 
-inline void updateProperty(const crow::Request& req,
+inline void updateProperty(const std::optional<bool>& resolved,
+                           const std::optional<bool>& managementSystemAck,
                            const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                            const std::string& entryId)
 {
-    std::optional<bool> resolved;
-    std::optional<nlohmann::json> oemObject;
-#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
-    std::optional<bool> managementSystemAck;
-#endif
-    if (!json_util::readJsonPatch(req, asyncResp->res, "Resolved", resolved,
-                                  "Oem", oemObject))
-    {
-        return;
-    }
-
     if (resolved.has_value())
     {
         sdbusplus::asio::setProperty(
@@ -2101,21 +2091,7 @@ inline void updateProperty(const crow::Request& req,
         });
         BMCWEB_LOG_DEBUG("Set Resolved");
     }
-#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
-    if (oemObject)
-    {
-        std::optional<nlohmann::json> bmcOem;
-        if (!json_util::readJson(*oemObject, asyncResp->res, "OpenBMC", bmcOem))
-        {
-            return;
-        }
-        if (!json_util::readJson(*bmcOem, asyncResp->res, "ManagementSystemAck",
-                                 managementSystemAck))
-        {
-            BMCWEB_LOG_ERROR << "Could not read managementSystemAck";
-            return;
-        }
-    }
+
     if (managementSystemAck.has_value())
     {
         sdbusplus::asio::setProperty(
@@ -2133,7 +2109,6 @@ inline void updateProperty(const crow::Request& req,
         });
         BMCWEB_LOG_DEBUG("Updated ManagementSystemAck Property");
     }
-#endif
 }
 
 inline void
@@ -2856,14 +2831,40 @@ inline void requestRoutesDBusEventLogEntry(App& app)
             return;
         }
 
-        auto updatePropertyCallback = [&req, asyncResp,
+        std::optional<bool> resolved;
+        std::optional<nlohmann::json> oemObject;
+        std::optional<bool> managementSystemAck;
+        if (!json_util::readJsonPatch(req, asyncResp->res, "Resolved", resolved,
+                                      "Oem", oemObject))
+        {
+            return;
+        }
+
+        if (oemObject)
+        {
+            std::optional<nlohmann::json> bmcOem;
+            if (!json_util::readJson(*oemObject, asyncResp->res, "OpenBMC",
+                                     bmcOem))
+            {
+                return;
+            }
+            if (!json_util::readJson(*bmcOem, asyncResp->res,
+                                     "ManagementSystemAck",
+                                     managementSystemAck))
+            {
+                BMCWEB_LOG_ERROR("Could not read managementSystemAck");
+                return;
+            }
+        }
+
+        auto updatePropertyCallback = [resolved, managementSystemAck, asyncResp,
                                        entryId](bool hiddenPropVal) {
             if (hiddenPropVal)
             {
                 messages::resourceNotFound(asyncResp->res, "LogEntry", entryId);
                 return;
             }
-            updateProperty(req, asyncResp, entryId);
+            updateProperty(resolved, managementSystemAck, asyncResp, entryId);
         };
         getHiddenPropertyValue(asyncResp, entryId,
                                std::move(updatePropertyCallback));
@@ -3070,14 +3071,40 @@ inline void requestRoutesDBusCELogEntry(App& app)
             return;
         }
 
-        auto updatePropertyCallback = [&req, asyncResp,
+        std::optional<bool> resolved;
+        std::optional<nlohmann::json> oemObject;
+        std::optional<bool> managementSystemAck;
+        if (!json_util::readJsonPatch(req, asyncResp->res, "Resolved", resolved,
+                                      "Oem", oemObject))
+        {
+            return;
+        }
+
+        if (oemObject)
+        {
+            std::optional<nlohmann::json> bmcOem;
+            if (!json_util::readJson(*oemObject, asyncResp->res, "OpenBMC",
+                                     bmcOem))
+            {
+                return;
+            }
+            if (!json_util::readJson(*bmcOem, asyncResp->res,
+                                     "ManagementSystemAck",
+                                     managementSystemAck))
+            {
+                BMCWEB_LOG_ERROR("Could not read managementSystemAck");
+                return;
+            }
+        }
+
+        auto updatePropertyCallback = [resolved, managementSystemAck, asyncResp,
                                        entryId](bool hiddenPropVal) {
             if (!hiddenPropVal)
             {
                 messages::resourceNotFound(asyncResp->res, "LogEntry", entryId);
                 return;
             }
-            updateProperty(req, asyncResp, entryId);
+            updateProperty(resolved, managementSystemAck, asyncResp, entryId);
         };
         getHiddenPropertyValue(asyncResp, entryId,
                                std::move(updatePropertyCallback));
