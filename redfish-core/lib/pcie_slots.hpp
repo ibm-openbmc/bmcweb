@@ -173,7 +173,8 @@ inline void linkAssociatedDiskBackplane(
                 std::find(assemblyList.begin(), assemblyList.end(), drivePath);
             if (it != assemblyList.end())
             {
-                asyncResp->res.jsonValue["Slots"][index]["Links"]["Oem"] = {
+                asyncResp->res.jsonValue["Slots"][index]["Links"]["Oem"]["IBM"]
+                                        ["AssociatedAssembly"] = {
                     {{"@odata.id",
                       "/redfish/v1/Chassis/" + chassisId +
                           "/Assembly#/Assemblies/" +
