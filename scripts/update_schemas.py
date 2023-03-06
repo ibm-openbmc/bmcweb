@@ -85,6 +85,8 @@ include_list = [
     "PCIeFunctionCollection",
     "PhysicalContext",
     "PCIeSlots",
+    "Port",
+    "PortCollection",
     "Power",
     "PowerSubsystem",
     "PowerSupply",
