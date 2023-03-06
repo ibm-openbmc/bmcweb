@@ -6,8 +6,8 @@
 #include <utils/dbus_utils.hpp>
 #include <utils/json_utils.hpp>
 
-#include <iterator>
-#include <variant>
+#include <cstddef>
+#include <string>
 
 namespace redfish
 {

@@ -4,7 +4,6 @@
 #include <utils/time_utils.hpp>
 
 #include <string>
-#include <vector>
 
 namespace redfish
 {
