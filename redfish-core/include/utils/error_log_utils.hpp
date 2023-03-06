@@ -1,5 +1,8 @@
 #pragma once
 
+#include <sdbusplus/asio/property.hpp>
+
+#include <memory>
 namespace redfish
 {
 namespace error_log_utils
