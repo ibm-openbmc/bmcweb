@@ -22,8 +22,7 @@
 namespace redfish
 {
 
-static constexpr std::array<std::string_view, 2> chassisInterfaces = {
-    "xyz.openbmc_project.Inventory.Item.Board",
+static constexpr std::array<std::string_view, 1> chassisInterfaces = {
     "xyz.openbmc_project.Inventory.Item.Chassis"};
 
 namespace chassis_utils
