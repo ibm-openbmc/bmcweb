@@ -7,6 +7,7 @@
 #include "utils/collection.hpp"
 #include "utils/dbus_utils.hpp"
 #include "utils/json_utils.hpp"
+#include "utils/pcie_util.hpp"
 
 #include <boost/system/error_code.hpp>
 #include <sdbusplus/asio/property.hpp>
@@ -177,7 +178,7 @@ inline void linkAsPCIeDevice(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                              const std::string& fabricAdapterPath)
 {
     const std::string pcieDeviceName =
-        sdbusplus::message::object_path(fabricAdapterPath).filename();
+        pcie_util::buildPCIeUniquePath(fabricAdapterPath);
 
     if (pcieDeviceName.empty())
     {
