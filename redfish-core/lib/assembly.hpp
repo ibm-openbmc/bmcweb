@@ -735,15 +735,11 @@ inline void checkForAssemblyAssociations(
 {
     BMCWEB_LOG_DEBUG << "Check for assembly association";
 
-    using associationList =
-        std::vector<std::tuple<std::string, std::string, std::string>>;
-
-    sdbusplus::asio::getProperty<associationList>(
-        *crow::connections::systemBus, service, chassisPath,
-        "xyz.openbmc_project.Association.Definitions", "Associations",
+    dbus::utility::getAssociationList(
+        service, chassisPath,
         [aResp, chassisPath, setLocationIndicatorActiveFlag,
          req](const boost::system::error_code ec,
-              const associationList& associations) {
+              const dbus::utility::AssociationList& associations) {
         if (ec)
         {
             BMCWEB_LOG_DEBUG << "DBUS response error";
