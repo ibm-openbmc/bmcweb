@@ -44,11 +44,11 @@ inline void auditEvent(const char* opPath, const std::string& userName,
     opPathLen = std::strlen(opPath) + 1;
     if (opPathLen > bufLeft)
     {
-	    BMCWEB_LOG_WARNING << "Audit buffer too small, truncating:"
-	    	<< " bufLeft=" << bufLeft
-	    	<< " opPathLen=" << opPathLen;
-	    opPathLen = bufLeft;
-	    code = __LINE__;
+        BMCWEB_LOG_WARNING << "Audit buffer too small, truncating:"
+                           << " bufLeft=" << bufLeft
+                           << " opPathLen=" << opPathLen;
+        opPathLen = bufLeft;
+        code = __LINE__;
     }
     strncpy(cnfgBuff, opPath, opPathLen);
     cnfgBuff[opPathLen - 1] = '\0';
@@ -60,29 +60,27 @@ inline void auditEvent(const char* opPath, const std::string& userName,
     {
         BMCWEB_LOG_ERROR << "Error appending user to audit msg : "
                          << strerror(errno);
-	code = __LINE__;
+        code = __LINE__;
     }
     else
     {
-	userLen = std::strlen(user) + 1;
+        userLen = std::strlen(user) + 1;
 
-	if (userLen > bufLeft)
-	{
-		BMCWEB_LOG_WARNING << "Audit buffer too small, truncating:"
-			<< " bufLeft=" << bufLeft
-			<< " userLen=" << userLen;
-	    	code = __LINE__;
-	}
-	else
-	{
-        	strncat(cnfgBuff, user, userLen);
-	}
+        if (userLen > bufLeft)
+        {
+            BMCWEB_LOG_WARNING << "Audit buffer too small, truncating:"
+                               << " bufLeft=" << bufLeft
+                               << " userLen=" << userLen;
+            code = __LINE__;
+        }
+        else
+        {
+            strncat(cnfgBuff, user, userLen);
+        }
     }
 
-    BMCWEB_LOG_DEBUG << "auditEvent: code=" << code
-    	<< " bufLeft=" << bufLeft
-	<< " opPathLen=" << opPathLen
-	<< " userLen=" << userLen;
+    BMCWEB_LOG_DEBUG << "auditEvent: code=" << code << " bufLeft=" << bufLeft
+                     << " opPathLen=" << opPathLen << " userLen=" << userLen;
 
     free(user);
 
