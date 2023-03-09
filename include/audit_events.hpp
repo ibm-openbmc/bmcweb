@@ -28,7 +28,7 @@ inline void auditEvent(const char* opPath, const std::string& userName,
     int code = __LINE__;
 
     char cnfgBuff[256];
-    size_t bufLeft = 256;
+    size_t bufLeft = 256; // Amount left available in cnfgBuff
     char* user = NULL;
     size_t opPathLen;
     size_t userLen = 0;
@@ -44,6 +44,7 @@ inline void auditEvent(const char* opPath, const std::string& userName,
     opPathLen = std::strlen(opPath) + 1;
     if (opPathLen > bufLeft)
     {
+        // Truncate event message to fit into fixed sized buffer.
         BMCWEB_LOG_WARNING << "Audit buffer too small, truncating:"
                            << " bufLeft=" << bufLeft
                            << " opPathLen=" << opPathLen;
@@ -68,6 +69,7 @@ inline void auditEvent(const char* opPath, const std::string& userName,
 
         if (userLen > bufLeft)
         {
+            // Username won't fit into fixed sized buffer. Leave it off.
             BMCWEB_LOG_WARNING << "Audit buffer too small, truncating:"
                                << " bufLeft=" << bufLeft
                                << " userLen=" << userLen;
