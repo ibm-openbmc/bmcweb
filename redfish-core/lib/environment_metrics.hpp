@@ -7,109 +7,142 @@
 namespace redfish
 {
 inline void
+    updateFanSensorList(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                        const std::string& chassisID,
+                        const std::string& fanSensorPath, double value)
+{
+    std::string fanSensorName =
+        sdbusplus::message::object_path(fanSensorPath).filename();
+    if (fanSensorName.empty())
+    {
+        return;
+    }
+    std::string tempPath =
+        "/redfish/v1/Chassis/" + chassisID + "/Sensors/" + fanSensorName;
+
+    nlohmann::json item;
+    item["DataSourceUri"] = tempPath;
+    item["DeviceName"] = "Chassis Fan #" + fanSensorName;
+    item["SpeedRPM"] = value;
+
+    nlohmann::json& fanSensorList =
+        asyncResp->res.jsonValue["FanSpeedsPercent"];
+    fanSensorList.emplace_back(std::move(item));
+    asyncResp->res.jsonValue["FanSpeedsPercent@odata.count"] =
+        fanSensorList.size();
+}
+
+inline void getFanSensors(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                          const std::string& chassisID,
+                          const std::string& service, const std::string& path)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp, chassisID, path](const boost::system::error_code& ec,
+                                     const std::variant<double>& value) {
+            if (ec)
+            {
+                if (ec.value() != EBADR)
+                {
+                    messages::internalError(asyncResp->res);
+                }
+                return;
+            }
+
+            const double* valuePtr = std::get_if<double>(&value);
+            if (valuePtr == nullptr)
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            updateFanSensorList(asyncResp, chassisID, path, *valuePtr);
+        },
+        service, path, "org.freedesktop.DBus.Properties", "Get",
+        "xyz.openbmc_project.Sensor.Value", "Value");
+}
+
+inline void
+    getFanSensorPaths(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                      const std::string& fanSensorPath,
+                      const std::string& chassisID)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp, chassisID,
+         fanSensorPath](const boost::system::error_code& ec,
+                        const dbus::utility::MapperGetObject& object) {
+            if (ec || object.empty())
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            getFanSensors(asyncResp, chassisID, object.begin()->first,
+                          fanSensorPath);
+        },
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetObject", fanSensorPath,
+        std::array<const char*, 1>{"xyz.openbmc_project.Sensor.Value"});
+}
+
+inline void
     getfanSpeedsPercent(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                         const std::string& chassisID)
 {
     BMCWEB_LOG_DEBUG << "Get properties for getFan associated to chassis = "
                      << chassisID;
-    const std::array<std::string, 1> sensorInterfaces = {
-        "xyz.openbmc_project.Sensor.Value"};
     crow::connections::systemBus->async_method_call(
-        [asyncResp, chassisID](
-            const boost::system::error_code ec,
-            const std::vector<std::pair<
-                std::string,
-                std::vector<std::pair<std::string, std::vector<std::string>>>>>&
-                sensorsubtree) {
+        [asyncResp, chassisID](const boost::system::error_code ec,
+                               const std::vector<std::string>& paths) {
             if (ec)
             {
-                BMCWEB_LOG_DEBUG << "D-Bus response error on GetSubTree " << ec;
-                if (ec.value() == boost::system::errc::io_error)
+                BMCWEB_LOG_DEBUG << "DBUS response error" << ec.message();
+                if (ec.value() != EBADR)
                 {
-                    messages::resourceNotFound(asyncResp->res, "Chassis",
-                                               chassisID);
-                    return;
+                    messages::internalError(asyncResp->res);
                 }
-                messages::internalError(asyncResp->res);
                 return;
             }
-            nlohmann::json& fanList =
-                asyncResp->res.jsonValue["FanSpeedsPercent"];
-            fanList = nlohmann::json::array();
 
-            for (const auto& [objectPath, serviceName] : sensorsubtree)
+            for (const auto& path : paths)
             {
-                if (objectPath.empty() || serviceName.size() != 1)
-                {
-                    BMCWEB_LOG_DEBUG << "Error getting D-Bus object!";
-                    messages::internalError(asyncResp->res);
-                    return;
-                }
-                const std::string& validPath = objectPath;
-                const std::string& connectionName = serviceName[0].first;
-                std::string sensorType;
-                std::string sensorName;
-
-                // 4 below comes from
-                // /xyz/openbmc_project/sensors/sensorType/sensorName
-                //   0      1             2        3        4
-                if (!dbus::utility::getNthStringFromPath(validPath, 3,
-                                                         sensorType) ||
-                    !dbus::utility::getNthStringFromPath(validPath, 4,
-                                                         sensorName))
-                {
-                    BMCWEB_LOG_ERROR << "Got invalid path " << validPath;
-                    messages::invalidObject(asyncResp->res, validPath);
-                    return;
-                }
-
-                if (sensorType == "fan" || sensorType == "fan_tach" ||
-                    sensorType == "fan_pwm")
-                {
-                    crow::connections::systemBus->async_method_call(
-                        [asyncResp, chassisID, &fanList,
-                         sensorName](const boost::system::error_code ec,
-                                     const std::variant<double>& value) {
-                            if (ec)
+                crow::connections::systemBus->async_method_call(
+                    [asyncResp,
+                     chassisID](const boost::system::error_code ec1,
+                                const std::variant<std::vector<std::string>>&
+                                    endpoints) {
+                        if (ec1)
+                        {
+                            if (ec1.value() != EBADR)
                             {
-                                BMCWEB_LOG_DEBUG << "Can't get Fan speed!";
                                 messages::internalError(asyncResp->res);
                                 return;
                             }
+                        }
 
-                            const double* attributeValue =
-                                std::get_if<double>(&value);
-                            if (attributeValue == nullptr)
-                            {
-                                // illegal property
-                                messages::internalError(asyncResp->res);
-                                return;
-                            }
-                            std::string tempPath = "/redfish/v1/Chassis/" +
-                                                   chassisID + "/Sensors/";
-                            fanList.push_back(
-                                {{"DeviceName", "Chassis Fan #" + sensorName},
-                                 {"SpeedRPM", *attributeValue},
-                                 {"DataSourceUri", tempPath + sensorName},
-                                 {"@odata.id", tempPath + sensorName}});
-                        },
-                        connectionName, validPath,
-                        "org.freedesktop.DBus.Properties", "Get",
-                        "xyz.openbmc_project.Sensor.Value", "Value");
-                }
-                else
-                {
-                    BMCWEB_LOG_DEBUG
-                        << "This is not a fan-related sensor,sensortype = "
-                        << sensorType;
-                    continue;
-                }
+                        const std::vector<std::string>* sensorPathPtr =
+                            std::get_if<std::vector<std::string>>(&(endpoints));
+                        if (sensorPathPtr == nullptr)
+                        {
+                            messages::internalError(asyncResp->res);
+                            return;
+                        }
+
+                        for (const auto& sensorPath : *sensorPathPtr)
+                        {
+                            getFanSensorPaths(asyncResp, sensorPath, chassisID);
+                        }
+                    },
+                    "xyz.openbmc_project.ObjectMapper", path + "/sensors",
+                    "org.freedesktop.DBus.Properties", "Get",
+                    "xyz.openbmc_project.Association", "endpoints");
             }
         },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
-        "xyz.openbmc_project.ObjectMapper", "GetSubTree",
-        "/xyz/openbmc_project/sensors", 0, sensorInterfaces);
+        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
+        "/xyz/openbmc_project/inventory/system/" + chassisID, 0,
+        std::array<const char*, 1>{"xyz.openbmc_project.Inventory.Item.Fan"});
 }
 
 inline void getPowerWatts(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
