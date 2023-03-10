@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/Control",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "Control Schema File",
+    "Schema": "#Control.Control",
+    "Description": "Control Schema File Location",
+    "Id": "Control",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/Control.json",
+            "Uri": "/redfish/v1/JsonSchemas/Control/Control.json"
+        }
+    ],
+    "Location@odata.count": 1
+}

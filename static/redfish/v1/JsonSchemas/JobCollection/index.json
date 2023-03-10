@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/JobCollection",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "JobCollection Schema File",
+    "Schema": "#JobCollection.JobCollection",
+    "Description": "JobCollection Schema File Location",
+    "Id": "JobCollection",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/JobCollection.json",
+            "Uri": "/redfish/v1/JsonSchemas/JobCollection/JobCollection.json"
+        }
+    ],
+    "Location@odata.count": 1
+}

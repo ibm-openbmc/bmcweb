@@ -1,0 +1,21 @@
+{
+    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
+    "@odata.id": "/redfish/v1/JsonSchemas/AllowDeny",
+    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
+    "Name": "AllowDeny Schema File",
+    "Schema": "#AllowDeny.AllowDeny",
+    "Description": "AllowDeny Schema File Location",
+    "Id": "AllowDeny",
+    "Languages": [
+        "en"
+    ],
+    "Languages@odata.count": 1,
+    "Location": [
+        {
+            "Language": "en",
+            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/AllowDeny.json",
+            "Uri": "/redfish/v1/JsonSchemas/AllowDeny/AllowDeny.json"
+        }
+    ],
+    "Location@odata.count": 1
+}
