@@ -727,11 +727,11 @@ inline void getDimmPartitionData(std::shared_ptr<bmcweb::AsyncResp> aResp,
 inline void getObjectEnable(std::shared_ptr<bmcweb::AsyncResp> aResp,
                             const std::string& service, const std::string& path)
 {
-    crow::connections::systemBus->async_method_call(
-        [aResp{std::move(aResp)}](
-            const boost::system::error_code ec,
-            const boost::container::flat_map<std::string, std::variant<bool>>&
-                properties) {
+    sdbusplus::asio::getProperty<bool>(
+        *crow::connections::systemBus, service, path,
+        "xyz.openbmc_project.Object.Enable", "Enabled",
+        [aResp{std::move(aResp)}](const boost::system::error_code ec,
+                                  const bool enabled) {
         if (ec)
         {
             BMCWEB_LOG_ERROR << "DBUS response error [" << ec.value() << " : "
@@ -740,22 +740,8 @@ inline void getObjectEnable(std::shared_ptr<bmcweb::AsyncResp> aResp,
             return;
         }
 
-        for (const auto& [propName, propValue] : properties)
-        {
-            if (propName == "Enabled")
-            {
-                const bool* enabled = std::get_if<bool>(&propValue);
-                if (enabled == nullptr)
-                {
-                    messages::internalError(aResp->res);
-                    break;
-                }
-                aResp->res.jsonValue["Enabled"] = *enabled;
-            }
-        }
-        },
-        service, path, "org.freedesktop.DBus.Properties", "GetAll",
-        "xyz.openbmc_project.Object.Enable");
+        aResp->res.jsonValue["Enabled"] = enabled;
+        });
 }
 
 inline void getDimmData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
