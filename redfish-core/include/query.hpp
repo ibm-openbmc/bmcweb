@@ -27,7 +27,9 @@
 // IWYU pragma: no_include <boost/url/impl/params_view.hpp>
 // IWYU pragma: no_include <boost/url/impl/url_view.hpp>
 
+#ifdef BMCWEB_ENABLE_REDFISH_AGGREGATION
 #include <redfish_aggregator.hpp>
+#endif
 
 namespace redfish
 {

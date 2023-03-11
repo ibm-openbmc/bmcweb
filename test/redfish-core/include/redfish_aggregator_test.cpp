@@ -1,3 +1,4 @@
+#ifdef BMCWEB_ENABLE_REDFISH_AGGREGATION
 #include "redfish_aggregator.hpp"
 
 #include <gtest/gtest.h> // IWYU pragma: keep
@@ -37,5 +38,5 @@ TEST(IsPropertyUri, UnsupportedPropertyReturnsFalse)
     EXPECT_FALSE(isPropertyUri("Health"));
     EXPECT_FALSE(isPropertyUri("Id"));
 }
-
 } // namespace redfish
+#endif

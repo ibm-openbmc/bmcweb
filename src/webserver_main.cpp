@@ -19,7 +19,9 @@
 #include <obmc_shell.hpp>
 #include <openbmc_dbus_rest.hpp>
 #include <redfish.hpp>
+#ifdef BMCWEB_ENABLE_REDFISH_AGGREGATION
 #include <redfish_aggregator.hpp>
+#endif
 #include <sdbusplus/asio/connection.hpp>
 #include <sdbusplus/bus.hpp>
 #include <sdbusplus/server.hpp>
@@ -92,13 +94,13 @@ static int run()
 #ifdef BMCWEB_ENABLE_REDFISH
     redfish::RedfishService redfish(app);
 
+#ifdef BMCWEB_ENABLE_REDFISH_AGGREGATION
     // Create HttpClient instance and initialize Config
     crow::HttpClient::getInstance();
 
     // Create EventServiceManager instance and initialize Config
     redfish::EventServiceManager::getInstance();
 
-#ifdef BMCWEB_ENABLE_REDFISH_AGGREGATION
     // Create RedfishAggregator instance and initialize Config
     redfish::RedfishAggregator::getInstance();
 #endif
@@ -132,6 +134,18 @@ static int run()
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
     crow::ibm_mc::requestRoutes(app);
     crow::ibm_mc_lock::Lock::getInstance();
+    // Start BMC and Host state change dbus monitor
+    crow::dbus_monitor::registerStateChangeSignal();
+    // Start Dump created signal monitor for BMC and System Dump
+    crow::dbus_monitor::registerDumpUpdateSignal();
+    // Start BIOS Attr change dbus monitor
+    crow::dbus_monitor::registerBIOSAttrUpdateSignal();
+    // Start event log entry created monitor
+    crow::dbus_monitor::registerEventLogCreatedSignal();
+    // Start PostCode change signal
+    crow::dbus_monitor::registerPostCodeChangeSignal();
+    // Start VMI Confuguration change dbus monitor
+    crow::dbus_monitor::registerVMIConfigChangeSignal();
 #endif
 
 #ifdef BMCWEB_ENABLE_GOOGLE_API

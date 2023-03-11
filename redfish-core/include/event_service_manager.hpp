@@ -370,7 +370,7 @@ class Subscription : public persistent_data::UserSubscription
     Subscription(Subscription&&) = delete;
     Subscription& operator=(Subscription&&) = delete;
 
-    Subscription(const std::string& inHost, uint16_t inPort,
+    Subscription(const std::string& inHost, const std::string& inPort,
                  const std::string& inPath, const std::string& inUriProto) :
         eventSeqNum(1),
         host(inHost), port(inPort), path(inPath), uriProto(inUriProto)
@@ -386,36 +386,46 @@ class Subscription : public persistent_data::UserSubscription
 
     ~Subscription() = default;
 
-    bool sendEvent(std::string& msg)
+    void sendEvent(std::string& msg)
     {
         if (subscriptionType == "SNMPTrap")
         {
-            return true; // Don't need send SNMPTrap event.
+            return; // Don't need send SNMPTrap event.
         }
 
-        persistent_data::EventServiceConfig eventServiceConfig =
-            persistent_data::EventServiceStore::getInstance()
-                .getEventServiceConfig();
-        if (!eventServiceConfig.enabled)
+        if (conn == nullptr)
         {
-            return false;
-        }
+            BMCWEB_LOG_ERROR
+                << "HttpClient connection is null. Create a conn for id:"
+                << subId << " destination: " << host << ":" << port;
+            conn = std::make_shared<crow::HttpClient>(
+                crow::connections::systemBus->get_io_context(), subId, host,
+                port, path, uriProto, httpHeaders);
+            uint32_t retryAttempts = 0;
+            uint32_t retryTimeoutInterval = 0;
+            persistent_data::EventServiceConfig eventServiceConfig =
+                persistent_data::EventServiceStore::getInstance()
+                    .getEventServiceConfig();
 
-        bool useSSL = (uriProto == "https");
-        // A connection pool will be created if one does not already exist
-        crow::HttpClient::getInstance().sendData(
-            msg, id, host, port, path, useSSL, httpHeaders,
-            boost::beast::http::verb::post, retryPolicyName);
-        eventSeqNum++;
+            retryAttempts = eventServiceConfig.retryAttempts;
+            retryTimeoutInterval = eventServiceConfig.retryTimeoutInterval;
+
+            conn->setRetryPolicy(retryPolicy);
+            conn->setRetryConfig(retryAttempts, retryTimeoutInterval);
+        }
+        if (conn->getConnState() != crow::ConnState::terminated)
+        {
+            conn->sendData(msg);
+            this->eventSeqNum++;
+        }
 
         if (sseConn != nullptr)
         {
             sseConn->sendData(eventSeqNum, msg);
         }
-        return true;
     }
 
-    bool sendTestEventLog()
+    void sendTestEventLog()
     {
         nlohmann::json logEntryArray;
         logEntryArray.push_back({});
@@ -439,7 +449,7 @@ class Subscription : public persistent_data::UserSubscription
 
         std::string strMsg =
             msg.dump(2, ' ', true, nlohmann::json::error_handler_t::replace);
-        return this->sendEvent(strMsg);
+        this->sendEvent(strMsg);
     }
 
 #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
@@ -554,15 +564,18 @@ class Subscription : public persistent_data::UserSubscription
     void updateRetryConfig(const uint32_t retryAttempts,
                            const uint32_t retryTimeoutInterval)
     {
-        crow::HttpClient::getInstance().setRetryConfig(
-            retryAttempts, retryTimeoutInterval, retryRespHandler,
-            retryPolicyName);
+        if (conn != nullptr)
+        {
+            conn->setRetryConfig(retryAttempts, retryTimeoutInterval);
+        }
     }
 
     void updateRetryPolicy()
     {
-        crow::HttpClient::getInstance().setRetryPolicy(retryPolicy,
-                                                       retryPolicyName);
+        if (conn != nullptr)
+        {
+            conn->setRetryPolicy(retryPolicy);
+        }
     }
 
     uint64_t getEventSeqNum() const
@@ -570,31 +583,21 @@ class Subscription : public persistent_data::UserSubscription
         return eventSeqNum;
     }
 
+    void setSubId(const std::string& idr)
+    {
+        subId = idr;
+    }
+
   private:
     uint64_t eventSeqNum;
+    std::string subId;
     std::string host;
-    uint16_t port = 0;
+    std::string port;
     std::string path;
     std::string uriProto;
     std::shared_ptr<crow::ServerSentEvents> sseConn = nullptr;
+    std::shared_ptr<crow::HttpClient> conn = nullptr;
     std::string retryPolicyName = "SubscriptionEvent";
-
-    // Check used to indicate what response codes are valid as part of our retry
-    // policy.  2XX is considered acceptable
-    static boost::system::error_code retryRespHandler(unsigned int respCode)
-    {
-        BMCWEB_LOG_DEBUG
-            << "Checking response code validity for SubscriptionEvent";
-        if ((respCode < 200) || (respCode >= 300))
-        {
-            return boost::system::errc::make_error_code(
-                boost::system::errc::result_out_of_range);
-        }
-
-        // Return 0 if the response code is valid
-        return boost::system::errc::make_error_code(
-            boost::system::errc::success);
-    }
 };
 
 class EventServiceManager
@@ -656,7 +659,6 @@ class EventServiceManager
             std::string path;
             bool status = crow::utility::validateAndSplitUrl(
                 newSub->destinationUrl, urlProto, host, port, path);
-
             if (!status)
             {
                 BMCWEB_LOG_ERROR
@@ -664,9 +666,11 @@ class EventServiceManager
                 continue;
             }
             std::shared_ptr<Subscription> subValue =
-                std::make_shared<Subscription>(host, port, path, urlProto);
+                std::make_shared<Subscription>(host, std::to_string(port), path,
+                                               urlProto);
 
             subValue->id = newSub->id;
+            subValue->setSubId(newSub->id);
             subValue->destinationUrl = newSub->destinationUrl;
             subValue->protocol = newSub->protocol;
             subValue->retryPolicy = newSub->retryPolicy;
@@ -1003,17 +1007,13 @@ class EventServiceManager
         return false;
     }
 
-    bool sendTestEventLog()
+    void sendTestEventLog()
     {
         for (const auto& it : this->subscriptionsMap)
         {
             std::shared_ptr<Subscription> entry = it.second;
-            if (!entry->sendTestEventLog())
-            {
-                return false;
-            }
+            entry->sendTestEventLog();
         }
-        return true;
     }
 
     void sendEvent(nlohmann::json eventMessage, const std::string& origin,

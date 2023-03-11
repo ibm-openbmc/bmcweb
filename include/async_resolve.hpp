@@ -1,7 +1,6 @@
 #pragma once
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/ip/basic_endpoint.hpp>
-#include <boost/asio/ip/tcp.hpp>
 #include <sdbusplus/message.hpp>
 
 #include <charconv>
@@ -27,7 +26,7 @@ class Resolver
     Resolver& operator=(Resolver&&) = delete;
 
     template <typename ResolveHandler>
-    void asyncResolve(const std::string& host, uint16_t port,
+    void asyncResolve(const std::string& host, const std::string& port,
                       ResolveHandler&& handler)
     {
         BMCWEB_LOG_DEBUG << "Trying to resolve: " << host << ":" << port;
@@ -78,7 +77,16 @@ class Resolver
                     handler(ec, endpointList);
                     return;
                 }
-                endpoint.port(port);
+                uint16_t portNum = 0;
+                auto it =
+                    std::from_chars(port.data(), &port[port.length()], portNum);
+                if (it.ec != std::errc())
+                {
+                    BMCWEB_LOG_ERROR << "Failed to get the Port";
+                    handler(ec, endpointList);
+                    return;
+                }
+                endpoint.port(portNum);
                 BMCWEB_LOG_DEBUG << "resolved endpoint is : " << endpoint;
                 endpointList.push_back(endpoint);
             }

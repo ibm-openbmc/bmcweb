@@ -166,23 +166,13 @@ inline void requestRoutesEventService(App& app)
 
 inline void requestRoutesSubmitTestEvent(App& app)
 {
-
     BMCWEB_ROUTE(
         app, "/redfish/v1/EventService/Actions/EventService.SubmitTestEvent/")
         .privileges(redfish::privileges::postEventService)
         .methods(boost::beast::http::verb::post)(
-            [&app](const crow::Request& req,
-                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
-        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
-        {
-            return;
-        }
-        if (!EventServiceManager::getInstance().sendTestEventLog())
-        {
-            messages::serviceDisabled(asyncResp->res,
-                                      "/redfish/v1/EventService/");
-            return;
-        }
+            [](const crow::Request&,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+        EventServiceManager::getInstance().sendTestEventLog();
         asyncResp->res.result(boost::beast::http::status::no_content);
         });
 }
@@ -270,10 +260,6 @@ inline void requestRoutesEventDestinationCollection(App& app)
         .methods(boost::beast::http::verb::post)(
             [&app](const crow::Request& req,
                    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
-        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
-        {
-            return;
-        }
         if (EventServiceManager::getInstance().getNumberOfSubscriptions() >=
             maxNoOfSubscriptions)
         {
@@ -332,8 +318,8 @@ inline void requestRoutesEventDestinationCollection(App& app)
         {
             path = "/";
         }
-        std::shared_ptr<Subscription> subValue =
-            std::make_shared<Subscription>(host, port, path, urlProto);
+        std::shared_ptr<Subscription> subValue = std::make_shared<Subscription>(
+            host, std::to_string(port), path, urlProto);
 
         subValue->destinationUrl = destUrl;
 
@@ -541,7 +527,7 @@ inline void requestRoutesEventDestinationCollection(App& app)
             messages::internalError(asyncResp->res);
             return;
         }
-
+        subValue->setSubId(id);
         messages::created(asyncResp->res);
         asyncResp->res.addHeader(
             "Location", "/redfish/v1/EventService/Subscriptions/" + id);
