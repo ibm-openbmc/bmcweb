@@ -70,7 +70,7 @@ inline void auditEvent(const char* opPath, const std::string& userName,
         if (userLen > bufLeft)
         {
             // Username won't fit into fixed sized buffer. Leave it off.
-            BMCWEB_LOG_WARNING << "Audit buffer too small, truncating:"
+            BMCWEB_LOG_WARNING << "Audit buffer too small for username:"
                                << " bufLeft=" << bufLeft
                                << " userLen=" << userLen;
             code = __LINE__;
