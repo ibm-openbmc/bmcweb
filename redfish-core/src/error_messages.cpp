@@ -2291,7 +2291,7 @@ nlohmann::json restrictedRole(const std::string& arg1)
 
 void restrictedRole(crow::Response& res, const std::string& arg1)
 {
-    res.result(boost::beast::http::status::bad_request);
+    res.result(boost::beast::http::status::forbidden);
     addMessageToErrorJson(res.jsonValue, restrictedRole(arg1));
 }
 
