@@ -2,10 +2,12 @@
 
 #include "led.hpp"
 
+#include <sdbusplus/unpack_properties.hpp>
+#include <utils/dbus_utils.hpp>
 #include <utils/json_utils.hpp>
 
-#include <iterator>
-#include <variant>
+#include <cstddef>
+#include <string>
 
 namespace redfish
 {
@@ -21,6 +23,47 @@ constexpr std::array<const char*, 9> chassisAssemblyIfaces = {
     "xyz.openbmc_project.Inventory.Item.Connector",
     "xyz.openbmc_project.Inventory.Item.Drive",
     "xyz.openbmc_project.Inventory.Item.Board.Motherboard"};
+
+void assembleAssemblyProperties(
+    const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+    const dbus::utility::DBusPropertiesMap& properties,
+    nlohmann::json& assemblyData, const std::string& path)
+{
+    const std::string* partNumber = nullptr;
+    const std::string* serialNumber = nullptr;
+    const std::string* sparePartNumber = nullptr;
+    const std::string* model = nullptr;
+
+    const bool success = sdbusplus::unpackPropertiesNoThrow(
+        dbus_utils::UnpackErrorPrinter(), properties, "PartNumber", partNumber,
+        "SerialNumber", serialNumber, "SparePartNumber", sparePartNumber,
+        "Model", model);
+
+    if (!success)
+    {
+        messages::internalError(aResp->res);
+        BMCWEB_LOG_ERROR << "Could not read one or more properties from "
+                         << path;
+        return;
+    }
+
+    if (partNumber != nullptr)
+    {
+        assemblyData["PartNumber"] = *partNumber;
+    }
+    if (serialNumber != nullptr)
+    {
+        assemblyData["SerialNumber"] = *serialNumber;
+    }
+    if (sparePartNumber != nullptr)
+    {
+        assemblyData["SparePartNumber"] = *sparePartNumber;
+    }
+    if (model != nullptr)
+    {
+        assemblyData["Model"] = *model;
+    }
+}
 
 /**
  * @brief Get properties for the assemblies associated to given chassis
@@ -123,12 +166,13 @@ inline void
                     if (interface ==
                         "xyz.openbmc_project.Inventory.Decorator.Asset")
                     {
-                        crow::connections::systemBus->async_method_call(
-                            [aResp, assemblyIndex](
-                                const boost::system::error_code ec2,
-                                const std::vector<
-                                    std::pair<std::string, VariantType>>&
-                                    propertiesList) {
+                        sdbusplus::asio::getAllProperties(
+                            *crow::connections::systemBus, serviceName,
+                            assembly, interface,
+                            [aResp, assemblyIndex,
+                             assembly](const boost::system::error_code ec2,
+                                       const dbus::utility::DBusPropertiesMap&
+                                           properties) {
                             if (ec2)
                             {
                                 BMCWEB_LOG_DEBUG << "DBUS response error";
@@ -141,71 +185,19 @@ inline void
                             nlohmann::json& assemblyData =
                                 assemblyArray.at(assemblyIndex);
 
-                            for (const std::pair<std::string, VariantType>&
-                                     property : propertiesList)
-                            {
-                                if (property.first == "PartNumber")
-                                {
-                                    const std::string* value =
-                                        std::get_if<std::string>(
-                                            &property.second);
-                                    if (value == nullptr)
-                                    {
-                                        messages::internalError(aResp->res);
-                                        return;
-                                    }
-                                    assemblyData["PartNumber"] = *value;
-                                }
-                                else if (property.first == "SerialNumber")
-                                {
-                                    const std::string* value =
-                                        std::get_if<std::string>(
-                                            &property.second);
-                                    if (value == nullptr)
-                                    {
-                                        messages::internalError(aResp->res);
-                                        return;
-                                    }
-                                    assemblyData["SerialNumber"] = *value;
-                                }
-                                else if (property.first == "SparePartNumber")
-                                {
-                                    const std::string* value =
-                                        std::get_if<std::string>(
-                                            &property.second);
-                                    if (value == nullptr)
-                                    {
-                                        messages::internalError(aResp->res);
-                                        return;
-                                    }
-                                    assemblyData["SparePartNumber"] = *value;
-                                }
-                                else if (property.first == "Model")
-                                {
-                                    const std::string* value =
-                                        std::get_if<std::string>(
-                                            &property.second);
-                                    if (value == nullptr)
-                                    {
-                                        messages::internalError(aResp->res);
-                                        return;
-                                    }
-                                    assemblyData["Model"] = *value;
-                                }
-                            }
-                            },
-                            serviceName, assembly,
-                            "org.freedesktop.DBus.Properties", "GetAll",
-                            "xyz.openbmc_project.Inventory.Decorator."
-                            "Asset");
+                            assembleAssemblyProperties(aResp, properties,
+                                                       assemblyData, assembly);
+                            });
                     }
                     else if (interface == "xyz.openbmc_project.Inventory."
                                           "Decorator.LocationCode")
                     {
-                        crow::connections::systemBus->async_method_call(
-                            [aResp, assemblyIndex](
-                                const boost::system::error_code ec3,
-                                const std::variant<std::string>& property) {
+                        sdbusplus::asio::getProperty<std::string>(
+                            *crow::connections::systemBus, serviceName,
+                            assembly, interface, "LocationCode",
+                            [aResp,
+                             assemblyIndex](const boost::system::error_code ec3,
+                                            const std::string& property) {
                             if (ec3)
                             {
                                 BMCWEB_LOG_DEBUG << "DBUS response error";
@@ -218,23 +210,9 @@ inline void
                             nlohmann::json& assemblyData =
                                 assemblyArray.at(assemblyIndex);
 
-                            const std::string* value =
-                                std::get_if<std::string>(&property);
-
-                            if (value == nullptr)
-                            {
-                                // illegal value
-                                messages::internalError(aResp->res);
-                                return;
-                            }
                             assemblyData["Location"]["PartLocation"]
-                                        ["ServiceLabel"] = *value;
-                            },
-                            serviceName, assembly,
-                            "org.freedesktop.DBus.Properties", "Get",
-                            "xyz.openbmc_project.Inventory.Decorator."
-                            "LocationCode",
-                            "LocationCode");
+                                        ["ServiceLabel"] = property;
+                            });
                     }
                     else if (interface == "xyz.openbmc_project.State."
                                           "Decorator.OperationalStatus")
@@ -635,7 +613,7 @@ inline void setAssemblylocationIndicators(
  */
 inline void checkAssemblyInterface(
     const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-    const std::string& chassisPath, std::vector<std::string>& assemblies,
+    const std::string& chassisPath, dbus::utility::MapperEndPoints& assemblies,
     const bool& setLocationIndicatorActiveFlag, const crow::Request& req)
 {
     crow::connections::systemBus->async_method_call(
@@ -720,37 +698,25 @@ inline void
 
     // if there is assembly association, look
     // for endpoints
-    crow::connections::systemBus->async_method_call(
-        [aResp, chassisPath, setLocationIndicatorActiveFlag,
-         req](const boost::system::error_code ec,
-              const std::variant<std::vector<std::string>>& endpoints) {
-        if (ec)
-        {
-            BMCWEB_LOG_DEBUG << "DBUS response "
-                                "error";
-            messages::internalError(aResp->res);
+    dbus::utility::getAssociationEndPoints(
+        assemblyPath, [aResp, chassisPath, setLocationIndicatorActiveFlag,
+                       req](const boost::system::error_code ec,
+                            const dbus::utility::MapperEndPoints& endpoints) {
+            if (ec)
+            {
+                BMCWEB_LOG_DEBUG << "DBUS response "
+                                    "error";
+                messages::internalError(aResp->res);
+                return;
+            }
+
+            dbus::utility::MapperEndPoints sortedAssemblyList = endpoints;
+            std::sort(sortedAssemblyList.begin(), sortedAssemblyList.end());
+
+            checkAssemblyInterface(aResp, chassisPath, sortedAssemblyList,
+                                   setLocationIndicatorActiveFlag, req);
             return;
-        }
-
-        const std::vector<std::string>* assemblyList =
-            std::get_if<std::vector<std::string>>(&(endpoints));
-
-        if (assemblyList == nullptr)
-        {
-            BMCWEB_LOG_DEBUG << "No assembly found";
-            return;
-        }
-
-        std::vector<std::string> sortedAssemblyList = *assemblyList;
-        std::sort(sortedAssemblyList.begin(), sortedAssemblyList.end());
-
-        checkAssemblyInterface(aResp, chassisPath, sortedAssemblyList,
-                               setLocationIndicatorActiveFlag, req);
-        return;
-        },
-        "xyz.openbmc_project.ObjectMapper", assemblyPath,
-        "org.freedesktop.DBus.Properties", "Get",
-        "xyz.openbmc_project.Association", "endpoints");
+        });
 }
 
 /**
@@ -769,13 +735,11 @@ inline void checkForAssemblyAssociations(
 {
     BMCWEB_LOG_DEBUG << "Check for assembly association";
 
-    using associationList =
-        std::vector<std::tuple<std::string, std::string, std::string>>;
-
-    crow::connections::systemBus->async_method_call(
+    dbus::utility::getAssociationList(
+        service, chassisPath,
         [aResp, chassisPath, setLocationIndicatorActiveFlag,
          req](const boost::system::error_code ec,
-              const std::variant<associationList>& associations) {
+              const dbus::utility::AssociationList& associations) {
         if (ec)
         {
             BMCWEB_LOG_DEBUG << "DBUS response error";
@@ -783,17 +747,8 @@ inline void checkForAssemblyAssociations(
             return;
         }
 
-        const associationList* value =
-            std::get_if<associationList>(&associations);
-        if (value == nullptr)
-        {
-            BMCWEB_LOG_DEBUG << "DBUS response error";
-            messages::internalError(aResp->res);
-            return;
-        }
-
         bool isAssmeblyAssociation = false;
-        for (const auto& listOfAssociations : *value)
+        for (const auto& listOfAssociations : associations)
         {
             if (std::get<0>(listOfAssociations) != "assembly")
             {
@@ -811,9 +766,7 @@ inline void checkForAssemblyAssociations(
             getAssemblyEndpoints(aResp, chassisPath,
                                  setLocationIndicatorActiveFlag, req);
         }
-        },
-        service, chassisPath, "org.freedesktop.DBus.Properties", "Get",
-        "xyz.openbmc_project.Association.Definitions", "Associations");
+        });
 }
 
 /**
@@ -995,10 +948,13 @@ inline void fillWithAssemblyId(
     using associationList =
         std::vector<std::tuple<std::string, std::string, std::string>>;
 
-    crow::connections::systemBus->async_method_call(
+    sdbusplus::asio::getProperty<associationList>(
+        *crow::connections::systemBus, assemblyParentServ,
+        assemblyParentObjPath.str,
+        "xyz.openbmc_project.Association.Definitions", "Associations",
         [aResp, assemblyUriPropPath, assemblyParentObjPath, assembledObjPath,
          assembledUriVal](const boost::system::error_code ec,
-                          const std::variant<associationList>& associations) {
+                          const associationList& associations) {
         if (ec)
         {
             BMCWEB_LOG_ERROR
@@ -1011,21 +967,8 @@ inline void fillWithAssemblyId(
             return;
         }
 
-        const associationList* value =
-            std::get_if<associationList>(&associations);
-        if (value == nullptr)
-        {
-            BMCWEB_LOG_ERROR
-                << "Failed to get the Associations from ["
-                << assemblyParentObjPath.str
-                << "] to fill Assembly id of the assembled object ["
-                << assembledObjPath.str << "]";
-            messages::internalError(aResp->res);
-            return;
-        }
-
         std::vector<std::string> assemblyAssoc;
-        for (const auto& association : *value)
+        for (const auto& association : associations)
         {
             if (std::get<0>(association) != "assembly")
             {
@@ -1151,10 +1094,7 @@ inline void fillWithAssemblyId(
             "xyz.openbmc_project.ObjectMapper", "GetSubTree",
             "/xyz/openbmc_project/inventory", int32_t(0),
             chassisAssemblyIfaces);
-        },
-        assemblyParentServ, assemblyParentObjPath.str,
-        "org.freedesktop.DBus.Properties", "Get",
-        "xyz.openbmc_project.Association.Definitions", "Associations");
+        });
 }
 
 } // namespace assembly

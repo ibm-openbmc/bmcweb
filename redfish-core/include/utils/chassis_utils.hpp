@@ -134,10 +134,11 @@ inline void
 
     // if there is assembly association, look
     // for endpoints
-    crow::connections::systemBus->async_method_call(
+    dbus::utility::getAssociationEndPoints(
+        assemblyPath,
         [aResp, chassisPath, callback{std::forward<Callback>(callback)}](
             const boost::system::error_code ec,
-            const dbus::utility::DbusVariantType& endpoints) {
+            const dbus::utility::MapperEndPoints& assemblyList) {
         if (ec)
         {
             BMCWEB_LOG_DEBUG << "DBUS response "
@@ -146,24 +147,12 @@ inline void
             return;
         }
 
-        const std::vector<std::string>* assemblyList =
-            std::get_if<std::vector<std::string>>(&(endpoints));
-
-        if (assemblyList == nullptr)
-        {
-            BMCWEB_LOG_DEBUG << "No assembly found";
-            return;
-        }
-
-        std::vector<std::string> sortedAssemblyList = *assemblyList;
+        dbus::utility::MapperEndPoints sortedAssemblyList = assemblyList;
         std::sort(sortedAssemblyList.begin(), sortedAssemblyList.end());
         checkAssemblyInterface(aResp, chassisPath, sortedAssemblyList,
                                std::move(callback));
         return;
-        },
-        "xyz.openbmc_project.ObjectMapper", assemblyPath,
-        "org.freedesktop.DBus.Properties", "Get",
-        "xyz.openbmc_project.Association", "endpoints");
+        });
 }
 
 template <typename Callback>
@@ -174,13 +163,11 @@ inline void checkForAssemblyAssociations(
 {
     BMCWEB_LOG_DEBUG << "Check for assembly association";
 
-    using associationList =
-        std::vector<std::tuple<std::string, std::string, std::string>>;
-
-    crow::connections::systemBus->async_method_call(
+    dbus::utility::getAssociationList(
+        service, chassisPath,
         [aResp, chassisPath, callback{std::forward<Callback>(callback)}](
             const boost::system::error_code ec,
-            const std::variant<associationList>& associations) {
+            const dbus::utility::AssociationList& associations) {
         if (ec)
         {
             BMCWEB_LOG_DEBUG << "DBUS response error";
@@ -188,16 +175,7 @@ inline void checkForAssemblyAssociations(
             return;
         }
 
-        const associationList* value =
-            std::get_if<associationList>(&associations);
-        if (value == nullptr)
-        {
-            BMCWEB_LOG_DEBUG << "DBUS response error";
-            messages::internalError(aResp->res);
-            return;
-        }
-
-        for (const auto& listOfAssociations : *value)
+        for (const auto& listOfAssociations : associations)
         {
             if (std::get<0>(listOfAssociations) != "assembly")
             {
@@ -209,9 +187,7 @@ inline void checkForAssemblyAssociations(
             getAssemblyEndpoints(aResp, chassisPath, std::move(callback));
             break;
         }
-        },
-        service, chassisPath, "org.freedesktop.DBus.Properties", "Get",
-        "xyz.openbmc_project.Association.Definitions", "Associations");
+        });
 }
 
 template <typename Callback>

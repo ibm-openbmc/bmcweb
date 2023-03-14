@@ -97,7 +97,11 @@ using MapperGetAncestorsResponse = std::vector<
               std::vector<std::pair<std::string, std::vector<std::string>>>>>;
 
 using MapperGetSubTreePathsResponse = std::vector<std::string>;
+
 using MapperEndPoints = std::vector<std::string>;
+
+using AssociationList =
+    std::vector<std::tuple<std::string, std::string, std::string>>;
 
 inline void escapePathForDbus(std::string& path)
 {
@@ -208,6 +212,20 @@ inline void
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject", path, interfaces);
+}
+
+inline void
+    getAssociationList(const std::string& service, const std::string& path,
+                       std::function<void(const boost::system::error_code&,
+                                          const AssociationList&)>&& callback)
+{
+    sdbusplus::asio::getProperty<AssociationList>(
+        *crow::connections::systemBus, service, path,
+        "xyz.openbmc_project.Association.Definitions", "Associations",
+        [callback{std::move(callback)}](const boost::system::error_code& ec,
+                                        const AssociationList& associations) {
+        callback(ec, associations);
+        });
 }
 
 } // namespace utility
