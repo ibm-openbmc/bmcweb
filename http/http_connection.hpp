@@ -444,22 +444,38 @@ class Connection :
             (req->method() == boost::beast::http::verb::patch) ||
             (req->method() == boost::beast::http::verb::delete_))
         {
-            // Look for good return codes and if so we know the operation passed
-            if ((res.resultInt() >= 200) && (res.resultInt() < 300))
+
+            if (userSession != nullptr)
             {
-                audit::auditEvent(*req,
-                                  ("op=" + std::string(req->methodString()) +
-                                   ":" + std::string(req->target()) + " ")
+                bool requestSuccess = false;
+                // Look for good return codes and if so we know the operation
+                // passed
+                if ((res.resultInt() >= 200) && (res.resultInt() < 300))
+                {
+                    requestSuccess = true;
+                }
+
+                std::string additionalInfo = "";
+                // Exclude the body of account PATCH/POST
+                if ((req->method() == boost::beast::http::verb::patch ||
+                     req->method() == boost::beast::http::verb::post) &&
+                    !req->target().starts_with(
+                        "/redfish/v1/AccountService/Accounts"))
+                {
+                    additionalInfo = req->body + " ";
+                }
+
+                audit::auditEvent(("op=" + std::string(req->methodString()) +
+                                   ":" + std::string(req->target()) + " " +
+                                   additionalInfo)
                                       .c_str(),
-                                  true);
+                                  userSession->username,
+                                  req->ipAddress.to_string(), requestSuccess);
             }
             else
             {
-                audit::auditEvent(*req,
-                                  ("op=" + std::string(req->methodString()) +
-                                   ":" + std::string(req->target()) + " ")
-                                      .c_str(),
-                                  false);
+                BMCWEB_LOG_ERROR
+                    << "UserSession is null, not able to log audit event!";
             }
         }
 #endif // BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
