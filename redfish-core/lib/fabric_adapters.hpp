@@ -2,6 +2,7 @@
 
 #include "app.hpp"
 #include "dbus_utility.hpp"
+#include "led.hpp"
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 #include "utils/collection.hpp"
@@ -225,6 +226,7 @@ inline void doAdapterGet(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
     getFabricAdapterAsset(aResp, serviceName, fabricAdapterPath);
     getFabricAdapterState(aResp, serviceName, fabricAdapterPath);
     getFabricAdapterHealth(aResp, serviceName, fabricAdapterPath);
+    getLocationIndicatorActive(aResp, fabricAdapterPath);
 
     // if the adapter also implements this interface, link the adapter schema to
     // PCIeDevice schema for this adapter.
@@ -234,6 +236,45 @@ inline void doAdapterGet(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
     {
         linkAsPCIeDevice(aResp, fabricAdapterPath);
     }
+}
+
+inline void doAdapterPatch(const crow::Request& req,
+			   const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+			   const std::string& adapterId,
+			   const std::string& fabricAdapterPath)
+{
+    std::optional<bool> locationIndicatorActive;
+        
+    if (!json_util::readJsonPatch(req, aResp->res,
+			     "LocationIndicatorActive",
+			     locationIndicatorActive))
+    {
+      return;
+    }
+    
+    crow::connections::systemBus->async_method_call(
+       [fabricAdapterPath, adapterId,locationIndicatorActive, aResp](
+	 const boost::system::error_code ec) {
+	 if (ec)
+	 {
+	     handleAdapterError(ec, aResp->res, adapterId);
+	     return;
+	 }
+	 
+	 if (locationIndicatorActive)
+	 {
+	     setLocationIndicatorActive(
+					aResp, fabricAdapterPath,
+					*locationIndicatorActive);
+	 }
+    
+	},
+	"xyz.openbmc_project.ObjectMapper",
+	"/xyz/openbmc_project/object_mapper",
+	"xyz.openbmc_project.ObjectMapper", "GetSubTree",
+	"/xyz/openbmc_project/inventory", 0,
+	std::array<const char*, 1>{
+	  "xyz.openbmc_project.Inventory.Item.FabricAdapter"});
 }
 
 inline void getValidFabricAdapterPath(
@@ -296,6 +337,26 @@ inline void
                     const dbus::utility::InterfaceList& interfaces) {
         doAdapterGet(aResp, systemName, adapterId, fabricAdapterPath,
                      serviceName, interfaces);
+        });
+}
+
+inline void
+    handleFabricAdapterPatch(App& app, const crow::Request& req,
+                           const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                           const std::string& systemName,
+                           const std::string& adapterId)
+{
+    if (!redfish::setUpRedfishRoute(app, req, aResp))
+    {
+        return;
+    }
+        
+    getValidFabricAdapterPath(
+        adapterId, systemName, aResp,
+        [req, aResp, adapterId](const std::string& fabricAdapterPath,
+                    [[maybe_unused]] const std::string& serviceName,
+                    [[maybe_unused]] const dbus::utility::InterfaceList& interfaces) {
+	  doAdapterPatch(req, aResp, adapterId, fabricAdapterPath);
         });
 }
 
@@ -408,5 +469,10 @@ inline void requestRoutesFabricAdapters(App& app)
         .privileges(redfish::privileges::headFabricAdapter)
         .methods(boost::beast::http::verb::head)(
             std::bind_front(handleFabricAdapterHead, std::ref(app)));
+    
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/FabricAdapters/<str>/")
+      .privileges(redfish::privileges::patchFabricAdapter) 
+      .methods(boost::beast::http::verb::patch)(
+            std::bind_front(handleFabricAdapterPatch, std::ref(app)));
 }
 } // namespace redfish
