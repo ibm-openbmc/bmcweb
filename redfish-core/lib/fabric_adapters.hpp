@@ -2,6 +2,7 @@
 
 #include "app.hpp"
 #include "dbus_utility.hpp"
+#include "led.hpp"
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 #include "utils/collection.hpp"
@@ -225,6 +226,7 @@ inline void doAdapterGet(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
     getFabricAdapterAsset(aResp, serviceName, fabricAdapterPath);
     getFabricAdapterState(aResp, serviceName, fabricAdapterPath);
     getFabricAdapterHealth(aResp, serviceName, fabricAdapterPath);
+    getLocationIndicatorActive(aResp, fabricAdapterPath);
 
     // if the adapter also implements this interface, link the adapter schema to
     // PCIeDevice schema for this adapter.
@@ -296,6 +298,39 @@ inline void
                     const dbus::utility::InterfaceList& interfaces) {
         doAdapterGet(aResp, systemName, adapterId, fabricAdapterPath,
                      serviceName, interfaces);
+        });
+}
+
+inline void
+    handleFabricAdapterPatch(App& app, const crow::Request& req,
+                             const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                             const std::string& systemName,
+                             const std::string& adapterId)
+{
+    if (!redfish::setUpRedfishRoute(app, req, aResp))
+    {
+        return;
+    }
+
+    std::optional<bool> locationIndicatorActive;
+
+    if (!json_util::readJsonPatch(req, aResp->res, "LocationIndicatorActive",
+                                  locationIndicatorActive))
+    {
+        return;
+    }
+
+    getValidFabricAdapterPath(
+        adapterId, systemName, aResp,
+        [req, aResp, locationIndicatorActive](
+            const std::string& fabricAdapterPath,
+            [[maybe_unused]] const std::string& serviceName,
+            [[maybe_unused]] const dbus::utility::InterfaceList& interfaces) {
+        if (locationIndicatorActive)
+        {
+            setLocationIndicatorActive(aResp, fabricAdapterPath,
+                                       *locationIndicatorActive);
+        }
         });
 }
 
@@ -408,5 +443,10 @@ inline void requestRoutesFabricAdapters(App& app)
         .privileges(redfish::privileges::headFabricAdapter)
         .methods(boost::beast::http::verb::head)(
             std::bind_front(handleFabricAdapterHead, std::ref(app)));
+
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/FabricAdapters/<str>/")
+        .privileges(redfish::privileges::patchFabricAdapter)
+        .methods(boost::beast::http::verb::patch)(
+            std::bind_front(handleFabricAdapterPatch, std::ref(app)));
 }
 } // namespace redfish
