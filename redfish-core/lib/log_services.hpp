@@ -895,7 +895,8 @@ inline std::string getDumpEntryPath(const std::string& dumpPath)
     {
         return "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
     }
-    if (dumpPath == "/xyz/openbmc_project/dump/system/entry")
+    if ((dumpPath == "/xyz/openbmc_project/dump/system/entry") ||
+        (dumpPath == "/xyz/openbmc_project/dump/resource/entry"))
     {
         return "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
     }
@@ -1004,12 +1005,12 @@ inline void createDumpTaskCallback(
             taskData->messages.emplace_back(retMessage);
 
             std::string headerLoc;
-            if ((createdObjPath.str).find("/resource/") == std::string::npos)
+            if ((createdObjPath.str).find("/resource/") != std::string::npos)
             {
                 headerLoc = "Location: " + dumpEntryPath +
                             http_helpers::urlEncode("Resource_" + dumpId);
             }
-            else if ((createdObjPath.str).find("/system/") == std::string::npos)
+            else if ((createdObjPath.str).find("/system/") != std::string::npos)
             {
                 headerLoc = "Location: " + dumpEntryPath +
                             http_helpers::urlEncode("System_" + dumpId);
@@ -1084,7 +1085,7 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 "DiagnosticDataType & OEMDiagnosticDataType");
             return;
         }
-        if ((*oemDiagnosticDataType != "System") ||
+        if ((*oemDiagnosticDataType != "System") &&
             (*diagnosticDataType != "OEM"))
         {
             BMCWEB_LOG_ERROR << "Wrong parameter values passed";
