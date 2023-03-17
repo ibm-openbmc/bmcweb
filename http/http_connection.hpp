@@ -384,7 +384,7 @@ class Connection :
                 thisReq.getHeaderValue(boost::beast::http::field::upgrade),
                 "websocket"))
         {
-            handler->handleUpgrade(thisReq, res, std::move(adaptor));
+            handler->handleUpgrade(thisReq, asyncResp, std::move(adaptor));
             // delete lambda with self shared_ptr
             // to enable connection destruction
             asyncResp->res.setCompleteRequestHandler(nullptr);
