@@ -239,11 +239,10 @@ inline void
 {
     BMCWEB_LOG_DEBUG << "Get LocationIndicatorActive";
 
-    nlohmann::json& jsonIn = jsonInput["LocationIndicatorActive"];
     dbus::utility::getAssociationEndPoints(
         objPath + "/identifying",
-        [aResp, &jsonIn](const boost::system::error_code& ec,
-                         const dbus::utility::MapperEndPoints& endpoints) {
+        [aResp, &jsonInput](const boost::system::error_code& ec,
+                            const dbus::utility::MapperEndPoints& endpoints) {
         if (ec)
         {
             if (ec.value() != EBADR)
@@ -253,6 +252,7 @@ inline void
             return;
         }
 
+        nlohmann::json& jsonIn = jsonInput["LocationIndicatorActive"];
         for (const auto& endpoint : endpoints)
         {
             getLedAsset(aResp, endpoint, jsonIn);
