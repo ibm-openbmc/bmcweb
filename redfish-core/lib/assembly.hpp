@@ -60,9 +60,6 @@ inline void
         tempyArray.at(assemblyIndex)["Name"] =
             sdbusplus::message::object_path(assembly).filename();
 
-        // Set the default Status
-        tempyArray.at(assemblyIndex)["Status"]["Health"] = "OK";
-
         // Handle special case for tod_battery assembly OEM ReadyToRemove
         // property NOTE: The following method for the special case of the
         // tod_battery ReadyToRemove property only works when there is only ONE
@@ -287,6 +284,10 @@ inline void
                                     {
                                         assemblyData["Status"]["Health"] =
                                             "Critical";
+                                    }
+                                    else
+                                    {
+                                        assemblyData["Status"]["Health"] = "OK";
                                     }
                                 },
                                 serviceName, assembly,
