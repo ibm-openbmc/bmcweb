@@ -32,6 +32,7 @@ Fields common to all schemas
 #### ServiceRoot
 
 - AccountService
+- AggregationService
 - CertificateService
 - Chassis
 - EventService
@@ -65,6 +66,21 @@ Fields common to all schemas
 - Oem/OpenBMC/AuthMethods/XToken
 - Roles
 - ServiceEnabled
+
+### /redfish/v1/AggregationService/
+
+#### AggregationService
+
+- AggregationSources
+- Description
+- ServiceEnabled
+
+### /redfish/v1/AggregationService/AggregationSources
+
+#### AggregationSourceCollection
+
+- Members
+- Members@odata.count
 
 ### /redfish/v1/AccountService/Accounts/
 

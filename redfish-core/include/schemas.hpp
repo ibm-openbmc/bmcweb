@@ -17,6 +17,8 @@ namespace redfish
     constexpr std::array schemas {
         "AccountService",
         "ActionInfo",
+        "AggregationService",
+        "AggregationSourceCollection",
         "Assembly",
         "AttributeRegistry",
         "Bios",
@@ -39,6 +41,8 @@ namespace redfish
         "EventDestination",
         "EventDestinationCollection",
         "EventService",
+        "FabricAdapter",
+        "FabricAdapterCollection",
         "Fan",
         "FanCollection",
         "IPAddresses",

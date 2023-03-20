@@ -101,6 +101,14 @@
         <edmx:Include Namespace="ActionInfo.v1_2_0"/>
         <edmx:Include Namespace="ActionInfo.v1_3_0"/>
     </edmx:Reference>
+    <edmx:Reference Uri="/redfish/v1/schema/AggregationService_v1.xml">
+        <edmx:Include Namespace="AggregationService"/>
+        <edmx:Include Namespace="AggregationService.v1_0_0"/>
+        <edmx:Include Namespace="AggregationService.v1_0_1"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="/redfish/v1/schema/AggregationSourceCollection_v1.xml">
+        <edmx:Include Namespace="AggregationSourceCollection"/>
+    </edmx:Reference>
     <edmx:Reference Uri="/redfish/v1/schema/Assembly_v1.xml">
         <edmx:Include Namespace="Assembly"/>
         <edmx:Include Namespace="Assembly.v1_0_0"/>
@@ -991,6 +999,17 @@
         <edmx:Include Namespace="EventService.v1_7_2"/>
         <edmx:Include Namespace="EventService.v1_7_3"/>
         <edmx:Include Namespace="EventService.v1_8_0"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="/redfish/v1/schema/FabricAdapter_v1.xml">
+        <edmx:Include Namespace="FabricAdapter"/>
+        <edmx:Include Namespace="FabricAdapter.v1_0_0"/>
+        <edmx:Include Namespace="FabricAdapter.v1_1_0"/>
+        <edmx:Include Namespace="FabricAdapter.v1_2_0"/>
+        <edmx:Include Namespace="FabricAdapter.v1_3_0"/>
+        <edmx:Include Namespace="FabricAdapter.v1_4_0"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="/redfish/v1/schema/FabricAdapterCollection_v1.xml">
+        <edmx:Include Namespace="FabricAdapterCollection"/>
     </edmx:Reference>
     <edmx:Reference Uri="/redfish/v1/schema/Fan_v1.xml">
         <edmx:Include Namespace="Fan"/>
@@ -2874,9 +2893,9 @@
         <edmx:Include Namespace="OemVirtualMedia"/>
         <edmx:Include Namespace="OemVirtualMedia.v1_0_0"/>
     </edmx:Reference>
-    <edmx:Reference Uri="/redfish/v1/schema/OemAccountService_v1.xml">
-        <edmx:Include Namespace="OemAccountService"/>
-        <edmx:Include Namespace="OemAccountService.v1_0_0"/>
+    <edmx:Reference Uri="/redfish/v1/schema/OpenBMCAccountService_v1.xml">
+        <edmx:Include Namespace="OpenBMCAccountService"/>
+        <edmx:Include Namespace="OpenBMCAccountService.v1_0_0"/>
     </edmx:Reference>
     <edmx:Reference Uri="/redfish/v1/schema/OemSession_v1.xml">
         <edmx:Include Namespace="OemSession"/>
