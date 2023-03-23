@@ -5,6 +5,7 @@
 #include <async_resp.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/container/flat_set.hpp>
+#include <dbus_utility.hpp>
 #include <privileges.hpp>
 #include <websocket.hpp>
 
@@ -118,29 +119,12 @@ inline void requestRoutes(App& app)
     BMCWEB_ROUTE(app, "/console0")
         .privileges({{"ConfigureManager"}})
         .websocket()
-        .onopen(
-            [](crow::websocket::Connection& conn) {
-        BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";
-
-        sessions.insert(&conn);
-        if (hostSocket == nullptr)
-        {
-            const std::string consoleName("\0obmc-console", 13);
-            boost::asio::local::stream_protocol::endpoint ep(consoleName);
-
-            hostSocket =
-                std::make_unique<boost::asio::local::stream_protocol::socket>(
-                    conn.getIoContext());
-            hostSocket->async_connect(ep, connectHandler);
-        }
-        // Ensure user has ConfigureManager, setting above does nothing
-        auto getUserInfo =
-            [&conn](
-                const boost::system::error_code ec,
-                boost::container::flat_map<
-                    std::string,
-                    std::variant<bool, std::string, std::vector<std::string>>>
-                    userInfo) {
+        .onopen([](crow::websocket::Connection& conn) {
+            BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";
+            // Ensure user has ConfigureManager, setting above does nothing
+            auto getUserInfo =
+                [&conn](const boost::system::error_code& ec,
+                        const dbus::utility::DBusPropertiesMap& userInfo) {
             if (ec)
             {
                 BMCWEB_LOG_ERROR << "GetUserInfo failed...";
@@ -149,7 +133,10 @@ inline void requestRoutes(App& app)
             }
 
             const std::string* userRolePtr = nullptr;
-            auto userInfoIter = userInfo.find("UserPrivilege");
+            auto userInfoIter = std::find_if(userInfo.begin(), userInfo.end(),
+                                             [](const auto& p) {
+                return p.first == "UserPrivilege";
+            });
             if (userInfoIter != userInfo.end())
             {
                 userRolePtr = std::get_if<std::string>(&userInfoIter->second);
@@ -189,11 +176,11 @@ inline void requestRoutes(App& app)
                     conn.getIoContext());
                 hostSocket->async_connect(ep, connectHandler);
             }
-        };
-        crow::connections::systemBus->async_method_call(
-            std::move(getUserInfo), "xyz.openbmc_project.User.Manager",
-            "/xyz/openbmc_project/user", "xyz.openbmc_project.User.Manager",
-            "GetUserInfo", conn.getUserName());
+            };
+            crow::connections::systemBus->async_method_call(
+                std::move(getUserInfo), "xyz.openbmc_project.User.Manager",
+                "/xyz/openbmc_project/user", "xyz.openbmc_project.User.Manager",
+                "GetUserInfo", conn.getUserName());
         })
         .onclose([](crow::websocket::Connection& conn,
                     [[maybe_unused]] const std::string& reason) {
