@@ -224,8 +224,7 @@ inline static bool getEntryTimestamp(sd_journal* journal,
                          << strerror(-ret);
         return false;
     }
-    entryTimestamp = crow::utility::getDateTime(
-        static_cast<std::time_t>(timestamp / 1000 / 1000));
+    entryTimestamp = crow::utility::getDateTimeUint(timestamp / 1000 / 1000);
     return true;
 }
 
@@ -468,7 +467,7 @@ inline void
                 {
                     continue;
                 }
-                std::time_t timestamp;
+                uint64_t timestamp = 0;
                 uint64_t size = 0;
                 std::string dumpStatus;
                 std::string clientId;
@@ -535,8 +534,7 @@ inline void
                                     messages::internalError(asyncResp->res);
                                     break;
                                 }
-                                timestamp = static_cast<std::time_t>(
-                                    *usecsTimeStamp / 1000 / 1000);
+                                timestamp = (*usecsTimeStamp / 1000 / 1000);
                                 break;
                             }
                         }
@@ -575,7 +573,11 @@ inline void
                 thisEntry["@odata.id"] = dumpPath + entryID;
                 thisEntry["Id"] = entryID;
                 thisEntry["EntryType"] = "Event";
-                thisEntry["Created"] = crow::utility::getDateTime(timestamp);
+                thisEntry["Created"] =
+                    crow::utility::getDateTimeUint(timestamp);
+                thisEntry["Created"] =
+                    crow::utility::getDateTimeUint(timestamp);
+                thisEntry["Name"] = dumpType + " Dump Entry";
 
                 thisEntry["AdditionalDataSizeBytes"] = size;
 
@@ -677,7 +679,7 @@ inline void
                 }
 
                 foundDumpEntry = true;
-                std::time_t timestamp;
+                uint64_t timestamp = 0;
                 uint64_t size = 0;
                 std::string dumpStatus;
 
@@ -734,8 +736,7 @@ inline void
                                     messages::internalError(asyncResp->res);
                                     break;
                                 }
-                                timestamp = static_cast<std::time_t>(
-                                    *usecsTimeStamp / 1000 / 1000);
+                                timestamp = *usecsTimeStamp / 1000 / 1000;
                                 break;
                             }
                         }
@@ -779,7 +780,9 @@ inline void
                 asyncResp->res.jsonValue["Id"] = entryID;
                 asyncResp->res.jsonValue["EntryType"] = "Event";
                 asyncResp->res.jsonValue["Created"] =
-                    crow::utility::getDateTime(timestamp);
+                    crow::utility::getDateTimeUint(timestamp);
+                asyncResp->res.jsonValue["Name"] = dumpType + " Dump Entry";
+
                 asyncResp->res.jsonValue["AdditionalDataSizeBytes"] = size;
 
                 if (!clientId.empty())
@@ -2002,8 +2005,9 @@ inline void getDBusLogEntryCollection(
         }
         thisEntry["ServiceProviderNotified"] = serviceProviderNotified;
         thisEntry["Severity"] = translateSeverityDbusToRedfish(*severity);
-        thisEntry["Created"] = crow::utility::getDateTime(timestamp);
-        thisEntry["Modified"] = crow::utility::getDateTime(updateTimestamp);
+        thisEntry["Created"] = crow::utility::getDateTimeStdtime(timestamp);
+        thisEntry["Modified"] =
+            crow::utility::getDateTimeStdtime(updateTimestamp);
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
         thisEntry["Oem"]["OpenBMC"]["@odata.type"] =
             "#OemLogEntry.v1_0_0.LogEntry";
@@ -2404,9 +2408,10 @@ inline void getDBusLogEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         serviceProviderNotified;
     asyncResp->res.jsonValue["Severity"] =
         translateSeverityDbusToRedfish(*severity);
-    asyncResp->res.jsonValue["Created"] = crow::utility::getDateTime(timestamp);
+    asyncResp->res.jsonValue["Created"] =
+        crow::utility::getDateTimeStdtime(timestamp);
     asyncResp->res.jsonValue["Modified"] =
-        crow::utility::getDateTime(updateTimestamp);
+        crow::utility::getDateTimeStdtime(updateTimestamp);
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
     asyncResp->res.jsonValue["Oem"]["OpenBMC"]["@odata.type"] =
         "#OemLogEntry.v1_0_0.LogEntry";
@@ -4103,9 +4108,8 @@ static void fillPostCodeEntry(
 
         // Get the Created time from the timestamp
         std::string entryTimeStr;
-        entryTimeStr = crow::utility::getDateTime(
-            static_cast<std::time_t>(usecSinceEpoch / 1000 / 1000));
-
+        entryTimeStr =
+            crow::utility::getDateTimeUint(usecSinceEpoch / 1000 / 1000);
         // assemble messageArgs: BootIndex, TimeOffset(100us), PostCode(hex)
         std::ostringstream hexCode;
         hexCode << "0x" << std::setfill('0') << std::setw(2) << std::hex
