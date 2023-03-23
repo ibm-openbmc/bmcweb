@@ -640,9 +640,8 @@ inline void
                                         return;
                                     }
                                     condition["Timestamp"] =
-                                        crow::utility::getDateTime(
-                                            static_cast<std::time_t>(
-                                                *timestamp));
+                                        crow::utility::getDateTimeUint(
+                                            *timestamp / 1000 / 1000);
                                 }
                                 else if (property.first == "Message")
                                 {
