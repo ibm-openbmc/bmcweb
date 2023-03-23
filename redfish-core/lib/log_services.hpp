@@ -5944,14 +5944,17 @@ inline void fillSystemHardwareIsolationLogEntry(
                     {
                         entryJson["Severity"] = "Critical";
                     }
-                    else if ((*severity == "xyz.openbmc_project."
-                                           "HardwareIsolation."
-                                           "Entry.Type.Warning") ||
-                             (*severity == "xyz.openbmc_project."
-                                           "HardwareIsolation."
-                                           "Entry.Type.Manual"))
+                    else if (*severity == "xyz.openbmc_project."
+                                          "HardwareIsolation."
+                                          "Entry.Type.Warning")
                     {
                         entryJson["Severity"] = "Warning";
+                    }
+                    else if (*severity == "xyz.openbmc_project."
+                                          "HardwareIsolation."
+                                          "Entry.Type.Manual")
+                    {
+                        entryJson["Severity"] = "OK";
                     }
                     else
                     {
