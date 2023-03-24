@@ -161,6 +161,15 @@ inline void
         std::array<const char*, 1>{"xyz.openbmc_project.State.Host"});
 }
 
+inline bool translateSlaacEnabledToBool(const std::string& inputDHCP)
+{
+    return (
+        (inputDHCP ==
+         "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v6stateless") ||
+        (inputDHCP ==
+         "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v4v6stateless"));
+}
+
 inline bool extractHypervisorInterfaceData(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& ethIfaceId,
@@ -333,7 +342,14 @@ inline bool extractHypervisorInterfaceData(
                             if (!translateDhcpEnabledToBool(*dhcpEnabled,
                                                             false))
                             {
-                                ipv6Address.origin = "Static";
+                                if (!translateSlaacEnabledToBool(*dhcpEnabled))
+                                {
+                                    ipv6Address.origin = "Static";
+                                }
+                                else
+                                {
+                                    ipv6Address.origin = "SLAAC";
+                                }
                             }
                             else
                             {
