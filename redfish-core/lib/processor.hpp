@@ -1991,6 +1991,11 @@ inline void requestRoutesSubProcessorsCore(App& app)
 
         getSubProcessorData(asyncResp, processorId, coreId);
         });
+
+    BMCWEB_ROUTE(
+        app, "/redfish/v1/Systems/system/Processors/<str>/SubProcessors/<str>")
+        .privileges(redfish::privileges::patchProcessor)
+        .methods(boost::beast::http::verb::patch)(patchCpuCoreMembers);
 }
 
 } // namespace redfish
