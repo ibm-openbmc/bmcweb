@@ -641,7 +641,7 @@ inline void
                                     }
                                     condition["Timestamp"] =
                                         crow::utility::getDateTimeUint(
-                                            *timestamp / 1000 / 1000);
+                                            *timestamp);
                                 }
                                 else if (property.first == "Message")
                                 {
