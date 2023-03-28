@@ -5,6 +5,7 @@
 #include <sdbusplus/unpack_properties.hpp>
 #include <utils/dbus_utils.hpp>
 #include <utils/json_utils.hpp>
+#include <utils/name_utils.hpp>
 
 #include <cstddef>
 #include <string>
@@ -155,6 +156,11 @@ inline void
                 messages::internalError(aResp->res);
                 return;
             }
+
+            nlohmann::json::json_pointer ptr(
+                "/Assemblies/" + std::to_string(assemblyIndex) + "/Name");
+
+            name_util::getPrettyName(aResp, assembly, object, ptr);
 
             for (const auto& [serviceName, interfaceList] : object)
             {
