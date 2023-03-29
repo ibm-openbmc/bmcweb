@@ -46,8 +46,8 @@ inline void parseAverageMaximum(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         // Second value from average and maximum is just an integer type value
         // representing watts.
         inputPowerHistoryItemArray.push_back(
-            {{"Date", crow::utility::getDateTimeUint(
-                          (std::get<0>(*average) / 1000 / 1000 / 1000))},
+            {{"Date",
+              crow::utility::getDateTimeUint((std::get<0>(*average) / 1000))},
              {"Average", std::get<1>(*average)},
              {"Maximum", std::get<1>(*maximum)}});
     }
@@ -104,9 +104,9 @@ inline void getMaximumValues(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 // power supply has used in a 30 second interval.
                 auto value = std::get<1>(values);
 
-                BMCWEB_LOG_DEBUG << "Date/Time: "
-                                 << crow::utility::getDateTimeUint(
-                                        dateTime / 1000 / 1000 / 1000);
+                BMCWEB_LOG_DEBUG
+                    << "Date/Time: "
+                    << crow::utility::getDateTimeUint(dateTime / 1000);
                 BMCWEB_LOG_DEBUG << "Maximum Value: " << value;
 
                 maximumValues.emplace_back(dateTime, value);
@@ -171,9 +171,9 @@ inline void
                 // watts this power supply has used in a 30 second interval.
                 auto value = std::get<1>(values);
 
-                BMCWEB_LOG_DEBUG << "DateTime: "
-                                 << crow::utility::getDateTimeUint(
-                                        dateTime / 1000 / 1000 / 1000);
+                BMCWEB_LOG_DEBUG
+                    << "DateTime: "
+                    << crow::utility::getDateTimeUint(dateTime / 1000);
                 BMCWEB_LOG_DEBUG << "Values: " << value;
 
                 averageValues.emplace_back(dateTime, value);
