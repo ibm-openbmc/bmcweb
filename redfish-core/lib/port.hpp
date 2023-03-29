@@ -96,8 +96,11 @@ inline void getPortCollection(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 
         for (const auto& path : paths)
         {
+            // get adapterPath from the dbus connector path
+            std::string adapterPath =
+                sdbusplus::message::object_path(path).parent_path();
             const std::string& adapterUniq =
-                fabric_util::buildFabricUniquePath(path);
+                fabric_util::buildFabricUniquePath(adapterPath);
             if (!fabric_util::checkFabricAdapterId(adapterId, adapterUniq))
             {
                 continue;
