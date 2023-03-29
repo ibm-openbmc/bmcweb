@@ -5046,8 +5046,8 @@ inline void fillSystemHardwareIsolationLogEntry(
                         messages::internalError(asyncResp->res);
                         break;
                     }
-                    entryJson["Created"] = crow::utility::getDateTime(
-                        static_cast<std::time_t>(*elapsdTime));
+                    entryJson["Created"] =
+                        crow::utility::getDateTimeUint(*elapsdTime);
                 }
             }
         }
