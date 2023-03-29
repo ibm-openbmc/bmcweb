@@ -541,6 +541,30 @@ inline bool base64Decode(const std::string_view input, std::string& output)
     return true;
 }
 
+/**
+ * Method returns 64bit post code into ASCII string
+ *
+ * @param[in] postcode value
+ *
+ * @return ascii converted post code string
+ */
+
+inline std::string convertToAscii(const uint64_t& element)
+{
+    uint64_t tmpelement = element;
+    uint8_t* p = static_cast<uint8_t*>(static_cast<void*>(&tmpelement));
+    std::span<unsigned char> bytearray{p, 8};
+
+    if (std::count_if(bytearray.begin(), bytearray.end(), [](unsigned char c) {
+            return (std::isprint(c) == 0);
+        }) != 0)
+    {
+        return {};
+    }
+
+    return {std::string(bytearray.begin(), bytearray.end())};
+}
+
 inline bool constantTimeStringCompare(const std::string_view a,
                                       const std::string_view b)
 {
