@@ -50,9 +50,10 @@
 namespace crow
 {
 
-// It is assumed that the BMC should be able to handle 4 parallel connections
-constexpr uint8_t maxPoolSize = 4;
-constexpr uint8_t maxRequestQueueSize = 50;
+// With Redfish Aggregation it is assumed we will connect to another instance
+// of BMCWeb which can handle 100 simultaneous connections.
+constexpr size_t maxPoolSize = 20;
+constexpr size_t maxRequestQueueSize = 500;
 constexpr unsigned int httpReadBodyLimit = 131072;
 constexpr unsigned int httpReadBufferSize = 4096;
 
@@ -777,8 +778,13 @@ class ConnectionPool : public std::enable_shared_from_this<ConnectionPool>
         }
         else
         {
+            // If we can't buffer the request then we should let the callback
+            // handle a 429 Too Many Requests dummy response
             BMCWEB_LOG_ERROR << destIP << ":" << std::to_string(destPort)
                              << " request queue full.  Dropping request.";
+            Response dummyRes;
+            dummyRes.result(boost::beast::http::status::too_many_requests);
+            resHandler(dummyRes);
         }
     }
 
