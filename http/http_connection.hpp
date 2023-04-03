@@ -458,13 +458,14 @@ class Connection :
 
                 std::string additionalInfo = "";
                 // Exclude the body of account PATCH/POST
-                // Exclude the body of ConfigFiles PUT
+                // Exclude the body of /ibm/v1 PUT/POST
                 if (((req->method() == boost::beast::http::verb::patch ||
                       req->method() == boost::beast::http::verb::post) &&
-                     !req->target().starts_with(
-                         "/redfish/v1/AccountService/Accounts")) ||
+                     (!req->target().starts_with(
+                          "/redfish/v1/AccountService/Accounts") &&
+                      !req->target().starts_with("/ibm/v1"))) ||
                     (req->method() == boost::beast::http::verb::put &&
-                     !req->target().starts_with("/ibm/v1/Host/ConfigFiles")))
+                     !req->target().starts_with("/ibm/v1")))
                 {
                     additionalInfo = req->body + " ";
                 }
