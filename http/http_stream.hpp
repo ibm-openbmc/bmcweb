@@ -7,9 +7,6 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/beast/core/ostream.hpp>
 #include <boost/beast/http/basic_dynamic_body.hpp>
-#include <boost/system/error_code.hpp>
-
-#include <string>
 
 namespace crow
 {
@@ -32,6 +29,10 @@ struct Connection : std::enable_shared_from_this<Connection>
     virtual void setStreamHeaders(const std::string& header,
                                   const std::string& headerValue) = 0;
     virtual ~Connection() = default;
+    Connection(const Connection&) = default;
+    Connection(Connection&&) = default;
+    Connection& operator=(const Connection& c) = default;
+    Connection& operator=(Connection&& c) = default;
 
     crow::Request req;
     crow::DynamicResponse streamres;
@@ -43,18 +44,18 @@ class ConnectionImpl : public Connection
 {
   public:
     ConnectionImpl(const crow::Request& reqIn, Adaptor&& adaptorIn,
-                   std::function<void(Connection&)> openHandler,
+                   std::function<void(Connection&)> openHandlerIn,
                    std::function<void(Connection&, const std::string&, bool)>
-                       messageHandler,
-                   std::function<void(Connection&, bool&)> closeHandler,
-                   std::function<void(Connection&)> errorHandler) :
+                       messageHandlerIn,
+                   std::function<void(Connection&, bool&)> closeHandlerIn,
+                   std::function<void(Connection&)> errorHandlerIn) :
 
         Connection(reqIn),
         adaptor(std::move(adaptorIn)), waitTimer(*reqIn.ioService),
-        openHandler(std::move(openHandler)),
-        messageHandler(std::move(messageHandler)),
-        closeHandler(std::move(closeHandler)),
-        errorHandler(std::move(errorHandler)), req(reqIn)
+        openHandler(std::move(openHandlerIn)),
+        messageHandler(std::move(messageHandlerIn)),
+        closeHandler(std::move(closeHandlerIn)),
+        errorHandler(std::move(errorHandlerIn)), req(reqIn)
     {}
 
     boost::asio::io_context* getIoContext() override
@@ -92,7 +93,6 @@ class ConnectionImpl : public Connection
     {
 
         streamres.addHeader(header, headerValue);
-        return;
     }
 
     void sendStreamHeaders(const std::string& streamDataSize,
@@ -117,7 +117,7 @@ class ConnectionImpl : public Connection
     void sendMessage(const boost::asio::mutable_buffer& buffer,
                      std::function<void()> handler) override
     {
-        if (buffer.size())
+        if (buffer.size() != 0)
         {
             this->handlerFunc = handler;
             auto bytes = boost::asio::buffer_copy(

@@ -8,9 +8,11 @@
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/beast/core/flat_static_buffer.hpp>
 #include <boost/beast/http.hpp>
+#include <boost/shared_ptr.hpp>
 #include <http_stream.hpp>
 #include <ibm/utils.hpp>
 
+#include <cstddef>
 #include <random>
 #include <string>
 
@@ -26,7 +28,7 @@ inline void handleDumpOffloadUrl(const crow::Request& req, crow::Response& res,
                                  const std::string& dumpEntryType);
 inline void resetHandler();
 
-static constexpr size_t socketBufferSize = 64 * 1024;
+static constexpr size_t socketBufferSize = static_cast<size_t>(64 * 1024);
 static constexpr uint8_t maxConnectRetryCount = 3;
 
 /** class Handler
@@ -41,9 +43,8 @@ class Handler : public std::enable_shared_from_this<Handler>
             const std::string& dumpTypeIn,
             const std::string& unixSocketPathIn) :
         entryID(entryIDIn),
-        dumpType(dumpTypeIn),
-        outputBuffer(boost::beast::flat_static_buffer<socketBufferSize>()),
-        unixSocketPath(unixSocketPathIn), unixSocket(ios), waitTimer(ios)
+        dumpType(dumpTypeIn), unixSocketPath(unixSocketPathIn), unixSocket(ios),
+        waitTimer(ios)
     {}
 
     /**
@@ -165,7 +166,7 @@ class Handler : public std::enable_shared_from_this<Handler>
 
     void resetOffloadURI()
     {
-        std::string value{""};
+        std::string value;
         crow::connections::systemBus->async_method_call(
             [this,
              self(shared_from_this())](const boost::system::error_code ec) {
@@ -214,10 +215,10 @@ class Handler : public std::enable_shared_from_this<Handler>
             unixSocket.close();
             std::remove(unixSocketPath.c_str());
         }
-        return;
     }
 
-    void getDumpSize(const std::string& entryID, const std::string& dumpType)
+    void getDumpSize(const std::string& dumpEntryID,
+                     const std::string& dumpEntryType)
     {
         crow::connections::systemBus->async_method_call(
             [this,
@@ -260,7 +261,8 @@ class Handler : public std::enable_shared_from_this<Handler>
             this->doConnect();
             },
             "xyz.openbmc_project.Dump.Manager",
-            "/xyz/openbmc_project/dump/" + dumpType + "/entry/" + entryID,
+            "/xyz/openbmc_project/dump/" + dumpEntryType + "/entry/" +
+                dumpEntryID,
             "org.freedesktop.DBus.Properties", "Get",
             "xyz.openbmc_project.Dump.Entry", "Size");
     }
@@ -274,10 +276,11 @@ class Handler : public std::enable_shared_from_this<Handler>
 
     void doReadStream()
     {
-        std::size_t bytes = outputBuffer.capacity() - outputBuffer.size();
+        std::size_t bytes =
+            this->outputBuffer.capacity() - this->outputBuffer.size();
 
         this->unixSocket.async_read_some(
-            outputBuffer.prepare(bytes),
+            this->outputBuffer.prepare(bytes),
             [this, self(shared_from_this())](
                 const boost::system::error_code& ec, std::size_t bytesRead) {
             if (ec)
@@ -296,12 +299,13 @@ class Handler : public std::enable_shared_from_this<Handler>
                 return;
             }
 
-            outputBuffer.commit(bytesRead);
+            this->outputBuffer.commit(bytesRead);
             auto streamHandler = [this, bytesRead, self(shared_from_this())]() {
                 this->outputBuffer.consume(bytesRead);
                 this->doReadStream();
             };
-            this->connection->sendMessage(outputBuffer.data(), streamHandler);
+            this->connection->sendMessage(this->outputBuffer.data(),
+                                          streamHandler);
             });
     }
 
@@ -341,7 +345,6 @@ inline void resetHandlers()
                                 << " dump resetHandlers cleanup";
         }
     }
-    return;
 }
 
 inline void requestRoutes(App& app)
@@ -404,6 +407,7 @@ inline void requestRoutes(App& app)
             << "INFO: " << dumpType << " Dump id " << dumpId
             << " offload initiated by: " << conn.req.session->clientIp;
         bmcHandlers[&conn]->getDumpSize(dumpId, dumpType);
+        ioCon->run();
         })
         .onclose([](crow::streaming_response::Connection& conn, bool& status) {
             auto handler = bmcHandlers.find(&conn);
@@ -497,6 +501,7 @@ inline void requestRoutes(App& app)
             << "INFO: " << dumpType << " dump id " << dumpId
             << " offload initiated by: " << conn.req.session->clientIp;
         systemHandlers[&conn]->getDumpSize(dumpId, dumpType);
+        ioCon->run();
         })
         .onclose([](crow::streaming_response::Connection& conn, bool& status) {
             auto handler = systemHandlers.find(&conn);
