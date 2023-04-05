@@ -1008,7 +1008,10 @@ inline void
         return;
     }
 
-    setDimmData(asyncResp, dimmId, locationIndicatorActive);
+    if (locationIndicatorActive)
+    {
+        setDimmData(asyncResp, dimmId, locationIndicatorActive);
+    }
 
     if (enabled.has_value())
     {
