@@ -31,6 +31,8 @@ inline void handleTelemetryServiceGet(
         "/redfish/v1/TelemetryService/MetricReportDefinitions";
     asyncResp->res.jsonValue["MetricReports"]["@odata.id"] =
         "/redfish/v1/TelemetryService/MetricReports";
+    asyncResp->res.jsonValue["MetricDefinitions"]["@odata.id"] =
+        "/redfish/v1/TelemetryService/MetricDefinitions";
     asyncResp->res.jsonValue["Triggers"]["@odata.id"] =
         "/redfish/v1/TelemetryService/Triggers";
 
@@ -78,6 +80,10 @@ inline void handleTelemetryServiceGet(
                 time_utils::toDurationString(std::chrono::milliseconds(
                     static_cast<time_t>(*minInterval)));
         }
+
+        asyncResp->res.jsonValue["SupportedCollectionFunctions"] =
+            std::array<std::string_view, 4>(
+                {"Maximum", "Minimum", "Average", "Summation"});
         });
 }
 
