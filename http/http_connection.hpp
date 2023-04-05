@@ -442,6 +442,7 @@ class Connection :
         if (((req->method() == boost::beast::http::verb::post) &&
              audit::checkPostAudit(*req)) ||
             (req->method() == boost::beast::http::verb::patch) ||
+            (req->method() == boost::beast::http::verb::put) ||
             (req->method() == boost::beast::http::verb::delete_))
         {
 
@@ -457,10 +458,14 @@ class Connection :
 
                 std::string additionalInfo = "";
                 // Exclude the body of account PATCH/POST
-                if ((req->method() == boost::beast::http::verb::patch ||
-                     req->method() == boost::beast::http::verb::post) &&
-                    !req->target().starts_with(
-                        "/redfish/v1/AccountService/Accounts"))
+                // Exclude the body of /ibm/v1 PUT/POST
+                if (((req->method() == boost::beast::http::verb::patch ||
+                      req->method() == boost::beast::http::verb::post) &&
+                     (!req->target().starts_with(
+                          "/redfish/v1/AccountService/Accounts") &&
+                      !req->target().starts_with("/ibm/v1"))) ||
+                    (req->method() == boost::beast::http::verb::put &&
+                     !req->target().starts_with("/ibm/v1")))
                 {
                     additionalInfo = req->body + " ";
                 }
