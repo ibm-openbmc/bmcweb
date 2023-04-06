@@ -269,6 +269,8 @@ inline void getValidFabricAdapterPath(
                 fabric_util::buildFabricUniquePath(adapterPath);
             if (fabric_util::checkFabricAdapterId(adapterId, adapterUniq))
             {
+                nlohmann::json::json_pointer ptr("/Name");
+                name_util::getPrettyName(aResp, adapterPath, serviceMap, ptr);
                 callback(adapterPath, serviceMap.begin()->first,
                          serviceMap.begin()->second);
                 return;
