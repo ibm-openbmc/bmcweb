@@ -21,6 +21,7 @@
 #include "cable.hpp"
 #include "certificate_service.hpp"
 #include "chassis.hpp"
+#include "dump_offload.hpp"
 #include "environment_metrics.hpp"
 #include "ethernet.hpp"
 #include "event_service.hpp"
@@ -260,6 +261,7 @@ class RedfishService
         requestRoutesSubmitTestEvent(app);
 
         hypervisor::requestRoutesHypervisorSystems(app);
+        crow::obmc_dump::requestRoutes(app);
 
         requestRoutesTelemetryService(app);
         requestRoutesMetricReportDefinitionCollection(app);
