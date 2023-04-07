@@ -61,6 +61,21 @@ struct IPv4AddressData
 };
 
 /**
+ * Structure for keeping static route data required by Redfish
+ */
+struct StaticGatewayData
+{
+    std::string id;
+    std::string destination;
+    std::string gateway;
+    size_t prefixLength;
+    bool operator<(const StaticGatewayData& obj) const
+    {
+        return id < obj.id;
+    }
+};
+
+/**
  * Structure for keeping IPv6 data required by Redfish
  */
 struct IPv6AddressData
@@ -76,22 +91,6 @@ struct IPv6AddressData
         return id < obj.id;
     }
 };
-
-/**
- * Structure for keeping static route data required by Redfish
- */
-struct StaticGatewayData
-{
-    std::string id;
-    std::string destination;
-    std::string gateway;
-    size_t prefixLength;
-    bool operator<(const StaticGatewayData& obj) const
-    {
-        return id < obj.id;
-    }
-};
-
 /**
  * Structure for keeping basic single Ethernet Interface information
  * available from DBus
@@ -533,6 +532,71 @@ inline void
     }
 }
 
+inline void extractIPv6DefaultGatewayData(
+    const std::string& ethifaceId,
+    const dbus::utility::ManagedObjectType& dbusData,
+    boost::container::flat_set<StaticGatewayData>& staticGatewayConfig)
+{
+    const std::string staticGatewayPathStart = "/xyz/openbmc_project/network/" +
+                                               ethifaceId;
+    for (const auto& objpath : dbusData)
+    {
+        if (objpath.first.str.starts_with(staticGatewayPathStart + "/"))
+        {
+            for (const auto& interface : objpath.second)
+            {
+                if (interface.first ==
+                    "xyz.openbmc_project.Network.StaticRoute")
+                {
+                    std::pair<
+                        boost::container::flat_set<StaticGatewayData>::iterator,
+                        bool>
+                        it = staticGatewayConfig.insert(StaticGatewayData{});
+                    StaticGatewayData& staticGateway = *it.first;
+                    staticGateway.id =
+                        objpath.first.str.substr(staticGatewayPathStart.size());
+                    for (const auto& property : interface.second)
+                    {
+                        if (property.first == "Destination")
+                        {
+                            const std::string* dest =
+                                std::get_if<std::string>(&property.second);
+                            if (dest != nullptr)
+                            {
+                                staticGateway.destination = *dest;
+                            }
+                        }
+                        else if (property.first == "Gateway")
+                        {
+                            const std::string* gateway =
+                                std::get_if<std::string>(&property.second);
+                            if (gateway != nullptr)
+                            {
+                                staticGateway.gateway = *gateway;
+                            }
+                        }
+                        else if (property.first == "PrefixLength")
+                        {
+                            const size_t* prefix =
+                                std::get_if<size_t>(&property.second);
+                            if (prefix != nullptr)
+                            {
+                                staticGateway.prefixLength = *prefix;
+                            }
+                        }
+                        else
+                        {
+                            BMCWEB_LOG_ERROR
+                                << "Got extra property: " << property.first
+                                << " on the " << objpath.first.str << " object";
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 // Helper function that extracts data for single ethernet ipv4 address
 inline void
     extractIPData(const std::string& ethifaceId,
@@ -827,71 +891,6 @@ inline void
         "xyz.openbmc_project.Object.Delete", "Delete");
 }
 
-inline void extractIPv6DefaultGatewayData(
-    const std::string& ethifaceId,
-    const dbus::utility::ManagedObjectType& dbusData,
-    boost::container::flat_set<StaticGatewayData>& staticGatewayConfig)
-{
-    const std::string staticRoutePathStart = "/xyz/openbmc_project/network/" +
-                                             ethifaceId;
-    for (const auto& objpath : dbusData)
-    {
-        if (objpath.first.str.starts_with(staticRoutePathStart + "/"))
-        {
-            for (const auto& interface : objpath.second)
-            {
-                if (interface.first ==
-                    "xyz.openbmc_project.Network.StaticRoute")
-                {
-                    std::pair<
-                        boost::container::flat_set<StaticGatewayData>::iterator,
-                        bool>
-                        it = staticGatewayConfig.insert(StaticGatewayData{});
-                    StaticGatewayData& staticRoute = *it.first;
-                    staticRoute.id =
-                        objpath.first.str.substr(staticRoutePathStart.size());
-                    for (const auto& property : interface.second)
-                    {
-                        if (property.first == "Destination")
-                        {
-                            const std::string* dest =
-                                std::get_if<std::string>(&property.second);
-                            if (dest != nullptr)
-                            {
-                                staticRoute.destination = *dest;
-                            }
-                        }
-                        else if (property.first == "Gateway")
-                        {
-                            const std::string* gateway =
-                                std::get_if<std::string>(&property.second);
-                            if (gateway != nullptr)
-                            {
-                                staticRoute.gateway = *gateway;
-                            }
-                        }
-                        else if (property.first == "PrefixLength")
-                        {
-                            const size_t* prefix =
-                                std::get_if<size_t>(&property.second);
-                            if (prefix != nullptr)
-                            {
-                                staticRoute.prefixLength = *prefix;
-                            }
-                        }
-                        else
-                        {
-                            BMCWEB_LOG_ERROR
-                                << "Got extra property: " << property.first
-                                << " on the " << objpath.first.str << " object";
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 /**
  * @brief Creates IPv6 with given data
  *
@@ -953,7 +952,7 @@ inline void
  *
  * @param[in] ifaceId      Id of interface upon which to create the IPv6 entry
  * entry
- * @param[in] address      IPv6 gateway to assign to this interface
+ * @param[in] gateway      IPv6 gateway to assign to this interface
  * @param[in] prefixLength IPv6 prefix syntax for the subnet mask
  * @param[io] asyncResp    Response object that will be returned to client
  *
@@ -961,11 +960,11 @@ inline void
  */
 inline void deleteAndCreateIPv6DefaultGateway(
     const std::string& ifaceId, const std::string& id,
-    const std::string& address, size_t prefixLength,
+    const std::string& gateway, size_t prefixLength,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     crow::connections::systemBus->async_method_call(
-        [asyncResp, ifaceId, address,
+        [asyncResp, ifaceId, gateway,
          prefixLength](const boost::system::error_code ec) {
         if (ec)
         {
@@ -981,14 +980,13 @@ inline void deleteAndCreateIPv6DefaultGateway(
             "xyz.openbmc_project.Network",
             "/xyz/openbmc_project/network/" + ifaceId,
             "xyz.openbmc_project.Network.StaticRoute.Create", "StaticRoute",
-            "0:0:0:0:0:0:0:0", address, prefixLength,
+            "0:0:0:0:0:0:0:0", gateway, prefixLength,
             "xyz.openbmc_project.Network.IP.Protocol.IPv6");
         },
         "xyz.openbmc_project.Network",
         +"/xyz/openbmc_project/network/" + ifaceId + id,
         "xyz.openbmc_project.Object.Delete", "Delete");
 }
-
 /**
  * @brief Creates IPv6 static default gateway with given data
  *
@@ -1018,7 +1016,7 @@ inline void createIPv6DefaultGateway(
 }
 
 /**
- * @brief Sets IPv6 default gateway with given data
+ * @brief Sets IPv6 static default gateway with given data
  *
  * @param[in] ifaceId      Id of interface whose gateway should be added
  * @param[in] input        Contains address that needs to be added
@@ -1028,17 +1026,16 @@ inline void createIPv6DefaultGateway(
  */
 
 inline void handleIPv6DefaultGateway(
-    const std::string& ifaceId, const nlohmann::json::array_t& input,
+    const std::string& ifaceId, const nlohmann::json& input,
     const boost::container::flat_set<StaticGatewayData>& staticGatewayData,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     if (!input.is_array() || input.empty())
     {
-        BMCWEB_LOG_WARNING << "Not array";
+        BMCWEB_LOG_ERROR << "Not array";
         messages::propertyValueTypeError(
             asyncResp->res,
-            nlohmann::json(input).dump(
-                2, ' ', true, nlohmann::json::error_handler_t::replace),
+            input.dump(2, ' ', true, nlohmann::json::error_handler_t::replace),
             "IPv6StaticDefaultGateways");
         return;
     }
@@ -1046,19 +1043,17 @@ inline void handleIPv6DefaultGateway(
     size_t entryIdx = 1;
     boost::container::flat_set<StaticGatewayData>::const_iterator
         staticGatewayEntry = staticGatewayData.cbegin();
-
     for (const nlohmann::json& thisJson : input)
     {
         std::string pathString = "IPv6StaticDefaultGateways/" +
                                  std::to_string(entryIdx);
         if (!thisJson.is_null() && !thisJson.empty())
         {
-            std::optional<std::string> address;
+            std::optional<std::string> gateway;
             std::optional<size_t> prefixLength;
-
             nlohmann::json thisJsonCopy = thisJson;
             if (!json_util::readJson(thisJsonCopy, asyncResp->res, "Address",
-                                     address, "PrefixLength", prefixLength))
+                                     gateway, "PrefixLength", prefixLength))
             {
                 messages::propertyValueFormatError(
                     asyncResp->res,
@@ -1067,15 +1062,15 @@ inline void handleIPv6DefaultGateway(
                     pathString);
                 return;
             }
-            const std::string* addr = nullptr;
+            const std::string* gw = nullptr;
             size_t prefix = 0;
-            if (address)
+            if (gateway)
             {
-                addr = &(*address);
+                gw = &(*gateway);
             }
             else if (staticGatewayEntry != staticGatewayData.end())
             {
-                addr = &(staticGatewayEntry->gateway);
+                gw = &(staticGatewayEntry->gateway);
             }
             else
             {
@@ -1100,12 +1095,12 @@ inline void handleIPv6DefaultGateway(
             if (staticGatewayEntry != staticGatewayData.end())
             {
                 deleteAndCreateIPv6DefaultGateway(
-                    ifaceId, staticGatewayEntry->id, *addr, prefix, asyncResp);
+                    ifaceId, staticGatewayEntry->id, *gw, prefix, asyncResp);
                 staticGatewayEntry++;
             }
             else
             {
-                createIPv6DefaultGateway(ifaceId, prefix, *addr, asyncResp);
+                createIPv6DefaultGateway(ifaceId, prefix, *gw, asyncResp);
             }
             entryIdx++;
         }
@@ -1156,8 +1151,8 @@ void getEthernetIfaceData(const std::string& ethifaceId,
             const boost::system::error_code errorCode,
             const dbus::utility::ManagedObjectType& resp) {
         EthernetInterfaceData ethData{};
-        std::vector<IPv4AddressData> ipv4Data;
-        std::vector<IPv6AddressData> ipv6Data;
+        boost::container::flat_set<IPv4AddressData> ipv4Data;
+        boost::container::flat_set<IPv6AddressData> ipv6Data;
         boost::container::flat_set<StaticGatewayData> ipv6GatewayData;
 
         if (errorCode)
@@ -1189,7 +1184,9 @@ void getEthernetIfaceData(const std::string& ethifaceId,
         extractIPv6DefaultGatewayData(ethifaceId, resp, ipv6GatewayData);
         // Finally make a callback with useful data
         callback(true, ethData, ipv4Data, ipv6Data, ipv6GatewayData);
-    });
+        },
+        "xyz.openbmc_project.Network", "/xyz/openbmc_project/network",
+        "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
 
 /**
@@ -1647,7 +1644,6 @@ inline void handleIPv4StaticPatch(
             "IPv4StaticAddresses");
         return;
     }
-
     unsigned entryIdx = 1;
     // Find the first static IP address currently active on the NIC and
     // match it to the first JSON element in the IPv4StaticAddresses array.
@@ -1961,8 +1957,8 @@ inline void handleIPv6StaticAddressesPatch(
 inline void parseInterfaceData(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& ifaceId, const EthernetInterfaceData& ethData,
-    const std::vector<IPv4AddressData>& ipv4Data,
-    const std::vector<IPv6AddressData>& ipv6Data,
+    const boost::container::flat_set<IPv4AddressData>& ipv4Data,
+    const boost::container::flat_set<IPv6AddressData>& ipv6Data,
     const boost::container::flat_set<StaticGatewayData>& ipv6GatewayData)
 {
     nlohmann::json& jsonResponse = asyncResp->res.jsonValue;
@@ -2054,14 +2050,7 @@ inline void parseInterfaceData(
     nlohmann::json& ipv6StaticGatewayArray =
         jsonResponse["IPv6StaticDefaultGateways"];
     ipv6StaticGatewayArray = nlohmann::json::array();
-    nlohmann::json::object_t ipv6GatewayMember;
-    for (const auto& ipv6GatewayConfig : ipv6GatewayData)
-    {
-        nlohmann::json::object_t ipv6Gateway;
-        ipv6Gateway["Address"] = ipv6GatewayConfig.gateway;
-        ipv6Gateway["PrefixLength"] = ipv6GatewayConfig.prefixLength;
-        ipv6StaticGatewayArray.emplace_back(std::move(ipv6Gateway));
-    }
+    nlohmann::json::object_t ipv6StaticGateway;
 
     nlohmann::json& ipv6Array = jsonResponse["IPv6Addresses"];
     nlohmann::json& ipv6StaticArray = jsonResponse["IPv6StaticAddresses"];
@@ -2087,6 +2076,14 @@ inline void parseInterfaceData(
             ipv6Static["PrefixLength"] = ipv6Config.prefixLength;
             ipv6StaticArray.push_back(std::move(ipv6Static));
         }
+    }
+
+    for (const auto& ipv6GatewayConfig : ipv6GatewayData)
+    {
+        nlohmann::json::object_t ipv6Gateway;
+        ipv6Gateway["Address"] = ipv6GatewayConfig.gateway;
+        ipv6Gateway["PrefixLength"] = ipv6GatewayConfig.prefixLength;
+        ipv6StaticGatewayArray.push_back(std::move(ipv6Gateway));
     }
 }
 
@@ -2162,12 +2159,12 @@ inline void requestEthernetInterfacesRoutes(App& app)
         }
         getEthernetIfaceData(
             ifaceId,
-            [asyncResp,
-             ifaceId](const bool& success, const EthernetInterfaceData& ethData,
-                      const std::vector<IPv4AddressData>& ipv4Data,
-                      const std::vector<IPv6AddressData>& ipv6Data,
-                      const boost::container::flat_set<StaticGatewayData>&
-                          ipv6GatewayData) {
+            [asyncResp, ifaceId](
+                const bool& success, const EthernetInterfaceData& ethData,
+                const boost::container::flat_set<IPv4AddressData>& ipv4Data,
+                const boost::container::flat_set<IPv6AddressData>& ipv6Data,
+                const boost::container::flat_set<StaticGatewayData>&
+                    ipv6GatewayData) {
             if (!success)
             {
                 // TODO(Pawel)consider distinguish between non
@@ -2202,9 +2199,9 @@ inline void requestEthernetInterfacesRoutes(App& app)
         std::optional<std::string> fqdn;
         std::optional<std::string> macAddress;
         std::optional<std::string> ipv6DefaultGateway;
-        std::optional<nlohmann::json::array_t> ipv4StaticAddresses;
-        std::optional<nlohmann::json::array_t> ipv6StaticAddresses;
-        std::optional<nlohmann::json::array_t> ipv6StaticDefaultGateways;
+        std::optional<nlohmann::json> ipv4StaticAddresses;
+        std::optional<nlohmann::json> ipv6StaticAddresses;
+        std::optional<nlohmann::json> ipv6StaticDefaultGateways;
         std::optional<std::vector<std::string>> staticNameServers;
         std::optional<nlohmann::json> dhcpv4;
         std::optional<nlohmann::json> dhcpv6;
@@ -2277,8 +2274,8 @@ inline void requestEthernetInterfacesRoutes(App& app)
              ipv6AutoConfigEnabled, v4dhcpParms = std::move(v4dhcpParms),
              v6dhcpParms = std::move(v6dhcpParms), interfaceEnabled](
                 const bool& success, const EthernetInterfaceData& ethData,
-                const std::vector<IPv4AddressData>& ipv4Data,
-                const std::vector<IPv6AddressData>& ipv6Data,
+                const boost::container::flat_set<IPv4AddressData>& ipv4Data,
+                const boost::container::flat_set<IPv6AddressData>& ipv6Data,
                 const boost::container::flat_set<StaticGatewayData>&
                     ipv6GatewayData) {
             if (!success)
@@ -2354,12 +2351,7 @@ inline void requestEthernetInterfacesRoutes(App& app)
             {
                 const nlohmann::json& ipv6StaticGateway =
                     *ipv6StaticDefaultGateway;
-                handleIPv6DefaultGateway(ifaceId, ipv6StaticGateway, asyncResp);
-            }
-
-            if (ipv6StaticDefaultGateway)
-            {
-                handleIPv6DefaultGateway(ifaceId, *ipv6StaticDefaultGateway,
+                handleIPv6DefaultGateway(ifaceId, ipv6StaticGateway,
                                          ipv6GatewayData, asyncResp);
             }
 
