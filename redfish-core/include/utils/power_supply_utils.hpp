@@ -3,6 +3,7 @@
 #include "async_resp.hpp"
 #include "dbus_utility.hpp"
 #include "error_messages.hpp"
+#include "logging.hpp"
 
 #include <boost/system/error_code.hpp>
 #include <sdbusplus/message.hpp>
@@ -34,6 +35,7 @@ inline void getInputHistoryPaths(
             {
                 if (ec.value() != EBADR)
                 {
+                    BMCWEB_LOG_ERROR << "D-Bus response error: " << ec;
                     messages::internalError(asyncResp->res);
                     return;
                 }
@@ -72,6 +74,7 @@ inline void getValidPowerSupplyPath(
             {
                 if (ec.value() != EBADR)
                 {
+                    BMCWEB_LOG_ERROR << "D-Bus response error: " << ec;
                     messages::internalError(asyncResp->res);
                 }
                 return;
