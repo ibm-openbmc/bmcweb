@@ -125,7 +125,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                                const boost::asio::ip::tcp::endpoint& endpoint) {
             if (ec)
             {
-                BMCWEB_LOG_ERROR
+                BMCWEB_LOG_DEBUG
                     << "Connect " << endpoint << " failed: " << ec.message()
                     << " Destination: " << self->host << ":" << self->port;
                 self->state = ConnState::connectFailed;
@@ -361,7 +361,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                     }
                     else
                     {
-                        BMCWEB_LOG_ERROR << "doClose() failed: " << ec.message()
+                        BMCWEB_LOG_DEBUG << "doClose() failed: " << ec.message()
                                          << " Destination: " << self->host
                                          << ":" << self->port;
                     }
