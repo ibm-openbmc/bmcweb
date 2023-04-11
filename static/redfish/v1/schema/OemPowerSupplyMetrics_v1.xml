@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
+
+  <edmx:Reference Uri="http://docs.oasis-open.org/odata/odata/v4.0/errata03/csd01/complete/vocabularies/Org.OData.Core.V1.xml">
+    <edmx:Include Namespace="Org.OData.Core.V1" Alias="OData"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/RedfishExtensions_v1.xml">
+    <edmx:Include Namespace="RedfishExtensions.v1_0_0" Alias="Redfish"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Resource_v1.xml">
+    <edmx:Include Namespace="Resource"/>
+    <edmx:Include Namespace="Resource.v1_0_0"/>
+  </edmx:Reference>
+
+  <edmx:DataServices>
+
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemPowerSupplyMetrics">
+      <Annotation Term="Redfish.OwningEntity" String="IBM"/>
+    </Schema>
+
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemPowerSupplyMetrics.v1_0_0">
+      <ComplexType Name="Oem" BaseType="Resource.OemObject">
+        <Annotation Term="OData.AdditionalProperties" Bool="true"/>
+        <Annotation Term="OData.Description" String="OemPowerSupplyMetrics Oem properties."/>
+        <Annotation Term="OData.AutoExpand"/>
+        <Property Name="IBM" Type="OemPowerSupplyMetrics.v1_0_0.IBM"/>
+      </ComplexType>
+
+      <ComplexType Name="IBM" BaseType="Resource.OemObject">
+        <Annotation Term="OData.AdditionalProperties" Bool="true"/>
+        <Annotation Term="OData.Description" String="Oem properties for IBM."/>
+        <Annotation Term="OData.AutoExpand"/>
+        <Property Name="InputPowerHistoryItems" Type="Collection(OemPowerSupplyMetrics.v1_0_0.InputPowerHistoryItem)">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="Power supply input power history.  Average and maximum input power over 30 second intervals."/>
+        </Property>
+      </ComplexType>
+
+      <ComplexType Name="InputPowerHistoryItem" BaseType="Resource.OemObject">
+        <Annotation Term="OData.AdditionalProperties" Bool="false"/>
+        <Annotation Term="OData.Description" String="Power supply input power history over a 30 second interval."/>
+        <Annotation Term="OData.AutoExpand"/>
+        <Property Name="Date" Type="Edm.DateTimeOffset">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The date and time for a 30 second interval of power supply input power history."/>
+        </Property>
+        <Property Name="Average" Type="Edm.Decimal">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="Average input power to the power supply over a 30 second interval."/>
+        </Property>
+        <Property Name="Maximum" Type="Edm.Decimal">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="Maximum input power to the power supply over a 30 second interval."/>
+        </Property>
+      </ComplexType>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>
