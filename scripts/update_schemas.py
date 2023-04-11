@@ -23,123 +23,6 @@ WARNING = """/****************************************************************
  * github organization.
  ***************************************************************/"""
 
-# To use a new schema, add to list and rerun tool
-include_list = [
-    "AccountService",
-    "ActionInfo",
-    "AggregationService",
-    "AggregationSource",
-    "AggregationSourceCollection",
-    "Assembly",
-    "AttributeRegistry",
-    "Bios",
-    "Cable",
-    "CableCollection",
-    "Certificate",
-    "CertificateCollection",
-    "CertificateLocations",
-    "CertificateService",
-    "Chassis",
-    "ChassisCollection",
-    "ComputerSystem",
-    "ComputerSystemCollection",
-    "Drive",
-    "DriveCollection",
-    "EnvironmentMetrics",
-    "EthernetInterface",
-    "EthernetInterfaceCollection",
-    "Event",
-    "EventDestination",
-    "EventDestinationCollection",
-    "EventService",
-    "FabricAdapter",
-    "FabricAdapterCollection",
-    "Fan",
-    "FanCollection",
-    "IPAddresses",
-    "JsonSchemaFile",
-    "JsonSchemaFileCollection",  # redfish/v1/JsonSchemas
-    "LogEntry",
-    "LogEntryCollection",
-    "LogService",
-    "LogServiceCollection",
-    "Manager",
-    "ManagerAccount",
-    "ManagerAccountCollection",
-    "ManagerCollection",
-    "ManagerDiagnosticData",
-    "ManagerNetworkProtocol",
-    "Memory",
-    "MemoryCollection",
-    "Message",
-    "MessageRegistry",
-    "MessageRegistryCollection",
-    "MessageRegistryFile",
-    "MessageRegistryFileCollection",
-    "MetricDefinition",
-    "MetricDefinitionCollection",
-    "MetricReport",
-    "MetricReportCollection",
-    "MetricReportDefinition",
-    "MetricReportDefinitionCollection",
-    "OperatingConfig",
-    "OperatingConfigCollection",
-    "PCIeDevice",
-    "PCIeDeviceCollection",
-    "PCIeFunction",
-    "PCIeFunctionCollection",
-    "PhysicalContext",
-    "PCIeSlots",
-    "Port",
-    "PortCollection",
-    "Power",
-    "PowerSubsystem",
-    "PowerSupply",
-    "PowerSupplyCollection",
-    "Privileges",  # Used in Role
-    "Processor",
-    "ProcessorCollection",
-    "RedfishError",
-    "RedfishExtensions",
-    "Redundancy",
-    "Resource",
-    "Role",
-    "RoleCollection",
-    "Sensor",
-    "SensorCollection",
-    "ServiceRoot",
-    "Session",
-    "SessionCollection",
-    "SessionService",
-    "Settings",
-    "SoftwareInventory",
-    "SoftwareInventoryCollection",
-    "Storage",
-    "StorageCollection",
-    "StorageController",
-    "StorageControllerCollection",
-    "Task",
-    "TaskCollection",
-    "TaskService",
-    "TelemetryService",
-    "Thermal",
-    "ThermalMetrics",
-    "ThermalSubsystem",
-    "Triggers",
-    "TriggersCollection",
-    "UpdateService",
-    "VLanNetworkInterfaceCollection",
-    "VLanNetworkInterface",
-    "VirtualMedia",
-    "VirtualMediaCollection",
-    "odata",
-    "odata-v4",
-    "redfish-error",
-    "redfish-payload-annotations",
-    "redfish-schema",
-    "redfish-schema-v1",
-]
-
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 proxies = {"https": os.environ.get("https_proxy", None)}
@@ -240,9 +123,6 @@ for zip_file in zip_ref.infolist():
     elif zip_file.filename.startswith("json-schema/"):
         filename = os.path.basename(zip_file.filename)
         filenamesplit = filename.split(".")
-        # exclude schemas again to save flash space
-        if filenamesplit[0] not in include_list:
-            continue
         json_schema_files[filenamesplit[0]].append(filename)
     elif zip_file.filename.startswith("openapi/"):
         pass
@@ -275,9 +155,6 @@ with open(metadata_index_path, "w") as metadata_index:
 
             schema_out.write(content)
 
-            filenamesplit = filename.split("_")
-            if filenamesplit[0] not in include_list:
-                continue
             metadata_index.write(
                 '    <edmx:Reference Uri="/redfish/v1/schema/'
                 + filename
@@ -502,19 +379,3 @@ zip_ref.close()
 
 generate_schema_enums.main()
 generate_top_collections()
-
-# Now delete the xml schema files we aren't supporting
-if os.path.exists(schema_path):
-    files = [
-        os.path.join(schema_path, f)
-        for f in os.listdir(schema_path)
-        if not any([f.startswith(prefix) for prefix in skip_prefixes])
-    ]
-    for filename in files:
-        # filename will include the absolute path
-        filenamesplit = filename.split("/")
-        name = filenamesplit.pop()
-        namesplit = name.split("_")
-        if namesplit[0] not in include_list:
-            print("excluding schema: " + filename)
-            os.remove(filename)
