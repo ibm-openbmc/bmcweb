@@ -858,11 +858,14 @@ inline DumpCreationProgress
             if (value == nullptr)
             {
                 BMCWEB_LOG_ERROR << "DumpRequestStatus property value is null";
+                taskData->messages.emplace_back(messages::internalError());
                 return DumpCreationProgress::DUMP_CREATE_FAILED;
             }
             if ((*value).ends_with("PermissionDenied"))
             {
                 BMCWEB_LOG_ERROR << "DumpRequestStatus: Permission denied";
+                taskData->messages.emplace_back(
+                    messages::insufficientPrivilege());
                 return DumpCreationProgress::DUMP_CREATE_FAILED;
             }
             if ((*value).ends_with("AcfFileInvalid") ||
@@ -870,12 +873,19 @@ inline DumpCreationProgress
             {
                 BMCWEB_LOG_ERROR
                     << "DumpRequestStatus: ACFFile Invalid/Password Invalid";
+                taskData->messages.emplace_back(
+                    messages::resourceAtUriUnauthorized(
+                        boost::urls::url_view(taskData->payload->targetUri),
+                        "Invalid Password/ACF File Invalid"));
                 return DumpCreationProgress::DUMP_CREATE_FAILED;
             }
             if ((*value).ends_with("ResourceSelectorInvalid"))
             {
                 BMCWEB_LOG_ERROR
                     << "DumpRequestStatus: Resource selector Invalid";
+                taskData->messages.emplace_back(
+                    messages::actionParameterUnknown("CollectDiagnosticData",
+                                                     "Resource selector"));
                 return DumpCreationProgress::DUMP_CREATE_FAILED;
             }
             if ((*value).ends_with("Success"))
