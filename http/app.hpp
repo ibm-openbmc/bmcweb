@@ -58,7 +58,7 @@ class App
     App& operator=(const App&&) = delete;
 
     template <typename Adaptor>
-    void handleUpgrade(Request& req,
+    void handleUpgrade(const Request& req,
                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                        Adaptor&& adaptor)
     {
