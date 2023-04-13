@@ -350,13 +350,13 @@ with open(metadata_index_path, "w") as metadata_index:
 
     metadata_index.write(
         '    <edmx:Reference Uri="'
-        '/redfish/v1/schema/OemEthernetInterface_v1.xml">\n'
+        '/redfish/v1/schema/OpenBMCEthernetInterface_v1.xml">\n'
     )
     metadata_index.write(
-        '        <edmx:Include Namespace="OemEthernetInterface"/>\n'
+        '        <edmx:Include Namespace="OpenBMCEthernetInterface"/>\n'
     )
     metadata_index.write(
-        '        <edmx:Include Namespace="OemEthernetInterface.v1_0_0"/>\n'
+        '        <edmx:Include Namespace="OpenBMCEthernetInterface.v1_0_0"/>\n'
     )
     metadata_index.write("    </edmx:Reference>\n")
     metadata_index.write("</edmx:Edmx>\n")

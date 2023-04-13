@@ -1029,8 +1029,8 @@ inline void
  * @brief Deletes the static route entry for this interface and creates a
  * replacement static route entry
  *
- * @param[in] ifaceId      Id of the interface upon which to create the static route
- * entry
+ * @param[in] ifaceId      Id of the interface upon which to create the static
+ * route entry
  * @param[in] objId        IPAddress object Id
  * @param[in] destination  Destination address of static route
  * entry
