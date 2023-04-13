@@ -140,6 +140,9 @@ static int run()
     crow::dbus_monitor::registerBIOSAttrUpdateSignal();
     // Start event log entry created monitor
     crow::dbus_monitor::registerEventLogCreatedSignal();
+    // Start hypervisor app dbus monitor for hypervisor
+    // network configurations
+    crow::dbus_monitor::registerVMIConfigChangeSignal();
 #endif
 
 #ifdef BMCWEB_ENABLE_GOOGLE_API
