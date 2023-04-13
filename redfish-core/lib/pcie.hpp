@@ -108,8 +108,11 @@ inline void getPcieDevicePathAndService(
             return;
         }
 
+        // Find DBus object to get its serviceName
+        std::array<const char*, 1> interfaces = {pcieDeviceInterface};
+
         dbus::utility::getDbusObject(
-            pcieDevicePath, {},
+            pcieDevicePath, interfaces,
             [pcieDevice, pcieDevicePath, asyncResp,
              callback{callback}](const boost::system::error_code& ec1,
                                  const dbus::utility::MapperGetObject& object) {
