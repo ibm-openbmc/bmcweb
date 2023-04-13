@@ -160,7 +160,7 @@ inline void
             nlohmann::json::json_pointer ptr(
                 "/Assemblies/" + std::to_string(assemblyIndex) + "/Name");
 
-            name_util::getPrettyName(aResp, assembly, object, ptr);
+            name_util::getPrettyName(aResp, assembly, object[0].first, ptr);
 
             for (const auto& [serviceName, interfaceList] : object)
             {

@@ -17,6 +17,7 @@
 
 #include "dbus_singleton.hpp"
 #include "error_messages.hpp"
+#include "generated/enums/processor.hpp"
 #include "health.hpp"
 #include "led.hpp"
 
@@ -340,6 +341,100 @@ inline void getCpuDataByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
         },
         service, "/xyz/openbmc_project/inventory",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
+}
+
+/**
+ * @brief Translates throttle cause DBUS property to redfish.
+ *
+ * @param[in] dbusSource    The throttle cause from DBUS
+ *
+ * @return Returns as a string, the throttle cause in Redfish terms. If
+ * translation cannot be done, returns "Unknown" throttle reason.
+ */
+inline processor::ThrottleCause
+    dbusToRfThrottleCause(const std::string& dbusSource)
+{
+    if (dbusSource ==
+        "xyz.openbmc_project.Control.Power.Throttle.ThrottleReasons.ClockLimit")
+    {
+        return processor::ThrottleCause::ClockLimit;
+    }
+    if (dbusSource ==
+        "xyz.openbmc_project.Control.Power.Throttle.ThrottleReasons.ManagementDetectedFault")
+    {
+        return processor::ThrottleCause::ManagementDetectedFault;
+    }
+    if (dbusSource ==
+        "xyz.openbmc_project.Control.Power.Throttle.ThrottleReasons.PowerLimit")
+    {
+        return processor::ThrottleCause::PowerLimit;
+    }
+    if (dbusSource ==
+        "xyz.openbmc_project.Control.Power.Throttle.ThrottleReasons.ThermalLimit")
+    {
+        return processor::ThrottleCause::ThermalLimit;
+    }
+    if (dbusSource ==
+        "xyz.openbmc_project.Control.Power.Throttle.ThrottleReasons.Unknown")
+    {
+        return processor::ThrottleCause::Unknown;
+    }
+    return processor::ThrottleCause::Invalid;
+}
+
+inline void
+    readThrottleProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                           const boost::system::error_code& ec,
+                           const dbus::utility::DBusPropertiesMap& properties)
+{
+    if (ec)
+    {
+        BMCWEB_LOG_ERROR << "Processor Throttle getAllProperties error " << ec;
+        messages::internalError(aResp->res);
+        return;
+    }
+
+    const bool* status = nullptr;
+    const std::vector<std::string>* causes = nullptr;
+
+    if (!sdbusplus::unpackPropertiesNoThrow(dbus_utils::UnpackErrorPrinter(),
+                                            properties, "Throttled", status,
+                                            "ThrottleCauses", causes))
+    {
+        messages::internalError(aResp->res);
+        return;
+    }
+
+    aResp->res.jsonValue["Throttled"] = *status;
+    nlohmann::json::array_t rCauses;
+    for (const std::string& cause : *causes)
+    {
+        processor::ThrottleCause rfCause = dbusToRfThrottleCause(cause);
+        if (rfCause == processor::ThrottleCause::Invalid)
+        {
+            messages::internalError(aResp->res);
+            return;
+        }
+
+        rCauses.emplace_back(rfCause);
+    }
+    aResp->res.jsonValue["ThrottleCauses"] = std::move(rCauses);
+}
+
+inline void
+    getThrottleProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                          const std::string& service,
+                          const std::string& objectPath)
+{
+    BMCWEB_LOG_DEBUG << "Get processor throttle resources";
+
+    sdbusplus::asio::getAllProperties(
+        *crow::connections::systemBus, service, objectPath,
+        "xyz.openbmc_project.Control.Power.Throttle",
+        [aResp](const boost::system::error_code& ec,
+                const dbus::utility::DBusPropertiesMap& properties) {
+        readThrottleProperties(aResp, ec, properties);
+        });
 }
 
 inline void getCpuAssetData(std::shared_ptr<bmcweb::AsyncResp> aResp,
@@ -734,7 +829,18 @@ inline void getProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
     BMCWEB_LOG_DEBUG << "Get available system processor resources.";
 
     // GetSubTree on all interfaces which provide info about a Processor
-    crow::connections::systemBus->async_method_call(
+    constexpr std::array<std::string_view, 9> interfaces = {
+        "xyz.openbmc_project.Common.UUID",
+        "xyz.openbmc_project.Inventory.Decorator.Asset",
+        "xyz.openbmc_project.Inventory.Decorator.Revision",
+        "xyz.openbmc_project.Inventory.Item.Cpu",
+        "xyz.openbmc_project.Inventory.Decorator.LocationCode",
+        "xyz.openbmc_project.Inventory.Item.Accelerator",
+        "xyz.openbmc_project.Control.Processor.CurrentOperatingConfig",
+        "xyz.openbmc_project.Inventory.Decorator.UniqueIdentifier",
+        "xyz.openbmc_project.Control.Power.Throttle"};
+    dbus::utility::getSubTree(
+        "/xyz/openbmc_project/inventory", 0, interfaces,
         [resp, processorId, handler = std::forward<Handler>(handler)](
             boost::system::error_code ec,
             const dbus::utility::MapperGetSubTreeResponse& subtree) mutable {
@@ -781,27 +887,10 @@ inline void getProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
 
             handler(objectPath, serviceMap);
 
-            name_util::getPrettyName(resp, objectPath, serviceMap,
-                                     "/Name"_json_pointer);
-
             return;
         }
         messages::resourceNotFound(resp->res, "Processor", processorId);
-        },
-        "xyz.openbmc_project.ObjectMapper",
-        "/xyz/openbmc_project/object_mapper",
-        "xyz.openbmc_project.ObjectMapper", "GetSubTree",
-        "/xyz/openbmc_project/inventory", 0,
-        std::array<const char*, 9>{
-            "xyz.openbmc_project.Common.UUID",
-            "xyz.openbmc_project.Inventory.Decorator.Asset",
-            "xyz.openbmc_project.Inventory.Decorator.Revision",
-            "xyz.openbmc_project.Inventory.Item.Cpu",
-            "xyz.openbmc_project.Inventory.Decorator.LocationCode",
-            "xyz.openbmc_project.Inventory.Item.Accelerator",
-            "xyz.openbmc_project.Control.Processor.CurrentOperatingConfig",
-            "xyz.openbmc_project.Inventory.Decorator.UniqueIdentifier",
-            "xyz.openbmc_project.Association.Definitions"});
+        });
 }
 
 inline void getProcessorData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
@@ -809,13 +898,6 @@ inline void getProcessorData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                              const std::string& objectPath,
                              const dbus::utility::MapperServiceMap& serviceMap)
 {
-    aResp->res.addHeader(
-        boost::beast::http::field::link,
-        "</redfish/v1/JsonSchemas/Processor/Processor.json>; rel=describedby");
-    aResp->res.jsonValue["@odata.type"] = "#Processor.v1_11_0.Processor";
-    aResp->res.jsonValue["@odata.id"] = crow::utility::urlFromPieces(
-        "redfish", "v1", "Systems", "system", "Processors", processorId);
-
     for (const auto& [serviceName, interfaceList] : serviceMap)
     {
         bool assertInterface = false;
@@ -839,6 +921,8 @@ inline void getProcessorData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 cpuInterface = true;
                 getCpuDataByService(aResp, processorId, serviceName,
                                     objectPath);
+                name_util::getPrettyName(aResp, objectPath, serviceName,
+                                         "/Name"_json_pointer);
             }
             else if (interface ==
                      "xyz.openbmc_project.Inventory.Item.Accelerator")
@@ -869,6 +953,10 @@ inline void getProcessorData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             else if (interface == "xyz.openbmc_project.Association.Definitions")
             {
                 associationInterface = true;
+            }
+            else if (interface == "xyz.openbmc_project.Control.Power.Throttle")
+            {
+                getThrottleProperties(aResp, serviceName, objectPath);
             }
         }
 
@@ -908,8 +996,8 @@ inline void getProcessorPaths(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             // No processor objects found by mapper
             if (ec.value() == boost::system::errc::io_error)
             {
-                messages::resourceNotFound(
-                    aResp->res, "#Processor.v1_12_0.Processor", processorId);
+                messages::resourceNotFound(aResp->res, "Processor",
+                                           processorId);
                 return;
             }
 
@@ -930,8 +1018,7 @@ inline void getProcessorPaths(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         }
 
         // Object not found
-        messages::resourceNotFound(aResp->res, "#Processor.v1_12_0.Processor",
-                                   processorId);
+        messages::resourceNotFound(aResp->res, "Processor", processorId);
         },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
@@ -1096,8 +1183,7 @@ inline void getSubProcessorData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 // No processor objects found by mapper
                 if (ec.value() == boost::system::errc::io_error)
                 {
-                    messages::resourceNotFound(aResp->res,
-                                               "#Processor.v1_12_0.Processor",
+                    messages::resourceNotFound(aResp->res, "Processor",
                                                processorId);
                     return;
                 }
@@ -1135,8 +1221,7 @@ inline void getSubProcessorData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             if (!subtree.empty())
             {
                 // Object not found
-                messages::resourceNotFound(
-                    aResp->res, "#Processor.v1_12_0.Processor", coreId);
+                messages::resourceNotFound(aResp->res, "Processor", coreId);
                 return;
             }
             },
@@ -1164,8 +1249,7 @@ inline void
                 // No processor objects found by mapper
                 if (ec.value() == boost::system::errc::io_error)
                 {
-                    messages::resourceNotFound(aResp->res,
-                                               "#Processor.v1_12_0.Processor",
+                    messages::resourceNotFound(aResp->res, "Processor",
                                                processorId);
                     return;
                 }
@@ -1562,8 +1646,7 @@ inline void setProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
                              locationIndicatorActive);
             return;
         }
-        messages::resourceNotFound(resp->res, "#Processor.v1_11_0.Processor",
-                                   processorId);
+        messages::resourceNotFound(resp->res, "Processor", processorId);
         });
 }
 
@@ -1832,6 +1915,14 @@ inline void requestRoutesProcessor(App& app)
                                        systemName);
             return;
         }
+
+        asyncResp->res.addHeader(
+            boost::beast::http::field::link,
+            "</redfish/v1/JsonSchemas/Processor/Processor.json>; rel=describedby");
+        asyncResp->res.jsonValue["@odata.type"] =
+            "#Processor.v1_18_0.Processor";
+        asyncResp->res.jsonValue["@odata.id"] = crow::utility::urlFromPieces(
+            "redfish", "v1", "Systems", "system", "Processors", processorId);
 
         getProcessorObject(
             asyncResp, processorId,
