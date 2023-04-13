@@ -657,7 +657,7 @@ inline void afterGetSubtreeSystemsStorageDrive(
     asyncResp->res.jsonValue["@odata.type"] = "#Drive.v1_7_0.Drive";
     asyncResp->res.jsonValue["@odata.id"] = boost::urls::format(
         "/redfish/v1/Systems/system/Storage/1/Drives/{}", driveId);
-    name_util::getPrettyName(asyncResp, path, drive->second,
+    name_util::getPrettyName(asyncResp, path, connectionNames[0].first,
                              "/Name"_json_pointer);
     asyncResp->res.jsonValue["Id"] = driveId;
 

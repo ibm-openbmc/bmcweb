@@ -889,7 +889,8 @@ inline void getProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
                     handler(objectPath, serviceMap);
                     const dbus::utility::MapperServiceMap& serviceMatch = {
                         serviceEntry};
-                    name_util::getPrettyName(resp, objectPath, serviceMatch,
+                    name_util::getPrettyName(resp, objectPath,
+                                             serviceMatch[0].first,
                                              "/Name"_json_pointer);
                     return;
                 }
