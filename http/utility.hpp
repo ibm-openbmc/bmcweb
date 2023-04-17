@@ -10,6 +10,7 @@
 #include <nlohmann/json.hpp>
 
 #include <array>
+#include <charconv>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -811,6 +812,18 @@ inline bool validateAndSplitUrl(std::string_view destUrl, std::string& urlProto,
         return false;
     }
 
+    if (urlProto == "snmp")
+    {
+        uint16_t portTmp = 0;
+        // Check the port
+        auto ret = std::from_chars(
+            url.value().port().data(),
+            url.value().port().data() + url.value().port().size(), portTmp);
+        if (ret.ec != std::errc())
+        {
+            return false;
+        }
+    }
     port = setPortDefaults(url.value());
 
     host = url->encoded_host();
