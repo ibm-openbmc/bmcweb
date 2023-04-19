@@ -4059,44 +4059,56 @@ inline void handleLogServicesDumpEntryDelete(
 inline void handleLogServicesDumpEntryComputerSystemDelete(
     crow::App& app, const crow::Request& req,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& chassisId, const std::string& dumpId)
+    const std::string& systemId, const std::string& dumpEntryId)
 {
     if (!redfish::setUpRedfishRoute(app, req, asyncResp))
     {
         return;
     }
-    if (chassisId != "system")
+    if (systemId != "system")
     {
-        messages::resourceNotFound(asyncResp->res, "ComputerSystem", chassisId);
+        messages::resourceNotFound(asyncResp->res, "ComputerSystem", systemId);
         return;
     }
 
-    if (boost::starts_with(dumpId, "System"))
+    std::size_t pos = dumpEntryId.find_first_of('_');
+    if (pos == std::string::npos || (pos + 1) >= dumpEntryId.length())
+    {
+        // Requested ID is invalid
+        messages::invalidObject(
+            asyncResp->res, crow::utility::urlFromPieces(
+                                "redfish", "v1", "Systems", systemId,
+                                "LogServices", "Dump", "Entries", dumpEntryId));
+        return;
+    }
+
+    const std::string& dumpId = dumpEntryId.substr(pos + 1);
+    if (boost::starts_with(dumpEntryId, "System"))
     {
         deleteDumpEntry(asyncResp, dumpId, "System");
     }
-    else if (boost::starts_with(dumpId, "Resource"))
+    else if (boost::starts_with(dumpEntryId, "Resource"))
     {
         deleteDumpEntry(asyncResp, dumpId, "Resource");
     }
-    else if (boost::starts_with(dumpId, "Hostboot"))
+    else if (boost::starts_with(dumpEntryId, "Hostboot"))
     {
         deleteDumpEntry(asyncResp, dumpId, "Hostboot");
     }
-    else if (boost::starts_with(dumpId, "Hardware"))
+    else if (boost::starts_with(dumpEntryId, "Hardware"))
     {
         deleteDumpEntry(asyncResp, dumpId, "Hardware");
     }
-    else if (boost::starts_with(dumpId, "SBE"))
+    else if (boost::starts_with(dumpEntryId, "SBE"))
     {
         deleteDumpEntry(asyncResp, dumpId, "SBE");
     }
     else
     {
-        messages::invalidObject(asyncResp->res,
-                                crow::utility::urlFromPieces(
-                                    "redfish", "v1", "Systems", "system",
-                                    "LogServices", "Dump", "Entries", dumpId));
+        messages::invalidObject(
+            asyncResp->res, crow::utility::urlFromPieces(
+                                "redfish", "v1", "Systems", systemId,
+                                "LogServices", "Dump", "Entries", dumpEntryId));
         return;
     }
 }
