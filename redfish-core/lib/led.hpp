@@ -23,6 +23,7 @@
 #include <sdbusplus/asio/property.hpp>
 
 #include <array>
+#include <tuple>
 
 namespace redfish
 {
@@ -211,7 +212,7 @@ inline void setLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         sdbusplus::asio::setProperty(
             *crow::connections::systemBus, object.begin()->first, ledGroup,
             "xyz.openbmc_project.Led.Group", "Asserted", ledState,
-            [aResp](const boost::system::error_code& ec1) {
+            [aResp, ledGroup, ledState](const boost::system::error_code& ec1) {
             if (ec1)
             {
                 if (ec1.value() != EBADR)
@@ -238,25 +239,56 @@ inline void
                                nlohmann::json& jsonInput)
 {
     BMCWEB_LOG_DEBUG << "Get LocationIndicatorActive";
-
     nlohmann::json& jsonIn = jsonInput["LocationIndicatorActive"];
-    dbus::utility::getAssociationEndPoints(
-        objPath + "/identifying",
-        [aResp, &jsonIn](const boost::system::error_code& ec,
-                         const dbus::utility::MapperEndPoints& endpoints) {
+
+    sdbusplus::asio::getProperty<
+        std::vector<std::tuple<std::string, std::string, std::string>>>(
+        *crow::connections::systemBus, "xyz.openbmc_project.Inventory.Manager",
+        objPath, "xyz.openbmc_project.Association.Definitions", "Associations",
+        [aResp, objPath,
+         &jsonIn](const boost::system::error_code ec,
+                  std::vector<std::tuple<std::string, std::string, std::string>>
+                      associations) {
         if (ec)
         {
-            if (ec.value() != EBADR)
-            {
-                messages::internalError(aResp->res);
-            }
+            BMCWEB_LOG_ERROR << "DBUS response error " << ec;
+            return;
+        }
+        if (associations.empty())
+        {
+            BMCWEB_LOG_ERROR << "Associations not found for - [ " << objPath
+                             << " ]. Skipping Get LED state.";
+            return;
+        }
+        std::string fType{get<0>(
+            associations[0])}; // TODO: check we want this always??or it varies?
+
+        // validate the fType
+        if (fType.empty())
+        {
+            BMCWEB_LOG_ERROR << "Association Forward Type is not found for - [ "
+                             << objPath << " ]. Skipping Get LED state.";
             return;
         }
 
-        for (const auto& endpoint : endpoints)
-        {
-            getLedAsset(aResp, endpoint, jsonIn);
-        }
+        dbus::utility::getAssociationEndPoints(
+            objPath + "/" + fType,
+            [aResp, &jsonIn](const boost::system::error_code& ec1,
+                             const dbus::utility::MapperEndPoints& endpoints) {
+            if (ec1)
+            {
+                if (ec1.value() != EBADR)
+                {
+                    messages::internalError(aResp->res);
+                }
+                return;
+            }
+
+            for (const auto& endpoint : endpoints)
+            {
+                getLedAsset(aResp, endpoint, jsonIn);
+            }
+            });
         });
 }
 
@@ -282,23 +314,59 @@ inline void
 {
     BMCWEB_LOG_DEBUG << "Set LocationIndicatorActive";
 
-    dbus::utility::getAssociationEndPoints(
-        objPath + "/identifying",
-        [aResp, ledState](const boost::system::error_code& ec,
-                          const dbus::utility::MapperEndPoints& endpoints) {
+    // get the association fType
+    sdbusplus::asio::getProperty<
+        std::vector<std::tuple<std::string, std::string, std::string>>>(
+        *crow::connections::systemBus, "xyz.openbmc_project.Inventory.Manager",
+        objPath, "xyz.openbmc_project.Association.Definitions", "Associations",
+        [aResp, ledState,
+         objPath](const boost::system::error_code ec,
+                  std::vector<std::tuple<std::string, std::string, std::string>>
+                      associations) {
         if (ec)
         {
-            if (ec.value() != EBADR)
-            {
-                messages::internalError(aResp->res);
-            }
+            BMCWEB_LOG_ERROR << "DBUS response error " << ec;
+            return;
+        }
+        if (associations.empty())
+        {
+            BMCWEB_LOG_ERROR << "Associations not found for - [ " << objPath
+                             << " ]. Skipping Set LED.";
+            return;
+        }
+        // TODO: check we want identifying OR fault_identifying??
+        // or it varies with object?
+        // because identifying is not available for object system.
+        std::string fType{get<0>(associations[0])};
+
+        // validate the fType
+        if (fType.empty())
+        {
+            BMCWEB_LOG_ERROR << "Association Forward Type is not found for - [ "
+                             << objPath << " ]. Skipping Set LED.";
             return;
         }
 
-        for (const auto& endpoint : endpoints)
-        {
-            setLedAsset(aResp, endpoint, ledState);
-        }
+        // get Association endPoints
+        dbus::utility::getAssociationEndPoints(
+            objPath + "/" + fType,
+            [aResp, ledState](const boost::system::error_code& ec1,
+                              const dbus::utility::MapperEndPoints& endpoints) {
+            if (ec1)
+            {
+
+                if (ec1.value() != EBADR)
+                {
+                    messages::internalError(aResp->res);
+                }
+                return;
+            }
+
+            for (const auto& endpoint : endpoints)
+            {
+                setLedAsset(aResp, endpoint, ledState);
+            }
+            });
         });
 }
 } // namespace redfish
