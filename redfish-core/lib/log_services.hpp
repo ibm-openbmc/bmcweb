@@ -1178,6 +1178,23 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             messages::internalError(asyncResp->res);
             return;
         }
+        if (oemDiagnosticDataType)
+        {
+            if (*oemDiagnosticDataType == "FaultData")
+            {
+                // Fault data dump
+                createDumpParams.emplace_back(
+                    "xyz.openbmc_project.Dump.Internal.Create.Type",
+                    "xyz.openbmc_project.Dump.Internal.Create.Type.FaultData");
+            }
+            else
+            {
+                BMCWEB_LOG_ERROR
+                    << "Wrong parameter value passed for 'OEMDiagnosticDataType'";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+        }
         dumpPath = "/redfish/v1/Managers/bmc/LogServices/Dump/";
     }
     else
