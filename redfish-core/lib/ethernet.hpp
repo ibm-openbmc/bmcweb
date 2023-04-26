@@ -1180,6 +1180,70 @@ inline void
         dbus::utility::DbusVariantType(macAddress));
 }
 
+void deleteIPv4StaticAddresses(
+    const std::string& ethifaceId,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp, ethifaceId](const boost::system::error_code& errorCode,
+                                dbus::utility::ManagedObjectType& resp) {
+        if (errorCode)
+        {
+            BMCWEB_LOG_ERROR << "D-Bus response error: " << errorCode;
+            messages::internalError(asyncResp->res);
+        }
+        const std::string ipPathStart =
+            "/xyz/openbmc_project/network/" + ethifaceId;
+
+        for (const auto& objpath : resp)
+        {
+            if (objpath.first.str.starts_with(ipPathStart + "/"))
+            {
+                for (const auto& interface : objpath.second)
+                {
+                    if (interface.first == "xyz.openbmc_project.Network.IP")
+                    {
+                        auto type = std::find_if(interface.second.begin(),
+                                                 interface.second.end(),
+                                                 [](const auto& property) {
+                            return property.first == "Type";
+                        });
+                        const std::string* typeStr =
+                            std::get_if<std::string>(&type->second);
+
+                        if (typeStr == nullptr ||
+                            (*typeStr !=
+                             "xyz.openbmc_project.Network.IP.Protocol.IPv4"))
+                        {
+                            continue;
+                        }
+                        auto origin = std::find_if(interface.second.begin(),
+                                                   interface.second.end(),
+                                                   [](const auto& property) {
+                            return property.first == "Origin";
+                        });
+                        const std::string* originStr =
+                            std::get_if<std::string>(&origin->second);
+
+                        if (originStr == nullptr ||
+                            (*originStr !=
+                             "xyz.openbmc_project.Network.IP.AddressOrigin.Static"))
+                        {
+                            continue;
+                        }
+
+                        std::string id =
+                            objpath.first.str.substr(ipPathStart.size());
+                        deleteIPv4(ethifaceId, id, asyncResp);
+                    }
+                }
+            }
+        }
+        },
+        "xyz.openbmc_project.Network", "/xyz/openbmc_project/network",
+        "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
+}
+
 inline void setDHCPEnabled(const std::string& ifaceId,
                            const std::string& propertyName, const bool v4Value,
                            const bool v6Value,
@@ -1187,12 +1251,20 @@ inline void setDHCPEnabled(const std::string& ifaceId,
 {
     const std::string dhcp = getDhcpEnabledEnumeration(v4Value, v6Value);
     crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
+        [asyncResp, ifaceId, v4Value](const boost::system::error_code& ec) {
         if (ec)
         {
             BMCWEB_LOG_ERROR << "D-Bus responses error: " << ec;
             messages::internalError(asyncResp->res);
             return;
+        }
+        // TODO this is workaround needed to avoid ipv4 static and DHCP
+        // address co-existence This behaviour should be fixed in
+        // backend networkd D-bus application
+        if (v4Value)
+        {
+            // Delete IPv4 static addesses while enabling DHCPv4
+            deleteIPv4StaticAddresses(ifaceId, asyncResp);
         }
         messages::success(asyncResp->res);
         },
@@ -1416,7 +1488,8 @@ inline boost::container::flat_set<IPv6AddressData>::const_iterator
 inline void handleIPv4StaticPatch(
     const std::string& ifaceId, nlohmann::json& input,
     const boost::container::flat_set<IPv4AddressData>& ipv4Data,
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const EthernetInterfaceData& ethData)
 {
     if ((!input.is_array()) || input.empty())
     {
@@ -1593,6 +1666,16 @@ inline void handleIPv4StaticPatch(
             }
             entryIdx++;
         }
+    }
+    // TODO this is workaround needed to avoid ipv4 static and DHCP
+    // address co-existence This behaviour should be fixed in
+    // backend networkd D-bus application
+    bool ipv4Active = translateDhcpEnabledToBool(ethData.dhcpEnabled, true);
+    bool ipv6Active = translateDhcpEnabledToBool(ethData.dhcpEnabled, false);
+    if (ipv4Active)
+    {
+        // Disable DHCPv4 while configuring ipv4 static addresses
+        setDHCPEnabled(ifaceId, "DHCPEnabled", false, ipv6Active, asyncResp);
     }
 }
 
@@ -2099,7 +2182,8 @@ inline void requestEthernetInterfacesRoutes(App& app)
                 // makes a copy of the structure, and operates on
                 // that, but could be done more efficiently
                 nlohmann::json ipv4Static = *ipv4StaticAddresses;
-                handleIPv4StaticPatch(ifaceId, ipv4Static, ipv4Data, asyncResp);
+                handleIPv4StaticPatch(ifaceId, ipv4Static, ipv4Data, asyncResp,
+                                      ethData);
             }
 
             if (staticNameServers)
