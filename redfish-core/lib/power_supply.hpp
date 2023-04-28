@@ -6,10 +6,12 @@
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 #include "utils/chassis_utils.hpp"
+#include "utils/power_supply_utils.hpp"
 
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace redfish
 {
@@ -133,52 +135,6 @@ inline void requestRoutesPowerSupplyCollection(App& app)
         .privileges(redfish::privileges::getPowerSupplyCollection)
         .methods(boost::beast::http::verb::get)(
             std::bind_front(handlePowerSupplyCollectionGet, std::ref(app)));
-}
-
-inline bool checkPowerSupplyId(const std::string& powerSupplyPath,
-                               const std::string& powerSupplyId)
-{
-    std::string powerSupplyName =
-        sdbusplus::message::object_path(powerSupplyPath).filename();
-
-    return !(powerSupplyName.empty() || powerSupplyName != powerSupplyId);
-}
-
-inline void getValidPowerSupplyPath(
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& validChassisPath, const std::string& powerSupplyId,
-    std::function<void(const std::string& powerSupplyPath)>&& callback)
-{
-    std::string powerPath = validChassisPath + "/powered_by";
-    dbus::utility::getAssociationEndPoints(
-        powerPath, [asyncResp, powerSupplyId, callback{std::move(callback)}](
-                       const boost::system::error_code& ec,
-                       const dbus::utility::MapperEndPoints& endpoints) {
-            if (ec)
-            {
-                if (ec.value() != EBADR)
-                {
-                    messages::internalError(asyncResp->res);
-                }
-                return;
-            }
-
-            for (const auto& endpoint : endpoints)
-            {
-                if (checkPowerSupplyId(endpoint, powerSupplyId))
-                {
-                    callback(endpoint);
-                    return;
-                }
-            }
-
-            if (!endpoints.empty())
-            {
-                messages::resourceNotFound(asyncResp->res, "PowerSupplies",
-                                           powerSupplyId);
-                return;
-            }
-        });
 }
 
 inline void
@@ -420,6 +376,26 @@ inline void
 }
 
 inline void
+    getPowerSupplyMetrics(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                          const std::string& chassisId,
+                          const std::string& powerSupplyId,
+                          const std::string& validPowerSupplyPath)
+{
+    redfish::power_supply_utils::getInputHistoryPaths(
+        asyncResp, validPowerSupplyPath,
+        [asyncResp, chassisId,
+         powerSupplyId](const std::vector<std::string>& historyPaths) {
+        if (!historyPaths.empty())
+        {
+            asyncResp->res.jsonValue["Metrics"]["@odata.id"] =
+                crow::utility::urlFromPieces(
+                    "redfish", "v1", "Chassis", chassisId, "PowerSubsystem",
+                    "PowerSupplies", powerSupplyId, "Metrics");
+        }
+        });
+}
+
+inline void
     doPowerSupplyGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                      const std::string& chassisId,
                      const std::string& powerSupplyId,
@@ -432,9 +408,10 @@ inline void
     }
 
     // Get the correct Path and Service that match the input parameters
-    getValidPowerSupplyPath(asyncResp, *validChassisPath, powerSupplyId,
-                            [asyncResp, chassisId, powerSupplyId](
-                                const std::string& powerSupplyPath) {
+    redfish::power_supply_utils::getValidPowerSupplyPath(
+        asyncResp, *validChassisPath, powerSupplyId,
+        [asyncResp, chassisId,
+         powerSupplyId](const std::string& powerSupplyPath) {
         asyncResp->res.addHeader(
             boost::beast::http::field::link,
             "</redfish/v1/JsonSchemas/PowerSupply/PowerSupply.json>; rel=describedby");
@@ -472,7 +449,9 @@ inline void
 
         getEfficiencyPercent(asyncResp);
         getLocationIndicatorActive(asyncResp, powerSupplyPath);
-    });
+        getPowerSupplyMetrics(asyncResp, chassisId, powerSupplyId,
+                              powerSupplyPath);
+        });
 }
 
 inline void
@@ -497,12 +476,13 @@ inline void
         }
 
         // Get the correct Path and Service that match the input parameters
-        getValidPowerSupplyPath(asyncResp, *validChassisPath, powerSupplyId,
-                                [asyncResp](const std::string&) {
+        redfish::power_supply_utils::getValidPowerSupplyPath(
+            asyncResp, *validChassisPath, powerSupplyId,
+            [asyncResp](const std::string&) {
             asyncResp->res.addHeader(
                 boost::beast::http::field::link,
                 "</redfish/v1/JsonSchemas/PowerSupply/PowerSupply.json>; rel=describedby");
-        });
+            });
         });
 }
 
@@ -564,9 +544,10 @@ inline void
         }
 
         // Get the correct power supply Path that match the input parameters
-        getValidPowerSupplyPath(asyncResp, *validChassisPath, powerSupplyId,
-                                std::bind_front(doPatchPowerSupply, asyncResp,
-                                                locationIndicatorActive));
+        redfish::power_supply_utils::getValidPowerSupplyPath(
+            asyncResp, *validChassisPath, powerSupplyId,
+            std::bind_front(doPatchPowerSupply, asyncResp,
+                            locationIndicatorActive));
         });
 }
 

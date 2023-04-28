@@ -4236,6 +4236,10 @@
         <edmx:Include Namespace="OemAssembly"/>
         <edmx:Include Namespace="OemAssembly.v1_0_0"/>
     </edmx:Reference>
+    <edmx:Reference Uri="/redfish/v1/schema/OemPowerSupplyMetrics_v1.xml">
+        <edmx:Include Namespace="OemPowerSupplyMetrics"/>
+        <edmx:Include Namespace="OemPowerSupplyMetrics.v1_0_0"/>
+    </edmx:Reference>
     <edmx:Reference Uri="/redfish/v1/schema/OemChassis_v1.xml">
         <edmx:Include Namespace="OemChassis"/>
         <edmx:Include Namespace="OemChassis.v1_0_0"/>
