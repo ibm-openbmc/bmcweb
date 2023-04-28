@@ -55,7 +55,7 @@ class ConnectionImpl : public Connection
         openHandler(std::move(openHandlerIn)),
         messageHandler(std::move(messageHandlerIn)),
         closeHandler(std::move(closeHandlerIn)),
-        errorHandler(std::move(errorHandlerIn)), req(reqIn)
+        errorHandler(std::move(errorHandlerIn))
     {}
 
     boost::asio::io_context* getIoContext() override
@@ -162,7 +162,6 @@ class ConnectionImpl : public Connection
     std::function<void(Connection&, bool&)> closeHandler;
     std::function<void(Connection&)> errorHandler;
     std::function<void()> handlerFunc;
-    crow::Request req;
 };
 } // namespace streaming_response
 } // namespace crow
