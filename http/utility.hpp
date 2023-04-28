@@ -812,7 +812,7 @@ inline bool validateAndSplitUrl(std::string_view destUrl, std::string& urlProto,
         return false;
     }
 
-    if (urlProto == "snmp")
+    if (urlProto == "snmp" && !url.value().port().empty())
     {
         uint16_t portTmp = 0;
         // Check the port
