@@ -357,7 +357,7 @@ class WebSocketRule : public BaseRule
             myConnection = std::make_shared<
                 crow::websocket::ConnectionImpl<boost::asio::ip::tcp::socket>>(
                 req, std::move(adaptor), openHandler, messageHandler,
-                closeHandler, errorHandler);
+                messageExHandler, closeHandler, errorHandler);
         myConnection->start();
     }
 #ifdef BMCWEB_ENABLE_SSL
@@ -372,7 +372,7 @@ class WebSocketRule : public BaseRule
             myConnection = std::make_shared<crow::websocket::ConnectionImpl<
                 boost::beast::ssl_stream<boost::asio::ip::tcp::socket>>>(
                 req, std::move(adaptor), openHandler, messageHandler,
-                closeHandler, errorHandler);
+                messageExHandler, closeHandler, errorHandler);
         myConnection->start();
     }
 #endif
@@ -388,6 +388,13 @@ class WebSocketRule : public BaseRule
     self_t& onmessage(Func f)
     {
         messageHandler = f;
+        return *this;
+    }
+
+    template <typename Func>
+    self_t& onmessageex(Func f)
+    {
+        messageExHandler = f;
         return *this;
     }
 
@@ -409,6 +416,10 @@ class WebSocketRule : public BaseRule
     std::function<void(crow::websocket::Connection&)> openHandler;
     std::function<void(crow::websocket::Connection&, const std::string&, bool)>
         messageHandler;
+    std::function<void(crow::websocket::Connection&, std::string_view,
+                       crow::websocket::MessageType type,
+                       std::function<void()>&& whenComplete)>
+        messageExHandler;
     std::function<void(crow::websocket::Connection&, const std::string&)>
         closeHandler;
     std::function<void(crow::websocket::Connection&)> errorHandler;
@@ -514,6 +525,7 @@ struct RuleParameterTraits
     {
         self_t* self = static_cast<self_t*>(this);
         WebSocketRule* p = new WebSocketRule(self->rule);
+        p->privilegesSet = self->privilegesSet;
         self->ruleToUpgrade.reset(p);
         return *p;
     }
@@ -1386,28 +1398,8 @@ class Router
                          << "' " << static_cast<uint32_t>(*verb) << " / "
                          << rules[ruleIndex]->getMethods();
 
-        // any uncaught exceptions become 500s
-        try
-        {
-            rules[ruleIndex]->handleUpgrade(req, asyncResp,
-                                            std::forward<Adaptor>(adaptor));
-        }
-        catch (const std::exception& e)
-        {
-            BMCWEB_LOG_ERROR << "An uncaught exception occurred: " << e.what();
-            asyncResp->res.result(
-                boost::beast::http::status::internal_server_error);
-            return;
-        }
-        catch (...)
-        {
-            BMCWEB_LOG_ERROR
-                << "An uncaught exception occurred. The type was unknown "
-                   "so no information was available.";
-            asyncResp->res.result(
-                boost::beast::http::status::internal_server_error);
-            return;
-        }
+        rules[ruleIndex]->handleUpgrade(req, asyncResp,
+                                        std::forward<Adaptor>(adaptor));
     }
 
     void handle(Request& req,
