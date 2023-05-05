@@ -532,7 +532,12 @@ inline void
         asyncResp->res.result(boost::beast::http::status::bad_request);
         return;
     }
-    redfish::EventServiceManager::getInstance().sendBroadcastMsg(broadcastMsg);
+
+    std::string origin = "/ibm/v1/HMC/BroadcastService";
+    nlohmann::json msgJson = {{"Message", broadcastMsg}};
+
+    redfish::EventServiceManager::getInstance().sendEvent(msgJson, origin,
+                                                          "BroadcastService");
 }
 
 inline void handleFileUrl(const crow::Request& req,
