@@ -97,6 +97,7 @@ feature_map = {
   #'vm-nbdproxy'                                : '-DBMCWEB_ENABLE_VM_NBDPROXY',
   'ibm-led-extensions'                          : '-DBMCWEB_ENABLE_IBM_LED_EXTENSIONS',
   'hw-isolation'                                : '-DBMCWEB_ENABLE_HW_ISOLATION',
+  'audit-events'                                : '-DBMCWEB_ENABLE_LINUX_AUDIT_EVENTS',
 }
 
 # Get the options status and build a project summary to show which flags are
@@ -263,6 +264,11 @@ pam = cxx.find_library('pam', required: true)
 atomic =  cxx.find_library('atomic', required: true)
 openssl = dependency('openssl', required : true)
 bmcweb_dependencies += [pam, atomic, openssl]
+
+if get_option('audit-events').enabled()
+  audit = cxx.find_library('libaudit', required: true)
+  bmcweb_dependencies += audit
+endif
 
 sdbusplus = dependency('sdbusplus', required : false, include_type: 'system')
 if not sdbusplus.found()
