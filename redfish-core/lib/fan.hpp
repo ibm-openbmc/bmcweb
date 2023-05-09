@@ -42,37 +42,6 @@ inline bool checkFanId(const std::string& fanPath, const std::string& fanId)
     return !(fanName.empty() || fanName != fanId);
 }
 
-inline void fanCollection(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                          const std::string& fanPath,
-                          const std::string& chassisId)
-{
-    dbus::utility::getAssociationEndPoints(
-        fanPath + "/sensors",
-        [asyncResp, fanPath,
-         chassisId](const boost::system::error_code& ec,
-                    const dbus::utility::MapperEndPoints& endpoints) {
-        if (ec)
-        {
-            if (ec.value() != EBADR)
-            {
-                messages::internalError(asyncResp->res);
-                return;
-            }
-        }
-
-        if (endpoints.empty())
-        {
-            updateFanList(asyncResp, chassisId, fanPath);
-            return;
-        }
-
-        for (const auto& endpoint : endpoints)
-        {
-            updateFanList(asyncResp, chassisId, endpoint);
-        }
-        });
-}
-
 inline void doFanCollection(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                             const std::string& chassisId,
                             const std::optional<std::string>& validChassisPath)
@@ -111,7 +80,7 @@ inline void doFanCollection(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
         for (const auto& endpoint : endpoints)
         {
-            fanCollection(asyncResp, endpoint, chassisId);
+            updateFanList(asyncResp, chassisId, endpoint);
         }
         });
 }
@@ -169,17 +138,17 @@ inline void requestRoutesFanCollection(App& app)
             std::bind_front(handleFanCollectionGet, std::ref(app)));
 }
 
-inline void getValidFanPath(
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& validChassisPath, const std::string& fanId,
-    std::function<void(const std::string& fanPath,
-                       const std::string& fanSensorPath)>&& callback)
+inline void
+    getValidFanPath(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                    const std::string& validChassisPath,
+                    const std::string& fanId,
+                    std::function<void(const std::string& fanPath)>&& callback)
 {
     dbus::utility::getAssociationEndPoints(
         validChassisPath + "/cooled_by",
         [asyncResp, fanId, callback{std::move(callback)}](
             const boost::system::error_code& ec,
-            const dbus::utility::MapperEndPoints& ivEndpoints) {
+            const dbus::utility::MapperEndPoints& endpoints) {
         if (ec)
         {
             if (ec.value() != EBADR)
@@ -190,41 +159,16 @@ inline void getValidFanPath(
             return;
         }
 
-        messages::resourceNotFound(asyncResp->res, "Fan", fanId);
-        for (const auto& ivEndpoint : ivEndpoints)
+        for (const auto& endpoint : endpoints)
         {
-            dbus::utility::getAssociationEndPoints(
-                ivEndpoint + "/sensors",
-                [asyncResp, fanId, ivEndpoint, callback](
-                    const boost::system::error_code& ec1,
-                    const dbus::utility::MapperEndPoints& sensorEndpoints) {
-                if (ec1 && ec1.value() != EBADR)
-                {
-                    messages::internalError(asyncResp->res);
-                    return;
-                }
-
-                if (sensorEndpoints.empty())
-                {
-                    if (checkFanId(ivEndpoint, fanId))
-                    {
-                        asyncResp->res.clear();
-                        callback(ivEndpoint, "");
-                    }
-                    return;
-                }
-
-                for (const auto& sensorEndpoint : sensorEndpoints)
-                {
-                    if (checkFanId(sensorEndpoint, fanId))
-                    {
-                        asyncResp->res.clear();
-                        callback(ivEndpoint, sensorEndpoint);
-                        return;
-                    }
-                }
-                });
+            if (checkFanId(endpoint, fanId))
+            {
+                callback(endpoint);
+                return;
+            }
         }
+
+        messages::resourceNotFound(asyncResp->res, "Fan", fanId);
         });
 }
 
@@ -357,32 +301,6 @@ inline void getFanLocation(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         });
 }
 
-inline void
-    getFanSpeedPercent(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                       const std::string& service, const std::string& path,
-                       const std::string& chassisId, const std::string& fanId)
-{
-    sdbusplus::asio::getProperty<double>(
-        *crow::connections::systemBus, service, path,
-        "xyz.openbmc_project.Sensor.Value", "Value",
-        [asyncResp, chassisId, fanId](const boost::system::error_code& ec,
-                                      double value) {
-        if (ec)
-        {
-            if (ec.value() != EBADR)
-            {
-                messages::internalError(asyncResp->res);
-            }
-            return;
-        }
-
-        asyncResp->res.jsonValue["SpeedPercent"]["Reading"] = value;
-        asyncResp->res.jsonValue["SpeedPercent"]["DataSourceUri"] =
-            crow::utility::urlFromPieces("redfish", "v1", "Chassis", chassisId,
-                                         "Sensors", "Fans", fanId);
-        });
-}
-
 inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                      const std::string& chassisId, const std::string& fanId,
                      const std::optional<std::string>& validChassisPath)
@@ -393,10 +311,8 @@ inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         return;
     }
 
-    getValidFanPath(
-        asyncResp, *validChassisPath, fanId,
-        [asyncResp, chassisId, fanId](const std::string& fanPath,
-                                      const std::string& fanSensorPath) {
+    getValidFanPath(asyncResp, *validChassisPath, fanId,
+                    [asyncResp, chassisId, fanId](const std::string& fanPath) {
         asyncResp->res.addHeader(
             boost::beast::http::field::link,
             "</redfish/v1/JsonSchemas/Fan/Fan.json>; rel=describedby");
@@ -411,7 +327,7 @@ inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
         dbus::utility::getDbusObject(
             fanPath, {},
-            [asyncResp, fanPath, fanSensorPath, chassisId,
+            [asyncResp, fanPath, chassisId,
              fanId](const boost::system::error_code& ec,
                     const dbus::utility::MapperGetObject& object) {
             if (ec || object.empty())
@@ -420,24 +336,14 @@ inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 return;
             }
 
-            if (!fanSensorPath.empty())
-            {
-                getFanHealth(asyncResp, object.begin()->first, fanSensorPath);
-                getFanSpeedPercent(asyncResp, object.begin()->first,
-                                   fanSensorPath, chassisId, fanId);
-            }
-            else
-            {
-                getFanHealth(asyncResp, object.begin()->first, fanPath);
-            }
-
+            getFanHealth(asyncResp, object.begin()->first, fanPath);
             getFanState(asyncResp, object.begin()->first, fanPath);
             getFanAsset(asyncResp, object.begin()->first, fanPath);
             getFanLocation(asyncResp, object.begin()->first, fanPath);
             });
 
         getLocationIndicatorActive(asyncResp, fanPath);
-        });
+    });
 }
 
 inline void handleFanHead(App& app, const crow::Request& req,
@@ -461,7 +367,7 @@ inline void handleFanHead(App& app, const crow::Request& req,
 
         // Get the correct Path and Service that match the input parameters
         getValidFanPath(asyncResp, *validChassisPath, fanId,
-                        [asyncResp](const std::string&, const std::string&) {
+                        [asyncResp](const std::string&) {
             asyncResp->res.addHeader(
                 boost::beast::http::field::link,
                 "</redfish/v1/JsonSchemas/Fan/Fan.json>; rel=describedby");
@@ -527,15 +433,15 @@ inline void handleFanPatch(App& app, const crow::Request& req,
 
         // Verify that the fan has the correct chassis and whether fan has a
         // chassis association
-        getValidFanPath(asyncResp, *validChassisPath, fanId,
-                        [asyncResp, locationIndicatorActive](
-                            const std::string& fanPath, const std::string&) {
+        getValidFanPath(
+            asyncResp, *validChassisPath, fanId,
+            [asyncResp, locationIndicatorActive](const std::string& fanPath) {
             if (locationIndicatorActive)
             {
                 setLocationIndicatorActive(asyncResp, fanPath,
                                            *locationIndicatorActive);
             }
-        });
+            });
         });
 }
 
