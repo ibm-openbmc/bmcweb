@@ -118,7 +118,6 @@ inline void setPowerCapOverride(
 }
 inline void requestRoutesPower(App& app)
 {
-
     BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/Power/")
         .privileges(redfish::privileges::getPower)
         .methods(boost::beast::http::verb::get)(
@@ -175,8 +174,8 @@ inline void requestRoutesPower(App& app)
                     len = end - (lastPos + 1);
                 }
 
-                std::string interfaceChassisName =
-                    chassis.substr(lastPos + 1, len);
+                std::string interfaceChassisName = chassis.substr(lastPos + 1,
+                                                                  len);
                 if (interfaceChassisName == sensorAsyncResp->chassisId)
                 {
                     found = true;

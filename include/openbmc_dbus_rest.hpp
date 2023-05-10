@@ -217,7 +217,6 @@ inline void getPropertiesForEnumerate(
                 }
                 else
                 {
-
                     propertyJson = val;
                 }
                 },
@@ -340,7 +339,6 @@ inline void getManagedObjectsForEnumerate(
                             }
                             else
                             {
-
                                 propertyJson = val;
                             }
                             },
@@ -1677,8 +1675,8 @@ inline void handleEnumerate(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         [objectPath, asyncResp](
             const boost::system::error_code ec,
             const dbus::utility::MapperGetSubTreeResponse& objectNames) {
-        auto transaction =
-            std::make_shared<InProgressEnumerateData>(objectPath, asyncResp);
+        auto transaction = std::make_shared<InProgressEnumerateData>(objectPath,
+                                                                     asyncResp);
 
         transaction->subtree =
             std::make_shared<dbus::utility::MapperGetSubTreeResponse>(
@@ -2031,7 +2029,6 @@ inline void handleDBusUrl(const crow::Request& req,
                           const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                           std::string& objectPath)
 {
-
     // If accessing a single attribute, fill in and update objectPath,
     // otherwise leave destProperty blank
     std::string destProperty;
@@ -2564,8 +2561,8 @@ inline void requestRoutes(App& app)
                 asyncResp->res.result(boost::beast::http::status::not_found);
                 return;
             }
-            std::string contentDispositionParam =
-                "attachment; filename=\"" + dumpFileName + "\"";
+            std::string contentDispositionParam = "attachment; filename=\"" +
+                                                  dumpFileName + "\"";
 
             asyncResp->res.addHeader(
                 boost::beast::http::field::content_disposition,

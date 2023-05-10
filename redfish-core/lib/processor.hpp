@@ -1569,7 +1569,6 @@ inline void setProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
 
 inline void requestRoutesOperatingConfigCollection(App& app)
 {
-
     BMCWEB_ROUTE(
         app, "/redfish/v1/Systems/system/Processors/<str>/OperatingConfigs/")
         .privileges(redfish::privileges::getOperatingConfigCollection)

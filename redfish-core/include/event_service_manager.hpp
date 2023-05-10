@@ -240,8 +240,8 @@ inline int formatEventLogEntry(const std::string& logEntryID,
         return -1;
     }
 
-    std::string msg =
-        redfish::registries::fillMessageArgs(messageArgs, message->message);
+    std::string msg = redfish::registries::fillMessageArgs(messageArgs,
+                                                           message->message);
     if (msg.empty())
     {
         return -1;
@@ -437,8 +437,8 @@ class Subscription : public persistent_data::UserSubscription
         msg["Name"] = "Event Log";
         msg["Events"] = logEntryArray;
 
-        std::string strMsg =
-            msg.dump(2, ' ', true, nlohmann::json::error_handler_t::replace);
+        std::string strMsg = msg.dump(2, ' ', true,
+                                      nlohmann::json::error_handler_t::replace);
         return this->sendEvent(strMsg);
     }
 
@@ -506,8 +506,8 @@ class Subscription : public persistent_data::UserSubscription
         msg["Name"] = "Event Log";
         msg["Events"] = logEntryArray;
 
-        std::string strMsg =
-            msg.dump(2, ' ', true, nlohmann::json::error_handler_t::replace);
+        std::string strMsg = msg.dump(2, ' ', true,
+                                      nlohmann::json::error_handler_t::replace);
         this->sendEvent(strMsg);
     }
 #endif
@@ -546,8 +546,8 @@ class Subscription : public persistent_data::UserSubscription
             msg["Context"] = customText;
         }
 
-        std::string strMsg =
-            msg.dump(2, ' ', true, nlohmann::json::error_handler_t::replace);
+        std::string strMsg = msg.dump(2, ' ', true,
+                                      nlohmann::json::error_handler_t::replace);
         this->sendEvent(strMsg);
     }
 
@@ -887,7 +887,6 @@ class EventServiceManager
     void addSubscription(const std::shared_ptr<Subscription>& subValue,
                          std::string& id, const bool updateFile = true)
     {
-
         std::uniform_int_distribution<uint32_t> dist(0);
         bmcweb::OpenSSLGenerator gen;
 
@@ -1311,8 +1310,8 @@ class EventServiceManager
         }
 
         // Watch redfish event log file for modifications.
-        fileWatchDesc =
-            inotify_add_watch(inotifyFd, redfishEventLogFile, IN_MODIFY);
+        fileWatchDesc = inotify_add_watch(inotifyFd, redfishEventLogFile,
+                                          IN_MODIFY);
         if (fileWatchDesc == -1)
         {
             BMCWEB_LOG_ERROR

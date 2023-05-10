@@ -440,7 +440,6 @@ inline void
 
     if (lanes != nullptr)
     {
-
         slot["Lanes"] = *lanes;
     }
 
