@@ -33,8 +33,8 @@ class Logger
 
         gmtime_r(&t, &myTm);
 
-        size_t sz =
-            strftime(date.data(), date.size(), "%Y-%m-%d %H:%M:%S", &myTm);
+        size_t sz = strftime(date.data(), date.size(), "%Y-%m-%d %H:%M:%S",
+                             &myTm);
         date.resize(sz);
         return date;
     }
@@ -65,7 +65,7 @@ class Logger
 
     //
     template <typename T>
-    Logger& operator<<([[maybe_unused]] T const& value)
+    Logger& operator<<([[maybe_unused]] const T& value)
     {
         if (level >= getCurrentLogLevel())
         {

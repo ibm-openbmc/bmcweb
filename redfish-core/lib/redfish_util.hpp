@@ -156,8 +156,8 @@ void getPortStatusAndPath(
                 const std::string& unitState =
                     std::get<NET_PROTO_UNIT_SUB_STATE>(unit);
 
-                bool isProtocolEnabled =
-                    ((unitState == "running") || (unitState == "listening"));
+                bool isProtocolEnabled = ((unitState == "running") ||
+                                          (unitState == "listening"));
 
                 // Some protocols may have multiple services associated with
                 // them (for example IPMI). Look to see if we've already added
