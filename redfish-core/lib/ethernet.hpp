@@ -1582,8 +1582,7 @@ inline void setDHCPConfig(const std::string& propertyName, const bool& value,
         path /= "dhcp6";
     }
 
-    sdbusplus::asio::setProperty(
-        crow::connections::systemBus->async_method_call(
+    crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code& ec) {
         if (ec)
         {
