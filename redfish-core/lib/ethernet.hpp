@@ -396,6 +396,33 @@ inline bool extractEthernetInterfaceData(
                                 ethData.hostNameEnabled = *hostNameEnabled;
                             }
                         }
+                        if (propertyPair.first == "DNSv6Enabled")
+                        {
+                            const bool* dnsv6Enabled =
+                                std::get_if<bool>(&propertyPair.second);
+                            if (dnsv6Enabled != nullptr)
+                            {
+                                ethData.dnsv6Enabled = *dnsv6Enabled;
+                            }
+                        }
+                        else if (propertyPair.first == "NTPv6Enabled")
+                        {
+                            const bool* ntpv6Enabled =
+                                std::get_if<bool>(&propertyPair.second);
+                            if (ntpv6Enabled != nullptr)
+                            {
+                                ethData.ntpv6Enabled = *ntpv6Enabled;
+                            }
+                        }
+                        else if (propertyPair.first == "HostNamev6Enabled")
+                        {
+                            const bool* hostNamev6Enabled =
+                                std::get_if<bool>(&propertyPair.second);
+                            if (hostNamev6Enabled != nullptr)
+                            {
+                                ethData.hostNamev6Enabled = *hostNamev6Enabled;
+                            }
+                        }
                     }
                 }
             }
