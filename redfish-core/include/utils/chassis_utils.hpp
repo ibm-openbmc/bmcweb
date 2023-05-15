@@ -100,8 +100,8 @@ inline void
         std::vector<std::string> updatedAssemblyList;
         for (const auto& [objectPath, serviceName] : subtree)
         {
-            auto it =
-                std::find(assemblies.begin(), assemblies.end(), objectPath);
+            auto it = std::find(assemblies.begin(), assemblies.end(),
+                                objectPath);
             if (it != assemblies.end())
             {
                 updatedAssemblyList.emplace(updatedAssemblyList.end(), *it);
@@ -126,7 +126,6 @@ inline void
     getAssemblyEndpoints(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                          const std::string& chassisPath, Callback&& callback)
 {
-
     BMCWEB_LOG_DEBUG << "Get assembly endpoints";
 
     sdbusplus::message::object_path assemblyPath(chassisPath);

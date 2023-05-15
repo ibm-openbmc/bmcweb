@@ -25,7 +25,7 @@ constexpr std::array<const char*, 9> chassisAssemblyIfaces = {
     "xyz.openbmc_project.Inventory.Item.Drive",
     "xyz.openbmc_project.Inventory.Item.Board.Motherboard"};
 
-void assembleAssemblyProperties(
+static void assembleAssemblyProperties(
     const std::shared_ptr<bmcweb::AsyncResp>& aResp,
     const dbus::utility::DBusPropertiesMap& properties,
     nlohmann::json& assemblyData, const std::string& path)
@@ -91,8 +91,8 @@ inline void
     {
         nlohmann::json& tempyArray = aResp->res.jsonValue["Assemblies"];
 
-        std::string dataID =
-            "/redfish/v1/Chassis/" + chassis + "/Assembly#/Assemblies/";
+        std::string dataID = "/redfish/v1/Chassis/" + chassis +
+                             "/Assembly#/Assemblies/";
         dataID.append(std::to_string(assemblyIndex));
 
         tempyArray.push_back({{"@odata.type", "#Assembly.v1_3_0.AssemblyData"},
@@ -326,8 +326,9 @@ inline void
     }
 }
 
-void startOrStopADCSensor(const bool start,
-                          const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+static void
+    startOrStopADCSensor(const bool start,
+                         const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     std::string method{"StartUnit"};
     if (!start)
@@ -350,8 +351,8 @@ void startOrStopADCSensor(const bool start,
         "xyz.openbmc_project.adcsensor.service", "replace");
 }
 
-void doBatteryCM(const std::string& assembly, const bool readyToRemove,
-                 const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+static void doBatteryCM(const std::string& assembly, const bool readyToRemove,
+                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     if (readyToRemove)
     {
@@ -575,8 +576,8 @@ inline void setAssemblylocationIndicators(
                 // readytoremove as false implies FRU has been replaced. Set
                 // action as "CollectFRUVPD". This is the api exposed by
                 // vpd-manager to recollect vpd for a given FRU.
-                std::string action =
-                    (readytoremove.value()) ? "deleteFRUVPD" : "CollectFRUVPD";
+                std::string action = (readytoremove.value()) ? "deleteFRUVPD"
+                                                             : "CollectFRUVPD";
 
                 crow::connections::systemBus->async_method_call(
                     [asyncResp, action](const boost::system::error_code ec) {
@@ -650,8 +651,8 @@ inline void checkAssemblyInterface(
             // implemeted. This is to handle the case in which there is
             // entry in association json but implementation of interface for
             // that particular assembly is missing.
-            auto it =
-                std::find(assemblies.begin(), assemblies.end(), objectPath);
+            auto it = std::find(assemblies.begin(), assemblies.end(),
+                                objectPath);
             if (it != assemblies.end())
             {
                 updatedAssemblyList.emplace(updatedAssemblyList.end(), *it);
@@ -697,7 +698,6 @@ inline void
                          const bool& setLocationIndicatorActiveFlag,
                          const crow::Request& req)
 {
-
     BMCWEB_LOG_DEBUG << "Get assembly endpoints";
 
     sdbusplus::message::object_path assemblyPath(chassisPath);
@@ -888,8 +888,8 @@ inline void getChassis(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             {
                 aResp->res.jsonValue["@odata.type"] =
                     "#Assembly.v1_3_0.Assembly";
-                aResp->res.jsonValue["@odata.id"] =
-                    "/redfish/v1/Chassis/" + chassisID + "/Assembly";
+                aResp->res.jsonValue["@odata.id"] = "/redfish/v1/Chassis/" +
+                                                    chassisID + "/Assembly";
                 aResp->res.jsonValue["Name"] = "Assembly Collection";
                 aResp->res.jsonValue["Id"] = "Assembly";
             }
@@ -1057,9 +1057,9 @@ inline void fillWithAssemblyId(
             // to match with Assembly GET and PATCH handler.
             std::sort(implAssemblyAssocs.begin(), implAssemblyAssocs.end());
 
-            auto assembledObjectIt =
-                std::find(implAssemblyAssocs.begin(), implAssemblyAssocs.end(),
-                          assembledObjPath.str);
+            auto assembledObjectIt = std::find(implAssemblyAssocs.begin(),
+                                               implAssemblyAssocs.end(),
+                                               assembledObjPath.str);
 
             if (assembledObjectIt == implAssemblyAssocs.end())
             {
@@ -1072,8 +1072,8 @@ inline void fillWithAssemblyId(
                 return;
             }
 
-            auto assembledObjectId =
-                std::distance(implAssemblyAssocs.begin(), assembledObjectIt);
+            auto assembledObjectId = std::distance(implAssemblyAssocs.begin(),
+                                                   assembledObjectIt);
 
             std::string::size_type assembledObjectNamePos =
                 assembledUriVal.rfind(assembledObjPath.filename());

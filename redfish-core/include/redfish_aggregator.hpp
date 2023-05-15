@@ -708,8 +708,8 @@ class RedfishAggregator
         // We need to create a json from resp's stringResponse
         if (resp.getHeaderValue("Content-Type") == "application/json")
         {
-            nlohmann::json jsonVal =
-                nlohmann::json::parse(resp.body(), nullptr, false);
+            nlohmann::json jsonVal = nlohmann::json::parse(resp.body(), nullptr,
+                                                           false);
             if (jsonVal.is_discarded())
             {
                 BMCWEB_LOG_ERROR << "Error parsing satellite response as JSON";
@@ -768,8 +768,8 @@ class RedfishAggregator
         // We need to create a json from resp's stringResponse
         if (resp.getHeaderValue("Content-Type") == "application/json")
         {
-            nlohmann::json jsonVal =
-                nlohmann::json::parse(resp.body(), nullptr, false);
+            nlohmann::json jsonVal = nlohmann::json::parse(resp.body(), nullptr,
+                                                           false);
             if (jsonVal.is_discarded())
             {
                 BMCWEB_LOG_ERROR << "Error parsing satellite response as JSON";

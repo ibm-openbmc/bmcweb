@@ -33,8 +33,7 @@ namespace crow
 class BaseRule
 {
   public:
-    explicit BaseRule(const std::string& thisRule) : rule(thisRule)
-    {}
+    explicit BaseRule(const std::string& thisRule) : rule(thisRule) {}
 
     virtual ~BaseRule() = default;
 
@@ -230,8 +229,7 @@ struct Wrapped
     template <typename Req, typename... Args>
     struct ReqHandlerWrapper
     {
-        explicit ReqHandlerWrapper(Func fIn) : f(std::move(fIn))
-        {}
+        explicit ReqHandlerWrapper(Func fIn) : f(std::move(fIn)) {}
 
         void operator()(const Request& req,
                         const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -334,11 +332,9 @@ class WebSocketRule : public BaseRule
     using self_t = WebSocketRule;
 
   public:
-    explicit WebSocketRule(const std::string& ruleIn) : BaseRule(ruleIn)
-    {}
+    explicit WebSocketRule(const std::string& ruleIn) : BaseRule(ruleIn) {}
 
-    void validate() override
-    {}
+    void validate() override {}
 
     void handle(const Request& /*req*/,
                 const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -433,8 +429,7 @@ class StreamingResponseRule : public BaseRule
     explicit StreamingResponseRule(const std::string& ruleIn) : BaseRule(ruleIn)
     {}
 
-    void validate() override
-    {}
+    void validate() override {}
 
     void handle(const Request& /*req*/,
                 const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -610,8 +605,7 @@ struct RuleParameterTraits
 class DynamicRule : public BaseRule, public RuleParameterTraits<DynamicRule>
 {
   public:
-    explicit DynamicRule(const std::string& ruleIn) : BaseRule(ruleIn)
-    {}
+    explicit DynamicRule(const std::string& ruleIn) : BaseRule(ruleIn) {}
 
     void validate() override
     {
@@ -651,7 +645,7 @@ class DynamicRule : public BaseRule, public RuleParameterTraits<DynamicRule>
         using function_t = crow::utility::FunctionTraits<Func>;
 
         if (!black_magic::isParameterTagCompatible(
-                black_magic::getParameterTag(rule.c_str()),
+                black_magic::getParameterTag(rule),
                 black_magic::computeParameterTagFromArgsList<
                     typename function_t::template arg<Indices>...>::value))
         {
@@ -688,8 +682,7 @@ class TaggedRule :
   public:
     using self_t = TaggedRule<Args...>;
 
-    explicit TaggedRule(const std::string& ruleIn) : BaseRule(ruleIn)
-    {}
+    explicit TaggedRule(const std::string& ruleIn) : BaseRule(ruleIn) {}
 
     void validate() override
     {
@@ -825,8 +818,7 @@ class Trie
         }
     };
 
-    Trie() : nodes(1)
-    {}
+    Trie() : nodes(1) {}
 
   private:
     void optimizeNode(Node* node)
@@ -961,8 +953,8 @@ class Trie
             {
                 char* eptr = nullptr;
                 errno = 0;
-                long long int value =
-                    std::strtoll(reqUrl.data() + pos, &eptr, 10);
+                long long int value = std::strtoll(reqUrl.data() + pos, &eptr,
+                                                   10);
                 if (errno != ERANGE && eptr != reqUrl.data() + pos)
                 {
                     params->intParams.push_back(value);
@@ -1425,15 +1417,14 @@ class Router
             else
             {
                 // See if we have a method not allowed (405) handler
-                foundRoute.route =
-                    findRouteByIndex(req.url, methodNotAllowedIndex);
+                foundRoute.route = findRouteByIndex(req.url,
+                                                    methodNotAllowedIndex);
             }
         }
 
         // Fill in the allow header if it's valid
         if (!foundRoute.allowHeader.empty())
         {
-
             asyncResp->res.addHeader(boost::beast::http::field::allow,
                                      foundRoute.allowHeader);
         }
@@ -1606,8 +1597,7 @@ class Router
         Trie trie;
         // rule index 0 has special meaning; preallocate it to avoid
         // duplication.
-        PerMethod() : rules(1)
-        {}
+        PerMethod() : rules(1) {}
     };
 
     std::array<PerMethod, methodNotAllowedIndex + 1> perMethods;

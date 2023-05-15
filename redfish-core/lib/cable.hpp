@@ -29,7 +29,6 @@ inline void
     linkAssociatedCable(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                         const std::string& cableObjectPath, Callback&& callback)
 {
-
     dbus::utility::getAssociationEndPoints(
         cableObjectPath,
         [asyncResp, callback](const boost::system::error_code& ec,
@@ -177,8 +176,8 @@ inline void
     auto chassisAssociation =
         [asyncResp,
          cableObjectPath](std::vector<std::string>& updatedAssemblyList) {
-        std::string downstreamResource =
-            cableObjectPath + "/downstream_resource";
+        std::string downstreamResource = cableObjectPath +
+                                         "/downstream_resource";
         linkAssociatedCable(asyncResp, downstreamResource,
                             [asyncResp, updatedAssemblyList](
                                 const std::vector<std::string>& value) {
@@ -194,7 +193,6 @@ inline void
                 // If element was found
                 if (it != updatedAssemblyList.end())
                 {
-
                     uint index =
                         static_cast<uint>(it - updatedAssemblyList.begin());
                     linkArray.push_back(
@@ -405,8 +403,8 @@ inline void requestRoutesCable(App& app)
                 }
 
                 asyncResp->res.jsonValue["@odata.type"] = "#Cable.v1_2_0.Cable";
-                asyncResp->res.jsonValue["@odata.id"] =
-                    "/redfish/v1/Cables/" + cableId;
+                asyncResp->res.jsonValue["@odata.id"] = "/redfish/v1/Cables/" +
+                                                        cableId;
                 asyncResp->res.jsonValue["Id"] = cableId;
                 asyncResp->res.jsonValue["Name"] = "Cable";
 

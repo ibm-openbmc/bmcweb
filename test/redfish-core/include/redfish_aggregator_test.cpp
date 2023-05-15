@@ -247,8 +247,8 @@ void assertProcessResponse(unsigned result)
     jsonResp["Name"] = "Test";
 
     crow::Response resp;
-    resp.body() =
-        jsonResp.dump(2, ' ', true, nlohmann::json::error_handler_t::replace);
+    resp.body() = jsonResp.dump(2, ' ', true,
+                                nlohmann::json::error_handler_t::replace);
     resp.addHeader("Content-Type", "application/json");
     resp.addHeader("Allow", "GET");
     resp.addHeader("Location", "/redfish/v1/Chassis/TestChassis");

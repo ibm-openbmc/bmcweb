@@ -205,8 +205,8 @@ constexpr inline uint64_t getParameterTag(std::string_view url)
             }
             if (tag == "<uint>")
             {
-                tagValue +=
-                    insertIndex * toUnderlying(TypeCode::UnsignedInteger);
+                tagValue += insertIndex *
+                            toUnderlying(TypeCode::UnsignedInteger);
             }
             if (tag == "<float>" || tag == "<double>")
             {

@@ -475,8 +475,8 @@ inline bool
     // add protocol to URI if needed
     if (uriTransferProtocolType == std::nullopt)
     {
-        imageUrl =
-            getUriWithTransferProtocol(imageUrl, *paramTransferProtocolType);
+        imageUrl = getUriWithTransferProtocol(imageUrl,
+                                              *paramTransferProtocolType);
     }
 
     return true;
@@ -716,7 +716,6 @@ inline void doVmAction(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                        const std::string& service, const std::string& name,
                        bool legacy)
 {
-
     // Legacy mount requires parameter with image
     if (legacy)
     {

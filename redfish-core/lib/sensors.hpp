@@ -2213,8 +2213,8 @@ inline nlohmann::json& getPowerSupply(nlohmann::json& powerSupplyArray,
     // Add new PowerSupply object to JSON array
     powerSupplyArray.push_back({});
     nlohmann::json& powerSupply = powerSupplyArray.back();
-    powerSupply["@odata.id"] =
-        "/redfish/v1/Chassis/" + chassisId + "/Power#/PowerSupplies/";
+    powerSupply["@odata.id"] = "/redfish/v1/Chassis/" + chassisId +
+                               "/Power#/PowerSupplies/";
     powerSupply["MemberId"] = inventoryItem.name;
     powerSupply["Name"] = boost::replace_all_copy(inventoryItem.name, "_", " ");
     powerSupply["Manufacturer"] = inventoryItem.manufacturer;
@@ -2895,8 +2895,8 @@ inline void handleSensorGet(App& app, const crow::Request& req,
 
     const std::array<const char*, 1> interfaces = {
         "xyz.openbmc_project.Sensor.Value"};
-    std::string sensorPath =
-        "/xyz/openbmc_project/sensors/" + sensorType + '/' + sensorName;
+    std::string sensorPath = "/xyz/openbmc_project/sensors/" + sensorType +
+                             '/' + sensorName;
     // Get a list of all of the sensors that implement Sensor.Value
     // and get the path and service name associated with the sensor
     crow::connections::systemBus->async_method_call(

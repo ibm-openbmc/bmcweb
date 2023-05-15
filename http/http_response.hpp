@@ -284,8 +284,7 @@ struct DynamicResponse
         bufferResponse->set(key, value);
     }
 
-    DynamicResponse() : bufferResponse(response_type{})
-    {}
+    DynamicResponse() : bufferResponse(response_type{}) {}
 
     ~DynamicResponse() = default;
 

@@ -140,7 +140,6 @@ inline void getProcessorProperties(
     const std::vector<std::pair<std::string, dbus::utility::DbusVariantType>>&
         properties)
 {
-
     BMCWEB_LOG_DEBUG << "Got " << properties.size() << " Cpu properties.";
 
     // TODO: Get Model
@@ -186,7 +185,6 @@ inline void getProcessorSummary(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                                 const std::string& service,
                                 const std::string& path)
 {
-
     auto getCpuPresenceState = [aResp](const boost::system::error_code ec3,
                                        const bool cpuPresenceCheck) {
         if (ec3)
@@ -2269,11 +2267,11 @@ inline void requestRoutesSystemsCollection(App& app)
  */
 inline void doNMI(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    constexpr char const* serviceName = "xyz.openbmc_project.Control.Host.NMI";
-    constexpr char const* objectPath = "/xyz/openbmc_project/control/host0/nmi";
-    constexpr char const* interfaceName =
+    constexpr const char* serviceName = "xyz.openbmc_project.Control.Host.NMI";
+    constexpr const char* objectPath = "/xyz/openbmc_project/control/host0/nmi";
+    constexpr const char* interfaceName =
         "xyz.openbmc_project.Control.Host.NMI";
-    constexpr char const* method = "NMI";
+    constexpr const char* method = "NMI";
 
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code ec) {
@@ -2466,7 +2464,6 @@ inline void afterPortRequest(
  */
 inline void requestRoutesSystems(App& app)
 {
-
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/")
         .privileges(redfish::privileges::headComputerSystem)
         .methods(boost::beast::http::verb::head)(

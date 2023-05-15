@@ -79,8 +79,8 @@ inline void requestRoutes(App& app)
                         if (dataIt->size() == 2)
                         {
                             nlohmann::json::iterator userIt2 = dataIt->begin();
-                            nlohmann::json::iterator passIt2 =
-                                dataIt->begin() + 1;
+                            nlohmann::json::iterator passIt2 = dataIt->begin() +
+                                                               1;
                             looksLikePhosphorRest = true;
                             if (userIt2 != dataIt->end() &&
                                 passIt2 != dataIt->end())
@@ -251,8 +251,8 @@ inline void requestRoutes(App& app)
         const auto& session = req.session;
         if (session != nullptr)
         {
-            asyncResp->res.jsonValue["data"] =
-                "User '" + session->username + "' logged out";
+            asyncResp->res.jsonValue["data"] = "User '" + session->username +
+                                               "' logged out";
             asyncResp->res.jsonValue["message"] = "200 OK";
             asyncResp->res.jsonValue["status"] = "ok";
 

@@ -17,8 +17,7 @@ namespace streaming_response
 struct Connection : std::enable_shared_from_this<Connection>
 {
   public:
-    explicit Connection(const crow::Request& reqIn) : req(reqIn)
-    {}
+    explicit Connection(const crow::Request& reqIn) : req(reqIn) {}
     virtual void sendMessage(const boost::asio::mutable_buffer& buffer,
                              std::function<void()> handler) = 0;
     virtual void close() = 0;
@@ -29,10 +28,10 @@ struct Connection : std::enable_shared_from_this<Connection>
     virtual void setStreamHeaders(const std::string& header,
                                   const std::string& headerValue) = 0;
     virtual ~Connection() = default;
-    Connection(const Connection&) = default;
-    Connection(Connection&&) = default;
-    Connection& operator=(const Connection& c) = default;
-    Connection& operator=(Connection&& c) = default;
+    Connection(const Connection&) = delete;
+    Connection(Connection&&) = delete;
+    Connection& operator=(const Connection& c) = delete;
+    Connection& operator=(Connection&& c) = delete;
 
     crow::Request req;
     crow::DynamicResponse streamres;
@@ -91,14 +90,12 @@ class ConnectionImpl : public Connection
     void setStreamHeaders(const std::string& header,
                           const std::string& headerValue) override
     {
-
         streamres.addHeader(header, headerValue);
     }
 
     void sendStreamHeaders(const std::string& streamDataSize,
                            const std::string& contentType) override
     {
-
         streamres.addHeader("Content-Length", streamDataSize);
         streamres.addHeader("Content-Type", contentType);
         boost::beast::http::async_write(

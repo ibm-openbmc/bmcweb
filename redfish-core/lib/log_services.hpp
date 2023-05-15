@@ -58,14 +58,14 @@
 namespace redfish
 {
 
-constexpr char const* crashdumpObject = "com.intel.crashdump";
-constexpr char const* crashdumpPath = "/com/intel/crashdump";
-constexpr char const* crashdumpInterface = "com.intel.crashdump";
-constexpr char const* deleteAllInterface =
+constexpr const char* crashdumpObject = "com.intel.crashdump";
+constexpr const char* crashdumpPath = "/com/intel/crashdump";
+constexpr const char* crashdumpInterface = "com.intel.crashdump";
+constexpr const char* deleteAllInterface =
     "xyz.openbmc_project.Collection.DeleteAll";
-constexpr char const* crashdumpOnDemandInterface =
+constexpr const char* crashdumpOnDemandInterface =
     "com.intel.crashdump.OnDemand";
-constexpr char const* crashdumpTelemetryInterface =
+constexpr const char* crashdumpTelemetryInterface =
     "com.intel.crashdump.Telemetry";
 
 #ifdef BMCWEB_ENABLE_HW_ISOLATION
@@ -358,8 +358,8 @@ inline static bool
         }
     }
     // Timestamp has no index
-    auto [ptr, ec] =
-        std::from_chars(tsStr.data(), tsStr.data() + tsStr.size(), timestamp);
+    auto [ptr, ec] = std::from_chars(tsStr.data(), tsStr.data() + tsStr.size(),
+                                     timestamp);
     if (ec != std::errc())
     {
         messages::resourceNotFound(asyncResp->res, "LogEntry", entryID);
@@ -628,8 +628,8 @@ inline void
                 thisEntry["@odata.id"] = entriesPath + entryID;
                 thisEntry["Id"] = entryID;
                 thisEntry["DiagnosticDataType"] = "Manager";
-                thisEntry["AdditionalDataURI"] =
-                    entriesPath + entryID + "/attachment";
+                thisEntry["AdditionalDataURI"] = entriesPath + entryID +
+                                                 "/attachment";
                 thisEntry["AdditionalDataSizeBytes"] = size;
             }
             else if (dumpType == "System" || dumpType == "Resource" ||
@@ -642,8 +642,8 @@ inline void
                 thisEntry["Id"] = dumpEntryId;
                 thisEntry["DiagnosticDataType"] = "OEM";
                 thisEntry["OEMDiagnosticDataType"] = "System";
-                thisEntry["AdditionalDataURI"] =
-                    entriesPath + dumpEntryId + "/attachment";
+                thisEntry["AdditionalDataURI"] = entriesPath + dumpEntryId +
+                                                 "/attachment";
                 thisEntry["AdditionalDataSizeBytes"] = size;
             }
             entriesArray.push_back(std::move(thisEntry));
@@ -994,8 +994,8 @@ inline void createDumpTaskCallback(
             std::string prop;
             msg.read(prop, values);
 
-            DumpCreationProgress dumpStatus =
-                getDumpCompletionStatus(values, taskData);
+            DumpCreationProgress dumpStatus = getDumpCompletionStatus(values,
+                                                                      taskData);
             if (dumpStatus == DumpCreationProgress::DUMP_CREATE_FAILED)
             {
                 BMCWEB_LOG_ERROR << createdObjPath.str
@@ -1365,7 +1365,7 @@ inline static void
     }
 }
 
-constexpr char const* postCodeIface = "xyz.openbmc_project.State.Boot.PostCode";
+constexpr const char* postCodeIface = "xyz.openbmc_project.State.Boot.PostCode";
 inline void requestRoutesSystemLogServiceCollection(App& app)
 {
     /**
@@ -1792,8 +1792,8 @@ inline void requestRoutesJournalEventLogEntryCollection(App& app)
                 firstEntry = false;
 
                 nlohmann::json::object_t bmcLogEntry;
-                LogParseError status =
-                    fillEventLogEntryJson(idStr, logEntry, bmcLogEntry);
+                LogParseError status = fillEventLogEntryJson(idStr, logEntry,
+                                                             bmcLogEntry);
                 if (status == LogParseError::messageIdNotInRegistry)
                 {
                     continue;
@@ -2990,7 +2990,6 @@ inline void
     displayOemPelAttachment(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                             const std::string& entryID)
 {
-
     auto respHandler = [asyncResp, entryID](const boost::system::error_code ec,
                                             const std::string& pelJson) {
         if (ec.value() == EBADR)
@@ -3531,7 +3530,7 @@ inline void requestRoutesSystemHostLoggerLogEntry(App& app)
         });
 }
 
-constexpr char const* dumpManagerIface =
+constexpr const char* dumpManagerIface =
     "xyz.openbmc_project.Collection.DeleteAll";
 inline void handleBMCLogServicesCollectionGet(
     crow::App& app, const crow::Request& req,
@@ -3969,8 +3968,8 @@ inline void handleLogServicesDumpEntriesCollectionGet(
     asyncResp->res.jsonValue["@odata.id"] =
         "/redfish/v1/Managers/bmc/LogServices/Dump/Entries";
     asyncResp->res.jsonValue["Name"] = dumpType + " Dump Entries";
-    asyncResp->res.jsonValue["Description"] =
-        "Collection of " + dumpType + " Dump Entries";
+    asyncResp->res.jsonValue["Description"] = "Collection of " + dumpType +
+                                              " Dump Entries";
 
     getDumpEntryCollection(asyncResp, dumpType);
 }
@@ -3995,8 +3994,8 @@ inline void handleLogServicesDumpEntriesCollectionComputerSystemGet(
     asyncResp->res.jsonValue["@odata.id"] =
         "/redfish/v1/Systems/system/LogServices/Dump/Entries";
     asyncResp->res.jsonValue["Name"] = "System Dump Entries";
-    asyncResp->res.jsonValue["Description"] =
-        "Collection of " + chassisId + " Dump Entries";
+    asyncResp->res.jsonValue["Description"] = "Collection of " + chassisId +
+                                              " Dump Entries";
 
     getDumpEntryCollection(asyncResp, "System");
     getDumpEntryCollection(asyncResp, "Resource");
@@ -4583,7 +4582,7 @@ inline void requestRoutesCrashdumpEntry(App& app)
         {
             messages::resourceNotFound(asyncResp->res, "ComputerSystem",
                                        systemName);
-            ;
+
             return;
         }
         const std::string& logID = param;
@@ -4611,7 +4610,7 @@ inline void requestRoutesCrashdumpFile(App& app)
         {
             messages::resourceNotFound(asyncResp->res, "ComputerSystem",
                                        systemName);
-            ;
+
             return;
         }
 
@@ -4714,7 +4713,7 @@ inline void requestRoutesCrashdumpCollect(App& app)
         {
             messages::resourceNotFound(asyncResp->res, "ComputerSystem",
                                        systemName);
-            ;
+
             return;
         }
 
@@ -4844,7 +4843,7 @@ inline void requestRoutesDBusLogServiceActionsClear(App& app)
         {
             messages::resourceNotFound(asyncResp->res, "ComputerSystem",
                                        systemName);
-            ;
+
             return;
         }
         BMCWEB_LOG_DEBUG << "Do delete all entries.";
@@ -4899,7 +4898,7 @@ inline void requestRoutesDBusCELogServiceActionsClear(App& app)
         {
             messages::resourceNotFound(asyncResp->res, "ComputerSystem",
                                        systemName);
-            ;
+
             return;
         }
         BMCWEB_LOG_DEBUG << "Do delete all entries.";
@@ -4947,7 +4946,7 @@ inline void requestRoutesPostCodesLogService(App& app)
         {
             messages::resourceNotFound(asyncResp->res, "ComputerSystem",
                                        systemName);
-            ;
+
             return;
         }
         asyncResp->res.jsonValue["@odata.id"] =
@@ -4992,7 +4991,7 @@ inline void requestRoutesPostCodesClear(App& app)
         {
             messages::resourceNotFound(asyncResp->res, "ComputerSystem",
                                        systemName);
-            ;
+
             return;
         }
         BMCWEB_LOG_DEBUG << "Do delete all postcodes entries.";
@@ -5271,9 +5270,9 @@ static void getPostCodeForBoot(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             endCount = entryCount + postcode.size();
             if (skip < endCount && (top + skip) > entryCount)
             {
-                uint64_t thisBootSkip =
-                    std::max(static_cast<uint64_t>(skip), entryCount) -
-                    entryCount;
+                uint64_t thisBootSkip = std::max(static_cast<uint64_t>(skip),
+                                                 entryCount) -
+                                        entryCount;
                 uint64_t thisBootTop =
                     std::min(static_cast<uint64_t>(top + skip), endCount) -
                     entryCount;
@@ -5349,7 +5348,7 @@ inline void requestRoutesPostCodesEntryCollection(App& app)
         {
             messages::resourceNotFound(asyncResp->res, "ComputerSystem",
                                        systemName);
-            ;
+
             return;
         }
         asyncResp->res.jsonValue["@odata.type"] =
@@ -5393,7 +5392,7 @@ inline void requestRoutesPostCodesEntryAdditionalData(App& app)
         {
             messages::resourceNotFound(asyncResp->res, "ComputerSystem",
                                        systemName);
-            ;
+
             return;
         }
 
@@ -5605,8 +5604,8 @@ inline void getRedfishUriByDbusObjPath(
         }
 
         // Fill the isolated hardware object id along with the Redfish URI
-        std::string redfishUri =
-            redfishUriIt->second + "/" + getIsolatedHwItemId(dbusObjPath);
+        std::string redfishUri = redfishUriIt->second + "/" +
+                                 getIsolatedHwItemId(dbusObjPath);
 
         // Make sure whether no need to fill the parent object id in the
         // isolated hardware Redfish URI.
@@ -6116,7 +6115,6 @@ inline void getSystemHardwareIsolationLogEntryCollection(
     const crow::Request& /* req */,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-
     auto getManagedObjectsHandler =
         [asyncResp](const boost::system::error_code ec,
                     const GetManagedObjectsType& mgtObjs) {
