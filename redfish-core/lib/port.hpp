@@ -50,9 +50,8 @@ inline void getPortProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                         return;
                     }
 
-                    aResp->res
-                        .jsonValue["Location"]["PartLocation"]["ServiceLabel"] =
-                        value;
+                    aResp->res.jsonValue["Location"]["PartLocation"]
+                                        ["ServiceLabel"] = value;
                     });
             }
             else if (interface == "xyz.openbmc_project.Association.Definitions")
@@ -192,7 +191,6 @@ inline void requestRoutesPortCollection(App& app)
 inline void handlePortError(const boost::system::error_code& ec,
                             crow::Response& res, const std::string& portId)
 {
-
     if (ec.value() == boost::system::errc::io_error)
     {
         messages::resourceNotFound(res, "#Port.v1_7_0.Port", portId);

@@ -21,7 +21,7 @@ static uint count = 0;
  *
  * @return None.
  */
-void pcieTopologyRefreshWatchdog(
+static void pcieTopologyRefreshWatchdog(
     const boost::system::error_code& ec, boost::asio::steady_timer* timer,
     const std::shared_ptr<bmcweb::AsyncResp>& aResp, uint* countPtr)
 {

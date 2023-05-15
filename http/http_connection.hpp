@@ -214,9 +214,9 @@ class Connection :
 
             // Determine that ExtendedKeyUsage includes Client Auth
 
-            stack_st_ASN1_OBJECT* extUsage =
-                static_cast<stack_st_ASN1_OBJECT*>(X509_get_ext_d2i(
-                    peerCert, NID_ext_key_usage, nullptr, nullptr));
+            stack_st_ASN1_OBJECT* extUsage = static_cast<stack_st_ASN1_OBJECT*>(
+                X509_get_ext_d2i(peerCert, NID_ext_key_usage, nullptr,
+                                 nullptr));
 
             if (extUsage == nullptr)
             {
@@ -490,7 +490,6 @@ class Connection :
             (req->method() == boost::beast::http::verb::put) ||
             (req->method() == boost::beast::http::verb::delete_))
         {
-
             if (userSession != nullptr)
             {
                 bool requestSuccess = false;

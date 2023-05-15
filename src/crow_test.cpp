@@ -505,11 +505,9 @@ struct NullSimpleMiddleware
     struct Context
     {};
 
-    void beforeHandle(Request& /*req*/, Response& /*res*/, Context& /*ctx*/)
-    {}
+    void beforeHandle(Request& /*req*/, Response& /*res*/, Context& /*ctx*/) {}
 
-    void afterHandle(Request& /*req*/, Response& /*res*/, Context& /*ctx*/)
-    {}
+    void afterHandle(Request& /*req*/, Response& /*res*/, Context& /*ctx*/) {}
 };
 
 TEST(Crow, middleware_simple)

@@ -15,8 +15,7 @@ namespace telemetry
 
 struct ValueVisitor
 {
-    explicit ValueVisitor(boost::system::error_code& ec) : ec3(ec)
-    {}
+    explicit ValueVisitor(boost::system::error_code& ec) : ec3(ec) {}
 
     template <class T>
     double operator()(T value) const
@@ -147,7 +146,7 @@ inline void getSensorService(
 constexpr auto metricDefinitionMapping = std::array{
     std::pair{"fan_pwm", "Fan_Pwm"}, std::pair{"fan_tach", "Fan_Tach"}};
 
-std::string mapSensorToMetricDefinition(const std::string& sensorPath)
+static std::string mapSensorToMetricDefinition(const std::string& sensorPath)
 {
     sdbusplus::message::object_path sensorObjectPath{sensorPath};
 
@@ -316,9 +315,9 @@ inline void requestRoutesMetricDefinition(App& app)
             telemetry::getSensorService(
                 sensorPath,
                 [asyncResp, name, odataId = std::move(odataId), sensorPath,
-                 matchingUris =
-                     std::move(matchingUris)](boost::system::error_code ec3,
-                                              const std::string& serviceName) {
+                 matchingUris = std::move(matchingUris)](
+                    boost::system::error_code ec3,
+                    const std::string& serviceName) {
                 if (ec3)
                 {
                     messages::internalError(asyncResp->res);

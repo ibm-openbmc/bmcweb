@@ -475,8 +475,7 @@ inline void getObjectAndEnumerate(
 // Structure for storing data on an in progress action
 struct InProgressActionData
 {
-    explicit InProgressActionData(crow::Response& resIn) : res(resIn)
-    {}
+    explicit InProgressActionData(crow::Response& resIn) : res(resIn) {}
     ~InProgressActionData()
     {
         // Methods could have been called across different owners
@@ -1539,8 +1538,8 @@ inline void handleAction(const crow::Request& req,
 {
     BMCWEB_LOG_DEBUG << "handleAction on path: " << objectPath << " and method "
                      << methodName;
-    nlohmann::json requestDbusData =
-        nlohmann::json::parse(req.body, nullptr, false);
+    nlohmann::json requestDbusData = nlohmann::json::parse(req.body, nullptr,
+                                                           false);
 
     if (requestDbusData.is_discarded())
     {
@@ -1855,8 +1854,8 @@ inline void handlePut(const crow::Request& req,
         return;
     }
 
-    nlohmann::json requestDbusData =
-        nlohmann::json::parse(req.body, nullptr, false);
+    nlohmann::json requestDbusData = nlohmann::json::parse(req.body, nullptr,
+                                                           false);
 
     if (requestDbusData.is_discarded())
     {
@@ -2393,8 +2392,8 @@ inline void
             return;
         }
 
-        nlohmann::json requestDbusData =
-            nlohmann::json::parse(req.body, nullptr, false);
+        nlohmann::json requestDbusData = nlohmann::json::parse(req.body,
+                                                               nullptr, false);
 
         if (requestDbusData.is_discarded())
         {

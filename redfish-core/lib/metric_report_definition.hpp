@@ -31,7 +31,6 @@ using ReadingParameters = std::vector<std::tuple<
 inline metric_report_definition::ReportActionsEnum
     toRedfishReportAction(std::string_view dbusValue)
 {
-
     if (dbusValue ==
         "xyz.openbmc_project.Telemetry.Report.ReportActions.EmitsReadingsUpdate")
     {
@@ -276,7 +275,7 @@ inline void
         metric["MetricProperties"] = std::move(metricProperties);
         metric["CollectionDuration"] = time_utils::toDurationString(
             std::chrono::milliseconds(collectionDuration));
-        metrics.push_back(std::move(metric));
+        metrics.emplace_back(std::move(metric));
     }
     asyncResp->res.jsonValue["Metrics"] = std::move(metrics);
 

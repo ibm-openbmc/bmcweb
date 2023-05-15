@@ -95,7 +95,6 @@ inline void resolveRoT(const std::string& command,
                        const std::string& rotId,
                        ResolvedEntityHandler&& entityHandler)
 {
-
     std::array<std::string, 1> hothIfaces = {
         "xyz.openbmc_project.Control.Hoth"};
     crow::connections::systemBus->async_method_call(

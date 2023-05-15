@@ -19,9 +19,9 @@ inline void getChassisNames(F&& cb)
         "xyz.openbmc_project.Inventory.Item.Chassis"};
 
     crow::connections::systemBus->async_method_call(
-        [callback =
-             std::forward<F>(cb)](const boost::system::error_code ec,
-                                  const std::vector<std::string>& chassis) {
+        [callback = std::forward<F>(cb)](
+            const boost::system::error_code ec,
+            const std::vector<std::string>& chassis) {
         std::vector<std::string> chassisNames;
 
         if (ec)
