@@ -188,7 +188,7 @@ option(
 option(
     'ibm-management-console',
     type: 'feature',
-    value: 'disabled',
+    value: 'enabled',
     description: '''Enable the IBM management console specific functionality.
                     Paths are under /ibm/v1/'''
 )
