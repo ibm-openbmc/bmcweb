@@ -2430,6 +2430,12 @@ inline void afterPortRequest(
 {
     if (ec)
     {
+        // These properties aren't critical if we see a timeout or if resource
+        // not found don't throw an error
+        if (ec.value() == EBADR || ec.value() == ETIMEDOUT)
+        {
+            return;
+        }
         messages::internalError(asyncResp->res);
         return;
     }
