@@ -349,7 +349,6 @@ inline void
         if (ec)
         {
             BMCWEB_LOG_ERROR << ec;
-            asyncResp->res.jsonValue.clear();
             messages::internalError(asyncResp->res);
             return;
         }
