@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ethernet.hpp"
 #include "utils/ip_utils.hpp"
 
 #include <app.hpp>
@@ -1065,20 +1066,6 @@ inline void handleHypervisorIPv6StaticPatch(
             deleteHypervisorIP(ifaceId, "ipv6", asyncResp);
         }
     }
-}
-
-static bool isHostnameValid(const std::string& hostName)
-{
-    // As per RFC 1123
-    // Allow up to 255 characters
-    if (hostName.length() > 255)
-    {
-        return false;
-    }
-    // Validate the regex
-    const std::regex pattern(
-        "^[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9]$");
-    return std::regex_match(hostName, pattern);
 }
 
 inline void requestRoutesHypervisorSystems(App& app)
