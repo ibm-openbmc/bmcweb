@@ -35,9 +35,9 @@
 namespace redfish
 {
 
-static constexpr char const* pcieDeviceInterface =
+static constexpr const char* pcieDeviceInterface =
     "xyz.openbmc_project.Inventory.Item.PCIeDevice";
-static constexpr char const* pcieSlotInterface =
+static constexpr const char* pcieSlotInterface =
     "xyz.openbmc_project.Inventory.Item.PCIeSlot";
 
 using FindPcieSlotCbFunc = std::function<void(
@@ -96,7 +96,6 @@ inline void getPcieDevicePathAndService(
     std::function<void(const boost::system::error_code&, const std::string&,
                        const std::string&)>&& callback)
 {
-
     getPcieDevicePath(asyncResp, pcieDevice,
                       [pcieDevice, asyncResp,
                        callback{callback}](const boost::system::error_code& ec,
@@ -367,7 +366,6 @@ inline void
                      const std::string& pcieDevice,
                      FindPcieSlotCbFunc&& callback)
 {
-
     getPcieDevicePath(asyncResp, pcieDevice,
                       [asyncResp, pcieDevice, callback{std::move(callback)}](
                           const boost::system::error_code& ec,
@@ -501,7 +499,6 @@ inline void
     getPCIeDeviceProperties(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                             const std::string& device)
 {
-
     auto getPCIeDevicePropertiesCallback =
         [asyncResp,
          device](const dbus::utility::DBusPropertiesMap& pcieDevProperties,
@@ -614,9 +611,8 @@ inline void
 
         if (locationCode != nullptr)
         {
-            asyncResp->res
-                .jsonValue["Slot"]["Location"]["PartLocation"]["ServiceLabel"] =
-                *locationCode;
+            asyncResp->res.jsonValue["Slot"]["Location"]["PartLocation"]
+                                    ["ServiceLabel"] = *locationCode;
         }
 
         // The default value of LanesInUse is 0, and the field

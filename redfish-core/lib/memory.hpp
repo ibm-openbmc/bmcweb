@@ -241,15 +241,14 @@ inline void getPersistentMemoryProperties(
 
     if (volatileSizeInKiB != nullptr)
     {
-
         aResp->res.jsonValue[jsonPtr]["VolatileSizeMiB"] =
             (*volatileSizeInKiB) >> 10;
     }
 
     if (pmSizeInKiB != nullptr)
     {
-        aResp->res.jsonValue[jsonPtr]["NonVolatileSizeMiB"] =
-            (*pmSizeInKiB) >> 10;
+        aResp->res.jsonValue[jsonPtr]["NonVolatileSizeMiB"] = (*pmSizeInKiB) >>
+                                                              10;
     }
 
     if (cacheSizeInKB != nullptr)
@@ -362,30 +361,26 @@ inline void getPersistentMemoryProperties(
 
     if (dataLockCapable != nullptr)
     {
-        aResp->res
-            .jsonValue[jsonPtr]["SecurityCapabilities"]["DataLockCapable"] =
-            *dataLockCapable;
+        aResp->res.jsonValue[jsonPtr]["SecurityCapabilities"]
+                            ["DataLockCapable"] = *dataLockCapable;
     }
 
     if (passphraseCapable != nullptr)
     {
-        aResp->res
-            .jsonValue[jsonPtr]["SecurityCapabilities"]["PassphraseCapable"] =
-            *passphraseCapable;
+        aResp->res.jsonValue[jsonPtr]["SecurityCapabilities"]
+                            ["PassphraseCapable"] = *passphraseCapable;
     }
 
     if (maxPassphraseCount != nullptr)
     {
-        aResp->res
-            .jsonValue[jsonPtr]["SecurityCapabilities"]["MaxPassphraseCount"] =
-            *maxPassphraseCount;
+        aResp->res.jsonValue[jsonPtr]["SecurityCapabilities"]
+                            ["MaxPassphraseCount"] = *maxPassphraseCount;
     }
 
     if (passphraseLockLimit != nullptr)
     {
-        aResp->res
-            .jsonValue[jsonPtr]["SecurityCapabilities"]["PassphraseLockLimit"] =
-            *passphraseLockLimit;
+        aResp->res.jsonValue[jsonPtr]["SecurityCapabilities"]
+                            ["PassphraseLockLimit"] = *passphraseLockLimit;
     }
 }
 
@@ -592,9 +587,8 @@ inline void
 
     if (locationCode != nullptr)
     {
-        aResp->res
-            .jsonValue[jsonPtr]["Location"]["PartLocation"]["ServiceLabel"] =
-            *locationCode;
+        aResp->res.jsonValue[jsonPtr]["Location"]["PartLocation"]
+                            ["ServiceLabel"] = *locationCode;
     }
 
     if (functional != nullptr)

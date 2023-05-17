@@ -759,8 +759,8 @@ inline void objectPropertiesToJson(
     }
 
     sensorJson["Status"]["State"] = getState(inventoryItem);
-    sensorJson["Status"]["Health"] =
-        getHealth(sensorJson, propertiesDict, inventoryItem);
+    sensorJson["Status"]["Health"] = getHealth(sensorJson, propertiesDict,
+                                               inventoryItem);
 
     // Parameter to set to override the type we get from dbus, and force it to
     // int, regardless of what is available.  This is used for schemas like fan,
@@ -962,7 +962,6 @@ inline void objectInterfacesToJson(
     const dbus::utility::DBusInteracesMap& interfacesDict,
     nlohmann::json& sensorJson, InventoryItem* inventoryItem)
 {
-
     for (const auto& [interface, valuesDict] : interfacesDict)
     {
         objectPropertiesToJson(sensorName, sensorType, chassisSubNode,
@@ -1118,10 +1117,10 @@ inline void populateFanRedundancy(
                         }
                     }
 
-                    size_t minNumNeeded =
-                        collection->empty()
-                            ? 0
-                            : collection->size() - *allowedFailures;
+                    size_t minNumNeeded = collection->empty()
+                                              ? 0
+                                              : collection->size() -
+                                                    *allowedFailures;
                     nlohmann::json& jResp = sensorsAsyncResp->asyncResp->res
                                                 .jsonValue["Redundancy"];
 
@@ -1271,8 +1270,8 @@ inline void addInventoryItem(
     const std::string& invItemObjPath, const std::string& sensorObjPath)
 {
     // Look for inventory item in vector
-    InventoryItem* inventoryItem =
-        findInventoryItem(inventoryItems, invItemObjPath);
+    InventoryItem* inventoryItem = findInventoryItem(inventoryItems,
+                                                     invItemObjPath);
 
     // If inventory item doesn't exist in vector, add it
     if (inventoryItem == nullptr)
@@ -1465,8 +1464,8 @@ static void getInventoryItemsData(
                     static_cast<const std::string&>(objDictEntry.first);
 
                 // If this object path is one of the specified inventory items
-                InventoryItem* inventoryItem =
-                    findInventoryItem(inventoryItems, objPath);
+                InventoryItem* inventoryItem = findInventoryItem(inventoryItems,
+                                                                 objPath);
                 if (inventoryItem != nullptr)
                 {
                     // Store inventory data in InventoryItem
@@ -2214,8 +2213,8 @@ inline nlohmann::json& getPowerSupply(nlohmann::json& powerSupplyArray,
     // Add new PowerSupply object to JSON array
     powerSupplyArray.push_back({});
     nlohmann::json& powerSupply = powerSupplyArray.back();
-    powerSupply["@odata.id"] =
-        "/redfish/v1/Chassis/" + chassisId + "/Power#/PowerSupplies/";
+    powerSupply["@odata.id"] = "/redfish/v1/Chassis/" + chassisId +
+                               "/Power#/PowerSupplies/";
     powerSupply["MemberId"] = inventoryItem.name;
     powerSupply["Name"] = boost::replace_all_copy(inventoryItem.name, "_", " ");
     powerSupply["Manufacturer"] = inventoryItem.manufacturer;
@@ -2896,8 +2895,8 @@ inline void handleSensorGet(App& app, const crow::Request& req,
 
     const std::array<const char*, 1> interfaces = {
         "xyz.openbmc_project.Sensor.Value"};
-    std::string sensorPath =
-        "/xyz/openbmc_project/sensors/" + sensorType + '/' + sensorName;
+    std::string sensorPath = "/xyz/openbmc_project/sensors/" + sensorType +
+                             '/' + sensorName;
     // Get a list of all of the sensors that implement Sensor.Value
     // and get the path and service name associated with the sensor
     crow::connections::systemBus->async_method_call(

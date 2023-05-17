@@ -186,8 +186,8 @@ constexpr inline uint64_t getParameterTag(std::string_view url)
             {
                 return 0;
             }
-            std::string_view tag =
-                url.substr(urlSegmentIndex, urlIndex + 1 - urlSegmentIndex);
+            std::string_view tag = url.substr(urlSegmentIndex,
+                                              urlIndex + 1 - urlSegmentIndex);
 
             // Note, this is a really lame way to do std::pow(6, paramIndex)
             // std::pow doesn't work in constexpr in clang.
@@ -205,8 +205,8 @@ constexpr inline uint64_t getParameterTag(std::string_view url)
             }
             if (tag == "<uint>")
             {
-                tagValue +=
-                    insertIndex * toUnderlying(TypeCode::UnsignedInteger);
+                tagValue += insertIndex *
+                            toUnderlying(TypeCode::UnsignedInteger);
             }
             if (tag == "<float>" || tag == "<double>")
             {

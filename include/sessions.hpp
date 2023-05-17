@@ -407,8 +407,7 @@ class SessionStore
     AuthConfigMethods authMethodsConfig;
 
   private:
-    SessionStore() : timeoutInSeconds(1800)
-    {}
+    SessionStore() : timeoutInSeconds(1800) {}
 };
 
 } // namespace persistent_data

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ethernet.hpp"
 #include "utils/ip_utils.hpp"
 
 #include <app.hpp>
@@ -207,7 +208,6 @@ inline bool extractHypervisorInterfaceData(
                     idFound = true;
                     if (interface.first == "xyz.openbmc_project.Network.IP")
                     {
-
                         for (const auto& property : interface.second)
                         {
                             if (property.first == "Address")
@@ -314,7 +314,6 @@ inline bool extractHypervisorInterfaceData(
                 if (interface.first ==
                     "xyz.openbmc_project.Network.EthernetInterface")
                 {
-
                     for (const auto& property : interface.second)
                     {
                         if (property.first == "DHCPEnabled")
@@ -387,7 +386,6 @@ inline bool extractHypervisorInterfaceData(
                 if (interface.first ==
                     "xyz.openbmc_project.Network.SystemConfiguration")
                 {
-
                     for (const auto& property : interface.second)
                     {
                         if (property.first == "HostName")
@@ -571,7 +569,7 @@ inline void
                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     crow::connections::systemBus->async_method_call(
-        [asyncResp, prefixLength, gateway, ifaceId,
+        [asyncResp, gateway, ifaceId,
          address](const boost::system::error_code ec) {
         if (ec)
         {
@@ -1070,20 +1068,6 @@ inline void handleHypervisorIPv6StaticPatch(
     }
 }
 
-bool isHostnameValid(const std::string& hostName)
-{
-    // As per RFC 1123
-    // Allow up to 255 characters
-    if (hostName.length() > 255)
-    {
-        return false;
-    }
-    // Validate the regex
-    const std::regex pattern(
-        "^[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9]$");
-    return std::regex_match(hostName, pattern);
-}
-
 inline void requestRoutesHypervisorSystems(App& app)
 {
     /**
@@ -1126,7 +1110,7 @@ inline void requestRoutesHypervisorSystems(App& app)
             nlohmann::json::array_t managedBy;
             nlohmann::json::object_t manager;
             manager["@odata.id"] = "/redfish/v1/Managers/bmc";
-            managedBy.push_back(std::move(manager));
+            managedBy.emplace_back(std::move(manager));
             asyncResp->res.jsonValue["Links"]["ManagedBy"] =
                 std::move(managedBy);
             asyncResp->res.jsonValue["EthernetInterfaces"]["@odata.id"] =
@@ -1489,9 +1473,9 @@ inline void requestRoutesHypervisorSystems(App& app)
             parameter["Required"] = true;
             parameter["DataType"] = "String";
             nlohmann::json::array_t allowed;
-            allowed.push_back("On");
+            allowed.emplace_back("On");
             parameter["AllowableValues"] = std::move(allowed);
-            parameters.push_back(std::move(parameter));
+            parameters.emplace_back(std::move(parameter));
             asyncResp->res.jsonValue["Parameters"] = std::move(parameters);
             },
             "xyz.openbmc_project.ObjectMapper",

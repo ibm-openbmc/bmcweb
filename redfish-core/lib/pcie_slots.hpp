@@ -219,8 +219,8 @@ inline void linkAssociatedDiskBackplane(
         auto backplaneAssemblyCallback =
             [asyncResp, index, chassisId,
              drivePath](const std::vector<std::string>& assemblyList) {
-            auto it =
-                std::find(assemblyList.begin(), assemblyList.end(), drivePath);
+            auto it = std::find(assemblyList.begin(), assemblyList.end(),
+                                drivePath);
             if (it != assemblyList.end())
             {
                 asyncResp->res.jsonValue["Slots"][index]["Links"]["Oem"]["IBM"]
@@ -250,7 +250,7 @@ std::map<unsigned int, std::string> updatePcieSlotsMaps{};
 
 // Check whether the total number of slots in the request is consistent with the
 // actual total number of slots
-void checkPCIeSlotsCount(
+static void checkPCIeSlotsCount(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const unsigned int total, const std::string& validChassisPath,
     std::function<void(const std::map<unsigned int, std::string>&)>&& callback)
@@ -440,7 +440,6 @@ inline void
 
     if (lanes != nullptr)
     {
-
         slot["Lanes"] = *lanes;
     }
 

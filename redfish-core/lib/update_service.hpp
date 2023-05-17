@@ -292,7 +292,6 @@ static void
                             iface ==
                             "xyz.openbmc_project.Software.ActivationProgress")
                         {
-
                             const uint8_t* progress = nullptr;
                             for (const auto& property : values)
                             {

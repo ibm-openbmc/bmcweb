@@ -76,8 +76,8 @@ inline bool
         if (delimiterPos != std::string::npos)
         {
             std::string procParent = processorId.substr(0, delimiterPos);
-            std::string procId =
-                processorId.substr(delimiterPos + 1, processorId.length());
+            std::string procId = processorId.substr(delimiterPos + 1,
+                                                    processorId.length());
 
             if ((objectPath.parent_path().filename() == procParent) &&
                 (objectPath.filename() == procId))
@@ -1569,7 +1569,6 @@ inline void setProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
 
 inline void requestRoutesOperatingConfigCollection(App& app)
 {
-
     BMCWEB_ROUTE(
         app, "/redfish/v1/Systems/system/Processors/<str>/OperatingConfigs/")
         .privileges(redfish::privileges::getOperatingConfigCollection)
@@ -1782,8 +1781,8 @@ inline void requestRoutesProcessorCollection(App& app)
                 if (path.parent_path().filename().find("dcm") !=
                     std::string::npos)
                 {
-                    leaf =
-                        path.parent_path().filename() + "-" + path.filename();
+                    leaf = path.parent_path().filename() + "-" +
+                           path.filename();
                 }
                 else
                 {

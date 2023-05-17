@@ -56,8 +56,8 @@ inline void getLicenseEntryCollection(
             }
             entriesArray.push_back({});
             nlohmann::json& thisEntry = entriesArray.back();
-            thisEntry["@odata.id"] =
-                "/redfish/v1/LicenseService/Licenses/" + entryID;
+            thisEntry["@odata.id"] = "/redfish/v1/LicenseService/Licenses/" +
+                                     entryID;
             thisEntry["Id"] = entryID;
             thisEntry["Name"] = entryID + " License Entry";
             asyncResp->res.jsonValue["Members@odata.count"] =
@@ -93,7 +93,7 @@ inline void requestRoutesLicenseService(App& app)
         });
 }
 
-void resetLicenseActivationStatus(
+static void resetLicenseActivationStatus(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     std::string value{"com.ibm.License.LicenseManager.Status.Pending"};
@@ -115,7 +115,8 @@ void resetLicenseActivationStatus(
         std::variant<std::string>(value));
 }
 
-void resetLicenseString(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+static void
+    resetLicenseString(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     std::string value;
     crow::connections::systemBus->async_method_call(
@@ -141,7 +142,6 @@ inline void
                             const std::string& status,
                             const std::string& licenseString)
 {
-
     if (status == "com.ibm.License.LicenseManager.Status.ActivationFailed")
     {
         BMCWEB_LOG_ERROR << "LicenseActivationStatus: ActivationFailed";
@@ -378,8 +378,8 @@ inline void
             return;
         }
 
-        std::string licenseEntryPath =
-            "/xyz/openbmc_project/license/entry/" + licenseEntryID;
+        std::string licenseEntryPath = "/xyz/openbmc_project/license/entry/" +
+                                       licenseEntryID;
 
         for (const auto& objectPath : resp)
         {

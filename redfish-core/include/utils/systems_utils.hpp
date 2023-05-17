@@ -21,7 +21,7 @@ namespace systems_utils
  * @param systemId      System Id to be verified
  * @param callback      Callback for next step to get valid systems path
  */
-void getValidSystemsPath(
+static void getValidSystemsPath(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& systemId,
     std::function<void(const std::optional<std::string>&)>&& callback)

@@ -42,17 +42,17 @@ std::filesystem::path rootCertPath = "/var/lib/ibm/bmcweb/RootCert";
 constexpr const char* internalFileSystemError = "Internal FileSystem Error";
 constexpr const char* badRequestMsg = "Bad Request";
 constexpr const char* propertyMissing = "Required Property Missing";
-constexpr char const* configFilePath =
+constexpr const char* configFilePath =
     "/var/lib/bmcweb/ibm-management-console/configfiles";
 
 constexpr size_t maxSaveareaDirSize =
     25000000; // Allow save area dir size to be max 25MB
 constexpr size_t minSaveareaFileSize =
-    100; // Allow save area file size of minimum 100B
+    100;      // Allow save area file size of minimum 100B
 constexpr size_t maxSaveareaFileSize =
     25000000; // Allow save area file size upto 25MB
 constexpr size_t maxBroadcastMsgSize =
-    1000; // Allow Broadcast message size upto 1KB
+    1000;     // Allow Broadcast message size upto 1KB
 
 static boost::container::flat_map<std::string,
                                   std::unique_ptr<sdbusplus::bus::match::match>>
@@ -324,7 +324,7 @@ inline void
                 BMCWEB_LOG_ERROR << "Parsing value failed" << it->value();
                 continue;
             }
-            for (auto const& param :
+            for (const auto& param :
                  boost::beast::http::param_list{it->value().substr(index)})
             {
                 BMCWEB_LOG_DEBUG << "param.first: " << param.first
@@ -469,8 +469,8 @@ inline void handleFileGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         return;
     }
 
-    std::string contentDispositionParam =
-        "attachment; filename=\"" + fileID + "\"";
+    std::string contentDispositionParam = "attachment; filename=\"" + fileID +
+                                          "\"";
     asyncResp->res.addHeader(boost::beast::http::field::content_disposition,
                              contentDispositionParam);
     std::string fileData;
@@ -615,12 +615,12 @@ inline void
             BMCWEB_LOG_DEBUG << "Lockflag : " << lockFlags;
             BMCWEB_LOG_DEBUG << "SegmentLength : " << segmentLength;
 
-            segInfo.push_back(std::make_pair(lockFlags, segmentLength));
+            segInfo.emplace_back(lockFlags, segmentLength);
         }
 
-        lockRequestStructure.push_back(make_tuple(
-            req.session->uniqueId, req.session->clientId.value_or(""), lockType,
-            resourceId, segInfo));
+        lockRequestStructure.emplace_back(req.session->uniqueId,
+                                          req.session->clientId.value_or(""),
+                                          lockType, resourceId, segInfo);
     }
 
     // print lock request into journal
@@ -979,8 +979,9 @@ inline void getCSREntryAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         "xyz.openbmc_project.Certs.Entry", "Status");
 }
 
-void handleCsrRequest(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                      const std::string& csrString)
+static void
+    handleCsrRequest(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                     const std::string& csrString)
 {
     std::shared_ptr<boost::asio::steady_timer> timeout =
         std::make_shared<boost::asio::steady_timer>(

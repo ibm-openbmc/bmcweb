@@ -183,8 +183,8 @@ inline void requestRoutesRoleCollection(App& app)
                 if (!role.empty())
                 {
                     nlohmann::json::object_t member;
-                    member["@odata.id"] =
-                        "/redfish/v1/AccountService/Roles/" + role;
+                    member["@odata.id"] = "/redfish/v1/AccountService/Roles/" +
+                                          role;
                     memberArray.push_back(std::move(member));
                 }
             }

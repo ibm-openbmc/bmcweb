@@ -166,7 +166,6 @@ inline void requestRoutesEventService(App& app)
 
 inline void requestRoutesSubmitTestEvent(App& app)
 {
-
     BMCWEB_ROUTE(
         app, "/redfish/v1/EventService/Actions/EventService.SubmitTestEvent/")
         .privileges(redfish::privileges::postEventService)

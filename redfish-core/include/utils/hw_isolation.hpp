@@ -439,9 +439,10 @@ inline bool setSeverity(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
     return true;
 }
 
-void assembleEventProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-                             const dbus::utility::DBusPropertiesMap& properties,
-                             nlohmann::json& condition, const std::string& path)
+static void
+    assembleEventProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
+                            const dbus::utility::DBusPropertiesMap& properties,
+                            nlohmann::json& condition, const std::string& path)
 {
     using AssociationsValType =
         std::vector<std::tuple<std::string, std::string, std::string>>;
@@ -494,9 +495,9 @@ void assembleEventProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             aResp->res.jsonValue["Status"]["State"] = "Enabled";
         }
 
-        const redfish::registries::Message* msgReg =
-            registries::getMessage("OpenBMC.0.2."
-                                   "HardwareIsolationReason");
+        const redfish::registries::Message* msgReg = registries::getMessage(
+            "OpenBMC.0.2."
+            "HardwareIsolationReason");
 
         if (msgReg == nullptr)
         {

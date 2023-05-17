@@ -190,8 +190,8 @@ struct TaskData : std::enable_shared_from_this<TaskData>
 
     static void sendTaskEvent(const std::string_view state, size_t index)
     {
-        std::string origin =
-            "/redfish/v1/TaskService/Tasks/" + std::to_string(index);
+        std::string origin = "/redfish/v1/TaskService/Tasks/" +
+                             std::to_string(index);
         std::string resType = "Task";
         // TaskState enums which should send out an event are:
         // "Starting" = taskResumed
@@ -449,8 +449,8 @@ inline void requestRoutesTaskCollection(App& app)
                 continue; // shouldn't be possible
             }
             nlohmann::json::object_t member;
-            member["@odata.id"] =
-                "redfish/v1/TaskService/Tasks/" + std::to_string(task->index);
+            member["@odata.id"] = "redfish/v1/TaskService/Tasks/" +
+                                  std::to_string(task->index);
             members.emplace_back(std::move(member));
         }
         });

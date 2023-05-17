@@ -425,8 +425,8 @@ inline void
                     const dbus::utility::ManagedObjectType& dbusData,
                     boost::container::flat_set<IPv6AddressData>& ipv6Config)
 {
-    const std::string ipPathStart =
-        "/xyz/openbmc_project/network/" + ethifaceId;
+    const std::string ipPathStart = "/xyz/openbmc_project/network/" +
+                                    ethifaceId;
 
     // Since there might be several IPv6 configurations aligned with
     // single ethernet interface, loop over all of them
@@ -523,8 +523,8 @@ inline void
                   const dbus::utility::ManagedObjectType& dbusData,
                   boost::container::flat_set<IPv4AddressData>& ipv4Config)
 {
-    const std::string ipPathStart =
-        "/xyz/openbmc_project/network/" + ethifaceId;
+    const std::string ipPathStart = "/xyz/openbmc_project/network/" +
+                                    ethifaceId;
 
     // Since there might be several IPv4 configurations aligned with
     // single ethernet interface, loop over all of them
@@ -871,8 +871,8 @@ inline void handleIPv6DefaultGateway(
 
     for (const nlohmann::json& thisJson : input)
     {
-        std::string pathString =
-            "IPv6StaticDefaultGateways/" + std::to_string(entryIdx);
+        std::string pathString = "IPv6StaticDefaultGateways/" +
+                                 std::to_string(entryIdx);
         if (!thisJson.is_null() && !thisJson.empty())
         {
             nlohmann::json thisJsonCopy = thisJson;
@@ -1051,8 +1051,8 @@ inline void
     handleMTUSizePatch(const std::string& ifaceId, const size_t mtuSize,
                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    sdbusplus::message::object_path objPath =
-        "/xyz/openbmc_project/network/" + ifaceId;
+    sdbusplus::message::object_path objPath = "/xyz/openbmc_project/network/" +
+                                              ifaceId;
     crow::connections::systemBus->async_method_call(
         [asyncResp](const boost::system::error_code ec) {
         if (ec)
@@ -1437,8 +1437,8 @@ inline void handleIPv4StaticPatch(
 
     for (nlohmann::json& thisJson : input)
     {
-        std::string pathString =
-            "IPv4StaticAddresses/" + std::to_string(entryIdx);
+        std::string pathString = "IPv4StaticAddresses/" +
+                                 std::to_string(entryIdx);
 
         if (!thisJson.is_null() && !thisJson.empty())
         {
@@ -1552,8 +1552,8 @@ inline void handleIPv4StaticPatch(
             {
                 deleteAndCreateIPv4(ifaceId, nicIpEntry->id, prefixLength, *gw,
                                     *addr, asyncResp);
-                nicIpEntry =
-                    getNextStaticIpEntry(++nicIpEntry, ipv4Data.cend());
+                nicIpEntry = getNextStaticIpEntry(++nicIpEntry,
+                                                  ipv4Data.cend());
             }
             else
             {
@@ -1588,8 +1588,8 @@ inline void handleIPv4StaticPatch(
             }
             if (nicIpEntry != ipv4Data.cend())
             {
-                nicIpEntry =
-                    getNextStaticIpEntry(++nicIpEntry, ipv4Data.cend());
+                nicIpEntry = getNextStaticIpEntry(++nicIpEntry,
+                                                  ipv4Data.cend());
             }
             entryIdx++;
         }
@@ -1634,8 +1634,8 @@ inline void handleIPv6StaticAddressesPatch(
         getNextStaticIpEntry(ipv6Data.cbegin(), ipv6Data.cend());
     for (const nlohmann::json& thisJson : input)
     {
-        std::string pathString =
-            "IPv6StaticAddresses/" + std::to_string(entryIdx);
+        std::string pathString = "IPv6StaticAddresses/" +
+                                 std::to_string(entryIdx);
 
         if (!thisJson.is_null() && !thisJson.empty())
         {
@@ -1694,8 +1694,8 @@ inline void handleIPv6StaticAddressesPatch(
             {
                 deleteAndCreateIPv6(ifaceId, nicIpEntry->id, prefix, *addr,
                                     asyncResp);
-                nicIpEntry =
-                    getNextStaticIpEntry(++nicIpEntry, ipv6Data.cend());
+                nicIpEntry = getNextStaticIpEntry(++nicIpEntry,
+                                                  ipv6Data.cend());
             }
             else
             {
@@ -1729,8 +1729,8 @@ inline void handleIPv6StaticAddressesPatch(
             }
             if (nicIpEntry != ipv6Data.cend())
             {
-                nicIpEntry =
-                    getNextStaticIpEntry(++nicIpEntry, ipv6Data.cend());
+                nicIpEntry = getNextStaticIpEntry(++nicIpEntry,
+                                                  ipv6Data.cend());
             }
             entryIdx++;
         }
@@ -1745,8 +1745,8 @@ inline void parseInterfaceData(
 {
     nlohmann::json& jsonResponse = asyncResp->res.jsonValue;
     jsonResponse["Id"] = ifaceId;
-    jsonResponse["@odata.id"] =
-        "/redfish/v1/Managers/bmc/EthernetInterfaces/" + ifaceId;
+    jsonResponse["@odata.id"] = "/redfish/v1/Managers/bmc/EthernetInterfaces/" +
+                                ifaceId;
     jsonResponse["InterfaceEnabled"] = ethData.nicEnabled;
 
     if (ethData.nicEnabled)

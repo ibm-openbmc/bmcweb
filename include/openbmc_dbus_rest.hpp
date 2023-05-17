@@ -217,7 +217,6 @@ inline void getPropertiesForEnumerate(
                 }
                 else
                 {
-
                     propertyJson = val;
                 }
                 },
@@ -340,7 +339,6 @@ inline void getManagedObjectsForEnumerate(
                             }
                             else
                             {
-
                                 propertyJson = val;
                             }
                             },
@@ -477,8 +475,7 @@ inline void getObjectAndEnumerate(
 // Structure for storing data on an in progress action
 struct InProgressActionData
 {
-    explicit InProgressActionData(crow::Response& resIn) : res(resIn)
-    {}
+    explicit InProgressActionData(crow::Response& resIn) : res(resIn) {}
     ~InProgressActionData()
     {
         // Methods could have been called across different owners
@@ -1541,8 +1538,8 @@ inline void handleAction(const crow::Request& req,
 {
     BMCWEB_LOG_DEBUG << "handleAction on path: " << objectPath << " and method "
                      << methodName;
-    nlohmann::json requestDbusData =
-        nlohmann::json::parse(req.body, nullptr, false);
+    nlohmann::json requestDbusData = nlohmann::json::parse(req.body, nullptr,
+                                                           false);
 
     if (requestDbusData.is_discarded())
     {
@@ -1677,8 +1674,8 @@ inline void handleEnumerate(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         [objectPath, asyncResp](
             const boost::system::error_code ec,
             const dbus::utility::MapperGetSubTreeResponse& objectNames) {
-        auto transaction =
-            std::make_shared<InProgressEnumerateData>(objectPath, asyncResp);
+        auto transaction = std::make_shared<InProgressEnumerateData>(objectPath,
+                                                                     asyncResp);
 
         transaction->subtree =
             std::make_shared<dbus::utility::MapperGetSubTreeResponse>(
@@ -1857,8 +1854,8 @@ inline void handlePut(const crow::Request& req,
         return;
     }
 
-    nlohmann::json requestDbusData =
-        nlohmann::json::parse(req.body, nullptr, false);
+    nlohmann::json requestDbusData = nlohmann::json::parse(req.body, nullptr,
+                                                           false);
 
     if (requestDbusData.is_discarded())
     {
@@ -2031,7 +2028,6 @@ inline void handleDBusUrl(const crow::Request& req,
                           const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                           std::string& objectPath)
 {
-
     // If accessing a single attribute, fill in and update objectPath,
     // otherwise leave destProperty blank
     std::string destProperty;
@@ -2396,8 +2392,8 @@ inline void
             return;
         }
 
-        nlohmann::json requestDbusData =
-            nlohmann::json::parse(req.body, nullptr, false);
+        nlohmann::json requestDbusData = nlohmann::json::parse(req.body,
+                                                               nullptr, false);
 
         if (requestDbusData.is_discarded())
         {
@@ -2564,8 +2560,8 @@ inline void requestRoutes(App& app)
                 asyncResp->res.result(boost::beast::http::status::not_found);
                 return;
             }
-            std::string contentDispositionParam =
-                "attachment; filename=\"" + dumpFileName + "\"";
+            std::string contentDispositionParam = "attachment; filename=\"" +
+                                                  dumpFileName + "\"";
 
             asyncResp->res.addHeader(
                 boost::beast::http::field::content_disposition,

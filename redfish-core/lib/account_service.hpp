@@ -349,8 +349,8 @@ inline void parseLDAPConfigData(nlohmann::json& jsonResponse,
                                 const LDAPConfigData& confData,
                                 const std::string& ldapType)
 {
-    std::string service =
-        (ldapType == "LDAP") ? "LDAPService" : "ActiveDirectoryService";
+    std::string service = (ldapType == "LDAP") ? "LDAPService"
+                                               : "ActiveDirectoryService";
 
     nlohmann::json& ldap = jsonResponse[ldapType];
 
@@ -410,9 +410,8 @@ inline void handleRoleMapPatch(
                         messages::internalError(asyncResp->res);
                         return;
                     }
-                    asyncResp->res
-                        .jsonValue[serverType]["RemoteRoleMapping"][index] =
-                        nullptr;
+                    asyncResp->res.jsonValue[serverType]["RemoteRoleMapping"]
+                                            [index] = nullptr;
                     },
                     ldapDbusService, roleMapObjData[index].first,
                     "xyz.openbmc_project.Object.Delete", "Delete");
@@ -545,8 +544,8 @@ inline void handleRoleMapPatch(
             {
                 BMCWEB_LOG_DEBUG
                     << "setRoleMappingProperties: Creating new Object";
-                std::string pathString =
-                    "RemoteRoleMapping/" + std::to_string(index);
+                std::string pathString = "RemoteRoleMapping/" +
+                                         std::to_string(index);
 
                 if (!localRole)
                 {
@@ -624,7 +623,6 @@ template <typename CallbackFunc>
 inline void getLDAPConfigData(const std::string& ldapType,
                               CallbackFunc&& callback)
 {
-
     const std::array<const char*, 2> interfaces = {ldapEnableInterface,
                                                    ldapConfigInterface};
 
@@ -709,7 +707,6 @@ inline void getLDAPConfigData(const std::string& ldapType,
                     }
                     else if (interface.first == ldapConfigInterfaceStr)
                     {
-
                         for (const auto& property : interface.second)
                         {
                             const std::string* strValue =
@@ -930,9 +927,8 @@ inline void
             messages::internalError(asyncResp->res);
             return;
         }
-        asyncResp->res
-            .jsonValue[ldapServerElementName]["Authentication"]["Username"] =
-            username;
+        asyncResp->res.jsonValue[ldapServerElementName]["Authentication"]
+                                ["Username"] = username;
         BMCWEB_LOG_DEBUG << "Updated the username";
         },
         ldapDbusService, ldapConfigObject, propertyInterface, "Set",
@@ -963,9 +959,8 @@ inline void
             messages::internalError(asyncResp->res);
             return;
         }
-        asyncResp->res
-            .jsonValue[ldapServerElementName]["Authentication"]["Password"] =
-            "";
+        asyncResp->res.jsonValue[ldapServerElementName]["Authentication"]
+                                ["Password"] = "";
         BMCWEB_LOG_DEBUG << "Updated the password";
         },
         ldapDbusService, ldapConfigObject, propertyInterface, "Set",
@@ -1167,15 +1162,13 @@ inline void getAcfProperties(
         // 30 days = 30 * 24 * 60 * 60 seconds
         if (diffTime > 2592000)
         {
-            asyncResp->res
-                .jsonValue["Oem"]["IBM"]["ACF"]["WarningLongDatedExpiration"] =
-                true;
+            asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]
+                                    ["WarningLongDatedExpiration"] = true;
         }
         else
         {
-            asyncResp->res
-                .jsonValue["Oem"]["IBM"]["ACF"]["WarningLongDatedExpiration"] =
-                false;
+            asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]
+                                    ["WarningLongDatedExpiration"] = false;
         }
     }
     asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["ACFInstalled"] =
@@ -1804,7 +1797,6 @@ inline void handleAccountServiceHead(
     App& app, const crow::Request& req,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-
     if (!redfish::setUpRedfishRoute(app, req, asyncResp))
     {
         return;
@@ -2031,7 +2023,6 @@ inline void handleAccountCollectionHead(
     App& app, const crow::Request& req,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-
     if (!redfish::setUpRedfishRoute(app, req, asyncResp))
     {
         return;
@@ -2100,8 +2091,8 @@ inline void handleAccountCollectionGet(
             if (userCanSeeAllAccounts || (thisUser == user && userCanSeeSelf))
             {
                 nlohmann::json::object_t member;
-                member["@odata.id"] =
-                    "/redfish/v1/AccountService/Accounts/" + user;
+                member["@odata.id"] = "/redfish/v1/AccountService/Accounts/" +
+                                      user;
                 memberArray.push_back(std::move(member));
             }
         }
@@ -2235,7 +2226,6 @@ inline void
                       const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                       const std::string& /*accountName*/)
 {
-
     if (!redfish::setUpRedfishRoute(app, req, asyncResp))
     {
         return;
@@ -2684,7 +2674,6 @@ inline void
 
 inline void requestAccountServiceRoutes(App& app)
 {
-
     BMCWEB_ROUTE(app, "/redfish/v1/AccountService/")
         .privileges(redfish::privileges::headAccountService)
         .methods(boost::beast::http::verb::head)(

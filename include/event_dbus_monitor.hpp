@@ -69,8 +69,8 @@ inline void vmiNwPropertyChange(sdbusplus::message::message& msg)
         infName = "eth1";
     }
 
-    std::string origin =
-        "/redfish/v1/Systems/hypervisor/EthernetInterfaces/" + infName;
+    std::string origin = "/redfish/v1/Systems/hypervisor/EthernetInterfaces/" +
+                         infName;
     BMCWEB_LOG_DEBUG << "Pushing the VMI Nw property change event for IP "
                         "property with origin: "
                      << origin;
@@ -181,7 +181,6 @@ inline void bootProgressPropertyChange(sdbusplus::message::message& msg)
 
 inline void postCodePropertyChange(sdbusplus::message::message& msg)
 {
-
     if (msg.is_method_error())
     {
         BMCWEB_LOG_ERROR << "PostCode property changed Signal error";
@@ -212,7 +211,6 @@ void registerHostStateChangeSignal()
 
 void registerBMCStateChangeSignal()
 {
-
     BMCWEB_LOG_DEBUG << "BMC state change signal - Register";
 
     matchBMCStateChange = std::make_unique<sdbusplus::bus::match::match>(
@@ -225,7 +223,6 @@ void registerBMCStateChangeSignal()
 
 void registerVMIIPEnabledPropChangeSignal()
 {
-
     BMCWEB_LOG_DEBUG << "VMI IP change signal match - Registered";
 
     matchVMIIPEnabledPropChange = std::make_unique<
@@ -267,7 +264,7 @@ void registerBootProgressChangeSignal()
         bootProgressPropertyChange);
 }
 
-void eventLogCreatedSignal(sdbusplus::message::message& msg)
+static void eventLogCreatedSignal(sdbusplus::message::message& msg)
 {
     BMCWEB_LOG_DEBUG << "Event Log Created - match fired";
 
@@ -312,8 +309,8 @@ void eventLogCreatedSignal(sdbusplus::message::message& msg)
     std::string eventOrigin;
     if (*hiddenPropertyPtr)
     {
-        eventOrigin =
-            "/redfish/v1/Systems/system/LogServices/CELog/Entries/" + logID;
+        eventOrigin = "/redfish/v1/Systems/system/LogServices/CELog/Entries/" +
+                      logID;
         BMCWEB_LOG_DEBUG << "CELog path: " << eventOrigin;
     }
     else
@@ -338,14 +335,14 @@ void registerEventLogCreatedSignal()
         eventLogCreatedSignal);
 }
 
-void registerStateChangeSignal()
+static void registerStateChangeSignal()
 {
     registerHostStateChangeSignal();
     registerBMCStateChangeSignal();
     registerBootProgressChangeSignal();
 }
 
-void registerVMIConfigChangeSignal()
+static void registerVMIConfigChangeSignal()
 {
     registerVMIIPEnabledPropChangeSignal();
     registerVMIIPChangeSignal();
@@ -404,8 +401,8 @@ inline void dumpCreatedSignal(sdbusplus::message::message& msg)
         // Push an event
         if (dumpType == "bmc")
         {
-            eventOrigin =
-                "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/" + dumpId;
+            eventOrigin = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/" +
+                          dumpId;
         }
         else if (dumpType == "system")
         {
@@ -473,8 +470,8 @@ inline void dumpDeletedSignal(sdbusplus::message::message& msg)
 
     if (dumpType == "bmc")
     {
-        eventOrigin =
-            "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/" + dumpId;
+        eventOrigin = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/" +
+                      dumpId;
     }
     else if (dumpType == "system")
     {
@@ -538,7 +535,7 @@ void registerDumpDeletedSignal()
         dumpDeletedSignal);
 }
 
-void registerDumpUpdateSignal()
+static void registerDumpUpdateSignal()
 {
     registerDumpCreatedSignal();
     registerDumpDeletedSignal();

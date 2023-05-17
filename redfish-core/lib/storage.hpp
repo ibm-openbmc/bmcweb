@@ -707,7 +707,7 @@ inline void chassisDriveCollectionGet(
                 asyncResp->res.jsonValue["Members@odata.count"] = resp.size();
                 }); // end association lambda
 
-        } // end Iterate over all retrieved ObjectPaths
+        }           // end Iterate over all retrieved ObjectPaths
         },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
@@ -732,7 +732,6 @@ inline void buildDrive(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                        const boost::system::error_code ec,
                        const dbus::utility::MapperGetSubTreeResponse& subtree)
 {
-
     if (ec)
     {
         BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
@@ -780,7 +779,6 @@ inline void
                       const std::string& driveName,
                       const std::vector<std::string>& resp)
 {
-
     for (const std::string& drivePath : resp)
     {
         sdbusplus::message::object_path path(drivePath);

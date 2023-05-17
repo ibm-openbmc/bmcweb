@@ -20,7 +20,8 @@ inline nlohmann::json licenseInstalled(const std::string& arg1)
                           {"Resolution", "None."}};
 }
 
-void licenseInstalled(crow::Response& res, const std::string& licenseString)
+static void licenseInstalled(crow::Response& res,
+                             const std::string& licenseString)
 {
     res.result(boost::beast::http::status::ok);
     addMessageToJson(res.jsonValue, licenseInstalled(licenseString),
@@ -39,7 +40,7 @@ inline nlohmann::json invalidLicense()
                           {"Resolution", "None."}};
 }
 
-void invalidLicense(crow::Response& res)
+static void invalidLicense(crow::Response& res)
 {
     res.result(boost::beast::http::status::bad_request);
     addMessageToErrorJson(res.jsonValue, invalidLicense());
@@ -56,7 +57,7 @@ inline nlohmann::json installFailed(const std::string& arg1)
         {"Resolution", "None."}};
 }
 
-void installFailed(crow::Response& res, const std::string& reason)
+static void installFailed(crow::Response& res, const std::string& reason)
 {
     res.result(boost::beast::http::status::internal_server_error);
     addMessageToErrorJson(res.jsonValue, installFailed(reason));
@@ -74,7 +75,7 @@ inline nlohmann::json notApplicableToTarget()
         {"Resolution", "None."}};
 }
 
-void notApplicableToTarget(crow::Response& res)
+static void notApplicableToTarget(crow::Response& res)
 {
     res.result(boost::beast::http::status::bad_request);
     addMessageToErrorJson(res.jsonValue, notApplicableToTarget());

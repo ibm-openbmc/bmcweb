@@ -260,8 +260,8 @@ inline void
     // request is "snmp1", which will be "1" after being erased.
     snmpTrapId.remove_prefix(4);
 
-    const std::string snmpPath =
-        "/xyz/openbmc_project/network/snmp/manager/" + std::string(snmpTrapId);
+    const std::string snmpPath = "/xyz/openbmc_project/network/snmp/manager/" +
+                                 std::string(snmpTrapId);
 
     crow::connections::systemBus->async_method_call(
         [asyncResp, param](const boost::system::error_code ec) {

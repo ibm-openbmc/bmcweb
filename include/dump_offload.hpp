@@ -276,8 +276,8 @@ class Handler : public std::enable_shared_from_this<Handler>
 
     void doReadStream()
     {
-        std::size_t bytes =
-            this->outputBuffer.capacity() - this->outputBuffer.size();
+        std::size_t bytes = this->outputBuffer.capacity() -
+                            this->outputBuffer.size();
 
         this->unixSocket.async_read_some(
             this->outputBuffer.prepare(bytes),
@@ -389,11 +389,11 @@ inline void requestRoutes(App& app)
         std::random_device rd;
         std::default_random_engine gen(rd());
         std::uniform_int_distribution<> dist{0, 1024};
-        std::string unixSocketPath =
-            unixSocketPathDir + dumpType + "_dump_" + std::to_string(dist(gen));
+        std::string unixSocketPath = unixSocketPathDir + dumpType + "_dump_" +
+                                     std::to_string(dist(gen));
 
-        bmcHandlers[&conn] =
-            std::make_shared<Handler>(*ioCon, dumpId, dumpType, unixSocketPath);
+        bmcHandlers[&conn] = std::make_shared<Handler>(*ioCon, dumpId, dumpType,
+                                                       unixSocketPath);
         bmcHandlers[&conn]->connection = &conn;
 
         if (!crow::ibm_utils::createDirectory(unixSocketPathDir))
@@ -483,8 +483,8 @@ inline void requestRoutes(App& app)
         std::random_device rd;
         std::default_random_engine gen(rd());
         std::uniform_int_distribution<> dist{0, 1024};
-        std::string unixSocketPath =
-            unixSocketPathDir + dumpType + "_dump_" + std::to_string(dist(gen));
+        std::string unixSocketPath = unixSocketPathDir + dumpType + "_dump_" +
+                                     std::to_string(dist(gen));
 
         systemHandlers[&conn] =
             std::make_shared<Handler>(*ioCon, dumpId, dumpType, unixSocketPath);
