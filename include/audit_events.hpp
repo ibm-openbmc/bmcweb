@@ -10,6 +10,62 @@
 namespace audit
 {
 
+bool tryOpen = true;
+int auditfd = -1;
+
+/**
+ * @brief Closes connection for recording audit events
+ * @param[in] setRetry    Sets state for opening a new audit connection
+ */
+inline void auditClose(bool setRetry)
+{
+    if (auditfd >= 0)
+    {
+        audit_close(auditfd);
+        auditfd = -1;
+    }
+
+    tryOpen = setRetry;
+
+    BMCWEB_LOG_DEBUG << "Audit log closed. tryOpen = " << tryOpen;
+
+    return;
+}
+
+/**
+ * @brief Opens connection for recording audit events
+ *
+ * Failure to connect will not try to connect again unless auditClose(true) is
+ * called to enable connection retry.
+ *
+ * @return If connection was successful or not
+ */
+inline bool auditOpen(void)
+{
+    if (auditfd < 0)
+    {
+        /* Only try to open the audit file once so we don't flood same error. */
+        if (!tryOpen)
+        {
+            BMCWEB_LOG_DEBUG << "No audit fd";
+            return false;
+        }
+
+        tryOpen = false;
+        auditfd = audit_open();
+
+        if (auditfd < 0)
+        {
+            BMCWEB_LOG_ERROR << "Error opening audit socket : "
+                             << strerror(errno);
+            return false;
+        }
+        BMCWEB_LOG_DEBUG << "Audit fd created : " << auditfd;
+    }
+
+    return true;
+}
+
 inline bool checkPostAudit(const crow::Request& req)
 {
     if ((req.target() == "/redfish/v1/SessionService/Sessions") ||
@@ -24,7 +80,6 @@ inline bool checkPostAudit(const crow::Request& req)
 inline void auditEvent(const char* opPath, const std::string& userName,
                        const std::string& ipAddress, bool success)
 {
-    int auditfd;
     int code = __LINE__;
 
     char cnfgBuff[256];
@@ -33,11 +88,8 @@ inline void auditEvent(const char* opPath, const std::string& userName,
     size_t opPathLen;
     size_t userLen = 0;
 
-    auditfd = audit_open();
-
-    if (auditfd < 0)
+    if (auditOpen() == false)
     {
-        BMCWEB_LOG_ERROR << "Error opening audit socket : " << strerror(errno);
         return;
     }
 
@@ -93,7 +145,6 @@ inline void auditEvent(const char* opPath, const std::string& userName,
         BMCWEB_LOG_ERROR << "Error writing audit message: " << strerror(errno);
     }
 
-    close(auditfd);
     return;
 }
 
