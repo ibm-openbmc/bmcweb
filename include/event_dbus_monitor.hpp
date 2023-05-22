@@ -626,17 +626,19 @@ void registerSAIStateChangeSignal()
     matchPlatformSAIChange = std::make_unique<sdbusplus::bus::match::match>(
         *crow::connections::systemBus,
         "type='signal',member='PropertiesChanged',interface='org.freedesktop."
-        "DBus.Properties',path='/xyz/openbmc_project/led/groups/platform_system_attention_indicator',"
+        "DBus.Properties',path='/xyz/openbmc_project/led/groups/"
+        "platform_system_attention_indicator',"
         "arg0='xyz.openbmc_project.Led.Group'",
         saiStateChangeSignal);
 
-    BMCWEB_LOG_DEBUG
-        << "Partition System attention Indicator state change signal - Register";
+    BMCWEB_LOG_DEBUG << "Partition System attention Indicator state change "
+                        "signal - Register";
 
     matchPartitionSAIChange = std::make_unique<sdbusplus::bus::match::match>(
         *crow::connections::systemBus,
         "type='signal',member='PropertiesChanged',interface='org.freedesktop."
-        "DBus.Properties',path='/xyz/openbmc_project/led/groups/partition_system_attention_indicator',"
+        "DBus.Properties',path='/xyz/openbmc_project/led/groups/"
+        "partition_system_attention_indicator',"
         "arg0='xyz.openbmc_project.Led.Group'",
         saiStateChangeSignal);
 }
