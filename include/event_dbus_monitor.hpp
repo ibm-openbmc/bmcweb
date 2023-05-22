@@ -20,6 +20,8 @@ static std::shared_ptr<sdbusplus::bus::match::match> matchBIOSAttrUpdate;
 static std::shared_ptr<sdbusplus::bus::match::match> matchBootProgressChange;
 static std::shared_ptr<sdbusplus::bus::match::match> matchEventLogCreated;
 static std::shared_ptr<sdbusplus::bus::match::match> matchPostCodeChange;
+static std::shared_ptr<sdbusplus::bus::match::match> matchPlatformSAIChange;
+static std::shared_ptr<sdbusplus::bus::match::match> matchPartitionSAIChange;
 
 static uint64_t postCodeCounter = 0;
 
@@ -34,6 +36,7 @@ void registerBIOSAttrUpdateSignal();
 void registerBootProgressChangeSignal();
 void registerEventLogCreatedSignal();
 void registerPostCodeChangeSignal();
+void registerSAIStateChangeSignal();
 
 inline void sendEventOnEthIntf(std::string origin)
 {
@@ -196,6 +199,32 @@ inline void postCodePropertyChange(sdbusplus::message::message& msg)
                               postcodeEntryID;
     redfish::EventServiceManager::getInstance().sendEvent(
         redfish::messages::resourceCreated(), eventOrigin, "ComputerSystem");
+}
+
+inline void saiStateChangeSignal(sdbusplus::message::message& msg)
+{
+    BMCWEB_LOG_DEBUG << "System Attention Indicator State change match fired";
+
+    if (msg.is_method_error())
+    {
+        BMCWEB_LOG_ERROR << "SAI State change signal error";
+        return;
+    }
+
+    boost::container::flat_map<std::string, std::variant<bool>> values;
+    std::string objName;
+    msg.read(objName, values);
+
+    auto find = values.find("Asserted");
+    if (find == values.end())
+    {
+        return;
+    }
+
+    // Push an event
+    std::string origin = "/redfish/v1/Systems/system";
+    redfish::EventServiceManager::getInstance().sendEvent(
+        redfish::messages::resourceChanged(), origin, "ComputerSystem");
 }
 
 void registerHostStateChangeSignal()
@@ -589,5 +618,27 @@ void registerBIOSAttrUpdateSignal()
         BIOSAttrUpdate);
 }
 
+void registerSAIStateChangeSignal()
+{
+    BMCWEB_LOG_DEBUG
+        << "Platform System attention Indicator state change signal - Register";
+
+    matchPlatformSAIChange = std::make_unique<sdbusplus::bus::match::match>(
+        *crow::connections::systemBus,
+        "type='signal',member='PropertiesChanged',interface='org.freedesktop."
+        "DBus.Properties',path='/xyz/openbmc_project/led/groups/platform_system_attention_indicator',"
+        "arg0='xyz.openbmc_project.Led.Group'",
+        saiStateChangeSignal);
+
+    BMCWEB_LOG_DEBUG
+        << "Partition System attention Indicator state change signal - Register";
+
+    matchPartitionSAIChange = std::make_unique<sdbusplus::bus::match::match>(
+        *crow::connections::systemBus,
+        "type='signal',member='PropertiesChanged',interface='org.freedesktop."
+        "DBus.Properties',path='/xyz/openbmc_project/led/groups/partition_system_attention_indicator',"
+        "arg0='xyz.openbmc_project.Led.Group'",
+        saiStateChangeSignal);
+}
 } // namespace dbus_monitor
 } // namespace crow

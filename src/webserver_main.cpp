@@ -175,6 +175,8 @@ int main(int /*argc*/, char** /*argv*/)
     crow::dbus_monitor::registerPostCodeChangeSignal();
     // Start VMI Confuguration change dbus monitor
     crow::dbus_monitor::registerVMIConfigChangeSignal();
+    // Start Platform and Partition SAI state change monitor
+    crow::dbus_monitor::registerSAIStateChangeSignal();
 #endif
 
 #ifdef BMCWEB_ENABLE_REDFISH_DUMP_LOG
