@@ -143,6 +143,9 @@ static int run()
     // Start hypervisor app dbus monitor for hypervisor
     // network configurations
     crow::dbus_monitor::registerVMIConfigChangeSignal();
+    // Start Platform and Partition SAI state change monitor
+    crow::dbus_monitor::registerSAIStateChangeSignal();
+
 #endif
 
 #ifdef BMCWEB_ENABLE_GOOGLE_API
