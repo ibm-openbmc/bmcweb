@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/ResourceBlock.v1_4_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/ResourceBlock.v1_4_1.json",
     "$ref": "#/definitions/ResourceBlock",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -324,7 +324,8 @@
                     },
                     "longDescription": "This property shall contain an array of links to resource of type ComputerSystem that this resource block contains.",
                     "readonly": true,
-                    "type": "array"
+                    "type": "array",
+                    "uriSegment": "Systems"
                 },
                 "ComputerSystems@odata.count": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/count"
@@ -688,5 +689,5 @@
     },
     "owningEntity": "DMTF",
     "release": "2020.4",
-    "title": "#ResourceBlock.v1_4_0.ResourceBlock"
+    "title": "#ResourceBlock.v1_4_1.ResourceBlock"
 }

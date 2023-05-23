@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Switch.v1_9_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Switch.v1_9_1.json",
     "$ref": "#/definitions/Switch",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2022 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -411,6 +411,7 @@
                     "description": "The link to the metrics associated with this switch.",
                     "longDescription": "This property shall contain a link to the metrics associated with this switch.",
                     "readonly": true,
+                    "uriSegment": "SwitchMetrics",
                     "versionAdded": "v1_7_0"
                 },
                 "Model": {
@@ -581,5 +582,5 @@
     },
     "owningEntity": "DMTF",
     "release": "2022.3",
-    "title": "#Switch.v1_9_0.Switch"
+    "title": "#Switch.v1_9_1.Switch"
 }

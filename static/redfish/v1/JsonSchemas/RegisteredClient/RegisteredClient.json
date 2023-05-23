@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/RegisteredClient.v1_0_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/RegisteredClient.v1_1_0.json",
     "$ref": "#/definitions/RegisteredClient",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -161,6 +161,13 @@
                     "readonly": false,
                     "type": "string"
                 },
+                "Context": {
+                    "description": "A client-supplied data for providing context for its own use.",
+                    "longDescription": "This property shall contain data provided by the owning client used to identify the service, provide context about its state, or other information.  The value of this property shall not contain unencrypted sensitive data such as user credentials.  Services shall support values of at least 256 bytes in length.",
+                    "readonly": false,
+                    "type": "string",
+                    "versionAdded": "v1_1_0"
+                },
                 "CreatedDate": {
                     "description": "The date and time when the client entry was created.",
                     "format": "date-time",
@@ -213,6 +220,13 @@
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Oem",
                     "description": "The OEM extension property.",
                     "longDescription": "This property shall contain the OEM extensions.  All values for properties that this object contains shall conform to the Redfish Specification-described requirements."
+                },
+                "SubContext": {
+                    "description": "Additional client-supplied data for providing contextual information for its own use.",
+                    "longDescription": "This property shall contain additional data provided by the owning client used to identify the service, provide context about its state, or other information.  The value of this property shall not contain unencrypted sensitive data such as user credentials.  Services shall support values of at least 256 bytes in length.",
+                    "readonly": false,
+                    "type": "string",
+                    "versionAdded": "v1_1_0"
                 }
             },
             "required": [
@@ -229,6 +243,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2021.4",
-    "title": "#RegisteredClient.v1_0_0.RegisteredClient"
+    "release": "2023.1",
+    "title": "#RegisteredClient.v1_1_0.RegisteredClient"
 }
