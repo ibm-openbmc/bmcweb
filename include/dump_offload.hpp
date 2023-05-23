@@ -407,7 +407,6 @@ inline void requestRoutes(App& app)
             << "INFO: " << dumpType << " Dump id " << dumpId
             << " offload initiated by: " << conn.req.session->clientIp;
         bmcHandlers[&conn]->getDumpSize(dumpId, dumpType);
-        ioCon->run();
         })
         .onclose([](crow::streaming_response::Connection& conn, bool& status) {
             auto handler = bmcHandlers.find(&conn);
@@ -501,7 +500,6 @@ inline void requestRoutes(App& app)
             << "INFO: " << dumpType << " dump id " << dumpId
             << " offload initiated by: " << conn.req.session->clientIp;
         systemHandlers[&conn]->getDumpSize(dumpId, dumpType);
-        ioCon->run();
         })
         .onclose([](crow::streaming_response::Connection& conn, bool& status) {
             auto handler = systemHandlers.find(&conn);
