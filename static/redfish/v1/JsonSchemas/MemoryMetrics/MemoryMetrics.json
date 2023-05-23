@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/MemoryMetrics.v1_6_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/MemoryMetrics.v1_7_0.json",
     "$ref": "#/definitions/MemoryMetrics",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2022 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -536,6 +536,18 @@
                     "longDescription": "This property shall contain the memory metrics specific to CXL devices.",
                     "versionAdded": "v1_6_0"
                 },
+                "CapacityUtilizationPercent": {
+                    "description": "The memory capacity utilization as a percentage.",
+                    "longDescription": "This property shall contain the memory capacity utilization as a percentage.  When this resource is subordinate to the MemorySummary object, this property shall be the memory capacity utilization over all memory as a percentage.",
+                    "minimum": 0,
+                    "readonly": true,
+                    "type": [
+                        "number",
+                        "null"
+                    ],
+                    "units": "%",
+                    "versionAdded": "v1_7_0"
+                },
                 "CorrectedPersistentErrorCount": {
                     "description": "The number of corrected errors in persistent memory.",
                     "longDescription": "This property shall contain the number of corrected errors in persistent memory.",
@@ -648,6 +660,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2022.3",
-    "title": "#MemoryMetrics.v1_6_0.MemoryMetrics"
+    "release": "2023.1",
+    "title": "#MemoryMetrics.v1_7_0.MemoryMetrics"
 }

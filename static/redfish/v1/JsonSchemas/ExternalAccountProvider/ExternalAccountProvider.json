@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/ExternalAccountProvider.v1_5_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/ExternalAccountProvider.v1_6_0.json",
     "$ref": "#/definitions/ExternalAccountProvider",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2022 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "AccountProviderTypes": {
             "enum": [
@@ -103,7 +103,7 @@
                         "null"
                     ],
                     "versionAdded": "v1_2_0",
-                    "writeOnly ": true
+                    "writeOnly": true
                 },
                 "EncryptionKeySet": {
                     "description": "Indicates if the EncryptionKey property is set.",
@@ -123,7 +123,7 @@
                         "string",
                         "null"
                     ],
-                    "writeOnly ": true
+                    "writeOnly": true
                 },
                 "Oem": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Oem",
@@ -138,7 +138,7 @@
                         "string",
                         "null"
                     ],
-                    "writeOnly ": true
+                    "writeOnly": true
                 },
                 "Token": {
                     "description": "The token for this service.  A PATCH or PUT operation writes the token.  This property is `null` in responses.",
@@ -148,7 +148,7 @@
                         "string",
                         "null"
                     ],
-                    "writeOnly ": true
+                    "writeOnly": true
                 },
                 "Username": {
                     "description": "The user name for the service.",
@@ -308,6 +308,16 @@
                     "longDescription": "This property shall contain a set of the mapping rules that are used to convert the external account providers account information to the local Redfish role.",
                     "type": "array"
                 },
+                "Retries": {
+                    "description": "The number of times to retry connecting to an address in the ServiceAddresses property before attempting the next address in the array.",
+                    "longDescription": "This property shall contain the number of retries to attempt a connection to an address in the ServiceAddresses property before attempting a connection to the next address in the array or giving up.  If this property is not present, the service has internal policies for handling retries.",
+                    "readonly": false,
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "versionAdded": "v1_6_0"
+                },
                 "ServiceAddresses": {
                     "description": "The addresses of the user account providers to which this external account provider links.  The format of this field depends on the type of external account provider.",
                     "items": {
@@ -341,6 +351,16 @@
                     "description": "The additional information needed to parse a TACACS+ services.",
                     "longDescription": "This property shall contain additional information needed to parse a TACACS+ services.  This property should only be present inside a TACACSplus property.",
                     "versionAdded": "v1_2_0"
+                },
+                "TimeoutSeconds": {
+                    "description": "The period of time, in seconds, this account service will wait for a response from an address of a user account provider before timing out.",
+                    "longDescription": "This property shall contain the period of time, in seconds, this account service will wait for a response from an address of a user account provider before timing out.  If this property is not present, the service has internal policies for handling timeouts.",
+                    "readonly": false,
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "versionAdded": "v1_6_0"
                 }
             },
             "required": [
@@ -554,6 +574,12 @@
                         "null"
                     ],
                     "versionAdded": "v1_3_0"
+                },
+                "Oem": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Oem",
+                    "description": "The OEM extension property.",
+                    "longDescription": "This property shall contain the OEM extensions.  All values for properties contained in this object shall conform to the Redfish Specification-described requirements.",
+                    "versionAdded": "v1_6_0"
                 }
             },
             "type": "object"
@@ -689,6 +715,19 @@
                 }
             },
             "properties": {
+                "AuthorizationService": {
+                    "description": "The TACACS+ service authorization argument.",
+                    "longDescription": "This property shall contain the TACACS+ service authorization argument as defined by section 8.2 of RFC8907.  If this property is not present, the service defines the value to provide to the TACACS+ server.",
+                    "readonly": false,
+                    "type": "string",
+                    "versionAdded": "v1_6_0"
+                },
+                "Oem": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Oem",
+                    "description": "The OEM extension property.",
+                    "longDescription": "This property shall contain the OEM extensions.  All values for properties contained in this object shall conform to the Redfish Specification-described requirements.",
+                    "versionAdded": "v1_6_0"
+                },
                 "PasswordExchangeProtocols": {
                     "description": "Indicates the allowed TACACS+ password exchange protocols.",
                     "items": {
@@ -721,6 +760,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2022.3",
-    "title": "#ExternalAccountProvider.v1_5_0.ExternalAccountProvider"
+    "release": "2023.1",
+    "title": "#ExternalAccountProvider.v1_6_0.ExternalAccountProvider"
 }
