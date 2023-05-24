@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Control.v1_2_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Control.v1_3_0.json",
     "$ref": "#/definitions/Control",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2022 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -181,6 +181,17 @@
                         "number",
                         "null"
                     ]
+                },
+                "DefaultSetPoint": {
+                    "description": "The default set point of the control.",
+                    "excerpt": "ControlSingle",
+                    "longDescription": "This property shall contain the default set point control value.  The units shall follow the value of SetPointUnits.  Services apply this value to the SetPoint property under certain conditions, such as a reset of the manager or a ResetToDefaults action.",
+                    "readonly": true,
+                    "type": [
+                        "number",
+                        "null"
+                    ],
+                    "versionAdded": "v1_3_0"
                 },
                 "Description": {
                     "anyOf": [
@@ -708,6 +719,17 @@
                         "null"
                     ]
                 },
+                "DefaultSetPoint": {
+                    "description": "The default set point of the control.",
+                    "excerpt": "ControlSingle",
+                    "longDescription": "This property shall contain the default set point control value.  The units shall follow the value of SetPointUnits.  Services apply this value to the SetPoint property under certain conditions, such as a reset of the manager or a ResetToDefaults action.",
+                    "readonly": true,
+                    "type": [
+                        "number",
+                        "null"
+                    ],
+                    "versionAdded": "v1_3_0"
+                },
                 "Reading": {
                     "description": "The reading of the sensor associated with this control.",
                     "excerptCopyOnly": true,
@@ -747,25 +769,39 @@
                 "Power",
                 "Frequency",
                 "FrequencyMHz",
-                "Pressure"
+                "Pressure",
+                "PressurekPa",
+                "Valve"
             ],
+            "enumDeprecated": {
+                "Pressure": "This value has been deprecated in favor of `PressurekPa` for units consistency with the equivalent Sensor resource ReadingType value."
+            },
             "enumDescriptions": {
                 "Frequency": "Frequency (Hz) control.",
                 "FrequencyMHz": "Frequency (MHz) control.",
                 "Power": "Power (W) control or power limit.",
                 "Pressure": "Pressure (kPa) control.",
-                "Temperature": "Temperature (C) control or thermostat."
+                "PressurekPa": "Pressure (kPa) control.",
+                "Temperature": "Temperature (C) control or thermostat.",
+                "Valve": "Valve (% open) control."
             },
             "enumLongDescriptions": {
-                "Frequency": "This value shall indicate a control used to limit the operating frequency, in hertz units, of a device, either to a single set point or within a range, and the SetPointUnits property shall contain `Hz`.",
-                "FrequencyMHz": "This value shall indicate a control used to limit the operating frequency, in megahertz units, of a device, either to a single set point or within a range, and the SetPointUnits property shall contain `MHz`.",
-                "Power": "This value shall indicate a control used to regulate or limit maximum power consumption, in watt units, either to a single set point or within a range, and the SetPointUnits property shall contain `W`.",
-                "Pressure": "This value shall indicate a control used to adjust pressure in a system, in kilopascal units, and the SetPointUnits property shall contain `kPa`.",
-                "Temperature": "This value shall indicate a control used to regulate temperature, in units of degrees Celsius, either to a single set point or within a range, and the SetPointUnits property shall contain `Cel`."
+                "Frequency": "This value shall indicate a control used to limit the operating frequency, in hertz units, of a device, either to a single set point or within a range.  The SetPointUnits property shall contain `Hz`.",
+                "FrequencyMHz": "This value shall indicate a control used to limit the operating frequency, in megahertz units, of a device, either to a single set point or within a range.  The SetPointUnits property shall contain `MHz`.",
+                "Power": "This value shall indicate a control used to regulate or limit maximum power consumption, in watt units, either to a single set point or within a range.  The SetPointUnits property shall contain `W`.",
+                "Pressure": "This value shall indicate a control used to adjust pressure in a system, in kilopascal units.  The SetPointUnits property shall contain `kPa`.",
+                "PressurekPa": "This value shall indicate a control used to adjust pressure in a system, in kilopascal units.  The SetPointUnits property shall contain `kPa`.",
+                "Temperature": "This value shall indicate a control used to regulate temperature, in units of degrees Celsius, either to a single set point or within a range.  The SetPointUnits property shall contain `Cel`.",
+                "Valve": "This value shall indicate a control used to adjust a valve in a system, in percent units.  The SetPointUnits property shall contain `%`.  A value of `100` shall indicate the valve is completely open, and a value of `0` shall indicate the valve is completely closed."
             },
             "enumVersionAdded": {
                 "FrequencyMHz": "v1_1_0",
-                "Pressure": "v1_1_0"
+                "Pressure": "v1_1_0",
+                "PressurekPa": "v1_3_0",
+                "Valve": "v1_3_0"
+            },
+            "enumVersionDeprecated": {
+                "Pressure": "v1_3_0"
             },
             "type": "string"
         },
@@ -853,6 +889,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2022.2",
-    "title": "#Control.v1_2_0.Control"
+    "release": "2023.1",
+    "title": "#Control.v1_3_0.Control"
 }
