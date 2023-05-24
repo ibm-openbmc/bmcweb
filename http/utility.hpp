@@ -812,18 +812,47 @@ inline bool validateAndSplitUrl(std::string_view destUrl, std::string& urlProto,
         return false;
     }
 
-    if (urlProto == "snmp" && !url.value().port().empty())
+    /* Check snmpTrap port.
+     1. Allow empty port, eg:
+     "snmp://9.41.166.76:".
+     2. Invalid ports and out of range ports are not allowed, eg:
+     "snmp://9.41.166.76:ab"
+     "snmp://9.41.166.76:-40"
+     "snmp://9.41.166.76:65536".
+    */
+    if (urlProto == "snmp")
     {
-        uint16_t portTmp = 0;
-        // Check the port
-        auto ret = std::from_chars(
-            url.value().port().data(),
-            url.value().port().data() + url.value().port().size(), portTmp);
-        if (ret.ec != std::errc())
+        if (!url.value().port().empty())
         {
-            return false;
+            uint16_t portTmp = 0;
+            // Check the port
+            auto ret = std::from_chars(
+                url.value().port().data(),
+                url.value().port().data() + url.value().port().size(), portTmp);
+            if (ret.ec != std::errc())
+            {
+                return false;
+            }
+        }
+        else
+        {
+            size_t pos = destUrl.find(':');
+            if (pos != std::string::npos)
+            {
+                std::string tmp_str = std::string(destUrl).substr(pos + 1);
+                size_t pos2 = tmp_str.find(':');
+                if (pos2 != std::string::npos)
+                {
+                    std::string port_str = tmp_str.substr(pos2 + 1);
+                    if (!port_str.empty())
+                    {
+                        return false;
+                    }
+                }
+            }
         }
     }
+
     port = setPortDefaults(url.value());
 
     host = url->encoded_host();
