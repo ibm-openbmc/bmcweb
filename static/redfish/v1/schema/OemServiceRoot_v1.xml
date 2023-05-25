@@ -23,7 +23,11 @@
 
     <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemServiceRoot">
       <Annotation Term="Redfish.OwningEntity" String="IBM"/>
+    </Schema>
 
+
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemServiceRoot.v1_0_0">
+      <Annotation Term="Redfish.OwningEntity" String="IBM"/>
       <ComplexType Name="Oem" BaseType="Resource.OemObject">
         <Annotation Term="OData.AdditionalProperties" Bool="true"/>
         <Annotation Term="OData.Description" String="OemServiceRoot Oem properties."/>
