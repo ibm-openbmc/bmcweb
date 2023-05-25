@@ -19,6 +19,10 @@
 
     <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemLogEntryAttachment">
       <Annotation Term="Redfish.OwningEntity" String="IBM"/>
+    </Schema>
+
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemLogEntryAttachment.v1_0_0">
+      <Annotation Term="Redfish.OwningEntity" String="IBM"/>
 
       <ComplexType Name="Oem" BaseType="Resource.OemObject">
         <Annotation Term="OData.AdditionalProperties" Bool="true"/>
