@@ -5880,14 +5880,14 @@ inline void getPrettyNameByDbusObjPath(
             auto msgPropPath = "/Members"_json_pointer;
             msgPropPath /= entryJsonIdx - 1;
             msgPropPath /= "Message";
-            name_util::getPrettyName(asyncResp, dbusObjPath.str, objType,
-                                     msgPropPath);
+            name_util::getPrettyName(asyncResp, dbusObjPath.str,
+                                     objType[0].first, msgPropPath);
         }
         else
         {
             asyncResp->res.jsonValue["Message"] = dbusObjPath.filename();
-            name_util::getPrettyName(asyncResp, dbusObjPath.str, objType,
-                                     "/Message"_json_pointer);
+            name_util::getPrettyName(asyncResp, dbusObjPath.str,
+                                     objType[0].first, "/Message"_json_pointer);
         }
         },
         "xyz.openbmc_project.ObjectMapper",
