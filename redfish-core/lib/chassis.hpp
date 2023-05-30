@@ -315,7 +315,7 @@ inline void
                 "#Chassis.v1_16_0.Chassis";
             asyncResp->res.jsonValue["@odata.id"] = "/redfish/v1/Chassis/" +
                                                     chassisId;
-            name_util::getPrettyName(asyncResp, path, connectionNames,
+            name_util::getPrettyName(asyncResp, path, connectionNames[0].first,
                                      "/Name"_json_pointer);
 
             asyncResp->res.jsonValue["ChassisType"] = "RackMount";

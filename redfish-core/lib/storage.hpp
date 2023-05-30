@@ -152,7 +152,7 @@ inline void
             auto namePointer = "/StorageControllers"_json_pointer;
             namePointer /= index;
             namePointer /= "Name";
-            name_util::getPrettyName(asyncResp, path, interfaceDict,
+            name_util::getPrettyName(asyncResp, path, interfaceDict[0].first,
                                      namePointer);
 
             storageController["MemberId"] = id;
@@ -605,7 +605,7 @@ inline void requestRoutesDrive(App& app)
             asyncResp->res.jsonValue["@odata.type"] = "#Drive.v1_7_0.Drive";
             asyncResp->res.jsonValue["@odata.id"] =
                 "/redfish/v1/Systems/system/Storage/1/Drives/" + driveId;
-            name_util::getPrettyName(asyncResp, path, drive->second,
+            name_util::getPrettyName(asyncResp, path, drive->second[0].first,
                                      "/Name"_json_pointer);
             asyncResp->res.jsonValue["Id"] = driveId;
 
