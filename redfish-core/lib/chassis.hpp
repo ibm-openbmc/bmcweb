@@ -57,7 +57,7 @@ inline void getChassisState(std::shared_ptr<bmcweb::AsyncResp> aResp)
                 BMCWEB_LOG_DEBUG << "Service not available " << ec;
                 return;
             }
-            BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
+            BMCWEB_LOG_ERROR << "DBUS response error " << ec;
             messages::internalError(aResp->res);
             return;
         }
@@ -178,7 +178,7 @@ inline void
                     const std::string& property) {
         if (ec)
         {
-            BMCWEB_LOG_DEBUG << "DBUS response error for Location";
+            BMCWEB_LOG_ERROR << "DBUS response error for Location";
             messages::internalError(asyncResp->res);
             return;
         }
@@ -199,7 +199,7 @@ inline void getChassisUUID(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                     const std::string& chassisUUID) {
         if (ec)
         {
-            BMCWEB_LOG_DEBUG << "DBUS response error for UUID";
+            BMCWEB_LOG_ERROR << "DBUS response error for UUID";
             messages::internalError(asyncResp->res);
             return;
         }
@@ -225,6 +225,7 @@ inline void
             const dbus::utility::MapperGetSubTreeResponse& subtree) {
         if (ec)
         {
+            BMCWEB_LOG_ERROR << "DBUS response error " << ec;
             messages::internalError(asyncResp->res);
             return;
         }
@@ -580,6 +581,7 @@ inline void
                        const dbus::utility::MapperGetSubTreeResponse& subtree) {
         if (ec)
         {
+            BMCWEB_LOG_ERROR << "DBUS response error " << ec;
             messages::internalError(asyncResp->res);
             return;
         }
@@ -693,7 +695,7 @@ inline void
             const dbus::utility::MapperGetSubTreePathsResponse& chassisList) {
         if (ec)
         {
-            BMCWEB_LOG_DEBUG << "[mapper] Bad D-Bus request error: " << ec;
+            BMCWEB_LOG_ERROR << "[mapper] Bad D-Bus request error: " << ec;
             messages::internalError(asyncResp->res);
             return;
         }
@@ -720,7 +722,7 @@ inline void
             // Use "Set" method to set the property value.
             if (ec2)
             {
-                BMCWEB_LOG_DEBUG << "[Set] Bad D-Bus request error: " << ec2;
+                BMCWEB_LOG_ERROR << "[Set] Bad D-Bus request error: " << ec2;
                 messages::internalError(asyncResp->res);
                 return;
             }
