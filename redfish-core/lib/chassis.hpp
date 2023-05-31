@@ -24,6 +24,7 @@
 #include <query.hpp>
 #include <registries/privilege_registry.hpp>
 #include <sdbusplus/asio/property.hpp>
+#include <sdbusplus/message.hpp>
 #include <sdbusplus/unpack_properties.hpp>
 #include <utils/collection.hpp>
 #include <utils/dbus_utils.hpp>
@@ -677,6 +678,36 @@ inline void requestRoutesChassis(App& app)
             std::bind_front(handleChassisPatch, std::ref(app)));
 }
 
+/**
+ * Handle error responses from d-bus for chassis power cycles
+ */
+inline void handleChassisPowerCycleError(const boost::system::error_code& ec,
+                                         const sdbusplus::message_t& eMsg,
+                                         crow::Response& res)
+{
+    if (eMsg.get_error() == nullptr)
+    {
+        BMCWEB_LOG_ERROR << "D-Bus response error: " << ec;
+        messages::internalError(res);
+        return;
+    }
+    std::string_view errorMessage = eMsg.get_error()->name;
+
+    // If operation failed due to BMC not being in Ready state, tell
+    // user to retry in a bit
+    if (errorMessage ==
+        std::string_view("xyz.openbmc_project.State.Chassis.Error.BMCNotReady"))
+    {
+        BMCWEB_LOG_DEBUG << "BMC not ready, operation not allowed right now";
+        messages::serviceTemporarilyUnavailable(res, "10");
+        return;
+    }
+
+    BMCWEB_LOG_ERROR << "Chassis Power Cycle fail " << ec
+                     << " sdbusplus:" << errorMessage;
+    messages::internalError(res);
+}
+
 inline void
     doChassisPowerCycle(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
@@ -718,12 +749,13 @@ inline void
         }
 
         crow::connections::systemBus->async_method_call(
-            [asyncResp](const boost::system::error_code ec2) {
+            [asyncResp](const boost::system::error_code& ec2,
+                        sdbusplus::message_t& sdbusErrMsg) {
             // Use "Set" method to set the property value.
             if (ec2)
             {
-                BMCWEB_LOG_ERROR << "[Set] Bad D-Bus request error: " << ec2;
-                messages::internalError(asyncResp->res);
+                handleChassisPowerCycleError(ec2, sdbusErrMsg, asyncResp->res);
+
                 return;
             }
 
