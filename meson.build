@@ -386,6 +386,10 @@ srcfiles_unittest = files(
   'test/redfish-core/lib/thermal_subsystem_test.cpp',
 )
 
+if (get_option('audit-events').enabled())
+	srcfiles_unittest += files('test/include/audit_events_test.cpp',)
+endif
+
 if(get_option('tests').enabled())
     # generate the test executable
     foreach test_src : srcfiles_unittest
