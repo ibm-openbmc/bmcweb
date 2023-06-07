@@ -569,8 +569,7 @@ inline void
                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     crow::connections::systemBus->async_method_call(
-        [asyncResp, gateway, ifaceId,
-         address](const boost::system::error_code ec) {
+        [asyncResp, ifaceId, address](const boost::system::error_code ec) {
         if (ec)
         {
             BMCWEB_LOG_DEBUG
@@ -584,6 +583,11 @@ inline void
                                             "redfish", "v1", "Systems",
                                             "hypervisor", "EthernetInterfaces",
                                             ifaceId));
+            }
+            else if (ec == boost::system::errc::io_error)
+            {
+                messages::propertyValueFormatError(asyncResp->res, address,
+                                                   "Address");
             }
             else
             {
