@@ -1,3 +1,4 @@
+#ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
 #include "audit_events.hpp"
 
 #include <gtest/gtest.h> // IWYU pragma: keep
@@ -42,3 +43,4 @@ TEST(auditClose, PositiveTest)
 
 } // namespace
 } // namespace audit
+#endif // BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
