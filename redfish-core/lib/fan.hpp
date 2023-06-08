@@ -325,8 +325,10 @@ inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         asyncResp->res.jsonValue["Status"]["Health"] = "OK";
         asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
 
+        std::array<const char*, 1> interfaces = {
+            "xyz.openbmc_project.Inventory.Item.Fan"};
         dbus::utility::getDbusObject(
-            fanPath, {},
+            fanPath, interfaces,
             [asyncResp, fanPath, chassisId,
              fanId](const boost::system::error_code& ec,
                     const dbus::utility::MapperGetObject& object) {
