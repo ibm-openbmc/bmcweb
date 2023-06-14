@@ -1072,6 +1072,26 @@ inline void handleHypervisorIPv6StaticPatch(
     }
 }
 
+inline void handleHypV6DefaultGatewayPatch(
+    const std::string& ifaceId, const std::string& ipv6DefaultGateway,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code ec) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "D-Bus responses error: " << ec;
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        },
+        "xyz.openbmc_project.Network.Hypervisor",
+        "/xyz/openbmc_project/network/hypervisor/" + ifaceId,
+        "org.freedesktop.DBus.Properties", "Set",
+        "xyz.openbmc_project.Network.EthernetInterface", "DefaultGateway6",
+        std::variant<std::string>(ipv6DefaultGateway));
+}
+
 inline void requestRoutesHypervisorSystems(App& app)
 {
     /**
@@ -1241,13 +1261,15 @@ inline void requestRoutesHypervisorSystems(App& app)
         std::optional<std::string> ipv6OperatingMode;
         std::optional<nlohmann::json> statelessAddressAutoConfig;
         std::optional<bool> ipv6AutoConfigEnabled;
+        std::optional<std::vector<std::string>> ipv6StaticDefaultGateways;
 
         if (!json_util::readJsonPatch(
                 req, asyncResp->res, "HostName", hostName,
                 "IPv4StaticAddresses", ipv4StaticAddresses,
                 "IPv6StaticAddresses", ipv6StaticAddresses, "IPv4Addresses",
                 ipv4Addresses, "DHCPv4", dhcpv4, "DHCPv6", dhcpv6,
-                "StatelessAddressAutoConfig", statelessAddressAutoConfig))
+                "StatelessAddressAutoConfig", statelessAddressAutoConfig,
+                "IPv6StaticDefaultGateways", ipv6StaticDefaultGateways))
         {
             return;
         }
@@ -1295,6 +1317,7 @@ inline void requestRoutesHypervisorSystems(App& app)
              ipv4DHCPEnabled, dhcpv4 = std::move(dhcpv4),
              dhcpv6 = std::move(dhcpv6), ipv6OperatingMode,
              statelessAddressAutoConfig = std::move(statelessAddressAutoConfig),
+             ipv6StaticDefaultGateways = std::move(ipv6StaticDefaultGateways),
              ipv6AutoConfigEnabled](
                 const bool& success, const EthernetInterfaceData& ethData,
                 const boost::container::flat_set<IPv4AddressData>&,
@@ -1419,6 +1442,20 @@ inline void requestRoutesHypervisorSystems(App& app)
             {
                 handleHypSLAACAutoConfigPatch(
                     ifaceId, ethData, *ipv6AutoConfigEnabled, asyncResp);
+            }
+
+            if (ipv6StaticDefaultGateways)
+            {
+                const std::vector<std::string>& ipv6StaticDefaultGw =
+                    *ipv6StaticDefaultGateways;
+                if ((ipv6StaticDefaultGw).size() > 1)
+                {
+                    messages::propertyValueModified(
+                        asyncResp->res, "IPv6StaticDefaultGateways",
+                        ipv6StaticDefaultGw.front());
+                }
+                handleHypV6DefaultGatewayPatch(
+                    ifaceId, ipv6StaticDefaultGw.front(), asyncResp);
             }
             });
         asyncResp->res.result(boost::beast::http::status::accepted);
