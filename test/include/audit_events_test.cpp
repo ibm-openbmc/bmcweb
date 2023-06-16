@@ -39,5 +39,21 @@ TEST(auditClose, PositiveTest)
     EXPECT_FALSE(auditOpen());
 }
 
+TEST(auditReopen, PositiveTest)
+{
+    EXPECT_TRUE(auditReopen());
+    EXPECT_TRUE(tryOpen);
+    EXPECT_NE(auditfd, -1);
+
+    // Cannot make expectation on different fd on reopen
+    EXPECT_TRUE(auditReopen());
+    EXPECT_TRUE(tryOpen);
+    EXPECT_NE(auditfd, -1);
+
+    auditClose(false);
+    EXPECT_TRUE(auditReopen());
+    EXPECT_NE(auditfd, -1);
+}
+
 } // namespace
 } // namespace audit

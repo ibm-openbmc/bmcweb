@@ -18,7 +18,7 @@ int auditfd = -1;
 
 /**
  * @brief Closes connection for recording audit events
- * @param[in] setRetry    Sets state for opening a new audit connection
+ * @param[in] setRetry    Sets state for allowing a new audit connection
  */
 inline void auditClose(bool setRetry)
 {
@@ -38,23 +38,21 @@ inline void auditClose(bool setRetry)
 /**
  * @brief Opens connection for recording audit events
  *
- * Failure to connect will not try to connect again unless auditClose(true) is
- * called to enable connection retry.
- *
+ * Reuses prior connection if available.
+
  * @return If connection was successful or not
  */
 inline bool auditOpen(void)
 {
     if (auditfd < 0)
     {
-        /* Only try to open the audit file once so we don't flood same error. */
+        /* Blocking opening of audit connection */
         if (!tryOpen)
         {
-            BMCWEB_LOG_DEBUG << "No audit fd";
+            BMCWEB_LOG_DEBUG << "Audit connection disabled";
             return false;
         }
 
-        tryOpen = false;
         auditfd = audit_open();
 
         if (auditfd < 0)
@@ -67,6 +65,19 @@ inline bool auditOpen(void)
     }
 
     return true;
+}
+
+/**
+ * @brief Establishes new connection for recording audit events
+ *
+ * Closes any existing connection and tries to create a new connection.
+ *
+ * @return If new connection was successful or not
+ */
+inline bool auditReopen(void)
+{
+    auditClose(true);
+    return auditOpen();
 }
 
 inline bool checkPostAudit(const crow::Request& req)
@@ -90,6 +101,8 @@ inline void auditEvent(const char* opPath, const std::string& userName,
     char* user = NULL;
     size_t opPathLen;
     size_t userLen = 0;
+    int rc;
+    int origErrno;
 
     if (auditOpen() == false)
     {
@@ -141,11 +154,27 @@ inline void auditEvent(const char* opPath, const std::string& userName,
 
     free(user);
 
-    if (audit_log_user_message(auditfd, AUDIT_USYS_CONFIG, cnfgBuff,
-                               boost::asio::ip::host_name().c_str(),
-                               ipAddress.c_str(), NULL, int(success)) <= 0)
+    rc = audit_log_user_message(auditfd, AUDIT_USYS_CONFIG, cnfgBuff,
+                                boost::asio::ip::host_name().c_str(),
+                                ipAddress.c_str(), NULL, int(success));
+
+    if (rc <= 0)
     {
-        BMCWEB_LOG_ERROR << "Error writing audit message: " << strerror(errno);
+        // Something failed with existing connection. Try to establish a new
+        // connection and retry if successful.
+        // Preserve original errno to report if the retry fails.
+        origErrno = errno;
+        if (auditReopen())
+        {
+            rc = audit_log_user_message(auditfd, AUDIT_USYS_CONFIG, cnfgBuff,
+                                        boost::asio::ip::host_name().c_str(),
+                                        ipAddress.c_str(), NULL, int(success));
+        }
+        if (rc <= 0)
+        {
+            BMCWEB_LOG_ERROR << "Error writing audit message: "
+                             << strerror(origErrno);
+        }
     }
 
     return;
