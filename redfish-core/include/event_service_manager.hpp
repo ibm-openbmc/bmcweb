@@ -944,8 +944,6 @@ class EventServiceManager
 #endif
         // Update retry configuration.
         subValue->updateRetryConfig(retryAttempts, retryTimeoutInterval);
-
-        return id;
     }
 
     bool isSubscriptionExist(const std::string& id)
