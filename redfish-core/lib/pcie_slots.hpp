@@ -16,9 +16,13 @@
 #include <utils/json_utils.hpp>
 #include <utils/pcie_util.hpp>
 
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <map>
 #include <memory>
+#include <optional>
 #include <string>
-#include <variant>
 #include <vector>
 
 namespace redfish
@@ -243,109 +247,6 @@ inline void linkAssociatedDiskBackplane(
         });
 }
 
-// We need a global variable to keep track of the actual number of slots,
-// and then use this variable to check if the number of slots in the request
-// is correct
-std::map<unsigned int, std::string> updatePcieSlotsMaps{};
-
-// Check whether the total number of slots in the request is consistent with the
-// actual total number of slots
-static void checkPCIeSlotsCount(
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const unsigned int total, const std::string& validChassisPath,
-    std::function<void(const std::map<unsigned int, std::string>&)>&& callback)
-{
-    BMCWEB_LOG_DEBUG << "Check PCIeSlots count for PCIeSlots request "
-                        "associated to chassis";
-
-    constexpr std::array<std::string_view, 1> interfaces = {
-        "xyz.openbmc_project.Inventory.Item.PCIeSlot"};
-    dbus::utility::getSubTreePaths(
-        "/xyz/openbmc_project/inventory", 0, interfaces,
-        [asyncResp, total, validChassisPath, callback{std::move(callback)}](
-            const boost::system::error_code ec,
-            const dbus::utility::MapperGetSubTreePathsResponse&
-                pcieSlotsPaths) {
-        if (ec)
-        {
-            BMCWEB_LOG_ERROR << "D-Bus response error on GetSubTree " << ec;
-            messages::internalError(asyncResp->res);
-            return;
-        }
-
-        unsigned int index = 0;
-        unsigned int count = 0;
-        auto slotNum = pcieSlotsPaths.size();
-        for (const auto& path : pcieSlotsPaths)
-        {
-            index++;
-            dbus::utility::getAssociationEndPoints(
-                path + "/chassis",
-                [asyncResp, total, validChassisPath, count{++count}, slotNum,
-                 index, path,
-                 callback](const boost::system::error_code& ec1,
-                           const dbus::utility::MapperEndPoints& endpoints) {
-                if (ec1)
-                {
-                    if (ec1.value() == EBADR)
-                    {
-                        if (count == slotNum)
-                        {
-                            // the total number of slots in the request
-                            // is correct
-                            if (updatePcieSlotsMaps.size() == total)
-                            {
-                                callback(updatePcieSlotsMaps);
-                            }
-                            else
-                            {
-                                messages::resourceNotFound(
-                                    asyncResp->res, "Chassis", "slots count");
-                                return;
-                            }
-                        }
-
-                        // This PCIeSlot have no chassis association.
-                        return;
-                    }
-                    BMCWEB_LOG_ERROR << "DBUS response error";
-                    messages::internalError(asyncResp->res);
-
-                    return;
-                }
-
-                for (const auto& endpoint : endpoints)
-                {
-                    if (endpoint == validChassisPath)
-                    {
-                        updatePcieSlotsMaps[index] = path;
-                    }
-                }
-
-                if (updatePcieSlotsMaps.size() > total)
-                {
-                    BMCWEB_LOG_ERROR
-                        << "The actual number of cpieslots is greater than total";
-                    messages::internalError(asyncResp->res);
-                }
-
-                if (count == slotNum)
-                {
-                    // Last time DBus has returned
-                    if (updatePcieSlotsMaps.size() == total)
-                    {
-                        callback(updatePcieSlotsMaps);
-                    }
-                    else
-                    {
-                        messages::internalError(asyncResp->res);
-                    }
-                }
-                });
-        }
-        });
-}
-
 inline void getLocationCode(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                             const size_t index,
                             const std::string& connectionName,
@@ -379,20 +280,11 @@ inline void getLocationCode(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         });
 }
 
-inline void
-    onPcieSlotGetAllDone(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                         const boost::system::error_code ec,
-                         const dbus::utility::DBusPropertiesMap& propertiesList,
-                         const std::string& connectionName,
-                         const std::string& pcieSlotPath)
+inline void getPCIeSlotProperties(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const dbus::utility::DBusPropertiesMap& propertiesList,
+    const std::string& connectionName, const std::string& pcieSlotPath)
 {
-    if (ec)
-    {
-        BMCWEB_LOG_ERROR << "Can't get PCIeSlot properties!";
-        messages::internalError(asyncResp->res);
-        return;
-    }
-
     nlohmann::json& slots = asyncResp->res.jsonValue["Slots"];
 
     nlohmann::json::array_t* slotsPtr =
@@ -489,110 +381,173 @@ inline void
     getLocationIndicatorActive(asyncResp, pcieSlotPath, slotLIA);
 }
 
-inline void onMapperAssociationDone(
+// Get all PCIe Slots
+inline void getPCIeSlotList(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& chassisID, const std::string& pcieSlotPath,
-    const std::string& connectionName, const boost::system::error_code& ec,
-    const std::variant<std::vector<std::string>>& endpoints)
+    std::function<void(
+        const std::vector<std::pair<std::string, std::string>>&)>&& callback)
 {
-    if (ec)
-    {
-        if (ec.value() == EBADR)
+    constexpr std::array<std::string_view, 1> interfaces{
+        "xyz.openbmc_project.Inventory.Item.PCIeSlot"};
+    dbus::utility::getSubTree(
+        "/xyz/openbmc_project/inventory", 0, interfaces,
+        [asyncResp, callback{std::move(callback)}](
+            const boost::system::error_code ec,
+            const dbus::utility::MapperGetSubTreeResponse& subtree) {
+        if (ec)
         {
-            // This PCIeSlot have no chassis association.
+            BMCWEB_LOG_ERROR << "D-Bus response error on GetSubTree "
+                             << ec.value();
+            messages::internalError(asyncResp->res);
             return;
         }
-        BMCWEB_LOG_ERROR << "DBUS response error";
-        messages::internalError(asyncResp->res);
-        return;
-    }
+        if (subtree.empty())
+        {
+            // No PCIeSlot found
+            messages::resourceNotFound(asyncResp->res, "Chassis", "PCIeSlot");
+            return;
+        }
 
-    const std::vector<std::string>* pcieSlotChassis =
-        std::get_if<std::vector<std::string>>(&(endpoints));
+        std::vector<std::pair<std::string, std::string>> slotPathConnNames;
+        for (const auto& [pcieSlotPath, serviceName] : subtree)
+        {
+            if (pcieSlotPath.empty() || serviceName.size() != 1)
+            {
+                BMCWEB_LOG_ERROR << "Error getting PCIeSlot D-Bus object!";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            const std::string& connectionName = serviceName[0].first;
+            slotPathConnNames.emplace_back(
+                std::make_pair(pcieSlotPath, connectionName));
+        }
 
-    if (pcieSlotChassis == nullptr)
-    {
-        BMCWEB_LOG_ERROR << "Error getting PCIe Slot association!";
-        messages::internalError(asyncResp->res);
-        return;
-    }
+        // sort by pcieSlotPath
+        std::sort(slotPathConnNames.begin(), slotPathConnNames.end(),
+                  [](const std::pair<std::string, std::string>& slot1,
+                     const std::pair<std::string, std::string>& slot2) {
+            return slot1.first < slot2.first;
+        });
 
-    if (pcieSlotChassis->size() != 1)
-    {
-        BMCWEB_LOG_ERROR << "PCIe Slot association error! ";
-        messages::internalError(asyncResp->res);
-        return;
-    }
-
-    sdbusplus::message::object_path path((*pcieSlotChassis)[0]);
-    std::string chassisName = path.filename();
-    if (chassisName != chassisID)
-    {
-        // The pcie slot doesn't belong to the chassisID
-        return;
-    }
-
-    sdbusplus::asio::getAllProperties(
-        *crow::connections::systemBus, connectionName, pcieSlotPath,
-        "xyz.openbmc_project.Inventory.Item.PCIeSlot",
-        [asyncResp, connectionName,
-         pcieSlotPath](const boost::system::error_code& ec1,
-                       const dbus::utility::DBusPropertiesMap& propertiesList) {
-        onPcieSlotGetAllDone(asyncResp, ec1, propertiesList, connectionName,
-                             pcieSlotPath);
+        callback(std::move(slotPathConnNames));
         });
 }
 
-inline void
-    onMapperSubtreeDone(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                        const std::string& chassisID,
-                        const boost::system::error_code& ec,
-                        const dbus::utility::MapperGetSubTreeResponse& subtree)
+// Get all valid  PCIe Slots which are on the given chassis
+inline void getValidPCIeSlotList(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& chassisID,
+    std::function<void(
+        const std::vector<std::pair<std::string, std::string>>&)>&& callback)
 {
-    if (ec)
-    {
-        BMCWEB_LOG_ERROR << "D-Bus response error on GetSubTree " << ec;
-        messages::internalError(asyncResp->res);
-        return;
-    }
-    if (subtree.empty())
-    {
-        messages::resourceNotFound(asyncResp->res, "Chassis", chassisID);
-        return;
-    }
-
     BMCWEB_LOG_DEBUG << "Get properties for PCIeSlots associated to chassis = "
                      << chassisID;
 
-    asyncResp->res.jsonValue["@odata.type"] = "#PCIeSlots.v1_5_0.PCIeSlots";
-    asyncResp->res.jsonValue["Name"] = "PCIe Slot Information";
-    asyncResp->res.jsonValue["@odata.id"] = crow::utility::urlFromPieces(
-        "redfish", "v1", "Chassis", chassisID, "PCIeSlots");
-    asyncResp->res.jsonValue["Id"] = "1";
-    asyncResp->res.jsonValue["Slots"] = nlohmann::json::array();
+    getPCIeSlotList(asyncResp,
+                    [asyncResp, chassisID, callback{std::move(callback)}](
+                        const std::vector<std::pair<std::string, std::string>>&
+                            slotPathConnNames) {
+        // Hold the valid slot & connectionNames so that it will live until all
+        // references are done (during the async-calls)
+        std::shared_ptr<std::vector<std::pair<std::string, std::string>>>
+            validSlotPathConnNames = std::make_shared<
+                std::vector<std::pair<std::string, std::string>>>();
 
-    for (const auto& pathServicePair : subtree)
-    {
-        const std::string& pcieSlotPath = pathServicePair.first;
-        for (const auto& connectionInterfacePair : pathServicePair.second)
+        size_t slotCount = slotPathConnNames.size();
+        size_t slotIndex = 0;
+        for (const auto& pcieSlotPathConnPair : slotPathConnNames)
         {
-            const std::string& connectionName = connectionInterfacePair.first;
-            sdbusplus::message::object_path pcieSlotAssociationPath(
-                pcieSlotPath);
-            pcieSlotAssociationPath /= "chassis";
+            slotIndex++;
 
             // The association of this PCIeSlot is used to determine whether
             // it belongs to this ChassisID
+            const std::string& pcieSlotPath = pcieSlotPathConnPair.first;
+            sdbusplus::message::object_path pcieSlotAssociationPath(
+                pcieSlotPath);
+            pcieSlotAssociationPath /= "chassis";
             dbus::utility::getAssociationEndPoints(
                 pcieSlotAssociationPath,
-                [asyncResp, chassisID, pcieSlotPath, connectionName](
-                    const boost::system::error_code& ec1,
-                    const dbus::utility::MapperEndPoints& endpoints) {
-                onMapperAssociationDone(asyncResp, chassisID, pcieSlotPath,
-                                        connectionName, ec1, endpoints);
+                [asyncResp, chassisID, slotCount, slotIndex,
+                 validSlotPathConnNames, pcieSlotPathConnPair,
+                 callback{std::move(callback)}](
+                    const boost::system::error_code& ec,
+                    const dbus::utility::MapperEndPoints& chassisPaths) {
+                if (ec)
+                {
+                    if (ec.value() == EBADR)
+                    {
+                        // This PCIeSlot has no chassis association.
+                        if (slotIndex == slotCount)
+                        {
+                            // Reach to the end of slotElement
+                            callback(*validSlotPathConnNames);
+                        }
+                        return;
+                    }
+                    BMCWEB_LOG_ERROR << "DBUS response error " << ec.value();
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                if (chassisPaths.size() != 1)
+                {
+                    BMCWEB_LOG_ERROR << "PCIe Slot association error! ";
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+
+                sdbusplus::message::object_path path(chassisPaths[0]);
+                std::string chassisName = path.filename();
+                if (chassisName == chassisID)
+                {
+                    validSlotPathConnNames->emplace_back(pcieSlotPathConnPair);
+                }
+
+                if (slotIndex == slotCount)
+                {
+                    // Reach to the end of slotElement
+                    callback(*validSlotPathConnNames);
+                }
                 });
         }
-    }
+    });
+}
+
+inline void doHandlePCIeSlotCollectionGet(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& chassisID)
+{
+    getValidPCIeSlotList(
+        asyncResp, chassisID,
+        [asyncResp,
+         chassisID](const std::vector<std::pair<std::string, std::string>>&
+                        slotPathConnNames) {
+        asyncResp->res.jsonValue["@odata.type"] = "#PCIeSlots.v1_5_0.PCIeSlots";
+        asyncResp->res.jsonValue["Name"] = "PCIe Slot Information";
+        asyncResp->res.jsonValue["@odata.id"] = crow::utility::urlFromPieces(
+            "redfish", "v1", "Chassis", chassisID, "PCIeSlots");
+        asyncResp->res.jsonValue["Id"] = "1";
+        asyncResp->res.jsonValue["Slots"] = nlohmann::json::array();
+
+        for (const auto& [pcieSlotPath, connectionName] : slotPathConnNames)
+        {
+            sdbusplus::asio::getAllProperties(
+                *crow::connections::systemBus, connectionName, pcieSlotPath,
+                "xyz.openbmc_project.Inventory.Item.PCIeSlot",
+                [asyncResp, connectionName, pcieSlotPath](
+                    const boost::system::error_code& ec,
+                    const dbus::utility::DBusPropertiesMap& propertiesList) {
+                if (ec)
+                {
+                    BMCWEB_LOG_ERROR << "Can't get PCIeSlot properties! ec="
+                                     << ec.value();
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                getPCIeSlotProperties(asyncResp, propertiesList, connectionName,
+                                      pcieSlotPath);
+                });
+        }
+        });
 }
 
 inline void handlePCIeSlotCollectionGet(
@@ -605,14 +560,51 @@ inline void handlePCIeSlotCollectionGet(
         return;
     }
 
-    constexpr std::array<std::string_view, 1> interfaces{
-        "xyz.openbmc_project.Inventory.Item.PCIeSlot"};
-    dbus::utility::getSubTree(
-        "/xyz/openbmc_project/inventory", 0, interfaces,
+    redfish::chassis_utils::getValidChassisPath(
+        asyncResp, chassisID,
         [asyncResp,
-         chassisID](const boost::system::error_code ec,
-                    const dbus::utility::MapperGetSubTreeResponse& subtree) {
-        onMapperSubtreeDone(asyncResp, chassisID, ec, subtree);
+         chassisID](const std::optional<std::string>& validChassisPath) {
+        if (!validChassisPath)
+        {
+            BMCWEB_LOG_WARNING << "Not a valid chassis ID:" << chassisID;
+            messages::resourceNotFound(asyncResp->res, "Chassis", chassisID);
+            return;
+        }
+        doHandlePCIeSlotCollectionGet(asyncResp, chassisID);
+        });
+}
+
+inline void doHandlePCIeSlotPatch(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, size_t total,
+    const std::string& chassisID,
+    const std::map<unsigned int, bool>& locationIndicatorActiveMap)
+{
+    getValidPCIeSlotList(
+        asyncResp, chassisID,
+        [asyncResp, chassisID, total,
+         locationIndicatorActiveMap{std::move(locationIndicatorActiveMap)}](
+            const std::vector<std::pair<std::string, std::string>>&
+                slotPathConnNames) {
+        if (slotPathConnNames.size() != total)
+        {
+            BMCWEB_LOG_WARNING
+                << "The actual number of pcieslots is different from the number of the input slots";
+            int64_t total_count = static_cast<int64_t>(total);
+            messages::invalidIndex(asyncResp->res, total_count);
+        }
+
+        unsigned int idx = 0;
+        for (const auto& [pcieSlotPath, connectionName] : slotPathConnNames)
+        {
+            idx++;
+            if (!locationIndicatorActiveMap.contains(idx))
+            {
+                continue;
+            }
+
+            auto indicatorOnOff = locationIndicatorActiveMap.at(idx);
+            setLocationIndicatorActive(asyncResp, pcieSlotPath, indicatorOnOff);
+        }
         });
 }
 
@@ -641,7 +633,6 @@ inline void
     for (auto& slot : slots)
     {
         slotIndex++;
-
         if (slot.empty())
         {
             continue;
@@ -655,39 +646,21 @@ inline void
         }
     }
 
-    // Clear updatePcieSlotsMaps
-    updatePcieSlotsMaps.clear();
-
-    unsigned int total = static_cast<unsigned int>(slots.size());
-    auto respHandler =
+    size_t total = slots.size();
+    redfish::chassis_utils::getValidChassisPath(
+        asyncResp, chassisId,
         [asyncResp, chassisId, total,
          locationIndicatorActiveMap{std::move(locationIndicatorActiveMap)}](
             const std::optional<std::string>& validChassisPath) {
         if (!validChassisPath)
         {
-            BMCWEB_LOG_ERROR << "Not a valid chassis ID:" << chassisId;
+            BMCWEB_LOG_WARNING << "Not a valid chassis ID:" << chassisId;
             messages::resourceNotFound(asyncResp->res, "Chassis", chassisId);
             return;
         }
-
-        // Get the correct Path and Service that match the input
-        // parameters
-        checkPCIeSlotsCount(
-            asyncResp, total, *validChassisPath,
-            [asyncResp, locationIndicatorActiveMap](
-                const std::map<unsigned int, std::string>& maps) {
-            for (const auto& [i, v] : locationIndicatorActiveMap)
-            {
-                if (maps.contains(i))
-                {
-                    setLocationIndicatorActive(asyncResp, maps.at(i), v);
-                }
-            }
-            });
-    };
-
-    redfish::chassis_utils::getValidChassisPath(asyncResp, chassisId,
-                                                std::bind_front(respHandler));
+        doHandlePCIeSlotPatch(asyncResp, total, chassisId,
+                              std::move(locationIndicatorActiveMap));
+        });
 }
 
 inline void requestRoutesPCIeSlots(App& app)
