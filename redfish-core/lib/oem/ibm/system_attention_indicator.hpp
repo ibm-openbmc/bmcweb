@@ -44,8 +44,7 @@ inline void getSAI(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                         const dbus::utility::MapperGetObject& object) {
         if (ec || object.empty())
         {
-            BMCWEB_LOG_ERROR << "DBUS response error " << ec.message();
-            messages::internalError(aResp->res);
+            BMCWEB_LOG_DEBUG << "Failed to get LED DBus name: " << ec.message();
             return;
         }
 
