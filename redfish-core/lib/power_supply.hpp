@@ -15,6 +15,9 @@
 
 namespace redfish
 {
+static constexpr const char* inventoryPath = "/xyz/openbmc_project/inventory";
+static constexpr std::array<std::string_view, 1> powerSupplyInterface = {
+    "xyz.openbmc_project.Inventory.Item.PowerSupply"};
 
 inline void
     updatePowerSupplyList(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -64,23 +67,25 @@ inline void
     asyncResp->res.jsonValue["Members@odata.count"] = 0;
 
     std::string powerPath = *validChassisPath + "/powered_by";
-    dbus::utility::getAssociationEndPoints(
-        powerPath, [asyncResp, chassisId](
-                       const boost::system::error_code& ec,
-                       const dbus::utility::MapperEndPoints& endpoints) {
-            if (ec)
+    dbus::utility::getAssociatedSubTreePaths(
+        powerPath, sdbusplus::message::object_path(inventoryPath), 0,
+        powerSupplyInterface,
+        [asyncResp,
+         chassisId](const boost::system::error_code& ec,
+                    const dbus::utility::MapperEndPoints& endpoints) {
+        if (ec)
+        {
+            if (ec.value() != EBADR)
             {
-                if (ec.value() != EBADR)
-                {
-                    messages::internalError(asyncResp->res);
-                }
-                return;
+                messages::internalError(asyncResp->res);
             }
+            return;
+        }
 
-            for (const auto& endpoint : endpoints)
-            {
-                updatePowerSupplyList(asyncResp, chassisId, endpoint);
-            }
+        for (const auto& endpoint : endpoints)
+        {
+            updatePowerSupplyList(asyncResp, chassisId, endpoint);
+        }
         });
 }
 
