@@ -5,6 +5,8 @@
 #include "error_messages.hpp"
 #include "utils/chassis_utils.hpp"
 
+#include <boost/system/error_code.hpp>
+
 #include <array>
 #include <memory>
 #include <optional>
@@ -152,6 +154,81 @@ inline void handleEnvironmentMetricsHead(
                                                 std::move(respHandler));
 }
 
+inline void getPowerWatts(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                          const std::string& chassisId)
+{
+    constexpr const char* interface = "xyz.openbmc_project.Sensor.Value";
+    const std::string sensorPath = "/xyz/openbmc_project/sensors";
+    constexpr std::array<std::string_view, 1> sensorInterfaces = {interface};
+    dbus::utility::getSubTreePaths(
+        sensorPath, 0, sensorInterfaces,
+        [asyncResp,
+         chassisId](const boost::system::error_code& ec,
+                    const dbus::utility::MapperGetSubTreePathsResponse& paths) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "DBUS response error: " << ec.message();
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        bool judgment = false;
+        for (const auto& tempPath : paths)
+        {
+            sdbusplus::message::object_path path(tempPath);
+            std::string leaf = path.filename();
+            if (!leaf.compare("total_power"))
+            {
+                judgment = true;
+                break;
+            }
+        }
+        if (!judgment)
+        {
+            BMCWEB_LOG_DEBUG << "There is not total_power";
+            return;
+        }
+
+        const std::string& totalPowerPath =
+            "/xyz/openbmc_project/sensors/power/total_power";
+        std::array<const char*, 1> totalPowerInterfaces = {interface};
+        dbus::utility::getDbusObject(
+            totalPowerPath, totalPowerInterfaces,
+            [asyncResp, chassisId,
+             totalPowerPath](const boost::system::error_code& ec1,
+                             const dbus::utility::MapperGetObject& object) {
+            if (ec1 || object.empty())
+            {
+                BMCWEB_LOG_ERROR << "DBUS response error: " << ec1.message();
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            sdbusplus::asio::getProperty<double>(
+                *crow::connections::systemBus, object.begin()->first,
+                totalPowerPath, "xyz.openbmc_project.Sensor.Value", "Value",
+                [asyncResp, chassisId](const boost::system::error_code& ec2,
+                                       double value) {
+                if (ec2)
+                {
+                    BMCWEB_LOG_ERROR << "Can't get Power Watts!"
+                                     << ec2.message();
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                asyncResp->res.jsonValue["PowerWatts"]["@odata.id"] =
+                    crow::utility::urlFromPieces("redfish", "v1", "Chassis",
+                                                 chassisId, "Sensors",
+                                                 "total_power");
+                asyncResp->res.jsonValue["PowerWatts"]["DataSourceUri"] =
+                    crow::utility::urlFromPieces("redfish", "v1", "Chassis",
+                                                 chassisId, "Sensors",
+                                                 "total_power");
+                asyncResp->res.jsonValue["PowerWatts"]["Reading"] = value;
+                });
+            });
+        });
+}
+
 inline void
     getPowerLimitWatts(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
@@ -245,6 +322,7 @@ inline void handleEnvironmentMetricsGet(
 
         getFanSpeedsPercent(asyncResp, *validChassisPath, chassisId);
         getPowerLimitWatts(asyncResp);
+        getPowerWatts(asyncResp, chassisId);
     };
 
     redfish::chassis_utils::getValidChassisPath(asyncResp, chassisId,
