@@ -11,6 +11,16 @@ namespace audit
 namespace
 {
 
+TEST(auditSetState, PositiveTest)
+{
+    auditSetState(false);
+    EXPECT_FALSE(auditOpen());
+
+    auditSetState(true);
+    EXPECT_TRUE(auditOpen());
+    auditClose();
+}
+
 TEST(auditOpen, PositiveTest)
 {
     int origFd;
@@ -25,32 +35,24 @@ TEST(auditOpen, PositiveTest)
 
 TEST(auditClose, PositiveTest)
 {
-    auditClose(true);
-    EXPECT_TRUE(tryOpen);
+    auditClose();
     EXPECT_EQ(auditfd, -1);
 
     EXPECT_TRUE(auditOpen());
-    auditClose(true);
-    EXPECT_TRUE(tryOpen);
+    auditClose();
     EXPECT_EQ(auditfd, -1);
-
-    EXPECT_TRUE(auditOpen());
-    auditClose(false);
-    EXPECT_FALSE(auditOpen());
 }
 
 TEST(auditReopen, PositiveTest)
 {
     EXPECT_TRUE(auditReopen());
-    EXPECT_TRUE(tryOpen);
     EXPECT_NE(auditfd, -1);
 
     // Cannot make expectation on different fd on reopen
     EXPECT_TRUE(auditReopen());
-    EXPECT_TRUE(tryOpen);
     EXPECT_NE(auditfd, -1);
 
-    auditClose(false);
+    auditClose();
     EXPECT_TRUE(auditReopen());
     EXPECT_NE(auditfd, -1);
 }
