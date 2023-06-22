@@ -712,40 +712,45 @@ inline void requestRoutesSystemPCIeDevice(App& app)
             [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                const std::string& device) {
-        std::optional<std::vector<nlohmann::json>> slotsData;
-        if (!json_util::readJsonPatch(req, asyncResp->res, "Oem", slotsData))
+        std::optional<nlohmann::json> oem;
+        if (!json_util::readJsonPatch(req, asyncResp->res, "Oem", oem))
         {
             return;
         }
-        if (!slotsData || slotsData->empty())
+        if (!oem)
         {
+            messages::propertyMissing(asyncResp->res, "Oem");
             return;
         }
 
-        std::vector<nlohmann::json> slots = std::move(*slotsData);
+        std::optional<nlohmann::json> ibmOem;
+        if (!json_util::readJson(*oem, asyncResp->res, "IBM", ibmOem))
+        {
+            return;
+        }
+        if (!ibmOem)
+        {
+            messages::propertyMissing(asyncResp->res, "IBM");
+            return;
+        }
+
+        std::optional<bool> linkReset;
+        if (!json_util::readJson(*ibmOem, asyncResp->res, "LinkReset",
+                                 linkReset))
+        {
+            return;
+        }
+        if (!linkReset)
+        {
+            messages::propertyMissing(asyncResp->res, "LinkReset");
+            return;
+        }
 
         auto handleLinkResetCallback =
-            [&slots,
-             asyncResp](const std::string& pcieSlotPath,
+            [asyncResp,
+             linkReset](const std::string& pcieSlotPath,
                         const dbus::utility::MapperServiceMap& serviceMap) {
-            for (auto& slot : slots)
-            {
-                std::optional<nlohmann::json> ibmOem;
-                if (redfish::json_util::readJson(slot, asyncResp->res, "IBM",
-                                                 ibmOem))
-                {
-                    if (ibmOem)
-                    {
-                        std::optional<bool> linkReset;
-                        if (json_util::readJson(*ibmOem, asyncResp->res,
-                                                "LinkReset", linkReset))
-                        {
-                            handleLinkReset(asyncResp, pcieSlotPath, serviceMap,
-                                            *linkReset);
-                        }
-                    }
-                }
-            }
+            handleLinkReset(asyncResp, pcieSlotPath, serviceMap, *linkReset);
         };
 
         findPcieSlotPath(asyncResp, device, std::move(handleLinkResetCallback));
