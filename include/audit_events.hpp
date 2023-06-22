@@ -18,19 +18,15 @@ int auditfd = -1;
 
 /**
  * @brief Closes connection for recording audit events
- * @param[in] setRetry    Sets state for allowing a new audit connection
  */
-inline void auditClose(bool setRetry)
+inline void auditClose(void)
 {
     if (auditfd >= 0)
     {
         audit_close(auditfd);
         auditfd = -1;
+        BMCWEB_LOG_DEBUG << "Audit log closed.";
     }
-
-    tryOpen = setRetry;
-
-    BMCWEB_LOG_DEBUG << "Audit log closed. tryOpen = " << tryOpen;
 
     return;
 }
@@ -39,7 +35,7 @@ inline void auditClose(bool setRetry)
  * @brief Opens connection for recording audit events
  *
  * Reuses prior connection if available.
-
+ *
  * @return If connection was successful or not
  */
 inline bool auditOpen(void)
@@ -57,8 +53,7 @@ inline bool auditOpen(void)
 
         if (auditfd < 0)
         {
-            BMCWEB_LOG_ERROR << "Error opening audit socket : "
-                             << strerror(errno);
+            BMCWEB_LOG_ERROR << "Error opening audit socket : " << errno;
             return false;
         }
         BMCWEB_LOG_DEBUG << "Audit fd created : " << auditfd;
@@ -76,8 +71,27 @@ inline bool auditOpen(void)
  */
 inline bool auditReopen(void)
 {
-    auditClose(true);
+    auditClose();
     return auditOpen();
+}
+
+/**
+ * @brief Sets state for audit connection
+ * @param[in] enable    New state for audit connection.
+ *			If false, then any existing connection will be closed.
+ */
+inline void auditSetState(bool enable)
+{
+    if (enable == false)
+    {
+        auditClose();
+    }
+
+    tryOpen = enable;
+
+    BMCWEB_LOG_DEBUG << "Audit state: tryOpen = " << tryOpen;
+
+    return;
 }
 
 inline bool checkPostAudit(const crow::Request& req)
@@ -127,8 +141,7 @@ inline void auditEvent(const char* opPath, const std::string& userName,
     user = audit_encode_nv_string("acct", userName.c_str(), 0);
     if (user == NULL)
     {
-        BMCWEB_LOG_ERROR << "Error appending user to audit msg : "
-                         << strerror(errno);
+        BMCWEB_LOG_ERROR << "Error appending user to audit msg : " << errno;
         code = __LINE__;
     }
     else
@@ -172,8 +185,7 @@ inline void auditEvent(const char* opPath, const std::string& userName,
         }
         if (rc <= 0)
         {
-            BMCWEB_LOG_ERROR << "Error writing audit message: "
-                             << strerror(origErrno);
+            BMCWEB_LOG_ERROR << "Error writing audit message: " << origErrno;
         }
     }
 
