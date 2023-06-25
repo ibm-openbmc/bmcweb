@@ -1,5 +1,6 @@
+
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/OemPCIeSlots.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/OemFabricAdapter.json",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2019 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
@@ -21,23 +22,9 @@
                 }
             },
             "properties": {
-                "LinkId": {
-                    "description": "An identifier to detect the PCIe bus linked to the slot.",
-                    "readonly": true,
-                    "type": "integer"
-                },
-                "AssociatedAssembly": {
-                    "description": "Represent association slot with assembly.",
-                    "readonly": true,
-                    "type": [
-                        "null",
-                        "object"
-                    ]
-                },
-                "UpstreamFabricAdapter": {
-                    "$ref": "http://redfish.dmtf.org/schemas/v1/FabricAdapter.json#/definitions/FabricAdapter",
-                    "description": "The link to the fabric adapter.",
-                    "longDescription": "This property shall contain a link to a resource of type FabricAdapter.",
+                "Slots": {
+                    "description": "PCIe Slots",
+                    "longDescription": "Represent PCIe Slots contained by the adapter.",
                     "readonly": true,
                     "type": "object"
                 }
@@ -46,7 +33,7 @@
         },
         "Oem": {
             "additionalProperties": true,
-            "description": "OemPCIeSlots Oem properties.",
+            "description": "OemFabricAdapter Oem properties.",
             "patternProperties": {
                 "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
                     "description": "This property shall specify a valid odata or Redfish property.",
@@ -76,5 +63,5 @@
             "type": "object"
         }
     },
-    "title": "#OemPCIeSlots"
+    "title": "#OemFabricAdapter"
 }

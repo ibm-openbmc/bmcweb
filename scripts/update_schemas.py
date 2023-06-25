@@ -344,6 +344,18 @@ with open(metadata_index_path, "w") as metadata_index:
         "        <edmx:Include Namespace=\"OemMessage.v1_0_0\"/>\n")
     metadata_index.write("    </edmx:Reference>\n")
 
+    metadata_index.write(
+        "    <edmx:Reference Uri=\""
+        "/redfish/v1/schema/OemFabricAdapter_v1.xml\">\n"
+    )
+    metadata_index.write(
+        "        <edmx:Include Namespace=\"OemFabricAdapter\"/>\n"
+    )
+    metadata_index.write(
+        "        <edmx:Include Namespace=\"OemFabricAdapter.v1_0_0\"/>\n"
+    )
+    metadata_index.write("    </edmx:Reference>\n")
+
     metadata_index.write("</edmx:Edmx>\n")
 
 

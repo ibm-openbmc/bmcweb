@@ -3,7 +3,12 @@
 #include "led.hpp"
 
 #include <app.hpp>
-#include <utils/chassis_utils.hpp>
+#include <boost/system/error_code.hpp>
+#include <dbus_utility.hpp>
+#include <pcie.hpp>
+#include <registries/privilege_registry.hpp>
+#include <sdbusplus/asio/property.hpp>
+#include <sdbusplus/unpack_properties.hpp>
 #include <utils/json_utils.hpp>
 #include <utils/pcie_util.hpp>
 
@@ -287,6 +292,59 @@ inline void linkAssociatedDiskBackplane(
         "xyz.openbmc_project.Association", "endpoints");
 }
 
+inline void
+    addLinkedFabricAdapter(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                           const std::string& pcieSlotPath, size_t index)
+{
+    constexpr std::array<const char*, 1> fabricAdapterInterfaces{
+        "xyz.openbmc_project.Inventory.Item.FabricAdapter"};
+    dbus::utility::getAssociatedSubTreePaths(
+        pcieSlotPath + "/contained_by",
+        sdbusplus::message::object_path("/xyz/openbmc_project/inventory"), 0,
+        fabricAdapterInterfaces,
+        [asyncResp, pcieSlotPath,
+         index](const boost::system::error_code& ec,
+                const dbus::utility::MapperGetSubTreePathsResponse&
+                    fabricAdapterPaths) {
+            if (ec)
+            {
+                if (ec.value() == EBADR)
+                {
+                    BMCWEB_LOG_DEBUG
+                        << "FabricAdapter Slot association not found";
+                    return;
+                }
+                BMCWEB_LOG_ERROR << "DBUS response error " << ec.value();
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            if (fabricAdapterPaths.empty())
+            {
+                // No association to FabricAdapter
+                BMCWEB_LOG_DEBUG << "FabricAdapter Slot association not found";
+                return;
+            }
+            if (fabricAdapterPaths.size() > 1)
+            {
+                BMCWEB_LOG_ERROR
+                    << "DBUS response has more than FabricAdapters of "
+                    << fabricAdapterPaths.size();
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            // Add a link to FabricAdapter
+            const std::string& fabricAdapterPath = fabricAdapterPaths.front();
+            nlohmann::json& slot = asyncResp->res.jsonValue["Slots"][index];
+
+            slot["Oem"]["@odata.type"] = "#OemPCIeSlots.Oem";
+            slot["Oem"]["IBM"]["@odata.type"] = "#OemPCIeSlots.IBM";
+            slot["Oem"]["IBM"]["UpstreamFabricAdapter"]["@odata.id"] =
+                "/redfish/v1/Systems/system/FabricAdapters/" +
+                fabric_util::buildFabricUniquePath(fabricAdapterPath);
+        });
+}
+
 inline void getPCIeSlots(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                          const std::string& chassisID)
 {
@@ -542,6 +600,11 @@ inline void getPCIeSlots(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                                 }
                                 addLinkedPcieDevices(asyncResp, pcieSlotPath,
                                                      index);
+
+                                // Get FabricAdapter device link if exists
+                                addLinkedFabricAdapter(asyncResp, pcieSlotPath,
+                                                       index);
+
                                 linkAssociatedProcessor(asyncResp, pcieSlotPath,
                                                         index);
                                 linkAssociatedDiskBackplane(
