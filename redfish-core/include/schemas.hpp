@@ -134,5 +134,6 @@ namespace redfish
         "OemMessage",
         "OemUpdateService",
         "OemPCIeSlots",
+        "OemFabricAdapter",
     };
 }
