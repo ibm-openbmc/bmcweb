@@ -57,5 +57,44 @@ TEST(auditReopen, PositiveTest)
     EXPECT_NE(auditfd, -1);
 }
 
+TEST(wantAudit, PositiveTest)
+{
+    constexpr const std::string_view url = "/foo";
+    std::error_code ec;
+
+    crow::Request patchRequest{{boost::beast::http::verb::patch, url, 11}, ec};
+    EXPECT_TRUE(wantAudit(patchRequest));
+
+    crow::Request putRequest{{boost::beast::http::verb::put, url, 11}, ec};
+    EXPECT_TRUE(wantAudit(putRequest));
+
+    crow::Request deleteRequest{{boost::beast::http::verb::delete_, url, 11},
+                                ec};
+    EXPECT_TRUE(wantAudit(deleteRequest));
+
+    crow::Request postRequest{{boost::beast::http::verb::post, url, 11}, ec};
+    EXPECT_TRUE(wantAudit(postRequest));
+}
+
+TEST(wantAudit, NegativeTest)
+{
+    constexpr const std::string_view url = "/foo";
+    std::error_code ec;
+
+    crow::Request postRequest{{boost::beast::http::verb::post, url, 11}, ec};
+
+    postRequest.target("/redfish/v1/SessionService/Sessions");
+    EXPECT_FALSE(wantAudit(postRequest));
+
+    postRequest.target("/redfish/v1/SessionService/Sessions/");
+    EXPECT_FALSE(wantAudit(postRequest));
+
+    postRequest.target("/login");
+    EXPECT_FALSE(wantAudit(postRequest));
+
+    crow::Request getRequest{{boost::beast::http::verb::get, url, 11}, ec};
+    EXPECT_FALSE(wantAudit(getRequest));
+}
+
 } // namespace
 } // namespace audit

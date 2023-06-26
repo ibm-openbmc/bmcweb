@@ -94,6 +94,14 @@ inline void auditSetState(bool enable)
     return;
 }
 
+/**
+ * @brief Checks if POST request should be audited on completion
+ *
+ * Login and Session requests are audited when the authentication is attempted.
+ * This allows failed requests to be audited with the user detail.
+ *
+ * @return True if request should be audited
+ */
 inline bool checkPostAudit(const crow::Request& req)
 {
     if ((req.target() == "/redfish/v1/SessionService/Sessions") ||
@@ -103,6 +111,24 @@ inline bool checkPostAudit(const crow::Request& req)
         return false;
     }
     return true;
+}
+
+/**
+ * @brief Checks if request should be audited after completion
+ * @return  True if request should be audited
+ */
+inline bool wantAudit(const crow::Request& req)
+{
+    if ((req.method() == boost::beast::http::verb::patch) ||
+        (req.method() == boost::beast::http::verb::put) ||
+        (req.method() == boost::beast::http::verb::delete_) ||
+        ((req.method() == boost::beast::http::verb::post) &&
+         checkPostAudit(req)))
+    {
+        return true;
+    }
+
+    return false;
 }
 
 inline void auditEvent(const char* opPath, const std::string& userName,

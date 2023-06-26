@@ -495,11 +495,7 @@ class Connection :
         res = std::move(thisRes);
 
 #ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
-        if (((req->method() == boost::beast::http::verb::post) &&
-             audit::checkPostAudit(*req)) ||
-            (req->method() == boost::beast::http::verb::patch) ||
-            (req->method() == boost::beast::http::verb::put) ||
-            (req->method() == boost::beast::http::verb::delete_))
+        if (audit::wantAudit(*req))
         {
             if (userSession != nullptr)
             {
