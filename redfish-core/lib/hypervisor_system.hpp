@@ -680,13 +680,15 @@ inline void parseInterfaceData(
     }
 
     std::string ipv6GatewayStr = ethData.ipv6DefaultGateway;
+
     if (ipv6GatewayStr.empty())
     {
         ipv6GatewayStr = "::";
     }
 
-    jsonResponse["IPv6DefaultGateway"] = ipv6GatewayStr;
-
+    nlohmann::json& ipv6StaticDefaultGw =
+        jsonResponse["IPv6StaticDefaultGateways"];
+    ipv6StaticDefaultGw = nlohmann::json::array();
     nlohmann::json& ipv6Array = jsonResponse["IPv6Addresses"];
     nlohmann::json& ipv6StaticArray = jsonResponse["IPv6StaticAddresses"];
     ipv6Array = nlohmann::json::array();
@@ -707,7 +709,12 @@ inline void parseInterfaceData(
             ipv6StaticArray.push_back(
                 {{"Address", ipv6Config.address},
                  {"PrefixLength", ipv6Config.prefixLength}});
+            if (ipv6GatewayStr != "::")
+            {
+                ipv6StaticDefaultGw.push_back({{"Address", ipv6GatewayStr}});
+            }
         }
+        jsonResponse["IPv6DefaultGateway"] = ipv6GatewayStr;
     }
 
     if (ipv4IsActive)
