@@ -1,5 +1,8 @@
 #pragma once
 
+#include "http_request.hpp"
+#include "logging.hpp"
+
 #include <libaudit.h>
 
 #include <boost/asio/ip/host_name.hpp>
@@ -9,6 +12,87 @@
 
 namespace audit
 {
+
+bool tryOpen = true;
+int auditfd = -1;
+
+/**
+ * @brief Closes connection for recording audit events
+ */
+inline void auditClose(void)
+{
+    if (auditfd >= 0)
+    {
+        audit_close(auditfd);
+        auditfd = -1;
+        BMCWEB_LOG_DEBUG << "Audit log closed.";
+    }
+
+    return;
+}
+
+/**
+ * @brief Opens connection for recording audit events
+ *
+ * Reuses prior connection if available.
+ *
+ * @return If connection was successful or not
+ */
+inline bool auditOpen(void)
+{
+    if (auditfd < 0)
+    {
+        /* Blocking opening of audit connection */
+        if (!tryOpen)
+        {
+            BMCWEB_LOG_DEBUG << "Audit connection disabled";
+            return false;
+        }
+
+        auditfd = audit_open();
+
+        if (auditfd < 0)
+        {
+            BMCWEB_LOG_ERROR << "Error opening audit socket : " << errno;
+            return false;
+        }
+        BMCWEB_LOG_DEBUG << "Audit fd created : " << auditfd;
+    }
+
+    return true;
+}
+
+/**
+ * @brief Establishes new connection for recording audit events
+ *
+ * Closes any existing connection and tries to create a new connection.
+ *
+ * @return If new connection was successful or not
+ */
+inline bool auditReopen(void)
+{
+    auditClose();
+    return auditOpen();
+}
+
+/**
+ * @brief Sets state for audit connection
+ * @param[in] enable    New state for audit connection.
+ *			If false, then any existing connection will be closed.
+ */
+inline void auditSetState(bool enable)
+{
+    if (enable == false)
+    {
+        auditClose();
+    }
+
+    tryOpen = enable;
+
+    BMCWEB_LOG_DEBUG << "Audit state: tryOpen = " << tryOpen;
+
+    return;
+}
 
 inline bool checkPostAudit(const crow::Request& req)
 {
@@ -24,7 +108,6 @@ inline bool checkPostAudit(const crow::Request& req)
 inline void auditEvent(const char* opPath, const std::string& userName,
                        const std::string& ipAddress, bool success)
 {
-    int auditfd;
     int code = __LINE__;
 
     char cnfgBuff[256];
@@ -32,12 +115,11 @@ inline void auditEvent(const char* opPath, const std::string& userName,
     char* user = NULL;
     size_t opPathLen;
     size_t userLen = 0;
+    int rc;
+    int origErrno;
 
-    auditfd = audit_open();
-
-    if (auditfd < 0)
+    if (auditOpen() == false)
     {
-        BMCWEB_LOG_ERROR << "Error opening audit socket : " << strerror(errno);
         return;
     }
 
@@ -59,8 +141,7 @@ inline void auditEvent(const char* opPath, const std::string& userName,
     user = audit_encode_nv_string("acct", userName.c_str(), 0);
     if (user == NULL)
     {
-        BMCWEB_LOG_ERROR << "Error appending user to audit msg : "
-                         << strerror(errno);
+        BMCWEB_LOG_ERROR << "Error appending user to audit msg : " << errno;
         code = __LINE__;
     }
     else
@@ -86,14 +167,28 @@ inline void auditEvent(const char* opPath, const std::string& userName,
 
     free(user);
 
-    if (audit_log_user_message(auditfd, AUDIT_USYS_CONFIG, cnfgBuff,
-                               boost::asio::ip::host_name().c_str(),
-                               ipAddress.c_str(), NULL, int(success)) <= 0)
+    rc = audit_log_user_message(auditfd, AUDIT_USYS_CONFIG, cnfgBuff,
+                                boost::asio::ip::host_name().c_str(),
+                                ipAddress.c_str(), NULL, int(success));
+
+    if (rc <= 0)
     {
-        BMCWEB_LOG_ERROR << "Error writing audit message: " << strerror(errno);
+        // Something failed with existing connection. Try to establish a new
+        // connection and retry if successful.
+        // Preserve original errno to report if the retry fails.
+        origErrno = errno;
+        if (auditReopen())
+        {
+            rc = audit_log_user_message(auditfd, AUDIT_USYS_CONFIG, cnfgBuff,
+                                        boost::asio::ip::host_name().c_str(),
+                                        ipAddress.c_str(), NULL, int(success));
+        }
+        if (rc <= 0)
+        {
+            BMCWEB_LOG_ERROR << "Error writing audit message: " << origErrno;
+        }
     }
 
-    close(auditfd);
     return;
 }
 
