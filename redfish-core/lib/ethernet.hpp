@@ -1519,7 +1519,7 @@ inline void setDHCPConfig(const std::string& propertyName, const bool& value,
         }
         },
         "xyz.openbmc_project.Network",
-        "/xyz/openbmc_project/network/dhcp/" + ethifaceId + "/" + nwType,
+        "/xyz/openbmc_project/network/" + ethifaceId + "/" + nwType,
         "org.freedesktop.DBus.Properties", "Set",
         "xyz.openbmc_project.Network.DHCPConfiguration", propertyName,
         dbus::utility::DbusVariantType{value});
