@@ -223,11 +223,7 @@ inline void handleSessionCollectionPost(
         messages::resourceAtUriUnauthorized(asyncResp->res, req.urlView,
                                             "Invalid username or password");
 #ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
-        audit::auditEvent(("op=" + std::string(req.methodString()) + ":" +
-                           std::string(req.target()) + " ")
-                              .c_str(),
-                          std::string(username), req.ipAddress.to_string(),
-                          false);
+        audit::auditEvent(req, std::string(username), false);
 #endif
         return;
     }
@@ -277,10 +273,7 @@ inline void handleSessionCollectionPost(
     asyncResp->res.result(boost::beast::http::status::created);
 
 #ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
-    audit::auditEvent(("op=" + std::string(req.methodString()) + ":" +
-                       std::string(req.target()) + " ")
-                          .c_str(),
-                      std::string(username), req.ipAddress.to_string(), true);
+    audit::auditEvent(req, std::string(username), true);
 #endif
 
     if (session->isConfigureSelfOnly)

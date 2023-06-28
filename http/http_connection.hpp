@@ -507,30 +507,11 @@ class Connection :
                     requestSuccess = true;
                 }
 
-                std::string additionalInfo = "";
-                // Exclude the body of account PATCH/POST
-                // Exclude the body of /ibm/v1 PUT/POST
-                if (((req->method() == boost::beast::http::verb::patch ||
-                      req->method() == boost::beast::http::verb::post) &&
-                     (!req->target().starts_with(
-                          "/redfish/v1/AccountService/Accounts") &&
-                      !req->target().starts_with("/ibm/v1"))) ||
-                    (req->method() == boost::beast::http::verb::put &&
-                     !req->target().starts_with("/ibm/v1")))
-                {
-                    additionalInfo = req->body + " ";
-                }
-
-                audit::auditEvent(("op=" + std::string(req->methodString()) +
-                                   ":" + std::string(req->target()) + " " +
-                                   additionalInfo)
-                                      .c_str(),
-                                  userSession->username,
-                                  req->ipAddress.to_string(), requestSuccess);
+                audit::auditEvent(*req, userSession->username, requestSuccess);
             }
             else
             {
-                BMCWEB_LOG_ERROR
+                BMCWEB_LOG_DEBUG
                     << "UserSession is null, not able to log audit event!";
             }
         }
