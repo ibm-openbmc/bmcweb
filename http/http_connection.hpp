@@ -5,6 +5,7 @@
 #ifdef BMCWEB_ENABLE_LINUX_AUDIT_EVENTS
 #include "audit_events.hpp"
 #endif
+#include "dump_utils.hpp"
 #include "http_response.hpp"
 #include "http_utility.hpp"
 #include "logging.hpp"
@@ -423,11 +424,21 @@ class Connection :
                     return;
                 }
             });
-            BMCWEB_LOG_DEBUG << "upgrade stream connection";
-            handler->handleUpgrade(*req, asyncResp, std::move(adaptor));
-            // delete lambda with self shared_ptr
-            // to enable connection destruction
-            res.completeRequestHandler = nullptr;
+
+            redfish::dump_utils::getValidDumpEntryForAttachment(
+                asyncResp, url,
+                [asyncResp, this, self(shared_from_this())](
+                    [[maybe_unused]] const std::string& objectPath,
+                    [[maybe_unused]] const std::string& entryID,
+                    [[maybe_unused]] const std::string& dumpType) {
+                BMCWEB_LOG_DEBUG << "upgrade stream connection";
+                handler->handleUpgrade(*req, asyncResp, std::move(adaptor));
+
+                // delete lambda with self shared_ptr
+                // to enable connection destruction
+                res.completeRequestHandler = nullptr;
+                });
+
             return;
         }
 
