@@ -344,6 +344,7 @@ srcfiles_bmcweb = files(
   'src/boost_beast.cpp',
   'src/boost_url.cpp',
   'src/dbus_singleton.cpp',
+  'src/ssdp_server.cpp',
 )
 
 # Generate the bmcweb executable
