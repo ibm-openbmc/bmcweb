@@ -137,6 +137,8 @@ static int run()
     crow::dbus_monitor::registerBIOSAttrUpdateSignal();
     // Start event log entry created monitor
     crow::dbus_monitor::registerEventLogCreatedSignal();
+    // Start PostCode change signal
+    crow::dbus_monitor::registerPostCodeChangeSignal();
     // Start hypervisor app dbus monitor for hypervisor
     // network configurations
     crow::dbus_monitor::registerVMIConfigChangeSignal();
