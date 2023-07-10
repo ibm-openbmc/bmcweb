@@ -188,16 +188,13 @@ inline void auditEvent(const crow::Request& req, const std::string& userName,
 {
     std::string opPath;
     char cnfgBuff[256];
-    size_t bufLeft = 256; // Amount left available in cnfgBuff
-    char* user = NULL;
-    size_t opPathLen;
-    size_t userLen = 0;
+    size_t bufLeft = sizeof(cnfgBuff); // Amount left available in cnfgBuff
     int rc;
     int origErrno;
     std::string ipAddress;
-    std::string detail = "";
+    std::string detail;
 
-    if (auditOpen() == false)
+    if (!auditOpen())
     {
         return;
     }
@@ -205,7 +202,7 @@ inline void auditEvent(const crow::Request& req, const std::string& userName,
     opPath = "op=" + std::string(req.methodString()) + ":" +
              std::string(req.target()) + " ";
     // Account for NULL
-    opPathLen = opPath.length() + 1;
+    size_t opPathLen = opPath.length() + 1;
     if (opPathLen > bufLeft)
     {
         // Truncate event message to fit into fixed sized buffer.
@@ -224,7 +221,7 @@ inline void auditEvent(const crow::Request& req, const std::string& userName,
         detail = req.body + " ";
     }
 
-    if (detail.length() > 0)
+    if (!detail.empty())
     {
         if (detail.length() > bufLeft)
         {
@@ -242,7 +239,17 @@ inline void auditEvent(const crow::Request& req, const std::string& userName,
     }
 
     // encode user account name to ensure it is in an appropriate format
-    user = audit_encode_nv_string("acct", userName.c_str(), 0);
+    size_t userLen = 0;
+    char* user = audit_encode_nv_string("acct", userName.c_str(), 0);
+
+    // setup a unique_ptr to handle freeing memory from user
+    std::unique_ptr<char, void (*)(char*)> userUP(user, [](char* ptr) {
+        if (ptr != nullptr)
+        {
+            ::free(ptr);
+        }
+    });
+
     if (user == NULL)
     {
         BMCWEB_LOG_ERROR << "Error appending user to audit msg : " << errno;
@@ -269,8 +276,6 @@ inline void auditEvent(const crow::Request& req, const std::string& userName,
                      << " opPathLen=" << opPathLen
                      << " detailLen=" << detail.length()
                      << " userLen=" << userLen;
-
-    free(user);
 
     ipAddress = req.ipAddress.to_string();
 
