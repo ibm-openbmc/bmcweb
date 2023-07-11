@@ -2909,7 +2909,7 @@ inline void handleSensorGet(App& app, const crow::Request& req,
 
     BMCWEB_LOG_DEBUG << "Sensor doGet enter";
 
-    std::array<const char*, 1> interfaces = {
+    std::array<std::string_view, 1> interfaces = {
         "xyz.openbmc_project.Sensor.Value"};
     std::string sensorPath = "/xyz/openbmc_project/sensors/" + nameType.first +
                              '/' + nameType.second;

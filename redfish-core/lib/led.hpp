@@ -26,6 +26,9 @@
 
 namespace redfish
 {
+
+static constexpr std::array<std::string_view, 1> ledGroupInterface = {
+    "xyz.openbmc_project.Led.Group"};
 /**
  * @brief Retrieves identify led group properties over dbus
  *
@@ -160,9 +163,8 @@ inline void
 inline void getLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                         const std::string& ledGroup, nlohmann::json& jsonInput)
 {
-    std::array<const char*, 1> interfaces = {"xyz.openbmc_project.Led.Group"};
     dbus::utility::getDbusObject(
-        ledGroup, interfaces,
+        ledGroup, ledGroupInterface,
         [aResp, ledGroup,
          &jsonInput](const boost::system::error_code& ec,
                      const dbus::utility::MapperGetObject& object) {
@@ -195,9 +197,8 @@ inline void getLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 inline void setLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                         const std::string& ledGroup, bool ledState)
 {
-    std::array<const char*, 1> interfaces = {"xyz.openbmc_project.Led.Group"};
     dbus::utility::getDbusObject(
-        ledGroup, interfaces,
+        ledGroup, ledGroupInterface,
         [aResp, ledGroup,
          ledState](const boost::system::error_code& ec,
                    const dbus::utility::MapperGetObject& object) {

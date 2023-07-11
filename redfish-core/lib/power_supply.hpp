@@ -431,10 +431,8 @@ inline void
         asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
         asyncResp->res.jsonValue["Status"]["Health"] = "OK";
 
-        std::array<const char*, 1> interfaces = {
-            "xyz.openbmc_project.Inventory.Item.PowerSupply"};
         dbus::utility::getDbusObject(
-            powerSupplyPath, interfaces,
+            powerSupplyPath, powerSupplyInterface,
             [asyncResp,
              powerSupplyPath](const boost::system::error_code& ec,
                               const dbus::utility::MapperGetObject& object) {

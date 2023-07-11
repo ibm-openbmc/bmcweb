@@ -43,8 +43,8 @@ static const char* historyMaximumInterface =
 static const char* historyAverageInterface =
     "org.open_power.Sensor.Aggregation.History.Average";
 
-static std::array<const char*, 2> historyInterfaces{historyMaximumInterface,
-                                                    historyAverageInterface};
+static std::array<std::string_view, 2> historyInterfaces{
+    historyMaximumInterface, historyAverageInterface};
 
 inline void addInputHistoryProperties(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,

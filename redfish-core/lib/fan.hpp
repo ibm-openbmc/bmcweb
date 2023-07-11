@@ -325,8 +325,9 @@ inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         asyncResp->res.jsonValue["Status"]["Health"] = "OK";
         asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
 
-        std::array<const char*, 1> interfaces = {
+        std::array<std::string_view, 1> interfaces = {
             "xyz.openbmc_project.Inventory.Item.Fan"};
+
         dbus::utility::getDbusObject(
             fanPath, interfaces,
             [asyncResp, fanPath, chassisId,

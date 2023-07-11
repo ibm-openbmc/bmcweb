@@ -35,10 +35,10 @@
 namespace redfish
 {
 
-static constexpr const char* pcieDeviceInterface =
-    "xyz.openbmc_project.Inventory.Item.PCIeDevice";
-static constexpr const char* pcieSlotInterface =
-    "xyz.openbmc_project.Inventory.Item.PCIeSlot";
+static constexpr std::array<std::string_view, 1> pcieDeviceInterface = {
+    "xyz.openbmc_project.Inventory.Item.PCIeDevice"};
+static constexpr std::array<std::string_view, 1> pcieSlotInterface = {
+    "xyz.openbmc_project.Inventory.Item.PCIeSlot"};
 
 using FindPcieSlotCbFunc = std::function<void(
     const std::string&, const dbus::utility::MapperServiceMap&)>;
@@ -107,11 +107,8 @@ inline void getPcieDevicePathAndService(
             return;
         }
 
-        // Find DBus object to get its serviceName
-        std::array<const char*, 1> interfaces = {pcieDeviceInterface};
-
         dbus::utility::getDbusObject(
-            pcieDevicePath, interfaces,
+            pcieDevicePath, pcieDeviceInterface,
             [pcieDevice, pcieDevicePath, asyncResp,
              callback{callback}](const boost::system::error_code& ec1,
                                  const dbus::utility::MapperGetObject& object) {
@@ -312,9 +309,8 @@ static inline void
                            const std::string& pcieSlotPath,
                            const std::string& pcieDevice, Callback&& callback)
 {
-    constexpr std::array<std::string_view, 1> interfaces = {pcieSlotInterface};
     dbus::utility::getSubTree(
-        "/xyz/openbmc_project/inventory", 0, interfaces,
+        "/xyz/openbmc_project/inventory", 0, pcieSlotInterface,
         [asyncResp, pcieSlotPath, pcieDevice,
          callback{std::forward<Callback>(callback)}](
             const boost::system::error_code& ec,
@@ -853,7 +849,8 @@ inline void requestRoutesSystemPCIeFunctionCollection(App& app)
 
             sdbusplus::asio::getAllProperties(
                 *crow::connections::systemBus, serviceName, pcieDevicePath,
-                pcieDeviceInterface, std::move(getPCIeDeviceCallback));
+                "xyz.openbmc_project.Inventory.Item.PCIeDevice",
+                std::move(getPCIeDeviceCallback));
         });
         });
 } // namespace redfish
@@ -990,7 +987,8 @@ inline void requestRoutesSystemPCIeFunction(App& app)
 
             sdbusplus::asio::getAllProperties(
                 *crow::connections::systemBus, serviceName, pcieDevicePath,
-                pcieDeviceInterface, getPCIeDeviceCallback);
+                "xyz.openbmc_project.Inventory.Item.PCIeDevice",
+                getPCIeDeviceCallback);
         });
         });
 }
