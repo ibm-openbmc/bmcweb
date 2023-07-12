@@ -341,21 +341,23 @@ inline void getComputerSystem(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                                     aResp->res
                                         .jsonValue["MemorySummary"]
                                                   ["TotalSystemMemoryGiB"];
-                                const uint64_t* preValue =
-                                    totalMemory.get_ptr<const uint64_t*>();
+                                const double* preValue =
+                                    totalMemory.get_ptr<const double*>();
                                 if (preValue == nullptr)
                                 {
                                     aResp->res
                                         .jsonValue["MemorySummary"]
                                                   ["TotalSystemMemoryGiB"] =
-                                        *memorySizeInKB / (1024 * 1024);
+                                        static_cast<double>(*memorySizeInKB) /
+                                        (1024 * 1024);
                                 }
                                 else
                                 {
                                     aResp->res
                                         .jsonValue["MemorySummary"]
                                                   ["TotalSystemMemoryGiB"] =
-                                        *memorySizeInKB / (1024 * 1024) +
+                                        static_cast<double>(*memorySizeInKB) /
+                                            (1024 * 1024) +
                                         *preValue;
                                 }
                                 aResp->res.jsonValue["MemorySummary"]["Status"]
@@ -2524,7 +2526,7 @@ inline void requestRoutesSystems(App& app)
         asyncResp->res.jsonValue["ProcessorSummary"]["Status"]["State"] =
             "Disabled";
         asyncResp->res.jsonValue["MemorySummary"]["TotalSystemMemoryGiB"] =
-            uint64_t(0);
+            double(0);
         asyncResp->res.jsonValue["MemorySummary"]["Status"]["State"] =
             "Disabled";
         asyncResp->res.jsonValue["@odata.id"] = "/redfish/v1/Systems/system";
