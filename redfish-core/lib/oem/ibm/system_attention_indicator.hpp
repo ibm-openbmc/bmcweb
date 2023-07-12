@@ -36,7 +36,8 @@ inline void getSAI(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         return;
     }
 
-    std::array<const char*, 1> interfaces = {"xyz.openbmc_project.Led.Group"};
+    std::array<std::string_view, 1> interfaces = {
+        "xyz.openbmc_project.Led.Group"};
     dbus::utility::getDbusObject(
         "/xyz/openbmc_project/led/groups/" + name, interfaces,
         [aResp, name,
@@ -106,7 +107,8 @@ inline void setSAI(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         return;
     }
 
-    std::array<const char*, 1> interfaces = {"xyz.openbmc_project.Led.Group"};
+    std::array<std::string_view, 1> interfaces = {
+        "xyz.openbmc_project.Led.Group"};
     dbus::utility::getDbusObject(
         "/xyz/openbmc_project/led/groups/" + name, interfaces,
         [aResp, name, value](const boost::system::error_code& ec,

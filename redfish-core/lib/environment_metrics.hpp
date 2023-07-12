@@ -14,6 +14,8 @@
 
 namespace redfish
 {
+static constexpr std::array<std::string_view, 1> sensorInterface = {
+    "xyz.openbmc_project.Sensor.Value"};
 inline void
     updateFanSensorList(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                         const std::string& chassisId,
@@ -66,9 +68,8 @@ inline void
                       const std::string& fanSensorPath,
                       const std::string& chassisId)
 {
-    std::array<const char*, 1> intefaces{"xyz.openbmc_project.Sensor.Value"};
     dbus::utility::getDbusObject(
-        fanSensorPath, intefaces,
+        fanSensorPath, sensorInterface,
         [asyncResp, chassisId,
          fanSensorPath](const boost::system::error_code& ec,
                         const dbus::utility::MapperGetObject& object) {
@@ -157,11 +158,9 @@ inline void handleEnvironmentMetricsHead(
 inline void getPowerWatts(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                           const std::string& chassisId)
 {
-    constexpr const char* interface = "xyz.openbmc_project.Sensor.Value";
     const std::string sensorPath = "/xyz/openbmc_project/sensors";
-    constexpr std::array<std::string_view, 1> sensorInterfaces = {interface};
     dbus::utility::getSubTreePaths(
-        sensorPath, 0, sensorInterfaces,
+        sensorPath, 0, sensorInterface,
         [asyncResp,
          chassisId](const boost::system::error_code& ec,
                     const dbus::utility::MapperGetSubTreePathsResponse& paths) {
@@ -190,9 +189,8 @@ inline void getPowerWatts(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
         const std::string& totalPowerPath =
             "/xyz/openbmc_project/sensors/power/total_power";
-        std::array<const char*, 1> totalPowerInterfaces = {interface};
         dbus::utility::getDbusObject(
-            totalPowerPath, totalPowerInterfaces,
+            totalPowerPath, sensorInterface,
             [asyncResp, chassisId,
              totalPowerPath](const boost::system::error_code& ec1,
                              const dbus::utility::MapperGetObject& object) {

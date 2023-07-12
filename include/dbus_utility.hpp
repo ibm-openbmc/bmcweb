@@ -248,7 +248,8 @@ inline void getAssociatedSubTreePaths(
 }
 
 inline void
-    getDbusObject(const std::string& path, std::span<const char*> interfaces,
+    getDbusObject(const std::string& path,
+                  std::span<const std::string_view> interfaces,
                   std::function<void(const boost::system::error_code&,
                                      const MapperGetObject&)>&& callback)
 {

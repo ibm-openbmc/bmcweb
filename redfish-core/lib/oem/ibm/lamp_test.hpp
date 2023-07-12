@@ -20,7 +20,8 @@ inline void getLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
 {
     BMCWEB_LOG_DEBUG << "Get lamp test state";
 
-    std::array<const char*, 1> interfaces = {"xyz.openbmc_project.Led.Group"};
+    std::array<std::string_view, 1> interfaces = {
+        "xyz.openbmc_project.Led.Group"};
     dbus::utility::getDbusObject(
         "/xyz/openbmc_project/led/groups/lamp_test", interfaces,
         [aResp](const boost::system::error_code& ec,
@@ -73,7 +74,8 @@ inline void setLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 {
     BMCWEB_LOG_DEBUG << "Set lamp test status.";
 
-    std::array<const char*, 1> interfaces = {"xyz.openbmc_project.Led.Group"};
+    std::array<std::string_view, 1> interfaces = {
+        "xyz.openbmc_project.Led.Group"};
     dbus::utility::getDbusObject(
         "/xyz/openbmc_project/led/groups/lamp_test", interfaces,
         [aResp, state](const boost::system::error_code& ec,
