@@ -186,21 +186,16 @@ inline bool wantDetail(const crow::Request& req)
 inline void auditEvent(const crow::Request& req, const std::string& userName,
                        bool success)
 {
-    std::string opPath;
-    char cnfgBuff[256];
-    size_t bufLeft = sizeof(cnfgBuff); // Amount left available in cnfgBuff
-    int rc;
-    int origErrno;
-    std::string ipAddress;
-    std::string detail;
-
     if (!auditOpen())
     {
         return;
     }
 
-    opPath = "op=" + std::string(req.methodString()) + ":" +
-             std::string(req.target()) + " ";
+    char cnfgBuff[256];
+    size_t bufLeft = sizeof(cnfgBuff); // Amount left available in cnfgBuff
+
+    std::string opPath = "op=" + std::string(req.methodString()) + ":" +
+                         std::string(req.target()) + " ";
     // Account for NULL
     size_t opPathLen = opPath.length() + 1;
     if (opPathLen > bufLeft)
@@ -216,6 +211,7 @@ inline void auditEvent(const crow::Request& req, const std::string& userName,
     bufLeft -= opPathLen;
 
     // Determine any additional info for the event
+    std::string detail;
     if (wantDetail(req))
     {
         detail = req.body + " ";
@@ -242,20 +238,20 @@ inline void auditEvent(const crow::Request& req, const std::string& userName,
     size_t userLen = 0;
     char* user = audit_encode_nv_string("acct", userName.c_str(), 0);
 
-    // setup a unique_ptr to handle freeing memory from user
-    std::unique_ptr<char, void (*)(char*)> userUP(user, [](char* ptr) {
-        if (ptr != nullptr)
-        {
-            ::free(ptr);
-        }
-    });
-
     if (user == NULL)
     {
-        BMCWEB_LOG_ERROR << "Error appending user to audit msg : " << errno;
+        BMCWEB_LOG_WARNING << "Error encoding user for audit msg : " << errno;
     }
     else
     {
+        // setup a unique_ptr to handle freeing memory from user
+        std::unique_ptr<char, void (*)(char*)> userUP(user, [](char* ptr) {
+            if (ptr != nullptr)
+            {
+                ::free(ptr);
+            }
+        });
+
         userLen = std::strlen(user);
 
         if (userLen > bufLeft)
@@ -277,18 +273,18 @@ inline void auditEvent(const crow::Request& req, const std::string& userName,
                      << " detailLen=" << detail.length()
                      << " userLen=" << userLen;
 
-    ipAddress = req.ipAddress.to_string();
+    std::string ipAddress = req.ipAddress.to_string();
 
-    rc = audit_log_user_message(auditfd, AUDIT_USYS_CONFIG, cnfgBuff,
-                                boost::asio::ip::host_name().c_str(),
-                                ipAddress.c_str(), NULL, int(success));
+    int rc = audit_log_user_message(auditfd, AUDIT_USYS_CONFIG, cnfgBuff,
+                                    boost::asio::ip::host_name().c_str(),
+                                    ipAddress.c_str(), NULL, int(success));
 
     if (rc <= 0)
     {
         // Something failed with existing connection. Try to establish a new
         // connection and retry if successful.
         // Preserve original errno to report if the retry fails.
-        origErrno = errno;
+        int origErrno = errno;
         if (auditReopen())
         {
             rc = audit_log_user_message(auditfd, AUDIT_USYS_CONFIG, cnfgBuff,
