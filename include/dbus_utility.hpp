@@ -176,5 +176,78 @@ inline void getAssociationEndPoints(
         });
 }
 
+// NOTE: getAssociatedSubTreePaths() is implemented without using the DBUS
+// primitive function "GetAssociatedSubTreePaths"
+
+template <std::size_t N>
+inline void validateAssociatedSubTreePaths(
+    const sdbusplus::message::object_path& associatedPath,
+    const dbus::utility::MapperEndPoints& endpoints,
+    const sdbusplus::message::object_path& path, int32_t depth,
+    const std::array<const char*, N>& interfaces,
+    std::function<void(const boost::system::error_code&,
+                       const MapperGetSubTreePathsResponse&)>&& callback)
+{
+    // Walk thru SubTree of path and check whether it matches with
+    // interfaces
+    getSubTreePaths(
+        path, depth, interfaces,
+        [associatedPath, endpoints, path, depth, interfaces, callback](
+            const boost::system::error_code ec,
+            const dbus::utility::MapperGetSubTreePathsResponse& subtreePaths) {
+            MapperGetSubTreePathsResponse associatedSubtreePaths;
+            if (ec || subtreePaths.empty())
+            {
+                // callback with ec & empty subtreePaths
+                callback(ec, associatedSubtreePaths);
+                return;
+            }
+
+            // Build a set of endpoints for the quicker search
+            std::set<std::string> endpointSet(endpoints.begin(),
+                                              endpoints.end());
+
+            for (const auto& objectPath : subtreePaths)
+            {
+                if (endpointSet.find(objectPath) != endpointSet.end())
+                {
+                    associatedSubtreePaths.emplace_back(objectPath);
+                }
+            }
+
+            std::sort(associatedSubtreePaths.begin(),
+                      associatedSubtreePaths.end());
+            callback(ec, associatedSubtreePaths);
+        });
+}
+
+template <std::size_t N>
+inline void getAssociatedSubTreePaths(
+    const sdbusplus::message::object_path& associatedPath,
+    const sdbusplus::message::object_path& path, int32_t depth,
+    const std::array<const char*, N>& interfaces,
+    std::function<void(const boost::system::error_code&,
+                       const MapperGetSubTreePathsResponse&)>&& callback)
+{
+    getAssociationEndPoints(
+        associatedPath, [associatedPath, path, depth, interfaces, callback](
+                            const boost::system::error_code& ec,
+                            const dbus::utility::MapperEndPoints& endpoints) {
+            if (ec || endpoints.empty())
+            {
+                // callback with ec & empty subtreePaths
+                MapperGetSubTreePathsResponse subtreePaths;
+                callback(ec, subtreePaths);
+                return;
+            }
+
+            validateAssociatedSubTreePaths(
+                associatedPath, endpoints, path, depth, interfaces,
+                [callback](const boost::system::error_code& ec,
+                           const dbus::utility::MapperGetSubTreePathsResponse&
+                               subtreePaths) { callback(ec, subtreePaths); });
+        });
+}
+
 } // namespace utility
 } // namespace dbus
