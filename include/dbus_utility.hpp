@@ -15,10 +15,22 @@
  */
 #pragma once
 
-#include <sdbusplus/message.hpp>
+#include "dbus_singleton.hpp"
 
+#include <boost/system/error_code.hpp>
+#include <sdbusplus/asio/property.hpp>
+#include <sdbusplus/message.hpp>
+#include <sdbusplus/unpack_properties.hpp>
+
+#include <algorithm>
+#include <array>
+#include <cstddef>
 #include <filesystem>
+#include <functional>
 #include <regex>
+#include <string>
+#include <tuple>
+#include <vector>
 
 namespace dbus
 {
@@ -52,8 +64,12 @@ using MapperServiceMap =
 using MapperGetSubTreeResponse =
     std::vector<std::pair<std::string, MapperServiceMap>>;
 
+using MapperGetSubTreePathsResponse = std::vector<std::string>;
+
 using MapperGetObject =
     std::vector<std::pair<std::string, std::vector<std::string>>>;
+
+using MapperEndPoints = std::vector<std::string>;
 
 inline void escapePathForDbus(std::string& path)
 {
@@ -108,6 +124,56 @@ inline void checkDbusPathExists(const std::string& path, Callback&& callback)
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject", path,
         std::array<std::string, 0>());
+}
+
+template <std::size_t N>
+inline void
+    getSubTree(const std::string& path, int32_t depth,
+               const std::array<const char*, N>& interfaces,
+               std::function<void(const boost::system::error_code&,
+                                  const MapperGetSubTreeResponse&)>&& callback)
+{
+    crow::connections::systemBus->async_method_call(
+        [callback](const boost::system::error_code ec,
+                   const MapperGetSubTreeResponse& subtree) {
+            callback(ec, subtree);
+        },
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetSubTree", path, depth,
+        interfaces);
+}
+
+template <std::size_t N>
+inline void getSubTreePaths(
+    const std::string& path, int32_t depth,
+    const std::array<const char*, N>& interfaces,
+    std::function<void(const boost::system::error_code&,
+                       const MapperGetSubTreePathsResponse&)>&& callback)
+{
+    crow::connections::systemBus->async_method_call(
+        [callback](const boost::system::error_code ec,
+                   const MapperGetSubTreePathsResponse& subtreePaths) {
+            callback(ec, subtreePaths);
+        },
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", path, depth,
+        interfaces);
+}
+
+inline void getAssociationEndPoints(
+    const std::string& path,
+    std::function<void(const boost::system::error_code&,
+                       const MapperEndPoints&)>&& callback)
+{
+    sdbusplus::asio::getProperty<MapperEndPoints>(
+        *crow::connections::systemBus, "xyz.openbmc_project.ObjectMapper", path,
+        "xyz.openbmc_project.Association", "endpoints",
+        [callback](const boost::system::error_code& ec,
+                   const MapperEndPoints& endpoints) {
+            callback(ec, endpoints);
+        });
 }
 
 } // namespace utility
