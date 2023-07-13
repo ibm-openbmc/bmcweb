@@ -187,7 +187,7 @@ class Lock
 
 inline RcGetLockList Lock::getLockList(const ListOfSessionIds& listSessionId)
 {
-    std::vector<std::pair<uint32_t, LockRequests>> lockList;
+    std::vector<std::pair<uint32_t, LockRequests>> lockList{};
 
     if (!lockTable.empty())
     {
@@ -516,22 +516,19 @@ inline bool Lock::isConflictRequest(const LockRequests& refLockRequestStructure)
 // If all the elements in the lock requests which are subjected for comparison
 // are same, then the last comparison would be to check for the respective
 // bytes in the resourceid based on the segment length.
-
 inline bool Lock::checkByte(uint64_t resourceId1, uint64_t resourceId2,
                             uint32_t position)
 {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    uint8_t* p = reinterpret_cast<uint8_t*>(&resourceId1);
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    uint8_t* q = reinterpret_cast<uint8_t*>(&resourceId2);
+    if (position >= sizeof(resourceId1))
+    {
+        return false;
+    }
 
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    uint8_t pPosition = p[position];
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    uint8_t qPosition = q[position];
+    uint8_t pPosition = 0;
+    uint8_t qPosition = 0;
+    pPosition = 0xFF & (resourceId1 >> (8 * position));
+    qPosition = 0xFF & (resourceId2 >> (8 * position));
 
-    BMCWEB_LOG_DEBUG << "Comparing bytes " << std::to_string(pPosition) << ","
-                     << std::to_string(qPosition);
     return pPosition == qPosition;
 }
 
