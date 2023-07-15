@@ -203,9 +203,8 @@ inline void doGetFabricAdapterPCIeSlots(
     const std::shared_ptr<bmcweb::AsyncResp>& aResp,
     const std::string& fabricAdapterPath,
     const dbus::utility::MapperEndPoints& pcieSlotPaths,
-    std::function<void(const std::string&,
-                       const dbus::utility::MapperEndPoints&)>
-        callback)
+    const std::function<void(const std::string&,
+                             const dbus::utility::MapperEndPoints&)>&& callback)
 {
     constexpr std::array<std::string_view, 1> chassisInterface{
         "xyz.openbmc_project.Inventory.Item.Chassis"};
