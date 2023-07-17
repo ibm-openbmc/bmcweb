@@ -1,4 +1,5 @@
 #include <dbus_utility.hpp>
+#include <dump_offload.hpp>
 #include <error_messages.hpp>
 #include <event_service_manager.hpp>
 #include <resource_messages.hpp>
@@ -136,8 +137,7 @@ inline void hostStatePropertyChange(sdbusplus::message::message& msg)
         if (*type == "xyz.openbmc_project.State.Host.HostState.Off")
         {
             // Reset system dump handler to handle power off scenarios
-            // TODO: Uncomment this resetHandlers after dump offload support
-            // crow::obmc_dump::resetHandlers();
+            crow::obmc_dump::resetHandlers();
 
             // reset the postCodeCounter
             postCodeCounter = 0;
