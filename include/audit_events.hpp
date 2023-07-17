@@ -183,6 +183,26 @@ inline bool wantDetail(const crow::Request& req)
     }
 }
 
+/**
+ * @brief Appends item to strBuf only if strBuf won't exceed maxBufSize
+ *
+ * @param[in,out] strBuf Buffer to append up to maxBufSize only
+ * @param[in] maxBufSize Maximum length of strBuf
+ * @param[in] item String to append if it will fit within maxBufSize
+ *
+ * @return True if item was appended
+ */
+inline bool appendItemToBuf(std::string& strBuf, size_t maxBufSize,
+                            const std::string& item)
+{
+    if (strBuf.length() + item.length() > maxBufSize)
+    {
+        return false;
+    }
+    strBuf += item;
+    return true;
+}
+
 inline void auditEvent(const crow::Request& req, const std::string& userName,
                        bool success)
 {
@@ -191,24 +211,19 @@ inline void auditEvent(const crow::Request& req, const std::string& userName,
         return;
     }
 
-    char cnfgBuff[256];
-    size_t bufLeft = sizeof(cnfgBuff); // Amount left available in cnfgBuff
-
     std::string opPath = "op=" + std::string(req.methodString()) + ":" +
                          std::string(req.target()) + " ";
-    // Account for NULL
-    size_t opPathLen = opPath.length() + 1;
-    if (opPathLen > bufLeft)
+
+    size_t maxBuf = 256; // Limit message to avoid filling log with single entry
+    std::string cnfgBuff = opPath.substr(0, maxBuf);
+
+    if (cnfgBuff.length() < opPath.length())
     {
-        // Truncate event message to fit into fixed sized buffer.
+        // Event message truncated to fit into fixed sized buffer.
         BMCWEB_LOG_WARNING << "Audit buffer too small, truncating:"
-                           << " bufLeft=" << bufLeft
-                           << " opPathLen=" << opPathLen;
-        opPathLen = bufLeft;
+                           << " cnfgBufLen=" << cnfgBuff.length()
+                           << " opPathLen=" << opPath.length();
     }
-    strncpy(cnfgBuff, opPath.c_str(), opPathLen);
-    cnfgBuff[opPathLen - 1] = '\0';
-    bufLeft -= opPathLen;
 
     // Determine any additional info for the event
     std::string detail;
@@ -219,18 +234,13 @@ inline void auditEvent(const crow::Request& req, const std::string& userName,
 
     if (!detail.empty())
     {
-        if (detail.length() > bufLeft)
+        if (!appendItemToBuf(cnfgBuff, maxBuf, detail))
         {
             // Additional info won't fix into fixed sized buffer. Leave
             // it off.
             BMCWEB_LOG_WARNING << "Audit buffer too small for data:"
-                               << " bufLeft=" << bufLeft
+                               << " bufLeft=" << (maxBuf - cnfgBuff.length())
                                << " detailLen=" << detail.length();
-        }
-        else
-        {
-            strncat(cnfgBuff, detail.c_str(), detail.length());
-            bufLeft -= detail.length();
         }
     }
 
@@ -254,28 +264,24 @@ inline void auditEvent(const crow::Request& req, const std::string& userName,
 
         userLen = std::strlen(user);
 
-        if (userLen > bufLeft)
+        if (!appendItemToBuf(cnfgBuff, maxBuf, std::string(user)))
         {
             // Username won't fit into fixed sized buffer. Leave it off.
             BMCWEB_LOG_WARNING << "Audit buffer too small for username:"
-                               << " bufLeft=" << bufLeft
+                               << " bufLeft=" << (maxBuf - cnfgBuff.length())
                                << " userLen=" << userLen;
-        }
-        else
-        {
-            strncat(cnfgBuff, user, userLen);
-            bufLeft -= userLen;
         }
     }
 
-    BMCWEB_LOG_DEBUG << "auditEvent: bufLeft=" << bufLeft
-                     << " opPathLen=" << opPathLen
+    BMCWEB_LOG_DEBUG << "auditEvent: bufLeft=" << (maxBuf - cnfgBuff.length())
+                     << " opPathLen=" << opPath.length()
                      << " detailLen=" << detail.length()
                      << " userLen=" << userLen;
 
     std::string ipAddress = req.ipAddress.to_string();
 
-    int rc = audit_log_user_message(auditfd, AUDIT_USYS_CONFIG, cnfgBuff,
+    int rc = audit_log_user_message(auditfd, AUDIT_USYS_CONFIG,
+                                    cnfgBuff.c_str(),
                                     boost::asio::ip::host_name().c_str(),
                                     ipAddress.c_str(), NULL, int(success));
 
@@ -287,7 +293,8 @@ inline void auditEvent(const crow::Request& req, const std::string& userName,
         int origErrno = errno;
         if (auditReopen())
         {
-            rc = audit_log_user_message(auditfd, AUDIT_USYS_CONFIG, cnfgBuff,
+            rc = audit_log_user_message(auditfd, AUDIT_USYS_CONFIG,
+                                        cnfgBuff.c_str(),
                                         boost::asio::ip::host_name().c_str(),
                                         ipAddress.c_str(), NULL, int(success));
         }

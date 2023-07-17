@@ -148,5 +148,54 @@ TEST(wantDetail, NegativeTest)
     EXPECT_FALSE(wantDetail(getRequest));
 }
 
+TEST(appendItemToBuf, PositiveTest)
+{
+    std::string testBuf;
+    std::string data;
+    std::string cmpStr;
+
+    data = "Initial data ";
+    cmpStr = data;
+
+    EXPECT_TRUE(appendItemToBuf(testBuf, data.length() + 20, data));
+    EXPECT_EQ(testBuf, cmpStr);
+
+    data = "Append data ";
+    cmpStr += data;
+    EXPECT_TRUE(
+        appendItemToBuf(testBuf, testBuf.length() + data.length(), data));
+    EXPECT_EQ(testBuf, cmpStr);
+
+    data = "Append more data ";
+    cmpStr += data;
+
+    EXPECT_TRUE(
+        appendItemToBuf(testBuf, testBuf.length() + data.length(), data));
+    EXPECT_EQ(testBuf, cmpStr);
+}
+
+TEST(appendItemToBuf, NegativeTest)
+{
+    std::string testBuf;
+    std::string data;
+    std::string cmpStr;
+
+    cmpStr = testBuf;
+    data = "Data not appended";
+
+    EXPECT_FALSE(appendItemToBuf(testBuf, data.length() - 5, data));
+    EXPECT_EQ(testBuf, cmpStr);
+
+    testBuf = "Initial data ";
+    cmpStr = testBuf;
+
+    EXPECT_FALSE(appendItemToBuf(testBuf, testBuf.length(), data));
+    EXPECT_EQ(testBuf, cmpStr);
+
+    EXPECT_FALSE(
+        appendItemToBuf(testBuf, testBuf.length() + data.length() - 1, data));
+    EXPECT_EQ(testBuf, cmpStr);
+}
+
 } // namespace
 } // namespace audit
