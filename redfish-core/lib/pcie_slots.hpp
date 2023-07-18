@@ -326,7 +326,7 @@ inline void
 
         slot["Oem"]["@odata.type"] = "#OemPCIeSlots.Oem";
         slot["Oem"]["IBM"]["@odata.type"] = "#OemPCIeSlots.IBM";
-        slot["Oem"]["IBM"]["UpstreamFabricAdapter"] =
+        slot["Oem"]["IBM"]["UpstreamFabricAdapter"]["@odata.id"] =
             crow::utility::urlFromPieces(
                 "redfish", "v1", "Systems", "system", "FabricAdapters",
                 fabric_util::buildFabricUniquePath(fabricAdapterPath));
