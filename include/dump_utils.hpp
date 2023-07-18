@@ -21,10 +21,11 @@ namespace dump_utils
 inline void getValidDumpEntryForAttachment(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, const std::string& url,
     std::function<void(const std::string& objectPath,
-                       const std::string& entryID,
-                       const std::string& dumpType)>&& callback)
+                       const std::string& /*entryID*/,
+                       const std::string& /*dumpType*/)>&& callback)
 {
     std::string dumpType;
+    std::string dumpId;
     std::string entryID;
     std::string entriesPath;
 
@@ -35,25 +36,21 @@ inline void getValidDumpEntryForAttachment(
         // BMC type dump
         dumpType = "BMC";
         entriesPath = "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/";
+        dumpId = entryID;
     }
     else if (crow::utility::readUrlSegments(
                  url, "redfish", "v1", "Systems", "system", "LogServices",
                  "Dump", "Entries", std::ref(entryID), "attachment"))
     {
-        // System type
-        dumpType = "System";
         entriesPath = "/redfish/v1/Systems/system/LogServices/Dump/Entries/";
-    }
-    if (dumpType.empty() || entryID.empty())
-    {
-        redfish::messages::resourceNotFound(asyncResp->res, "Dump", entryID);
-        return;
-    }
 
-    std::string dumpId(entryID);
+        // All these types system,resource,sbe,hwdump and host boot dumps are
+        // currently being listed under
+        // /Systems/system/LogServices/Dump/Entries/ redfish path. To
+        // differentiate between the two, the dump entries would be listed as
+        // System_<id> and Resource_<id> for the respective dumps. Hence the
+        // dump id and type are being extracted here from the above format.
 
-    if (dumpType != "BMC")
-    {
         std::size_t pos = entryID.find_first_of('_');
         if (pos == std::string::npos || (pos + 1) >= entryID.length())
         {
@@ -64,7 +61,15 @@ inline void getValidDumpEntryForAttachment(
                                     "LogServices", "Dump", "Entries", entryID));
             return;
         }
+        dumpType = boost::algorithm::to_lower_copy(entryID.substr(0, pos));
         dumpId = entryID.substr(pos + 1);
+    }
+
+    if (dumpType.empty() || entryID.empty())
+    {
+        // Besides of system,resource,sbe,hwdump and host boot dumps
+        redfish::messages::resourceNotFound(asyncResp->res, "Dump", entryID);
+        return;
     }
 
     auto getValidDumpEntryCallback =
