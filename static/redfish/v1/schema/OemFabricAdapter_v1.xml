@@ -10,9 +10,9 @@
   <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/RedfishExtensions_v1.xml">
     <edmx:Include Namespace="RedfishExtensions.v1_0_0" Alias="Redfish"/>
   </edmx:Reference>
-    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/PCIeSlots_v1.xml">
-        <edmx:Include Namespace="PCIeSlots"/>
-        <edmx:Include Namespace="PCIeSlots.v1_5_0"/>
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/PCIeDevice_v1.xml">
+        <edmx:Include Namespace="PCIeDevice"/>
+        <edmx:Include Namespace="PCIeDevice.v1_9_0"/>
     </edmx:Reference>
   <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Resource_v1.xml">
     <edmx:Include Namespace="Resource"/>
@@ -21,18 +21,18 @@
 
   <edmx:DataServices>
 
-    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemPCIeSlots">
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemFabricAdapter">
       <Annotation Term="Redfish.OwningEntity" String="IBM"/>
     </Schema>
- 
-    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemPCIeSlots.v1_0_0">
+
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemFabricAdapter.v1_0_0">
       <Annotation Term="Redfish.OwningEntity" String="IBM"/>
-      
+
       <ComplexType Name="Oem" BaseType="Resource.OemObject">
         <Annotation Term="OData.AdditionalProperties" Bool="true"/>
-        <Annotation Term="OData.Description" String="OemPCIeSlots Oem properties."/>
+        <Annotation Term="OData.Description" String="OemFabricAdapter Oem properties."/>
         <Annotation Term="OData.AutoExpand"/>
-        <Property Name="IBM" Type="OemPCIeSlots.IBM"/>
+        <Property Name="IBM" Type="OemFabricAdapter.IBM"/>
       </ComplexType>
 
       <ComplexType Name="IBM" BaseType="Resource.OemObject">
@@ -40,19 +40,13 @@
         <Annotation Term="OData.Description" String="Oem properties for IBM." />
         <Annotation Term="OData.AutoExpand"/>
 
-        <Property Name="LinkId" Type="OemPCIeSlots.IBM">
+        <Property Name="Slots" Type="OemFabricAdapter.IBM">
           <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
-          <Annotation Term="OData.Description" String="Number of PCIe lanes in use."/>
-        </Property>
-        <Property Name="AssociatedAssembly" Type="OemPCIeSlots.IBM">
-          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
-          <Annotation Term="OData.Description" String="Represent association slot with assembly."/>
-        </Property>
-        <Property Name="UpstreamFabricAdapter" Type="OemPCIeSlots.IBM">
-          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
-          <Annotation Term="OData.Description" String="Upstream Link to FabricAdapter."/>
+          <Annotation Term="OData.Description" String="PCIe Slots"/>
+         <Annotation Term="OData.LongDescription" String="Represent PCIe Slots contained by the adapter"/>
         </Property>
       </ComplexType>
+
     </Schema>
 
   </edmx:DataServices>
