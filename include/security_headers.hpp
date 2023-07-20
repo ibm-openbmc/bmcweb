@@ -9,21 +9,58 @@ inline void addSecurityHeaders(const crow::Request& req [[maybe_unused]],
 {
     /*
      TODO(ed) these should really check content types.  for example,
-     X-UA-Compatible header doesn't make sense when retrieving a JSON or
+     X-Content-Type-Options header doesn't make sense when retrieving a JSON or
      javascript file.  It doesn't hurt anything, it's just ugly.
      */
     using bf = boost::beast::http::field;
+
+    // Recommendations from https://owasp.org/www-project-secure-headers/
+    // https://owasp.org/www-project-secure-headers/ci/headers_add.json
     res.addHeader(bf::strict_transport_security, "max-age=31536000; "
-                                                 "includeSubdomains; "
-                                                 "preload");
+                                                 "includeSubdomains");
     res.addHeader(bf::x_frame_options, "DENY");
 
     res.addHeader(bf::pragma, "no-cache");
-    res.addHeader(bf::cache_control, "no-Store,no-Cache");
+    res.addHeader(bf::cache_control, "no-store, max-age=0");
 
-    res.addHeader("X-XSS-Protection", "1; "
-                                      "mode=block");
     res.addHeader("X-Content-Type-Options", "nosniff");
+
+    res.addHeader("Referrer-Policy", "no-referrer");
+    res.addHeader("Permissions-Policy", "accelerometer=(),"
+                                        "ambient-light-sensor=(),"
+                                        "autoplay=(),"
+                                        "battery=(),"
+                                        "camera=(),"
+                                        "display-capture=(),"
+                                        "document-domain=(),"
+                                        "encrypted-media=(),"
+                                        "fullscreen=(),"
+                                        "gamepad=(),"
+                                        "geolocation=(),"
+                                        "gyroscope=(),"
+                                        "layout-animations=(self),"
+                                        "legacy-image-formats=(self),"
+                                        "magnetometer=(),"
+                                        "microphone=(),"
+                                        "midi=(),"
+                                        "oversized-images=(self),"
+                                        "payment=(),"
+                                        "picture-in-picture=(),"
+                                        "publickey-credentials-get=(),"
+                                        "speaker-selection=()"
+                                        "sync-xhr=(self),"
+                                        "unoptimized-images=(self),"
+                                        "unsized-media=(self),"
+                                        "usb=(),"
+                                        "screen-wak-lock=(),"
+                                        "web-share=(),"
+                                        "xr-spatial-tracking=()");
+
+    res.addHeader("X-Permitted-Cross-Domain-Policies", "none");
+
+    res.addHeader("Cross-Origin-Embedder-Policy", "require-corp");
+    res.addHeader("Cross-Origin-Opener-Policy", "same-origin");
+    res.addHeader("Cross-Origin-Resource-Policy", "same-origin");
 
     if (bmcwebInsecureDisableXssPrevention == 0)
     {
