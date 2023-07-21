@@ -1628,12 +1628,12 @@ inline void handleDHCPPatch(const std::string& ifaceId,
     BMCWEB_LOG_DEBUG << "set HostNameEnabled...";
     setDHCPConfig("HostNameEnabled", nextUseDomain, asyncResp, ifaceId,
                   "dhcp4");
-    BMCWEB_LOG_DEBUG << "set DNSv6Enabled...";
-    setDHCPConfig("DNSv6Enabled", nextDNSv6, asyncResp, ifaceId, "dhcp6");
-    BMCWEB_LOG_DEBUG << "set NTPv6Enabled...";
-    setDHCPConfig("NTPv6Enabled", nextNTPv6, asyncResp, ifaceId, "dhcp6");
-    BMCWEB_LOG_DEBUG << "set Hostv6NameEnabled...";
-    setDHCPConfig("HostNamev6Enabled", nextUsev6Domain, asyncResp, ifaceId,
+    BMCWEB_LOG_DEBUG << "set DNSEnabled for dhcp6...";
+    setDHCPConfig("DNSEnabled", nextDNSv6, asyncResp, ifaceId, "dhcp6");
+    BMCWEB_LOG_DEBUG << "set NTPEnabled for dhcp6...";
+    setDHCPConfig("NTPEnabled", nextNTPv6, asyncResp, ifaceId, "dhcp6");
+    BMCWEB_LOG_DEBUG << "set HostNameEnabled for dhcp6...";
+    setDHCPConfig("HostNameEnabled", nextUsev6Domain, asyncResp, ifaceId,
                   "dhcp6");
 }
 
