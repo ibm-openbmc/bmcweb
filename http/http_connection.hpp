@@ -467,7 +467,7 @@ class Connection :
                     (req->method() == boost::beast::http::verb::put &&
                      !req->target().starts_with("/ibm/v1")))
                 {
-                    additionalInfo = req->body + " ";
+                    additionalInfo = req->body.substr(0, 256) + " ";
                 }
 
                 audit::auditEvent(("op=" + std::string(req->methodString()) +
