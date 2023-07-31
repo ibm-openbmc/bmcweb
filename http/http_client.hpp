@@ -37,6 +37,7 @@
 #include <boost/beast/version.hpp>
 #include <boost/container/devector.hpp>
 #include <boost/system/error_code.hpp>
+#include <boost/url/url_view.hpp>
 #include <logging.hpp>
 #include <ssl_key_handler.hpp>
 
@@ -564,6 +565,13 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
     {
         if (!sslConn)
         {
+            return;
+        }
+
+        boost::urls::url_view view("https://" + host);
+        if (view.host_type() != boost::urls::host_type::name)
+        {
+            // Avoid setting SNI hostname if its IP address
             return;
         }
         // NOTE: The SSL_set_tlsext_host_name is defined in tlsv1.h header
