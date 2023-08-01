@@ -17,6 +17,7 @@
 
 #include "async_resolve.hpp"
 #include "http_response.hpp"
+#include "utility.hpp"
 
 #include <boost/asio/connect.hpp>
 #include <boost/asio/io_context.hpp>
@@ -568,12 +569,15 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
             return;
         }
 
-        boost::urls::url_view view("https://" + host);
+        boost::urls::url url("https://");
+        crow::utility::appendUrlPieces(url, host);
+        boost::urls::url_view view(url);
         if (view.host_type() != boost::urls::host_type::name)
         {
             // Avoid setting SNI hostname if its IP address
             return;
         }
+
         // NOTE: The SSL_set_tlsext_host_name is defined in tlsv1.h header
         // file but its having old style casting (name is cast to void*).
         // Since bmcweb compiler treats all old-style-cast as error, its
