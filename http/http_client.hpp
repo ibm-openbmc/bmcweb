@@ -17,7 +17,6 @@
 
 #include "async_resolve.hpp"
 #include "http_response.hpp"
-#include "utility.hpp"
 
 #include <boost/asio/connect.hpp>
 #include <boost/asio/io_context.hpp>
@@ -38,6 +37,7 @@
 #include <boost/beast/version.hpp>
 #include <boost/container/devector.hpp>
 #include <boost/system/error_code.hpp>
+#include <boost/url/format.hpp>
 #include <boost/url/url_view.hpp>
 #include <logging.hpp>
 #include <ssl_key_handler.hpp>
@@ -569,11 +569,11 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
             return;
         }
 
-        boost::urls::url url("https://");
-        crow::utility::appendUrlPieces(url, host);
-        boost::urls::url_view view(url);
+        boost::urls::url hostname = boost::urls::format("/https://{}", host);
+        boost::urls::url_view view(hostname);
         if (view.host_type() != boost::urls::host_type::name)
         {
+            BMCWEB_LOG_DEBUG << "Avoid setting SNI hostname if its IP address";
             // Avoid setting SNI hostname if its IP address
             return;
         }
