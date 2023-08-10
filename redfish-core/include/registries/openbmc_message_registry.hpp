@@ -63,14 +63,14 @@
 namespace redfish::registries::openbmc
 {
 const Header header = {
-    "Copyright 2022 OpenBMC. All rights reserved.",
+    "Copyright 2024 OpenBMC. All rights reserved.",
     "#MessageRegistry.v1_4_0.MessageRegistry",
-    "OpenBMC.0.4.0",
+    "OpenBMC.0.5.0",
     "OpenBMC Message Registry",
     "en",
     "This registry defines the base messages for OpenBMC.",
     "OpenBMC",
-    "0.4.0",
+    "0.5.0",
     "OpenBMC",
 };
 constexpr std::array registry = {
@@ -172,7 +172,36 @@ constexpr std::array registry = {
                      {},
                      "None.",
                  }},
-
+    MessageEntry{"AuditLogEntry",
+                 {
+                     "General audit log entry, use for non-parsed fields",
+                     "%1",
+                     "OK",
+                     1,
+                     {
+                         "string",
+                     },
+                     "None.",
+                 }},
+    MessageEntry{
+        "AuditLogUsysConfig",
+        {
+            "Description",
+            "type=%1 op=%2 acct=%3 exe=%4 hostname=%5 addr=%6 terminal=%7 res=%8",
+            "OK",
+            8,
+            {
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+            },
+            "None.",
+        }},
     MessageEntry{"BIOSAttributesChanged",
                  {
                      "Indicates that a set of BIOS Attributes has changed.",
