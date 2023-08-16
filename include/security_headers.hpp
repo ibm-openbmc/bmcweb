@@ -47,7 +47,7 @@ inline void addSecurityHeaders(const crow::Request& req [[maybe_unused]],
                                         "payment=(),"
                                         "picture-in-picture=(),"
                                         "publickey-credentials-get=(),"
-                                        "speaker-selection=()"
+                                        "speaker-selection=(),"
                                         "sync-xhr=(self),"
                                         "unoptimized-images=(self),"
                                         "unsized-media=(self),"
