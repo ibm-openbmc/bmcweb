@@ -25,9 +25,10 @@
 #include <sdbusplus/server.hpp>
 #include <security_headers.hpp>
 #include <ssl_key_handler.hpp>
+#include <user_monitor.hpp>
 #include <vm_websocket.hpp>
 #include <webassets.hpp>
-#include <ssdp_server.hpp>
+#include <ssdp_notify.hpp>
 
 #include <exception>
 #include <memory>
@@ -63,25 +64,21 @@ inline void setupSocket(crow::App& app)
     }
 }
 
-static int runSSDPServer()
-{
-    //std::string hostname = "127.0.0.1";
-    //std::string location = "http://127.0.0.1";
 
-    //std::map<std::string, std::string> root;
-    SSDPServer server;
+static int runSSDPNotify()
+{
+    SSDPNotify server;
 
     try {
-        server.start();
+        server.notify();
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
 
-    BMCWEB_LOG_INFO << "Shutting down Ssdp server";
+    BMCWEB_LOG_INFO << "Shutting down Ssdp Notify";
     return 0;
-
-}
+}	
 
 static int run()
 {
@@ -112,9 +109,6 @@ static int run()
 
 #ifdef BMCWEB_ENABLE_REDFISH
     redfish::RedfishService redfish(app);
-
-    // Create HttpClient instance and initialize Config
-    crow::HttpClient::getInstance();
 
     // Create EventServiceManager instance and initialize Config
     redfish::EventServiceManager::getInstance();
@@ -161,9 +155,14 @@ static int run()
     crow::dbus_monitor::registerBIOSAttrUpdateSignal();
     // Start event log entry created monitor
     crow::dbus_monitor::registerEventLogCreatedSignal();
+    // Start PostCode change signal
+    crow::dbus_monitor::registerPostCodeChangeSignal();
     // Start hypervisor app dbus monitor for hypervisor
     // network configurations
     crow::dbus_monitor::registerVMIConfigChangeSignal();
+    // Start Platform and Partition SAI state change monitor
+    crow::dbus_monitor::registerSAIStateChangeSignal();
+
 #endif
 
 #ifdef BMCWEB_ENABLE_GOOGLE_API
@@ -197,7 +196,9 @@ static int run()
     crow::hostname_monitor::registerHostnameSignal();
 #endif
 
-    std::thread ssdpThread(runSSDPServer);
+    bmcweb::registerUserRemovedSignal();
+
+    std::thread ssdpThread(runSSDPNotify);
 
     app.run();
     io->run();
