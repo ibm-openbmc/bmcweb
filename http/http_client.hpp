@@ -451,10 +451,6 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
             {
                 state = ConnState::suspended;
             }
-            if (connPolicy->retryPolicyAction == "RetryForever")
-            {
-                state = ConnState::idle;
-            }
 
             // We want to return a 502 to indicate there was an error with
             // the external server
@@ -714,6 +710,18 @@ class ConnectionPool : public std::enable_shared_from_this<ConnectionPool>
             return;
         }
 
+        if (requestQueue.size() == maxRequestQueueSize)
+        {
+            // We can remove the request from the queue at this point
+            BMCWEB_LOG_ERROR << "requestQueue is full. Clearing the queue for "
+                             << destIP << ":" << std::to_string(destPort);
+            requestQueue.clear();
+            // Let's close the connection and restart from resolve for next
+            // event.
+            conn->doClose();
+            return;
+        }
+
         // No more messages to send so close the connection if necessary
         if (keepAlive)
         {
@@ -796,13 +804,6 @@ class ConnectionPool : public std::enable_shared_from_this<ConnectionPool>
             Response dummyRes;
             dummyRes.result(boost::beast::http::status::too_many_requests);
             resHandler(dummyRes);
-        }
-        if (requestQueue.size() == maxRequestQueueSize)
-        {
-            // We can remove the request from the queue at this point
-            BMCWEB_LOG_ERROR << "requestQueue is full. Clearing the queue for "
-                             << destIP << ":" << std::to_string(destPort);
-            requestQueue.pop_front();
         }
     }
 
