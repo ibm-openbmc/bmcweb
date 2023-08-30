@@ -369,10 +369,6 @@ static void getCertificateProperties(
             asyncResp->res.jsonValue["ValidNotBefore"] =
                 redfish::time_utils::getDateTimeUint(*validNotBefore);
         }
-
-        asyncResp->res.addHeader(
-            boost::beast::http::field::location,
-            std::string_view(certURL.data(), certURL.size()));
         });
 }
 
