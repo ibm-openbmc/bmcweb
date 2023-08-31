@@ -985,12 +985,11 @@ inline void handleHypervisorIPv4StaticPatch(
             << "INFO: Static ip configuration request from client: " << clientIp
             << " - ip: " << *address << "; gateway: " << *gateway
             << "; prefix length: " << static_cast<int64_t>(prefixLength);
-
+        // Set the DHCPEnabled to false since the Static IPv4 is set
+        setDHCPEnabled(ifaceId, ethData, false, asyncResp);
         createHypervisorIP(ifaceId, prefixLength, *gateway, *address,
                            "xyz.openbmc_project.Network.IP.Protocol.IPv4",
                            asyncResp);
-        // Set the DHCPEnabled to false since the Static IPv4 is set
-        setDHCPEnabled(ifaceId, ethData, false, asyncResp);
     }
     else
     {
@@ -1063,12 +1062,11 @@ inline void handleHypervisorIPv6StaticPatch(
             << req.session->clientIp << " - ip: " << *address
             << ";gateway: " << *gateway
             << "; prefix length: " << static_cast<int64_t>(*prefixLen);
-
+        // Set the DHCPEnabled to false since the Static IPv6 is set
+        setIpv6DhcpOperatingMode(ifaceId, ethData, "Disabled", asyncResp);
         createHypervisorIP(ifaceId, *prefixLen, *gateway, *address,
                            "xyz.openbmc_project.Network.IP.Protocol.IPv6",
                            asyncResp);
-        // Set the DHCPEnabled to false since the Static IPv6 is set
-        setIpv6DhcpOperatingMode(ifaceId, ethData, "Disabled", asyncResp);
     }
     else
     {
