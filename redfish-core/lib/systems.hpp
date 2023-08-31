@@ -252,7 +252,7 @@ inline void getComputerSystem(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                 const dbus::utility::MapperGetSubTreeResponse& subtree) {
         if (ec)
         {
-            BMCWEB_LOG_DEBUG << "DBUS response error";
+            BMCWEB_LOG_ERROR << "D-Bus response error: " << ec;
             messages::internalError(aResp->res);
             return;
         }
@@ -386,7 +386,7 @@ inline void getComputerSystem(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                                         properties) {
                             if (ec3)
                             {
-                                BMCWEB_LOG_DEBUG << "DBUS response error "
+                                BMCWEB_LOG_ERROR << "DBUS response error "
                                                  << ec3;
                                 messages::internalError(aResp->res);
                                 return;
@@ -1013,7 +1013,7 @@ inline void getTrustedModuleRequiredToBoot(
             [aResp](const boost::system::error_code ec2, bool tpmRequired) {
             if (ec2)
             {
-                BMCWEB_LOG_DEBUG << "D-BUS response error on TPM.Policy Get"
+                BMCWEB_LOG_ERROR << "D-BUS response error on TPM.Policy Get"
                                  << ec2;
                 messages::internalError(aResp->res);
                 return;
@@ -1056,7 +1056,7 @@ inline void setTrustedModuleRequiredToBoot(
                              dbus::utility::MapperGetSubTreeResponse& subtree) {
         if (ec)
         {
-            BMCWEB_LOG_DEBUG << "DBUS response error on TPM.Policy GetSubTree"
+            BMCWEB_LOG_ERROR << "DBUS response error on TPM.Policy GetSubTree"
                              << ec;
             messages::internalError(aResp->res);
             return;
@@ -1103,7 +1103,7 @@ inline void setTrustedModuleRequiredToBoot(
             [aResp](const boost::system::error_code ec2) {
             if (ec2)
             {
-                BMCWEB_LOG_DEBUG
+                BMCWEB_LOG_ERROR
                     << "DBUS response error: Set TrustedModuleRequiredToBoot"
                     << ec2;
                 messages::internalError(aResp->res);
@@ -1138,7 +1138,7 @@ inline void setAssetTag(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                    const dbus::utility::MapperGetSubTreeResponse& subtree) {
         if (ec)
         {
-            BMCWEB_LOG_DEBUG << "D-Bus response error on GetSubTree " << ec;
+            BMCWEB_LOG_ERROR << "D-Bus response error on GetSubTree " << ec;
             messages::internalError(aResp->res);
             return;
         }
@@ -1177,7 +1177,7 @@ inline void setAssetTag(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             [aResp](const boost::system::error_code ec2) {
             if (ec2)
             {
-                BMCWEB_LOG_DEBUG << "D-Bus response error on AssetTag Set "
+                BMCWEB_LOG_ERROR << "D-Bus response error on AssetTag Set "
                                  << ec2;
                 messages::internalError(aResp->res);
                 return;
@@ -1254,6 +1254,7 @@ inline void setStopBootOnFault(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         {
             if (ec.value() != EBADR)
             {
+                BMCWEB_LOG_ERROR << "D-Bus response error: " << ec;
                 messages::internalError(aResp->res);
             }
             return;
@@ -1298,6 +1299,7 @@ inline void setAutomaticRetry(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         [aResp](const boost::system::error_code ec) {
         if (ec)
         {
+            BMCWEB_LOG_ERROR << "D-Bus response error: " << ec;
             messages::internalError(aResp->res);
             return;
         }
@@ -1347,6 +1349,7 @@ inline void
         [aResp](const boost::system::error_code ec) {
         if (ec)
         {
+            BMCWEB_LOG_ERROR << "D-Bus response error: " << ec;
             messages::internalError(aResp->res);
             return;
         }
@@ -1634,7 +1637,7 @@ inline void setPowerMode(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                     const dbus::utility::MapperGetSubTreeResponse& subtree) {
         if (ec)
         {
-            BMCWEB_LOG_DEBUG << "DBUS response error on Power.Mode GetSubTree "
+            BMCWEB_LOG_ERROR << "DBUS response error on Power.Mode GetSubTree "
                              << ec;
             // This is an optional D-Bus object, but user attempted to patch
             messages::internalError(aResp->res);
@@ -1680,6 +1683,7 @@ inline void setPowerMode(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             [aResp](const boost::system::error_code ec2) {
             if (ec2)
             {
+                BMCWEB_LOG_ERROR << "D-Bus response error: " << ec2;
                 messages::internalError(aResp->res);
                 return;
             }
@@ -1851,7 +1855,7 @@ inline void setWDTProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             [aResp](const boost::system::error_code ec) {
             if (ec)
             {
-                BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
+                BMCWEB_LOG_ERROR << "DBUS response error " << ec;
                 messages::internalError(aResp->res);
                 return;
             }
@@ -1869,7 +1873,7 @@ inline void setWDTProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             [aResp](const boost::system::error_code ec) {
             if (ec)
             {
-                BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
+                BMCWEB_LOG_ERROR << "DBUS response error " << ec;
                 messages::internalError(aResp->res);
                 return;
             }
@@ -1964,7 +1968,7 @@ inline void getIdlePowerSaver(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                 const dbus::utility::MapperGetSubTreeResponse& subtree) {
         if (ec)
         {
-            BMCWEB_LOG_DEBUG
+            BMCWEB_LOG_ERROR
                 << "DBUS response error on Power.IdlePowerSaver GetSubTree "
                 << ec;
             messages::internalError(aResp->res);
@@ -2063,7 +2067,7 @@ inline void setIdlePowerSaver(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                       const dbus::utility::MapperGetSubTreeResponse& subtree) {
         if (ec)
         {
-            BMCWEB_LOG_DEBUG
+            BMCWEB_LOG_ERROR
                 << "DBUS response error on Power.IdlePowerSaver GetSubTree "
                 << ec;
             messages::internalError(aResp->res);
@@ -2110,7 +2114,7 @@ inline void setIdlePowerSaver(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 [aResp](const boost::system::error_code ec2) {
                 if (ec2)
                 {
-                    BMCWEB_LOG_DEBUG << "DBUS response error " << ec2;
+                    BMCWEB_LOG_ERROR << "DBUS response error " << ec2;
                     messages::internalError(aResp->res);
                     return;
                 }
@@ -2125,7 +2129,7 @@ inline void setIdlePowerSaver(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 [aResp](const boost::system::error_code ec2) {
                 if (ec2)
                 {
-                    BMCWEB_LOG_DEBUG << "DBUS response error " << ec2;
+                    BMCWEB_LOG_ERROR << "DBUS response error " << ec2;
                     messages::internalError(aResp->res);
                     return;
                 }
@@ -2143,7 +2147,7 @@ inline void setIdlePowerSaver(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 [aResp](const boost::system::error_code ec2) {
                 if (ec2)
                 {
-                    BMCWEB_LOG_DEBUG << "DBUS response error " << ec2;
+                    BMCWEB_LOG_ERROR << "DBUS response error " << ec2;
                     messages::internalError(aResp->res);
                     return;
                 }
@@ -2159,7 +2163,7 @@ inline void setIdlePowerSaver(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 [aResp](const boost::system::error_code ec2) {
                 if (ec2)
                 {
-                    BMCWEB_LOG_DEBUG << "DBUS response error " << ec2;
+                    BMCWEB_LOG_ERROR << "DBUS response error " << ec2;
                     messages::internalError(aResp->res);
                     return;
                 }
@@ -2177,7 +2181,7 @@ inline void setIdlePowerSaver(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 [aResp](const boost::system::error_code ec2) {
                 if (ec2)
                 {
-                    BMCWEB_LOG_DEBUG << "DBUS response error " << ec2;
+                    BMCWEB_LOG_ERROR << "DBUS response error " << ec2;
                     messages::internalError(aResp->res);
                     return;
                 }
@@ -2461,6 +2465,7 @@ inline void afterPortRequest(
 {
     if (ec)
     {
+        BMCWEB_LOG_ERROR << "D-Bus response error: " << ec;
         messages::internalError(asyncResp->res);
         return;
     }
@@ -2480,6 +2485,7 @@ inline void afterPortRequest(
                                           int portNumber) {
                 if (ec1)
                 {
+                    BMCWEB_LOG_ERROR << "D-Bus response error: " << ec1;
                     messages::internalError(asyncResp->res);
                     return;
                 }
