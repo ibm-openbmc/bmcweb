@@ -47,6 +47,7 @@ inline void getLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
             {
                 if (ec1.value() != EBADR)
                 {
+                    BMCWEB_LOG_ERROR << "DBUS response error " << ec1.value();
                     messages::internalError(aResp->res);
                 }
                 return;
@@ -96,6 +97,7 @@ inline void setLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             {
                 if (ec1.value() != EBADR)
                 {
+                    BMCWEB_LOG_ERROR << "DBUS response error " << ec1.value();
                     messages::internalError(aResp->res);
                 }
                 return;
@@ -105,7 +107,7 @@ inline void setLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 [aResp](const boost::system::error_code& ec2) {
                 if (ec2)
                 {
-                    BMCWEB_LOG_DEBUG
+                    BMCWEB_LOG_ERROR
                         << "Panel Lamp test failed with error code " << ec2;
                     messages::internalError(aResp->res);
                     return;
