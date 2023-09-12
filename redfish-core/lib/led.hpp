@@ -50,7 +50,7 @@ inline void
         // proceed to get enclosure_identify state.
         if (ec == boost::system::errc::invalid_argument)
         {
-            BMCWEB_LOG_DEBUG
+            BMCWEB_LOG_ERROR
                 << "Get identity blinking LED failed, missmatch in property type";
             messages::internalError(aResp->res);
             return;
@@ -71,7 +71,7 @@ inline void
             [aResp](const boost::system::error_code ec2, const bool ledOn) {
             if (ec2 == boost::system::errc::invalid_argument)
             {
-                BMCWEB_LOG_DEBUG
+                BMCWEB_LOG_ERROR
                     << "Get enclosure identity led failed, missmatch in property type";
                 messages::internalError(aResp->res);
                 return;
@@ -141,7 +141,7 @@ inline void
             [aResp](const boost::system::error_code ec2) {
             if (ec2)
             {
-                BMCWEB_LOG_DEBUG << "DBUS response error " << ec2;
+                BMCWEB_LOG_ERROR << "DBUS response error " << ec2;
                 messages::internalError(aResp->res);
                 return;
             }
@@ -184,6 +184,7 @@ inline void getLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             {
                 if (ec1.value() != EBADR)
                 {
+                    BMCWEB_LOG_ERROR << "DBUS response error " << ec1.value();
                     messages::internalError(aResp->res);
                 }
                 return;
@@ -217,6 +218,7 @@ inline void setLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             {
                 if (ec1.value() != EBADR)
                 {
+                    BMCWEB_LOG_ERROR << "DBUS response error " << ec1.value();
                     messages::internalError(aResp->res);
                 }
                 return;
@@ -249,6 +251,7 @@ inline void
         {
             if (ec.value() != EBADR)
             {
+                BMCWEB_LOG_ERROR << "DBUS response error " << ec.value();
                 messages::internalError(aResp->res);
             }
             return;
@@ -291,6 +294,7 @@ inline void
         {
             if (ec.value() != EBADR)
             {
+                BMCWEB_LOG_ERROR << "DBUS response error " << ec.value();
                 messages::internalError(aResp->res);
             }
             return;
