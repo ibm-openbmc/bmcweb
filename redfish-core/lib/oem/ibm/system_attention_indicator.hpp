@@ -59,7 +59,7 @@ inline void getSAI(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             {
                 if (ec1.value() != EBADR)
                 {
-                    BMCWEB_LOG_ERROR << "DBUS response error " << ec.value();
+                    BMCWEB_LOG_ERROR << "DBUS response error " << ec1.value();
                     messages::internalError(aResp->res);
                 }
                 return;
