@@ -797,13 +797,6 @@ class ConnectionPool : public std::enable_shared_from_this<ConnectionPool>
             dummyRes.result(boost::beast::http::status::too_many_requests);
             resHandler(dummyRes);
         }
-        if (requestQueue.size() == maxRequestQueueSize)
-        {
-            // We can remove the request from the queue at this point
-            BMCWEB_LOG_ERROR << "requestQueue is full. Clearing the queue for "
-                             << destIP << ":" << std::to_string(destPort);
-            requestQueue.pop_front();
-        }
     }
 
     // Callback to be called once the request has been sent
