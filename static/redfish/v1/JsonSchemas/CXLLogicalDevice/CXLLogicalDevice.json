@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/CXLLogicalDevice.v1_0_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/CXLLogicalDevice.v1_1_0.json",
     "$ref": "#/definitions/CXLLogicalDevice",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2022 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -100,6 +100,13 @@
                     "description": "The link to the log service associated with this CXL logical device.",
                     "longDescription": "This property shall contain a link to a resource of type LogService.",
                     "readonly": true
+                },
+                "MemoryRegions": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/MemoryRegionCollection.json#/definitions/MemoryRegionCollection",
+                    "description": "The link to the collection of memory regions associated with this CXL logical device.",
+                    "longDescription": "This property shall contain a link to a resource collection of type MemoryRegionCollection that represents the memory regions associated with this CXL logical device.",
+                    "readonly": true,
+                    "versionAdded": "v1_1_0"
                 },
                 "MemorySizeMiB": {
                     "description": "The memory region size defined in this CXL logical device.",
@@ -294,7 +301,9 @@
                 },
                 "LimitPercent": {
                     "description": "The bandwidth limit to this CXL logical device as a percentage.",
-                    "longDescription": "This property shall contain the bandwidth limit for this CXL logical device as a percentage.",
+                    "longDescription": "This property shall contain the bandwidth limit, `0` to `100`, for this CXL logical device as a percentage.",
+                    "maximum": 100,
+                    "minimum": 0,
                     "readonly": false,
                     "type": [
                         "integer",
@@ -347,6 +356,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2022.3",
-    "title": "#CXLLogicalDevice.v1_0_0.CXLLogicalDevice"
+    "release": "2023.2",
+    "title": "#CXLLogicalDevice.v1_1_0.CXLLogicalDevice"
 }

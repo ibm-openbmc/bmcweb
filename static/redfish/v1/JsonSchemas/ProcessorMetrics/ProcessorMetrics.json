@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/ProcessorMetrics.v1_6_1.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/ProcessorMetrics.v1_6_2.json",
     "$ref": "#/definitions/ProcessorMetrics",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -64,7 +64,7 @@
                 },
                 "ResidencyPercent": {
                     "description": "The percentage of time that the processor or core has spent in this particular level of C-state.",
-                    "longDescription": "This property shall contain the percentage of time that the processor or core has spent in this particular level of C-state.  When this resource is subordinate to the ProcessorSummary object, this property is not applicable.",
+                    "longDescription": "This property shall contain the percentage of time, `0` to `100`, that the processor or core has spent in this particular level of C-state.  When this resource is subordinate to the ProcessorSummary object, this property is not applicable.",
                     "minimum": 0,
                     "readonly": true,
                     "type": [
@@ -143,7 +143,7 @@
                 },
                 "OccupancyPercent": {
                     "description": "The total cache occupancy percentage.",
-                    "longDescription": "This property shall contain the total cache occupancy percentage of the processor or core.",
+                    "longDescription": "This property shall contain the total cache occupancy percentage, `0` to `100`, of the processor or core.",
                     "minimum": 0,
                     "readonly": true,
                     "type": [
@@ -500,7 +500,7 @@
                 },
                 "BandwidthPercent": {
                     "description": "The bandwidth usage of this processor as a percentage.",
-                    "longDescription": "This property shall contain the bandwidth usage of the processor as a percentage.  When this resource is subordinate to the ProcessorSummary object, this property shall be the CPU utilization over all processors as a percentage.",
+                    "longDescription": "This property shall contain the bandwidth usage of the processor as a percentage, typically `0` to `100`.  When this resource is subordinate to the ProcessorSummary object, this property shall be the CPU utilization over all processors as a percentage.",
                     "minimum": 0,
                     "readonly": true,
                     "type": [
@@ -603,7 +603,7 @@
                 },
                 "KernelPercent": {
                     "description": "The percentage of time spent in kernel mode.",
-                    "longDescription": "This property shall contain total percentage of time the processor has spent in kernel mode.  When this resource is subordinate to the ProcessorSummary object, this property shall be the average KernelPercent over all processors.",
+                    "longDescription": "This property shall contain total percentage of time, `0` to `100`, the processor has spent in kernel mode.  When this resource is subordinate to the ProcessorSummary object, this property shall be the average KernelPercent over all processors.",
                     "minimum": 0,
                     "readonly": true,
                     "type": [
@@ -724,7 +724,7 @@
                 },
                 "UserPercent": {
                     "description": "The percentage of time spent in user mode.",
-                    "longDescription": "This property shall contain total percentage of time the processor has spent in user mode.  When this resource is subordinate to the ProcessorSummary object, this property shall be the average UserPercent over all processors.",
+                    "longDescription": "This property shall contain total percentage of time, `0` to `100`, the processor has spent in user mode.  When this resource is subordinate to the ProcessorSummary object, this property shall be the average UserPercent over all processors.",
                     "minimum": 0,
                     "readonly": true,
                     "type": [
@@ -745,5 +745,5 @@
     },
     "owningEntity": "DMTF",
     "release": "2022.2",
-    "title": "#ProcessorMetrics.v1_6_1.ProcessorMetrics"
+    "title": "#ProcessorMetrics.v1_6_2.ProcessorMetrics"
 }

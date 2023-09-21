@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Connection.v1_2_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Connection.v1_3_0.json",
     "$ref": "#/definitions/Connection",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -226,6 +226,15 @@
                     "longDescription": "This property shall contain the set of memory chunks and access capabilities specified for this connection.",
                     "type": "array",
                     "versionAdded": "v1_1_0"
+                },
+                "MemoryRegionInfo": {
+                    "description": "The set of memory regions and access capabilities specified for this connection.",
+                    "items": {
+                        "$ref": "#/definitions/MemoryRegionInfo"
+                    },
+                    "longDescription": "This property shall contain the set of memory regions and access capabilities specified for this connection.",
+                    "type": "array",
+                    "versionAdded": "v1_3_0"
                 },
                 "Name": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Name",
@@ -576,6 +585,73 @@
             },
             "type": "object"
         },
+        "MemoryRegionInfo": {
+            "additionalProperties": false,
+            "description": "The combination of permissions and memory region information.",
+            "longDescription": "This type shall contain the combination of permissions and memory region information.",
+            "patternProperties": {
+                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
+                    "description": "This property shall specify a valid odata or Redfish property.",
+                    "type": [
+                        "array",
+                        "boolean",
+                        "integer",
+                        "number",
+                        "null",
+                        "object",
+                        "string"
+                    ]
+                }
+            },
+            "properties": {
+                "AccessCapabilities": {
+                    "description": "Supported IO access capabilities.",
+                    "items": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/definitions/AccessCapability"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "longDescription": "Each entry shall specify a current memory access capability.",
+                    "readonly": false,
+                    "type": "array",
+                    "versionAdded": "v1_3_0"
+                },
+                "AccessState": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/definitions/AccessState"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "The access state for this connection.",
+                    "longDescription": "The value of this property shall contain the access state for the associated resource in this connection.",
+                    "readonly": false,
+                    "versionAdded": "v1_3_0"
+                },
+                "MemoryRegion": {
+                    "anyOf": [
+                        {
+                            "$ref": "http://redfish.dmtf.org/schemas/v1/MemoryRegion.json#/definitions/MemoryRegion"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "The specified memory region.",
+                    "longDescription": "This property shall contain a link to a resource of type MemoryRegion.  The endpoints referenced by the InitiatorEndpoints or InitiatorEndpointGroups properties shall be given access to this memory region as described by this object.  If TargetEndpoints or TargetEndpointGroups is present, the referenced initiator endpoints shall be required to access the referenced memory region through one of the referenced target endpoints.",
+                    "readonly": false,
+                    "versionAdded": "v1_3_0"
+                }
+            },
+            "type": "object"
+        },
         "OemActions": {
             "additionalProperties": true,
             "description": "The available OEM-specific actions for this resource.",
@@ -666,6 +742,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2023.1",
-    "title": "#Connection.v1_2_0.Connection"
+    "release": "2023.2",
+    "title": "#Connection.v1_3_0.Connection"
 }

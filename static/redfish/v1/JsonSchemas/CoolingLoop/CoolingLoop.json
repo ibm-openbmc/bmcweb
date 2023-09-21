@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/CoolingLoop.v1_0_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/CoolingLoop.v1_0_1.json",
     "$ref": "#/definitions/CoolingLoop",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -61,7 +61,7 @@
                 },
                 "AdditivePercent": {
                     "description": "The percent additives contained in the coolant.",
-                    "longDescription": "This property shall contain the percent of additives, by volume, contained in the coolant mixture.",
+                    "longDescription": "This property shall contain the percent of additives, `0` to `100`, by volume, contained in the coolant mixture.",
                     "maximum": 100,
                     "minimum": 0,
                     "readonly": false,
@@ -439,5 +439,5 @@
     },
     "owningEntity": "DMTF",
     "release": "2023.1",
-    "title": "#CoolingLoop.v1_0_0.CoolingLoop"
+    "title": "#CoolingLoop.v1_0_1.CoolingLoop"
 }
