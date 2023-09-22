@@ -23,6 +23,26 @@ WARNING = """/****************************************************************
  * github organization.
  ***************************************************************/"""
 
+# OEM schemas
+oem_schema_names = [
+    "OemManager",
+    "OemComputerSystem",
+    "OemVirtualMedia",
+    "OpenBMCAccountService",
+    "OemLogEntry",
+    "OemLogEntryAttachment",
+    "OemServiceRoot",
+    "OemManagerAccount",
+    "OemAssembly",
+    "OemPowerSupplyMetrics",
+    "OemChassis",
+    "OemPCIeDevice",
+    "OemUpdateService",
+    "OemMessage",
+    "OemPCIeSlots",
+    "OemFabricAdapter",
+]
+
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 proxies = {"https": os.environ.get("https_proxy", None)}
@@ -129,6 +149,7 @@ for zip_file in zip_ref.infolist():
     elif zip_file.filename.startswith("dictionaries/"):
         pass
 
+
 # sort the json files by version
 for key, value in json_schema_files.items():
     value.sort(key=SchemaVersion, reverse=True)
@@ -139,6 +160,15 @@ json_schema_files = OrderedDict(
 )
 
 csdl_filenames.sort(key=SchemaVersion)
+
+# Create oem filenames - from oem json names
+oem_csdl_filenames = []
+for filename in oem_schema_names:
+    oem_csdl_filenames.append(filename + "_v1.xml")
+
+# Append Oem csdl files
+csdl_filenames += oem_csdl_filenames
+
 with open(metadata_index_path, "w") as metadata_index:
     metadata_index.write('<?xml version="1.0" encoding="UTF-8"?>\n')
     metadata_index.write(
@@ -149,40 +179,44 @@ with open(metadata_index_path, "w") as metadata_index:
 
     for filename in csdl_filenames:
         # filename looks like Zone_v1.xml
-        with open(os.path.join(schema_path, filename), "wb") as schema_out:
-            content = zip_ref.read(os.path.join("csdl", filename))
-            content = content.replace(b"\r\n", b"\n")
+        if filename in oem_csdl_filenames:
+            with open(
+                os.path.join(schema_path, filename), "rb"
+            ) as oem_csdl_in:
+                content = oem_csdl_in.read()
+                content = content.replace(b"\r\n", b"\n")
+        else:
+            with open(os.path.join(schema_path, filename), "wb") as schema_out:
+                content = zip_ref.read(os.path.join("csdl", filename))
+                content = content.replace(b"\r\n", b"\n")
+                schema_out.write(content)
 
-            schema_out.write(content)
+        metadata_index.write(
+            '    <edmx:Reference Uri="/redfish/v1/schema/' + filename + '">\n'
+        )
 
-            metadata_index.write(
-                '    <edmx:Reference Uri="/redfish/v1/schema/'
-                + filename
-                + '">\n'
-            )
+        xml_root = ET.fromstring(content)
+        edmx = "{http://docs.oasis-open.org/odata/ns/edmx}"
+        edm = "{http://docs.oasis-open.org/odata/ns/edm}"
+        for edmx_child in xml_root:
+            if edmx_child.tag == edmx + "DataServices":
+                for data_child in edmx_child:
+                    if data_child.tag == edm + "Schema":
+                        namespace = data_child.attrib["Namespace"]
+                        if namespace.startswith("RedfishExtensions"):
+                            metadata_index.write(
+                                '        <edmx:Include Namespace="'
+                                + namespace
+                                + '"  Alias="Redfish"/>\n'
+                            )
 
-            xml_root = ET.fromstring(content)
-            edmx = "{http://docs.oasis-open.org/odata/ns/edmx}"
-            edm = "{http://docs.oasis-open.org/odata/ns/edm}"
-            for edmx_child in xml_root:
-                if edmx_child.tag == edmx + "DataServices":
-                    for data_child in edmx_child:
-                        if data_child.tag == edm + "Schema":
-                            namespace = data_child.attrib["Namespace"]
-                            if namespace.startswith("RedfishExtensions"):
-                                metadata_index.write(
-                                    '        <edmx:Include Namespace="'
-                                    + namespace
-                                    + '"  Alias="Redfish"/>\n'
-                                )
-
-                            else:
-                                metadata_index.write(
-                                    '        <edmx:Include Namespace="'
-                                    + namespace
-                                    + '"/>\n'
-                                )
-            metadata_index.write("    </edmx:Reference>\n")
+                        else:
+                            metadata_index.write(
+                                '        <edmx:Include Namespace="'
+                                + namespace
+                                + '"/>\n'
+                            )
+        metadata_index.write("    </edmx:Reference>\n")
 
     metadata_index.write(
         "    <edmx:DataServices>\n"
@@ -194,174 +228,6 @@ with open(metadata_index_path, "w") as metadata_index:
         "        </Schema>\n"
         "    </edmx:DataServices>\n"
     )
-    # TODO:Issue#32 There's a bug in the script that currently deletes this
-    # schema (because it's an OEM schema). Because it's the only six, and we
-    # don't update schemas very often, we just manually fix it. Need a
-    # permanent fix to the script.
-    metadata_index.write(
-        '    <edmx:Reference Uri="/redfish/v1/schema/OemManager_v1.xml">\n'
-    )
-    metadata_index.write('        <edmx:Include Namespace="OemManager"/>\n')
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        '    <edmx:Reference Uri="'
-        '/redfish/v1/schema/OemComputerSystem_v1.xml">\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemComputerSystem"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        '    <edmx:Reference Uri="'
-        '/redfish/v1/schema/OemVirtualMedia_v1.xml">\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemVirtualMedia"/>\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemVirtualMedia.v1_0_0"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        '    <edmx:Reference Uri="'
-        '/redfish/v1/schema/OpenBMCAccountService_v1.xml">\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OpenBMCAccountService"/>\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OpenBMCAccountService.v1_0_0"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        '    <edmx:Reference Uri="/redfish/v1/schema/OemLogEntry_v1.xml">\n'
-    )
-    metadata_index.write('        <edmx:Include Namespace="OemLogEntry"/>\n')
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemLogEntry.v1_0_0"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        '    <edmx:Reference Uri="'
-        '/redfish/v1/schema/OemLogEntryAttachment_v1.xml">\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemLogEntryAttachment"/>\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemLogEntryAttachment.v1_0_0"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        '    <edmx:Reference Uri="/redfish/v1/schema/OemServiceRoot_v1.xml">\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemServiceRoot"/>\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemServiceRoot.v1_0_0"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        '    <edmx:Reference Uri="'
-        '/redfish/v1/schema/OemManagerAccount.v1_0_0.xml">\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemManagerAccount"/>\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemManagerAccount.v1_0_0"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        '    <edmx:Reference Uri="/redfish/v1/schema/OemAssembly_v1.xml">\n'
-    )
-    metadata_index.write('        <edmx:Include Namespace="OemAssembly"/>\n')
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemAssembly.v1_0_0"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        '    <edmx:Reference Uri="'
-        '/redfish/v1/schema/OemPowerSupplyMetrics_v1.xml">\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemPowerSupplyMetrics"/>\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemPowerSupplyMetrics.v1_0_0"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        '    <edmx:Reference Uri="/redfish/v1/schema/OemChassis_v1.xml">\n'
-    )
-    metadata_index.write('        <edmx:Include Namespace="OemChassis"/>\n')
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemChassis.v1_0_0"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        "       <edmx:Reference"
-        ' Uri="/redfish/v1/schema/OemPCIeDevice_v1.xml">\n'
-    )
-    metadata_index.write('        <edmx:Include Namespace="OemPCIeDevice"/>\n')
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemPCIeDevice.v1_0_0"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        '    <edmx:Reference Uri="'
-        '/redfish/v1/schema/OemUpdateService_v1.xml">\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemUpdateService"/>\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemUpdateService.v1_0_0"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        '    <edmx:Reference Uri="/redfish/v1/schema/OemMessage_v1.xml">\n'
-    )
-    metadata_index.write('        <edmx:Include Namespace="OemMessage"/>\n')
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemMessage.v1_0_0"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        '    <edmx:Reference Uri="/redfish/v1/schema/OemPCIeSlots_v1.xml">\n'
-    )
-    metadata_index.write('        <edmx:Include Namespace="OemPCIeSlots"/>\n')
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemPCIeSlots.v1_0_0"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
-    metadata_index.write(
-        '    <edmx:Reference Uri="/redfish/v1/schema/OemFabricAdapter_v1.xml">\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemFabricAdapter"/>\n'
-    )
-    metadata_index.write(
-        '        <edmx:Include Namespace="OemFabricAdapter.v1_0_0"/>\n'
-    )
-    metadata_index.write("    </edmx:Reference>\n")
-
     metadata_index.write("</edmx:Edmx>\n")
 
 
@@ -385,6 +251,9 @@ with open(os.path.join(cpp_path, "schemas.hpp"), "w") as hpp_file:
         "    constexpr std::array schemas {{\n".format(WARNING=WARNING)
     )
     for schema_file in json_schema_files:
+        hpp_file.write('        "{}",\n'.format(schema_file))
+
+    for schema_file in oem_schema_names:
         hpp_file.write('        "{}",\n'.format(schema_file))
 
     hpp_file.write("    };\n}\n")
