@@ -429,79 +429,84 @@ inline void requestRoutes(App& app)
         "/redfish/v1/Systems/system/LogServices/Dump/Entries/<str>/attachment/")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
         .streamingResponse()
-        .onopen(
-            [](crow::streaming_response::Connection& conn) {
-        if (!systemHandlers.empty())
-        {
-            BMCWEB_LOG_ERROR << "Can't allow dump offload opertaion, one "
-                                "of the host dump is already offloading";
-            conn.sendStreamErrorStatus(
-                boost::beast::http::status::service_unavailable);
-            conn.close();
-            return;
-        }
+        .onopen([](crow::streaming_response::Connection& conn) {
+            if (!systemHandlers.empty())
+            {
+                BMCWEB_LOG_ERROR << "Can't allow dump offload opertaion, one "
+                                    "of the host dump is already offloading";
+                conn.sendStreamErrorStatus(
+                    boost::beast::http::status::service_unavailable);
+                conn.close();
+                return;
+            }
 
-        std::string url(conn.req.target());
+            std::string url(conn.req.target());
+            BMCWEB_LOG_DEBUG
+                << "Request open for offload of system dump with url: " << url;
+            std::string startDelimiter = "Entries/";
+            std::size_t pos1 = url.rfind(startDelimiter);
+            std::size_t pos2 = url.rfind("/attachment");
+            if (pos1 == std::string::npos || pos2 == std::string::npos)
+            {
+                BMCWEB_LOG_ERROR << "Unable to extract the dump id";
+                conn.sendStreamErrorStatus(
+                    boost::beast::http::status::not_found);
+                conn.close();
+                return;
+            }
+            std::string dumpEntry =
+                url.substr(pos1 + startDelimiter.length(),
+                           pos2 - pos1 - startDelimiter.length());
+            BMCWEB_LOG_DEBUG
+                << "Request open for offload of system dump with dumpEntry"
+                << dumpEntry;
+            // System and Resource dump entries are currently being
+            // listed under /Systems/system/LogServices/Dump/Entries/
+            // redfish path. To differentiate between the two, the dump
+            // entries would be listed as System_<id> and Resource_<id> for
+            // the respective dumps. Hence the dump id and type are being
+            // extracted here from the above format.
+            std::string dumpId;
+            std::string dumpType;
+            std::size_t idPos = dumpEntry.rfind('_');
 
-        std::string startDelimiter = "Entries/";
-        std::size_t pos1 = url.rfind(startDelimiter);
-        std::size_t pos2 = url.rfind("/attachment");
-        if (pos1 == std::string::npos || pos2 == std::string::npos)
-        {
-            BMCWEB_LOG_ERROR << "Unable to extract the dump id";
-            conn.sendStreamErrorStatus(boost::beast::http::status::not_found);
-            conn.close();
-            return;
-        }
+            if (idPos != std::string::npos)
+            {
+                dumpType =
+                    boost::algorithm::to_lower_copy(dumpEntry.substr(0, idPos));
+                dumpId = dumpEntry.substr(idPos + 1);
+            }
 
-        std::string dumpEntry =
-            url.substr(pos1 + startDelimiter.length(),
-                       pos2 - pos1 - startDelimiter.length());
+            boost::asio::io_context* ioCon = conn.getIoContext();
 
-        // System and Resource dump entries are currently being
-        // listed under /Systems/system/LogServices/Dump/Entries/
-        // redfish path. To differentiate between the two, the dump
-        // entries would be listed as System_<id> and Resource_<id> for
-        // the respective dumps. Hence the dump id and type are being
-        // extracted here from the above format.
-        std::string dumpId;
-        std::string dumpType;
-        std::size_t idPos = dumpEntry.rfind('_');
+            // Generating random id to create unique socket file
+            // for each dump offload request
+            std::random_device rd;
+            std::default_random_engine gen(rd());
+            std::uniform_int_distribution<> dist{0, 1024};
+            std::string unixSocketPath = unixSocketPathDir + dumpType +
+                                         "_dump_" + std::to_string(dist(gen));
 
-        if (idPos != std::string::npos)
-        {
-            dumpType =
-                boost::algorithm::to_lower_copy(dumpEntry.substr(0, idPos));
-            dumpId = dumpEntry.substr(idPos + 1);
-        }
+            systemHandlers[&conn] = std::make_shared<Handler>(
+                *ioCon, dumpId, dumpType, unixSocketPath);
+            systemHandlers[&conn]->connection = &conn;
 
-        boost::asio::io_context* ioCon = conn.getIoContext();
-
-        // Generating random id to create unique socket file
-        // for each dump offload request
-        std::random_device rd;
-        std::default_random_engine gen(rd());
-        std::uniform_int_distribution<> dist{0, 1024};
-        std::string unixSocketPath = unixSocketPathDir + dumpType + "_dump_" +
-                                     std::to_string(dist(gen));
-
-        systemHandlers[&conn] =
-            std::make_shared<Handler>(*ioCon, dumpId, dumpType, unixSocketPath);
-        systemHandlers[&conn]->connection = &conn;
-
-        if (!crow::ibm_utils::createDirectory(unixSocketPathDir))
-        {
-            systemHandlers[&conn]->connection->sendStreamErrorStatus(
-                boost::beast::http::status::not_found);
-            systemHandlers[&conn]->connection->close();
-            return;
-        }
-        BMCWEB_LOG_CRITICAL
-            << "INFO: " << dumpType << " dump id " << dumpId
-            << " offload initiated by: " << conn.req.session->clientIp;
-        systemHandlers[&conn]->getDumpSize(dumpId, dumpType);
+            if (!crow::ibm_utils::createDirectory(unixSocketPathDir))
+            {
+                systemHandlers[&conn]->connection->sendStreamErrorStatus(
+                    boost::beast::http::status::not_found);
+                systemHandlers[&conn]->connection->close();
+                return;
+            }
+            BMCWEB_LOG_CRITICAL
+                << "INFO: " << dumpType << " dump id " << dumpId
+                << " offload initiated by: " << conn.req.session->clientIp;
+            systemHandlers[&conn]->getDumpSize(dumpId, dumpType);
         })
         .onclose([](crow::streaming_response::Connection& conn, bool& status) {
+            BMCWEB_LOG_DEBUG
+                << "Request close for offload of system dump with url"
+                << conn.req.target();
             auto handler = systemHandlers.find(&conn);
             if (handler == systemHandlers.end())
             {
