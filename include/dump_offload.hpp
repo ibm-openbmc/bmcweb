@@ -454,8 +454,6 @@ inline void requestRoutes(App& app)
             conn.close();
             return;
         }
-        BMCWEB_LOG_CRITICAL << "INFO:Request open for system dump offload with"
-                            << "Dump Entry: " << dumpEntry;
         std::string dumpEntry =
             url.substr(pos1 + startDelimiter.length(),
                        pos2 - pos1 - startDelimiter.length());
