@@ -442,8 +442,9 @@ inline void requestRoutes(App& app)
         }
 
         std::string url(conn.req.target());
-        BMCWEB_LOG_DEBUG << "Request open  for offload of system dump with url: "<<url;
-        std::string startDelimiter = "Entries/";
+	BMCWEB_LOG_CRITICAL << "INFO:Request open for system dump offload with"
+                            << "url: " << url ;
+	std::string startDelimiter = "Entries/";
         std::size_t pos1 = url.rfind(startDelimiter);
         std::size_t pos2 = url.rfind("/attachment");
         if (pos1 == std::string::npos || pos2 == std::string::npos)
@@ -453,10 +454,13 @@ inline void requestRoutes(App& app)
             conn.close();
             return;
         }
+
+	BMCWEB_LOG_CRITICAL << "INFO:Request open for system dump offload with"
+		            << "Dump Entry: " <<dumpEntry ;
         std::string dumpEntry =
             url.substr(pos1 + startDelimiter.length(),
                        pos2 - pos1 - startDelimiter.length());
-        BMCWEB_LOG_DEBUG << "Request open for offload of system dump with dumpEntry"<<dumpEntry;
+
         // System and Resource dump entries are currently being
         // listed under /Systems/system/LogServices/Dump/Entries/
         // redfish path. To differentiate between the two, the dump
@@ -501,7 +505,6 @@ inline void requestRoutes(App& app)
         systemHandlers[&conn]->getDumpSize(dumpId, dumpType);
         })
         .onclose([](crow::streaming_response::Connection& conn, bool& status) {
-	    BMCWEB_LOG_DEBUG << "Request close for offload of system dump with url"<<conn.req.target();
             auto handler = systemHandlers.find(&conn);
             if (handler == systemHandlers.end())
             {
@@ -515,6 +518,8 @@ inline void requestRoutes(App& app)
             }
             handler->second->outputBuffer.clear();
             systemHandlers.clear();
+	    BMCWEB_LOG_CRITICAL << "INFO:Request closed for system dump offload with"
+	                        << "url: " << conn.req.target() ;
         });
 }
 
