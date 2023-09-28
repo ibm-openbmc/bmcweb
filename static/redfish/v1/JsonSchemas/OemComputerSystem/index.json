@@ -187,6 +187,15 @@
                         "boolean",
                         "null"
                     ]
+                },
+                "EnabledPanelFunctions": {
+                    "description": "Enabled Panel functions",
+                    "longDescription": "This property shall contain the list of enabled panel functions.",
+                    "readonly": true,
+                    "type": [
+                        "array",
+                        "null"
+                    ]
                 }
             },
             "type": "object"
