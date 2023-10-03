@@ -442,7 +442,8 @@ inline void requestRoutes(App& app)
         }
 
         std::string url(conn.req.target());
-
+        BMCWEB_LOG_CRITICAL << "INFO:Request open for system dump offload with"
+                            << "url: " << url;
         std::string startDelimiter = "Entries/";
         std::size_t pos1 = url.rfind(startDelimiter);
         std::size_t pos2 = url.rfind("/attachment");
@@ -453,7 +454,6 @@ inline void requestRoutes(App& app)
             conn.close();
             return;
         }
-
         std::string dumpEntry =
             url.substr(pos1 + startDelimiter.length(),
                        pos2 - pos1 - startDelimiter.length());
@@ -515,6 +515,9 @@ inline void requestRoutes(App& app)
             }
             handler->second->outputBuffer.clear();
             systemHandlers.clear();
+            BMCWEB_LOG_CRITICAL
+                << "INFO:Request closed for system dump offload with"
+                << "url: " << conn.req.target();
         });
 }
 
