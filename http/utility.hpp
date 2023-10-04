@@ -800,7 +800,7 @@ inline bool validateAndSplitUrl(std::string_view destUrl, std::string& urlProto,
                                 std::string& host, uint16_t& port,
                                 std::string& path)
 {
-    boost::urls::result<boost::urls::url_view> url =
+    boost::system::result<boost::urls::url_view> url =
         boost::urls::parse_uri(destUrl);
     if (!url)
     {

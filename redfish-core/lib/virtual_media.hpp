@@ -31,7 +31,7 @@ namespace redfish
  */
 inline std::string getTransferProtocolTypeFromUri(const std::string& imageUri)
 {
-    boost::urls::result<boost::urls::url_view> url =
+    boost::system::result<boost::urls::url_view> url =
         boost::urls::parse_uri(imageUri);
     if (!url)
     {
@@ -400,7 +400,7 @@ inline bool
 
         return false;
     }
-    boost::urls::result<boost::urls::url_view> url =
+    boost::system::result<boost::urls::url_view> url =
         boost::urls::parse_uri(imageUrl);
     if (!url)
     {
