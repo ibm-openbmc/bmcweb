@@ -880,7 +880,7 @@ inline void
                     const std::variant<std::string>& certificate) {
         if (ec)
         {
-            BMCWEB_LOG_ERROR << "getCSREntryCertificate respHandler got error "
+            BMCWEB_LOG_ERROR << "getCSREntryCertificate respHandler got error: "
                              << ec;
             asyncResp->res.result(
                 boost::beast::http::status::internal_server_error);
@@ -909,7 +909,7 @@ inline void
             return;
         }
 
-        BMCWEB_LOG_CRITICAL << "Successfully got VMI client certificate";
+        BMCWEB_LOG_CRITICAL << "INFO:Successfully got VMI client certificate";
         asyncResp->res.jsonValue["Certificate"] = *cert;
         },
         "xyz.openbmc_project.Certs.ca.authority.Manager",
@@ -926,7 +926,7 @@ inline void getCSREntryAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                              const std::variant<std::string>& hostAck) {
         if (ec)
         {
-            BMCWEB_LOG_ERROR << "getCSREntryAck respHandler got error " << ec;
+            BMCWEB_LOG_ERROR << "getCSREntryAck respHandler got error: " << ec;
             asyncResp->res.result(
                 boost::beast::http::status::internal_server_error);
             asyncResp->res.jsonValue["Description"] =
@@ -944,8 +944,8 @@ inline void getCSREntryAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             return;
         }
 
-        BMCWEB_LOG_CRITICAL << "VMI Cert Entry " << entryId
-                            << " status property value " << *status;
+        BMCWEB_LOG_CRITICAL << "INFO:VMI Cert Entry " << entryId
+                            << " new status property value " << *status;
         if (*status == "xyz.openbmc_project.Certs.Entry.State.Pending")
         {
             asyncResp->res.addHeader("Retry-After", "60");
@@ -969,7 +969,7 @@ inline void getCSREntryAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         auto entry = ackMatches.find(entryId);
         if (entry != ackMatches.end())
         {
-            BMCWEB_LOG_CRITICAL << "Erasing match of entryId " << entryId;
+            BMCWEB_LOG_CRITICAL << "INFO:Erasing match of entryId: " << entryId;
             ackMatches.erase(entryId);
         }
         },
@@ -1012,7 +1012,7 @@ static void
             return;
         }
 
-        BMCWEB_LOG_CRITICAL << "Created CSR Entry object " << entryId;
+        BMCWEB_LOG_INFO << "Created CSR Entry object with entryId: " << entryId;
         auto timeoutHandler = [asyncResp, timeout, entryId](
                                   const boost::system::error_code errorCode) {
             if (errorCode)
@@ -1043,7 +1043,7 @@ static void
                 if (findStatus != values.end())
                 {
                     BMCWEB_LOG_CRITICAL
-                        << "Found status prop change of VMI cert object "
+                        << "INFO:Found status prop change of VMI cert object with entryId:"
                         << entryId;
                     getCSREntryAck(asyncResp, entryId);
                     timeout->cancel();
