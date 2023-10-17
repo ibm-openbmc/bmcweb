@@ -121,10 +121,23 @@ inline void
                          const std::shared_ptr<Subscription>& subValue)
 {
     crow::connections::systemBus->async_method_call(
-        [asyncResp, subValue](const boost::system::error_code ec,
-                              const std::string& dbusSNMPid) {
+        [asyncResp, host, subValue](const boost::system::error_code ec,
+                                    const sdbusplus::message_t& msg,
+                                    const std::string& dbusSNMPid) {
         if (ec)
         {
+            const sd_bus_error* dbusError = msg.get_error();
+            if (dbusError != nullptr)
+            {
+                if (std::string_view(
+                        "xyz.openbmc_project.Common.Error.InvalidArgument") ==
+                    dbusError->name)
+                {
+                    messages::propertyValueIncorrect(asyncResp->res,
+                                                     "Destination", host);
+                    return;
+                }
+            }
             messages::internalError(asyncResp->res);
             return;
         }
