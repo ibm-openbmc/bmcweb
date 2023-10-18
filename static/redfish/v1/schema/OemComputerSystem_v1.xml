@@ -60,6 +60,11 @@
                   <Annotation Term="OData.Description" String="An indication of PEL topology information is saves."/>
                   <Annotation Term="OData.LongDescription" String="This property when set to 'true' saves the topology information. The information is saved in the form of a PEL(Error Log)."/>
                 </Property>
+                <Property Name="EnabledPanelFunctions" Type="OemComputerSystem.IBM">
+                  <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+                  <Annotation Term="OData.Description" String="List of enabled panel functions."/>
+                  <Annotation Term="OData.LongDescription" String="This property shall contain the list of enabled panel functions."/>
+                </Property>
             </ComplexType>
 
             <ComplexType Name="OpenBmc" BaseType="Resource.OemObject">

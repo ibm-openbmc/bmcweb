@@ -784,9 +784,8 @@ class ConnectionPool : public std::enable_shared_from_this<ConnectionPool>
         }
         else if (requestQueue.size() < maxRequestQueueSize)
         {
-            BMCWEB_LOG_CRITICAL
-                << "INFO: Max pool size reached. Adding data to queue. "
-                << destIP << ": " << std::to_string(destPort);
+            BMCWEB_LOG_DEBUG << "Max pool size reached. Adding data to queue."
+                             << destIP << ":" << std::to_string(destPort);
             requestQueue.emplace_back(std::move(thisReq), std::move(cb));
         }
         else

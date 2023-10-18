@@ -2036,6 +2036,46 @@ inline void getIdlePowerSaver(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
     BMCWEB_LOG_DEBUG << "EXIT: Get idle power saver parameters";
 }
 
+/*
+ * Handle Enabled Panel Functions
+ */
+inline void doGetEnabledPanelFunctions(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    std::function<void(const std::vector<uint8_t>&)>&& callback)
+{
+    BMCWEB_LOG_DEBUG << "Get Enabled Panel functions";
+
+    crow::connections::systemBus->async_method_call(
+        [asyncResp, callback](const boost::system::error_code& ec,
+                              const std::vector<uint8_t>& enabledFuncs) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "Get Enabled Panel Functions D-bus error: "
+                             << ec.value();
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        callback(enabledFuncs);
+        },
+        "com.ibm.PanelApp", "/com/ibm/panel_app", "com.ibm.panel",
+        "getEnabledFunctions");
+}
+
+/*
+ * Get Enabled Panel Functions
+ */
+inline void getEnabledPanelFunctions(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    doGetEnabledPanelFunctions(
+        asyncResp, [asyncResp](const std::vector<uint8_t>& enabledFuncs) {
+            nlohmann::json& oem = asyncResp->res.jsonValue["Oem"];
+            oem["@odata.type"] = "#OemComputerSystem.Oem";
+            oem["IBM"]["@odata.type"] = "#OemComputerSystem.IBM";
+            oem["IBM"]["EnabledPanelFunctions"] = enabledFuncs;
+        });
+}
+
 /**
  * @brief Sets Idle Power Saver properties.
  *
@@ -2633,6 +2673,7 @@ inline void requestRoutesSystems(App& app)
         getTrustedModuleRequiredToBoot(asyncResp);
         getPowerMode(asyncResp);
         getIdlePowerSaver(asyncResp);
+        getEnabledPanelFunctions(asyncResp);
         });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/")
