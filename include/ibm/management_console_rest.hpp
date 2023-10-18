@@ -989,7 +989,7 @@ void handleCsrRequest(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         std::make_shared<boost::asio::steady_timer>(
             crow::connections::systemBus->get_io_context());
 
-    timeout->expires_after(std::chrono::seconds(10));
+    timeout->expires_after(std::chrono::seconds(30));
     crow::connections::systemBus->async_method_call(
         [asyncResp, timeout](const boost::system::error_code ec,
                              sdbusplus::message::message& m) {
