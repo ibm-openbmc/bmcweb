@@ -301,14 +301,7 @@ bmcweb_dependencies += nlohmann_json
 boost = dependency(
   'boost',
   modules: [
-    'asio',
-    'beast',
-    'callable_traits',
-    'headers',
-    'process',
-    'type_index',
     'url',
-    'uuid'
     ],
   version : '>=1.83.0',
   required : false,
