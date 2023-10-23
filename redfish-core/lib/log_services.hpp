@@ -802,8 +802,9 @@ inline void deleteDumpEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 return;
             }
 
-            BMCWEB_LOG_ERROR << "Dump (DBus) doDelete respHandler got error "
-                             << ec << " entryID=" << entryID;
+            BMCWEB_LOG_ERROR
+                << "Dump (DBus) doDelete respHandler got error: " << ec
+                << " for entryID: " << entryID;
             messages::internalError(asyncResp->res);
             return;
         }
@@ -3895,7 +3896,7 @@ inline void
     }
     else
     {
-        BMCWEB_LOG_ERROR << "getDumpServiceInfo() invalid dump type: "
+        BMCWEB_LOG_ERROR << "getDumpServiceInfo() invalid dumptype: "
                          << dumpType;
         messages::internalError(asyncResp->res);
         return;
@@ -5670,7 +5671,7 @@ inline void getRedfishUriByDbusObjPath(
                 BMCWEB_LOG_ERROR
                     << "Failed to fill Links:OriginOfCondition "
                     << "because unable to get parent Redfish URI "
-                    << "[" << parentRedfishUri << "]"
+                    << "[" << parentRedfishUri << "] "
                     << "DBus interface for the identified "
                     << "Redfish URI: " << redfishUri
                     << " of the given DBus object path: " << dbusObjPath.str;
@@ -5867,9 +5868,9 @@ inline void getPrettyNameByDbusObjPath(
 
         if (objType[0].first.empty())
         {
-            BMCWEB_LOG_ERROR << "The retrieved dbus name is empty for the "
-                                "given dbus object: "
-                             << dbusObjPath.str;
+            BMCWEB_LOG_ERROR
+                << "The retrieved dbus name is empty for the given dbus object: "
+                << dbusObjPath.str;
             messages::internalError(asyncResp->res);
             return;
         }

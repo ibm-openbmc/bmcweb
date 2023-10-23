@@ -177,7 +177,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         if (ec || (endpointList.empty()))
         {
             BMCWEB_LOG_ERROR << "Resolve failed: " << ec.message() << " "
-                             << host << ":" << std::to_string(port);
+                             << host << ": " << std::to_string(port);
             state = ConnState::resolveFailed;
             waitAndRetry();
             return;
@@ -214,7 +214,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         if (ec)
         {
             BMCWEB_LOG_ERROR << "Connect " << endpoint.address().to_string()
-                             << ":" << std::to_string(endpoint.port())
+                             << " : " << std::to_string(endpoint.port())
                              << ", id: " << std::to_string(connId)
                              << " failed: " << ec.message();
             state = ConnState::connectFailed;
@@ -313,7 +313,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         if (ec)
         {
             BMCWEB_LOG_ERROR << "sendMessage() failed: " << ec.message() << " "
-                             << host << ":" << std::to_string(port);
+                             << host << ": " << std::to_string(port);
             state = ConnState::sendFailed;
             waitAndRetry();
             return;
@@ -367,7 +367,8 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         if (ec && ec != boost::asio::ssl::error::stream_truncated)
         {
             BMCWEB_LOG_ERROR << "recvMessage() failed: " << ec.message()
-                             << " from " << host << ":" << std::to_string(port);
+                             << " from " << host << ": "
+                             << std::to_string(port);
             state = ConnState::recvFailed;
             waitAndRetry();
             return;
@@ -386,7 +387,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
             // The listener failed to receive the Sent-Event
             BMCWEB_LOG_ERROR << "recvMessage() Listener Failed to "
                                 "receive Sent-Event. Header Response Code: "
-                             << respCode << " from " << host << ":"
+                             << respCode << " from " << host << ": "
                              << std::to_string(port);
             state = ConnState::recvFailed;
             waitAndRetry();
@@ -549,7 +550,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
     {
         if (ec)
         {
-            BMCWEB_LOG_ERROR << host << ":" << std::to_string(port)
+            BMCWEB_LOG_ERROR << host << ": " << std::to_string(port)
                              << ", id: " << std::to_string(connId)
                              << " shutdown failed: " << ec.message();
         }
@@ -593,7 +594,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
             boost::beast::error_code ec{static_cast<int>(::ERR_get_error()),
                                         boost::asio::error::get_ssl_category()};
 
-            BMCWEB_LOG_ERROR << "SSL_set_tlsext_host_name " << host << ":"
+            BMCWEB_LOG_ERROR << "SSL_set_tlsext_host_name " << host << ": "
                              << port << ", id: " << std::to_string(connId)
                              << " failed: " << ec.message();
             // Set state as sslInit failed so that we close the connection
@@ -660,7 +661,7 @@ class ConnectionPool : public std::enable_shared_from_this<ConnectionPool>
     {
         if (requestQueue.empty())
         {
-            BMCWEB_LOG_ERROR
+            BMCWEB_LOG_DEBUG
                 << "setConnProps() should not have been called when requestQueue is empty";
             return;
         }
@@ -791,7 +792,7 @@ class ConnectionPool : public std::enable_shared_from_this<ConnectionPool>
         {
             // If we can't buffer the request then we should let the callback
             // handle a 429 Too Many Requests dummy response
-            BMCWEB_LOG_ERROR << destIP << ":" << std::to_string(destPort)
+            BMCWEB_LOG_ERROR << destIP << ": " << std::to_string(destPort)
                              << " request queue full.  Dropping request.";
             Response dummyRes;
             dummyRes.result(boost::beast::http::status::too_many_requests);

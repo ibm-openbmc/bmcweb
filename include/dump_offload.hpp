@@ -204,7 +204,7 @@ class Handler : public std::enable_shared_from_this<Handler>
         bool fileExists = std::filesystem::exists(unixSocketPath, ec);
         if (ec)
         {
-            BMCWEB_LOG_ERROR << "Unix socket file clean up failed "
+            BMCWEB_LOG_ERROR << "Unix socket file clean up failed: "
                              << unixSocketPath;
             this->connection->sendStreamErrorStatus(
                 boost::beast::http::status::internal_server_error);
