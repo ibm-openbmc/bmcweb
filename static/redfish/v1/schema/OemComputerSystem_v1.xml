@@ -106,5 +106,15 @@
                 </Member>
             </EnumType>
         </Schema>
+        <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemComputerSystem.v1_0_0">
+            <Action Name="ExecutePanelFunction" IsBound="true">
+                <Annotation Term="OData.Description" String="This action executes a panel function."/>
+                <Annotation Term="OData.LongDescription" String="This action executes a panel function if the function is enabled."/>
+                <Parameter Name="FuncNo" Type="OemComputerSystem.v1_0_0.OemActions" Nullable="false">
+                    <Annotation Term="OData.Description" String="Panel function number."/>
+                    <Annotation Term="OData.LongDescription" String="This parameter shall contain a  panel function number to be executed."/>
+                </Parameter>
+            </Action>
+        </Schema>
     </edmx:DataServices>
 </edmx:Edmx>
