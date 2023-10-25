@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/DriveMetrics.v1_0_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/DriveMetrics.v1_1_0.json",
     "$ref": "#/definitions/DriveMetrics",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -118,6 +118,16 @@
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Name",
                     "readonly": true
                 },
+                "NativeCommandQueueDepth": {
+                    "description": "The current depth of the Native Command Queue.",
+                    "longDescription": "This property shall contain the current depth of the Native Command Queue as defined by the SATA Specification.",
+                    "readonly": true,
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "versionAdded": "v1_1_0"
+                },
                 "Oem": {
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Oem",
                     "description": "The OEM extension property.",
@@ -182,6 +192,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2023.1",
-    "title": "#DriveMetrics.v1_0_0.DriveMetrics"
+    "release": "2023.2",
+    "title": "#DriveMetrics.v1_1_0.DriveMetrics"
 }

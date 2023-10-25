@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/MemoryMetrics.v1_7_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/MemoryMetrics.v1_7_1.json",
     "$ref": "#/definitions/MemoryMetrics",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -363,7 +363,9 @@
                 },
                 "PredictedMediaLifeLeftPercent": {
                     "description": "The percentage of reads and writes that are predicted to still be available for the media.",
-                    "longDescription": "This property shall contain an indicator of the percentage of life remaining in the media.",
+                    "longDescription": "This property shall contain an indicator of the percentage, `0` to `100`, of life remaining in the media.",
+                    "maximum": 100,
+                    "minimum": 0,
                     "readonly": true,
                     "type": [
                         "number",
@@ -374,7 +376,7 @@
                 },
                 "RemainingSpareBlockPercentage": {
                     "description": "The remaining spare blocks, as a percentage.",
-                    "longDescription": "This property shall contain the remaining spare blocks as a percentage.  When this resource is subordinate to the MemorySummary object, this property shall be the RemainingSpareBlockPercentage over all memory.",
+                    "longDescription": "This property shall contain the remaining spare blocks as a percentage, `0` to `100`.  When this resource is subordinate to the MemorySummary object, this property shall be the RemainingSpareBlockPercentage over all memory.",
                     "readonly": true,
                     "type": [
                         "number",
@@ -503,7 +505,7 @@
                 },
                 "BandwidthPercent": {
                     "description": "The memory bandwidth utilization as a percentage.",
-                    "longDescription": "This property shall contain memory bandwidth utilization as a percentage.  When this resource is subordinate to the MemorySummary object, this property shall be the memory bandwidth utilization over all memory as a percentage.",
+                    "longDescription": "This property shall contain memory bandwidth utilization as a percentage.  When this resource is subordinate to the MemorySummary object, this property shall be the memory bandwidth utilization over all memory as a percentage, typically `0` to `100`.",
                     "minimum": 0,
                     "readonly": true,
                     "type": [
@@ -538,7 +540,7 @@
                 },
                 "CapacityUtilizationPercent": {
                     "description": "The memory capacity utilization as a percentage.",
-                    "longDescription": "This property shall contain the memory capacity utilization as a percentage.  When this resource is subordinate to the MemorySummary object, this property shall be the memory capacity utilization over all memory as a percentage.",
+                    "longDescription": "This property shall contain the memory capacity utilization as a percentage, typically `0` to `100`.  When this resource is subordinate to the MemorySummary object, this property shall be the memory capacity utilization over all memory as a percentage.",
                     "minimum": 0,
                     "readonly": true,
                     "type": [
@@ -661,5 +663,5 @@
     },
     "owningEntity": "DMTF",
     "release": "2023.1",
-    "title": "#MemoryMetrics.v1_7_0.MemoryMetrics"
+    "title": "#MemoryMetrics.v1_7_1.MemoryMetrics"
 }

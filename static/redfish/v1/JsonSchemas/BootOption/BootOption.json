@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/BootOption.v1_0_4.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/BootOption.v1_0_5.json",
     "$ref": "#/definitions/BootOption",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2020 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -81,7 +81,7 @@
                     "readonly": true
                 },
                 "BootOptionEnabled": {
-                    "description": "An indication of whether the boot option is enabled.  If `true`, it is enabled.  If `false`, the boot option that the boot order array on the computer system contains is skipped.  In the UEFI context, this property shall influence the load option active flag for the boot option.",
+                    "description": "An indication of whether the boot option is enabled.  If `true`, it is enabled.  If `false`, the boot option that the boot order array on the computer system contains is skipped.  In the UEFI context, this property influences the load option active flag for the boot option.",
                     "longDescription": "This property shall indicate whether the boot option is enabled.  If `true`, it is enabled.  If `false`, the boot option that the boot order array on the computer system contains shall be skipped.  In the UEFI context, this property shall influence the load option active flag for the boot option.",
                     "readonly": false,
                     "type": [
@@ -186,5 +186,5 @@
     },
     "owningEntity": "DMTF",
     "release": "2017.3",
-    "title": "#BootOption.v1_0_4.BootOption"
+    "title": "#BootOption.v1_0_5.BootOption"
 }

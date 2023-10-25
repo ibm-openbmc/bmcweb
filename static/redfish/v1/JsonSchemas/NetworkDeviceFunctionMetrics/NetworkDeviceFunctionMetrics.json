@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/NetworkDeviceFunctionMetrics.v1_1_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/NetworkDeviceFunctionMetrics.v1_1_1.json",
     "$ref": "#/definitions/NetworkDeviceFunctionMetrics",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -316,7 +316,7 @@
                 },
                 "RXAvgQueueDepthPercent": {
                     "description": "The average RX queue depth as the percentage.",
-                    "longDescription": "This property shall contain the average RX queue depth as the percentage.",
+                    "longDescription": "This property shall contain the average RX queue depth as a percentage, typically `0` to `100`.",
                     "minimum": 0,
                     "readonly": true,
                     "type": [
@@ -382,7 +382,7 @@
                 },
                 "TXAvgQueueDepthPercent": {
                     "description": "The average TX queue depth as the percentage.",
-                    "longDescription": "This property shall contain the average TX queue depth as the percentage.",
+                    "longDescription": "This property shall contain the average TX queue depth as a percentage, typically `0` to `100`.",
                     "minimum": 0,
                     "readonly": true,
                     "type": [
@@ -479,5 +479,5 @@
     },
     "owningEntity": "DMTF",
     "release": "2021.2",
-    "title": "#NetworkDeviceFunctionMetrics.v1_1_0.NetworkDeviceFunctionMetrics"
+    "title": "#NetworkDeviceFunctionMetrics.v1_1_1.NetworkDeviceFunctionMetrics"
 }

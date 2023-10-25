@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/TrustedComponent.v1_1_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/TrustedComponent.v1_2_0.json",
     "$ref": "#/definitions/TrustedComponent",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -97,6 +97,20 @@
                     "$ref": "http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Oem",
                     "description": "The OEM extension property.",
                     "longDescription": "This property shall contain the OEM extensions.  All values for properties contained in this object shall conform to the Redfish Specification-described requirements."
+                },
+                "Owner": {
+                    "anyOf": [
+                        {
+                            "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/idRef"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "A link to the resource that owns this trusted component.",
+                    "longDescription": "This property shall contain a link to the resource that owns this trusted component.  In the case of TPMs, particularly in multiple chassis implementations, this is the resource used to establish a new PCR.",
+                    "readonly": true,
+                    "versionAdded": "v1_2_0"
                 },
                 "SoftwareImages": {
                     "description": "The images that are associated with this trusted component.",
@@ -359,6 +373,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2023.1",
-    "title": "#TrustedComponent.v1_1_0.TrustedComponent"
+    "release": "2023.2",
+    "title": "#TrustedComponent.v1_2_0.TrustedComponent"
 }

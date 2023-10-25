@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/PowerDistribution.v1_3_1.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/PowerDistribution.v1_3_2.json",
     "$ref": "#/definitions/PowerDistribution",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -588,6 +588,7 @@
                 "OverVoltageRMSPercentage": {
                     "description": "The positive percentage of voltage RMS over the nominal value that satisfies a criterion for transfer.",
                     "longDescription": "This property shall contain the positive percentage of voltage RMS over the nominal value that satisfies a criterion for transfer.",
+                    "minimum": 0,
                     "readonly": false,
                     "type": [
                         "number",
@@ -621,6 +622,7 @@
                 "UnderVoltageRMSPercentage": {
                     "description": "The negative percentage of voltage RMS under the nominal value that satisfies a criterion for transfer.",
                     "longDescription": "This property shall contain the negative percentage of voltage RMS under the nominal value that satisfies a criterion for transfer.",
+                    "maximum": 0,
                     "readonly": false,
                     "type": [
                         "number",
@@ -647,5 +649,5 @@
     },
     "owningEntity": "DMTF",
     "release": "2022.3",
-    "title": "#PowerDistribution.v1_3_1.PowerDistribution"
+    "title": "#PowerDistribution.v1_3_2.PowerDistribution"
 }

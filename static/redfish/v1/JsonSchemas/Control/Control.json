@@ -1,5 +1,5 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/Control.v1_3_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/Control.v1_4_0.json",
     "$ref": "#/definitions/Control",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
     "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
@@ -66,6 +66,7 @@
                     "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/type"
                 },
                 "Accuracy": {
+                    "deprecated": "This property has been deprecated in favor of SetPointAccuracy to provide a range instead of a percentage.",
                     "description": "The estimated percent error of measured versus actual values.",
                     "longDescription": "This property shall contain the percent error of the measured versus actual values of the SetPoint property.",
                     "readonly": true,
@@ -73,7 +74,8 @@
                         "number",
                         "null"
                     ],
-                    "units": "%"
+                    "units": "%",
+                    "versionDeprecated": "v1_4_0"
                 },
                 "Actions": {
                     "$ref": "#/definitions/Actions",
@@ -304,6 +306,16 @@
                         "number",
                         "null"
                     ]
+                },
+                "SetPointAccuracy": {
+                    "description": "Accuracy (+/-) of the set point.",
+                    "longDescription": "This property shall contain the accuracy of the value of the SetPoint for this control.  The value shall be the absolute value of the maximum deviation of the SetPoint from its actual value.  The value shall be in units that follow the SetPointUnits for this control.",
+                    "readonly": true,
+                    "type": [
+                        "number",
+                        "null"
+                    ],
+                    "versionAdded": "v1_4_0"
                 },
                 "SetPointType": {
                     "anyOf": [
@@ -889,6 +901,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2023.1",
-    "title": "#Control.v1_3_0.Control"
+    "release": "2023.2",
+    "title": "#Control.v1_4_0.Control"
 }

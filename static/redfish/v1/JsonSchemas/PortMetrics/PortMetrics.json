@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/PortMetrics.v1_4_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/PortMetrics.v1_5_0.json",
     "$ref": "#/definitions/PortMetrics",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2022 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -52,7 +52,7 @@
             "properties": {
                 "BackpressureAveragePercentage": {
                     "description": "The average congestion of the port as a percentage.",
-                    "longDescription": "This property shall contain CXL Specification-defined 'Backpressure Average Percentage' as a percentage.",
+                    "longDescription": "This property shall contain CXL Specification-defined 'Backpressure Average Percentage' as a percentage, typically `0` to `100`.",
                     "readonly": true,
                     "type": "integer",
                     "units": "%",
@@ -935,6 +935,16 @@
                     ],
                     "versionAdded": "v1_1_0"
                 },
+                "PhyResetProblemCount": {
+                    "description": "The number of times a phy reset problem has occurred.",
+                    "longDescription": "This property shall contain the number of times a phy reset problem has occurred.",
+                    "readonly": true,
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "versionAdded": "v1_5_0"
+                },
                 "RunningDisparityErrorCount": {
                     "description": "The number of dwords containing running disparity errors that have been received by the phy outside of phy reset sequences.",
                     "longDescription": "This property shall contain the number of dwords containing running disparity errors that have been received by the phy outside of phy reset sequences.",
@@ -1019,6 +1029,6 @@
         }
     },
     "owningEntity": "DMTF",
-    "release": "2022.3",
-    "title": "#PortMetrics.v1_4_0.PortMetrics"
+    "release": "2023.2",
+    "title": "#PortMetrics.v1_5_0.PortMetrics"
 }

@@ -1,8 +1,8 @@
 {
-    "$id": "http://redfish.dmtf.org/schemas/v1/AllowDeny.v1_0_0.json",
+    "$id": "http://redfish.dmtf.org/schemas/v1/AllowDeny.v1_0_1.json",
     "$ref": "#/definitions/AllowDeny",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2014-2021 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+    "copyright": "Copyright 2014-2023 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
     "definitions": {
         "Actions": {
             "additionalProperties": false,
@@ -217,8 +217,8 @@
                 "Deny"
             ],
             "enumDescriptions": {
-                "Allow": "Indicates that traffic that matches the criteria in this resource shall be permitted.",
-                "Deny": "Indicates that traffic that matches the criteria in this resource shall not be permitted."
+                "Allow": "Indicates that traffic that matches the criteria in this resource is permitted.",
+                "Deny": "Indicates that traffic that matches the criteria in this resource is not permitted."
             },
             "type": "string"
         },
@@ -268,5 +268,5 @@
     },
     "owningEntity": "DMTF",
     "release": "2021.2",
-    "title": "#AllowDeny.v1_0_0.AllowDeny"
+    "title": "#AllowDeny.v1_0_1.AllowDeny"
 }
