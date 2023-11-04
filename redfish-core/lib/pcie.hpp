@@ -281,11 +281,9 @@ static inline void getPcieSlotLinkAndStatusProperties(
 
                             asyncResp->res
                                 .jsonValue["Oem"]["IBM"]["LinkReset"] = *value;
-                            asyncResp->res.jsonValue["Oem"]["@odata.type"] =
-                                "#OemPCIeDevice.Oem";
                             asyncResp->res
                                 .jsonValue["Oem"]["IBM"]["@odata.type"] =
-                                "#OemPCIeDevice.IBM";
+                                "#OemPCIeDevice.v1_0_0.IBM";
                         }
                     }
                 },
@@ -515,6 +513,8 @@ inline void
         });
         if (it != splitText.cend())
         {
+            asyncResp->res.jsonValue["Links"]["Oem"]["IBM"]["@odata.type"] =
+                "#OemPCIeDevice.v1_0_0.PCIeLinks";
             asyncResp->res
                 .jsonValue["Links"]["Oem"]["IBM"]["PCIeSlot"]["@odata.id"] =
                 ("/redfish/v1/Chassis/" + *it + "/PCIeSlots");
