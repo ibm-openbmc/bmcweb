@@ -1554,8 +1554,8 @@ inline void getPowerMode(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
             {
                 BMCWEB_LOG_DEBUG << "Safe mode: " << *safeMode;
                 nlohmann::json& oemSafeMode = aResp->res.jsonValue["Oem"];
-                oemSafeMode["@odata.type"] = "#OemComputerSystem.Oem";
-                oemSafeMode["IBM"]["@odata.type"] = "#OemComputerSystem.IBM";
+                oemSafeMode["IBM"]["@odata.type"] =
+                    "#OemComputerSystem.v1_0_0.IBM";
                 oemSafeMode["IBM"]["SafeMode"] = *safeMode;
             }
             if (powerMode != nullptr)
@@ -2069,8 +2069,7 @@ inline void getEnabledPanelFunctions(
     doGetEnabledPanelFunctions(
         asyncResp, [asyncResp](const std::vector<uint8_t>& enabledFuncs) {
         nlohmann::json& oem = asyncResp->res.jsonValue["Oem"];
-        oem["@odata.type"] = "#OemComputerSystem.Oem";
-        oem["IBM"]["@odata.type"] = "#OemComputerSystem.IBM";
+        oem["IBM"]["@odata.type"] = "#OemComputerSystem.v1_0_0.IBM";
         oem["IBM"]["EnabledPanelFunctions"] = enabledFuncs;
     });
 }

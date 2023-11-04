@@ -53,10 +53,8 @@ inline void getLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                 return;
             }
 
-            aResp->res.jsonValue["Oem"]["@odata.type"] =
-                "#OemComputerSystem.Oem";
             aResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
-                "#OemComputerSystem.IBM";
+                "#OemComputerSystem.v1_0_0.IBM";
             aResp->res.jsonValue["Oem"]["IBM"]["LampTest"] = assert;
         });
     });
