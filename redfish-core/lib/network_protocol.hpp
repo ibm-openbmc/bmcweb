@@ -108,7 +108,7 @@ void getEthernetIfaceData(CallbackFunc&& callback)
         extractNTPServersAndDomainNamesData(dbusData, ntpServers, domainNames);
 
         callback(true, ntpServers, domainNames);
-        },
+    },
         "xyz.openbmc_project.Network", "/xyz/openbmc_project/network",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
@@ -246,7 +246,7 @@ inline void handleNTPProtocolEnabled(
         {
             messages::internalError(asyncResp->res);
         }
-        },
+    },
         "xyz.openbmc_project.Settings", "/xyz/openbmc_project/time/sync_method",
         "org.freedesktop.DBus.Properties", "Set",
         "xyz.openbmc_project.Time.Synchronization", "TimeSyncMethod",
@@ -361,7 +361,7 @@ inline void
                             messages::internalError(asyncResp->res);
                             return;
                         }
-                        },
+                    },
                         service, objectPath, "org.freedesktop.DBus.Properties",
                         "Set", interface, "StaticNTPServers",
                         dbus::utility::DbusVariantType{currentNtpServers});
@@ -402,7 +402,7 @@ inline void
                         messages::internalError(asyncResp->res);
                         return;
                     }
-                    },
+                },
                     entry.second.begin()->first, entry.first,
                     "org.freedesktop.DBus.Properties", "Set",
                     "xyz.openbmc_project.Control.Service.Attributes", "Running",
@@ -415,7 +415,7 @@ inline void
                         messages::internalError(asyncResp->res);
                         return;
                     }
-                    },
+                },
                     entry.second.begin()->first, entry.first,
                     "org.freedesktop.DBus.Properties", "Set",
                     "xyz.openbmc_project.Control.Service.Attributes", "Enabled",
@@ -466,7 +466,7 @@ inline void
         {
             asyncResp->res.jsonValue["NTP"]["ProtocolEnabled"] = false;
         }
-        });
+    });
 }
 
 inline std::string encodeServiceObjectPath(std::string_view serviceName)
@@ -560,7 +560,7 @@ inline void requestRoutesNetworkProtocol(App& app)
             handleProtocolEnabled(*sshEnabled, asyncResp,
                                   encodeServiceObjectPath(sshServiceName));
         }
-        });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Managers/bmc/NetworkProtocol/")
         .privileges(redfish::privileges::headManagerNetworkProtocol)
@@ -577,7 +577,7 @@ inline void requestRoutesNetworkProtocol(App& app)
             return;
         }
         getNetworkData(asyncResp, req);
-        });
+    });
 }
 
 } // namespace redfish

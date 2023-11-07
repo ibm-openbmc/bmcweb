@@ -142,7 +142,7 @@ inline void requestRoutesRoles(App& app)
         {
             asyncResp->res.jsonValue["Description"] = roleId;
         }
-        });
+    });
 }
 
 inline void requestRoutesRoleCollection(App& app)
@@ -190,8 +190,8 @@ inline void requestRoutesRoleCollection(App& app)
             }
             asyncResp->res.jsonValue["Members@odata.count"] =
                 memberArray.size();
-            });
         });
+    });
 }
 
 } // namespace redfish

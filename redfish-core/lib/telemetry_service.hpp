@@ -84,7 +84,7 @@ inline void handleTelemetryServiceGet(
         asyncResp->res.jsonValue["SupportedCollectionFunctions"] =
             std::array<std::string_view, 4>(
                 {"Maximum", "Minimum", "Average", "Summation"});
-        });
+    });
 }
 
 inline void requestRoutesTelemetryService(App& app)

@@ -61,7 +61,7 @@ inline void
 
         aResp->res.jsonValue["Location"]["PartLocation"]["ServiceLabel"] =
             property;
-        });
+    });
 }
 
 inline void
@@ -120,7 +120,7 @@ inline void
         {
             aResp->res.jsonValue["SparePartNumber"] = *sparePartNumber;
         }
-        });
+    });
 }
 
 inline void
@@ -146,7 +146,7 @@ inline void
         {
             aResp->res.jsonValue["Status"]["State"] = "Absent";
         }
-        });
+    });
 }
 
 inline void
@@ -172,7 +172,7 @@ inline void
         {
             aResp->res.jsonValue["Status"]["Health"] = "Critical";
         }
-        });
+    });
 }
 
 inline void linkAsPCIeDevice(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
@@ -238,7 +238,7 @@ inline void doGetFabricAdapterPCIeSlots(
         std::string chassisName = path.filename();
 
         callback(std::move(chassisName), pcieSlotPaths);
-        });
+    });
 }
 
 inline void getFabricAdapterPCIeSlots(
@@ -277,7 +277,7 @@ inline void getFabricAdapterPCIeSlots(
         // Check whether PCIeSlot is associated with chassis
         doGetFabricAdapterPCIeSlots(aResp, fabricAdapterPath, pcieSlotPaths,
                                     std::move(callback));
-        });
+    });
 }
 
 inline void doAdapterGet(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
@@ -313,7 +313,7 @@ inline void doAdapterGet(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         aResp->res.jsonValue["Oem"]["IBM"]["Slots"]["@odata.id"] =
             crow::utility::urlFromPieces("redfish", "v1", "Chassis",
                                          chassisName, "PCIeSlots");
-        });
+    });
 
     getFabricAdapterLocation(aResp, serviceName, fabricAdapterPath);
     getFabricAdapterAsset(aResp, serviceName, fabricAdapterPath);
@@ -372,7 +372,7 @@ inline void getValidFabricAdapterPath(
         }
         BMCWEB_LOG_WARNING << "Adapter not found";
         messages::resourceNotFound(aResp->res, "FabricAdapter", adapterId);
-        });
+    });
 }
 
 inline void
@@ -394,7 +394,7 @@ inline void
                     const dbus::utility::InterfaceList& interfaces) {
         doAdapterGet(aResp, systemName, adapterId, fabricAdapterPath,
                      serviceName, interfaces);
-        });
+    });
 }
 
 inline void
@@ -427,7 +427,7 @@ inline void
             setLocationIndicatorActive(aResp, fabricAdapterPath,
                                        *locationIndicatorActive);
         }
-        });
+    });
 }
 
 inline void handleFabricAdapterCollectionGet(
@@ -512,7 +512,7 @@ inline void
         aResp->res.addHeader(boost::beast::http::field::link,
                              "</redfish/v1/JsonSchemas/FabricAdapter/"
                              "FabricAdapter.json>; rel=describedby");
-        });
+    });
 }
 
 inline void requestRoutesFabricAdapterCollection(App& app)

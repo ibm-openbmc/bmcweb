@@ -691,7 +691,7 @@ class AddReport
             }
 
             messages::created(asyncResp->res);
-            },
+        },
             telemetry::service, "/xyz/openbmc_project/Telemetry/Reports",
             "xyz.openbmc_project.Telemetry.ReportManager", "AddReport",
             "TelemetryService/" + args.id, args.name, args.reportingType,
@@ -742,7 +742,7 @@ inline void requestRoutesMetricReportDefinitionCollection(App& app)
                 "/redfish/v1/TelemetryService/MetricReportDefinitions"),
             interfaces,
             "/xyz/openbmc_project/Telemetry/Reports/TelemetryService");
-        });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/TelemetryService/MetricReportDefinitions/")
         .privileges(redfish::privileges::postMetricReportDefinitionCollection)
@@ -785,9 +785,9 @@ inline void requestRoutesMetricReportDefinitionCollection(App& app)
                     return;
                 }
                 addReportReq->insert(uriToDbus);
-                });
+            });
         }
-        });
+    });
 }
 
 inline void requestRoutesMetricReportDefinition(App& app)
@@ -825,8 +825,8 @@ inline void requestRoutesMetricReportDefinition(App& app)
             }
 
             telemetry::fillReportDefinition(asyncResp, id, properties);
-            });
         });
+    });
 
     BMCWEB_ROUTE(app,
                  "/redfish/v1/TelemetryService/MetricReportDefinitions/<str>/")
@@ -836,7 +836,7 @@ inline void requestRoutesMetricReportDefinition(App& app)
                    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                    const std::string& id)
 
-            {
+    {
         if (!redfish::setUpRedfishRoute(app, req, asyncResp))
         {
             return;
@@ -865,9 +865,9 @@ inline void requestRoutesMetricReportDefinition(App& app)
             }
 
             asyncResp->res.result(boost::beast::http::status::no_content);
-            },
+        },
             telemetry::service, reportPath, "xyz.openbmc_project.Object.Delete",
             "Delete");
-        });
+    });
 }
 } // namespace redfish

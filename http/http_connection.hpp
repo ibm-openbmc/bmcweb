@@ -438,7 +438,7 @@ class Connection :
                 // delete lambda with self shared_ptr
                 // to enable connection destruction
                 res.completeRequestHandler = nullptr;
-                });
+            });
 
             return;
         }
@@ -700,7 +700,7 @@ class Connection :
 #endif // BMCWEB_INSECURE_DISABLE_AUTHX
 
             doRead();
-            });
+        });
     }
 
     void doRead()

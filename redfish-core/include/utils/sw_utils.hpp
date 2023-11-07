@@ -212,15 +212,15 @@ inline void
                     {
                         aResp->res.jsonValue[activeVersionPropName] = *version;
                     }
-                    });
+                });
             }
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTree",
             "/xyz/openbmc_project/software", static_cast<int32_t>(0),
             std::array<const char*, 1>{"xyz.openbmc_project.Software.Version"});
-        });
+    });
 }
 
 /**
@@ -331,7 +331,7 @@ inline void getSwStatus(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             getRedfishSwState(*swInvActivation);
         asyncResp->res.jsonValue["Status"]["Health"] =
             getRedfishSwHealth(*swInvActivation);
-        });
+    });
 }
 
 /**
@@ -370,7 +370,7 @@ inline void
             asyncResp->res.jsonValue["Updateable"] = true;
             return;
         }
-        });
+    });
 }
 
 } // namespace sw_util

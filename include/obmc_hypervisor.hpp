@@ -67,7 +67,7 @@ inline void doWrite()
             return;
         }
         doWrite();
-        });
+    });
 }
 
 inline void doRead()
@@ -98,7 +98,7 @@ inline void doRead()
             session->sendBinary(payload);
         }
         doRead();
-        });
+    });
 }
 
 inline void connectHandler(const boost::system::error_code& ec)
@@ -122,8 +122,7 @@ inline void requestRoutes(App& app)
     BMCWEB_ROUTE(app, "/console1")
         .privileges({{"OemIBMPerformService"}})
         .websocket()
-        .onopen(
-            [](crow::websocket::Connection& conn) {
+        .onopen([](crow::websocket::Connection& conn) {
         BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";
 
         // TODO: this user check must be removed when WebSocket privileges
@@ -144,24 +143,24 @@ inline void requestRoutes(App& app)
                     conn.getIoContext());
             hostSocket->async_connect(ep, connectHandler);
         }
-        })
+    })
         .onclose([](crow::websocket::Connection& conn,
                     [[maybe_unused]] const std::string& reason) {
-            BMCWEB_LOG_INFO << "Closing websocket. Reason: " << reason;
+        BMCWEB_LOG_INFO << "Closing websocket. Reason: " << reason;
 
-            sessions.erase(&conn);
-            if (sessions.empty())
-            {
-                hostSocket = nullptr;
-                inputBuffer.clear();
-                inputBuffer.shrink_to_fit();
-            }
-        })
+        sessions.erase(&conn);
+        if (sessions.empty())
+        {
+            hostSocket = nullptr;
+            inputBuffer.clear();
+            inputBuffer.shrink_to_fit();
+        }
+    })
         .onmessage([]([[maybe_unused]] crow::websocket::Connection& conn,
                       const std::string& data, [[maybe_unused]] bool isBinary) {
-            inputBuffer += data;
-            doWrite();
-        });
+        inputBuffer += data;
+        doWrite();
+    });
 }
 } // namespace obmc_hypervisor
 } // namespace crow

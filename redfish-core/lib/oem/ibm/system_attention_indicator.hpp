@@ -75,8 +75,8 @@ inline void getSAI(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             {
                 oemSAI["PlatformSystemAttentionIndicator"] = assert;
             }
-            });
         });
+    });
 }
 
 /**
@@ -135,7 +135,7 @@ inline void setSAI(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 }
                 return;
             }
-            });
         });
+    });
 }
 } // namespace redfish

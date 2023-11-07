@@ -146,7 +146,7 @@ static inline void addPrefixToItem(nlohmann::json& item,
 }
 
 static inline void addAggregatedHeaders(crow::Response& asyncResp,
-                                        crow::Response& resp,
+                                        const crow::Response& resp,
                                         std::string_view prefix)
 {
     if (!resp.getHeaderValue("Content-Type").empty())
@@ -680,7 +680,7 @@ class RedfishAggregator
                     << "No satellite BMCs detected.  Redfish Aggregation not enabled";
             }
             handler(ec, satelliteInfo);
-            },
+        },
             "xyz.openbmc_project.EntityManager",
             "/xyz/openbmc_project/inventory",
             "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");

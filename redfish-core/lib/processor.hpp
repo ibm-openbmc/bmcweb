@@ -122,7 +122,7 @@ inline void getProcessorUUID(std::shared_ptr<bmcweb::AsyncResp> aResp,
             return;
         }
         aResp->res.jsonValue["UUID"] = property;
-        });
+    });
 }
 
 inline void getCpuDataByInterface(
@@ -338,7 +338,7 @@ inline void getCpuDataByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
             aResp->res.jsonValue["TotalCores"] = totalCores;
         }
         return;
-        },
+    },
         service, "/xyz/openbmc_project/inventory",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
@@ -434,7 +434,7 @@ inline void
         [aResp](const boost::system::error_code& ec,
                 const dbus::utility::DBusPropertiesMap& properties) {
         readThrottleProperties(aResp, ec, properties);
-        });
+    });
 }
 
 inline void getCpuAssetData(std::shared_ptr<bmcweb::AsyncResp> aResp,
@@ -508,7 +508,7 @@ inline void getCpuAssetData(std::shared_ptr<bmcweb::AsyncResp> aResp,
         {
             aResp->res.jsonValue["SparePartNumber"] = *sparePartNumber;
         }
-        });
+    });
 }
 
 inline void getCpuRevisionData(std::shared_ptr<bmcweb::AsyncResp> aResp,
@@ -544,7 +544,7 @@ inline void getCpuRevisionData(std::shared_ptr<bmcweb::AsyncResp> aResp,
         {
             aResp->res.jsonValue["Version"] = *version;
         }
-        });
+    });
 }
 
 inline void getAcceleratorDataByService(
@@ -599,7 +599,7 @@ inline void getAcceleratorDataByService(
         aResp->res.jsonValue["Status"]["State"] = state;
         aResp->res.jsonValue["Status"]["Health"] = health;
         aResp->res.jsonValue["ProcessorType"] = "Accelerator";
-        });
+    });
 }
 
 // OperatingConfig D-Bus Types
@@ -741,7 +741,7 @@ inline void getCpuConfigData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 }
 
                 highSpeedCoreIdsHandler(aResp, baseSpeedList);
-                });
+            });
         }
 
         if (baseSpeedPriorityEnabled != nullptr)
@@ -749,7 +749,7 @@ inline void getCpuConfigData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             json["BaseSpeedPriorityState"] =
                 *baseSpeedPriorityEnabled ? "Enabled" : "Disabled";
         }
-        });
+    });
 }
 
 /**
@@ -779,7 +779,7 @@ inline void getCpuLocationCode(std::shared_ptr<bmcweb::AsyncResp> aResp,
 
         aResp->res.jsonValue["Location"]["PartLocation"]["ServiceLabel"] =
             property;
-        });
+    });
 }
 
 /**
@@ -808,7 +808,7 @@ inline void getCpuUniqueId(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         }
         aResp->res.jsonValue["ProcessorId"]["ProtectedIdentificationNumber"] =
             id;
-        });
+    });
 }
 
 /**
@@ -890,7 +890,7 @@ inline void getProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
             return;
         }
         messages::resourceNotFound(resp->res, "Processor", processorId);
-        });
+    });
 }
 
 inline void getProcessorData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
@@ -1019,7 +1019,7 @@ inline void getProcessorPaths(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 
         // Object not found
         messages::resourceNotFound(aResp->res, "Processor", processorId);
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
@@ -1158,7 +1158,7 @@ inline void
             hw_isolation_utils::getHwIsolationStatus(aResp, objPath);
 #endif // end of BMCWEB_ENABLE_HW_ISOLATION
         }
-        },
+    },
         service, "/xyz/openbmc_project/inventory",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
@@ -1224,7 +1224,7 @@ inline void getSubProcessorData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 messages::resourceNotFound(aResp->res, "Processor", coreId);
                 return;
             }
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTree", cpuPath, 0,
@@ -1277,7 +1277,7 @@ inline void
                                            .filename()}});
             }
             aResp->res.jsonValue["Members@odata.count"] = members.size();
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", cpuPath, 0,
@@ -1389,7 +1389,7 @@ inline void
                 baseSpeedArray.push_back(std::move(speed));
             }
         }
-        });
+    });
 }
 
 /**
@@ -1513,7 +1513,7 @@ inline void patchAppliedOperatingConfig(
         [resp, appliedConfigUri](const boost::system::error_code ec,
                                  const sdbusplus::message_t& msg) {
         handleAppliedConfigResponse(resp, appliedConfigUri, ec, msg);
-        },
+    },
         *controlService, cpuObjectPath, "org.freedesktop.DBus.Properties",
         "Set", "xyz.openbmc_project.Control.Processor.CurrentOperatingConfig",
         "AppliedConfig", dbus::utility::DbusVariantType(std::move(configPath)));
@@ -1647,7 +1647,7 @@ inline void setProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
             return;
         }
         messages::resourceNotFound(resp->res, "Processor", processorId);
-        });
+    });
 }
 
 inline void requestRoutesOperatingConfigCollection(App& app)
@@ -1696,9 +1696,8 @@ inline void requestRoutesOperatingConfigCollection(App& app)
 
                 // Use the common search routine to construct the
                 // Collection of all Config objects under this CPU.
-                constexpr std::array<std::string_view, 1> interface {
-                    "xyz.openbmc_project.Inventory.Item.Cpu.OperatingConfig"
-                };
+                constexpr std::array<std::string_view, 1> interface{
+                    "xyz.openbmc_project.Inventory.Item.Cpu.OperatingConfig"};
                 collection_util::getCollectionMembers(
                     asyncResp,
                     crow::utility::urlFromPieces("redfish", "v1", "Systems",
@@ -1707,14 +1706,14 @@ inline void requestRoutesOperatingConfigCollection(App& app)
                     interface, object.c_str());
                 return;
             }
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
             "/xyz/openbmc_project/inventory", 0,
             std::array<const char*, 1>{
                 "xyz.openbmc_project.Control.Processor.CurrentOperatingConfig"});
-        });
+    });
 }
 
 inline void requestRoutesOperatingConfig(App& app)
@@ -1781,14 +1780,14 @@ inline void requestRoutesOperatingConfig(App& app)
             }
             messages::resourceNotFound(asyncResp->res, "OperatingConfig",
                                        configName);
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTree",
             "/xyz/openbmc_project/inventory", 0,
             std::array<const char*, 1>{
                 "xyz.openbmc_project.Inventory.Item.Cpu.OperatingConfig"});
-        });
+    });
 }
 
 inline void requestRoutesProcessorCollection(App& app)
@@ -1883,8 +1882,8 @@ inline void requestRoutesProcessorCollection(App& app)
                 members.emplace_back(std::move(item));
             }
             asyncResp->res.jsonValue["Members@odata.count"] = members.size();
-            });
         });
+    });
 }
 
 inline void requestRoutesProcessor(App& app)
@@ -1927,7 +1926,7 @@ inline void requestRoutesProcessor(App& app)
         getProcessorObject(
             asyncResp, processorId,
             std::bind_front(getProcessorData, asyncResp, processorId));
-        });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/Processors/<str>/")
         .privileges(redfish::privileges::patchProcessor)
@@ -1976,7 +1975,7 @@ inline void requestRoutesProcessor(App& app)
         {
             setProcessorObject(asyncResp, processorId, locationIndicatorActive);
         }
-        });
+    });
 }
 
 inline void requestRoutesSubProcessors(App& app)
@@ -1994,7 +1993,7 @@ inline void requestRoutesSubProcessors(App& app)
         }
 
         getSubProcessorMembers(asyncResp, processorId);
-        });
+    });
 }
 
 /**
@@ -2080,7 +2079,7 @@ inline void requestRoutesSubProcessorsCore(App& app)
         }
 
         getSubProcessorData(asyncResp, processorId, coreId);
-        });
+    });
 
     BMCWEB_ROUTE(
         app, "/redfish/v1/Systems/system/Processors/<str>/SubProcessors/<str>")

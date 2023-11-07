@@ -76,7 +76,7 @@ inline void getChassisState(std::shared_ptr<bmcweb::AsyncResp> aResp)
             aResp->res.jsonValue["PowerState"] = "Off";
             aResp->res.jsonValue["Status"]["State"] = "StandbyOffline";
         }
-        });
+    });
 }
 
 inline void getIntrusionByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
@@ -100,7 +100,7 @@ inline void getIntrusionByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
 
         aResp->res.jsonValue["PhysicalSecurity"]["IntrusionSensorNumber"] = 1;
         aResp->res.jsonValue["PhysicalSecurity"]["IntrusionSensor"] = value;
-        });
+    });
 }
 
 /**
@@ -128,7 +128,7 @@ inline void getPhysicalSecurityData(std::shared_ptr<bmcweb::AsyncResp> aResp)
                 return;
             }
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -186,7 +186,7 @@ inline void
 
         asyncResp->res.jsonValue["Location"]["PartLocation"]["ServiceLabel"] =
             property;
-        });
+    });
 }
 
 inline void getChassisUUID(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -205,7 +205,7 @@ inline void getChassisUUID(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             return;
         }
         asyncResp->res.jsonValue["UUID"] = chassisUUID;
-        });
+    });
 }
 
 inline void
@@ -298,12 +298,12 @@ inline void
                     }
                     health->inventory.insert(health->inventory.end(),
                                              resp2.begin(), resp2.end());
-                    },
+                },
                     "xyz.openbmc_project.ObjectMapper",
                     "/xyz/openbmc_project/object_mapper",
                     "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", "/",
                     int32_t(0), inventoryForChassis);
-                });
+            });
 
             health->populate();
 
@@ -344,7 +344,7 @@ inline void
                 reference["@odata.id"] = crow::utility::urlFromPieces(
                     "redfish", "v1", "Chassis", chassisId, "Drives");
                 asyncResp->res.jsonValue["Drives"] = std::move(reference);
-                });
+            });
 
             const std::string& connectionName = connectionNames[0].first;
 
@@ -373,7 +373,7 @@ inline void
                         return;
                     }
                     asyncResp->res.jsonValue["AssetTag"] = property;
-                    });
+                });
             }
 
             for (const char* interface : hasIndicatorLed)
@@ -408,7 +408,7 @@ inline void
                         "#OemChassis.v1_0_0.Chassis";
                     asyncResp->res.jsonValue["Oem"]["OpenBMC"]
                                             ["FirmwareVersion"] = property;
-                    });
+                });
             }
 
             sdbusplus::asio::getAllProperties(
@@ -506,7 +506,7 @@ inline void
                 asyncResp->res.jsonValue["Links"]["ManagedBy"] =
                     std::move(managedBy);
                 getChassisState(asyncResp);
-                });
+            });
 
             for (const auto& interface : interfaces2)
             {
@@ -526,7 +526,7 @@ inline void
 
         // Couldn't find an object with that name.  return an error
         messages::resourceNotFound(asyncResp->res, "Chassis", chassisId);
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -654,7 +654,7 @@ inline void
         }
 
         messages::resourceNotFound(asyncResp->res, "Chassis", chassisId);
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -760,11 +760,11 @@ inline void
             }
 
             messages::success(asyncResp->res);
-            },
+        },
             processName, objectPath, "org.freedesktop.DBus.Properties", "Set",
             interfaceName, destProperty,
             dbus::utility::DbusVariantType{propertyValue});
-        },
+    },
         busName, path, interface, method, "/", 0, interfaces);
 }
 

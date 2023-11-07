@@ -201,7 +201,7 @@ void getThermalMetrics(
                              sensorsAsyncResp->types, nodeSensorList,
                              culledSensorList);
             callback(culledSensorList);
-            });
+        });
     };
     dbus::utility::getSubTreePaths("/xyz/openbmc_project/inventory", 0,
                                    interfaces, std::move(respHandler));
@@ -361,7 +361,7 @@ inline void
         [sensorsAsyncResp](
             const std::shared_ptr<std::set<std::string>>& sensorNames) {
         processThermalSensorList(sensorsAsyncResp, sensorNames);
-        });
+    });
 }
 
 inline void

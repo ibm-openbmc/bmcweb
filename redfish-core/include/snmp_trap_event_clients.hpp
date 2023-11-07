@@ -39,7 +39,7 @@ inline void
 
             asyncResp->res.jsonValue["Destination"] = std::move(destination);
         }
-        });
+    });
 }
 
 inline void
@@ -109,7 +109,7 @@ inline void
 
         messages::resourceNotFound(asyncResp->res, "Subscriptions", id);
         EventServiceManager::getInstance().deleteSubscription(id);
-        },
+    },
         "xyz.openbmc_project.Network.SNMP",
         "/xyz/openbmc_project/network/snmp/manager",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
@@ -146,7 +146,7 @@ inline void
                                  "/redfish/v1/EventService/Subscriptions/" +
                                      subscriptionId);
         messages::created(asyncResp->res);
-        },
+    },
         "xyz.openbmc_project.Network.SNMP",
         "/xyz/openbmc_project/network/snmp/manager",
         "xyz.openbmc_project.Network.Client.Create", "Client", host,
@@ -228,7 +228,7 @@ inline void
 
         // Create the snmp client
         createSnmpTrapClient(asyncResp, host, snmpTrapPort, subValue);
-        },
+    },
         "xyz.openbmc_project.Network.SNMP",
         "/xyz/openbmc_project/network/snmp/manager",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
@@ -278,7 +278,7 @@ inline void
             return;
         }
         messages::success(asyncResp->res);
-        },
+    },
         "xyz.openbmc_project.Network.SNMP", snmpPath,
         "xyz.openbmc_project.Object.Delete", "Delete");
 }

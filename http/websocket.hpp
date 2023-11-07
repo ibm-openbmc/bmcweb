@@ -238,7 +238,7 @@ class ConnectionImpl : public Connection
                 BMCWEB_LOG_ERROR << "Error closing websocket " << ec;
                 return;
             }
-            });
+        });
     }
 
     void acceptDone()

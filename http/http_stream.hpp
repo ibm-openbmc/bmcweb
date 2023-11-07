@@ -84,7 +84,7 @@ class ConnectionImpl : public Connection
                 close();
                 return;
             }
-            });
+        });
     }
 
     void setStreamHeaders(const std::string& header,
@@ -108,7 +108,7 @@ class ConnectionImpl : public Connection
                 close();
                 return;
             }
-            });
+        });
     }
 
     void sendMessage(const boost::asio::mutable_buffer& buffer,
@@ -147,7 +147,7 @@ class ConnectionImpl : public Connection
                 return;
             }
             (handlerFunc)();
-            });
+        });
     }
 
   private:

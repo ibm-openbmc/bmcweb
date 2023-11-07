@@ -53,7 +53,7 @@ inline void getReadingRange(
         const double value = std::visit(ValueVisitor(ec), valueVariant);
 
         callback(ec, value);
-        },
+    },
         service2, path, "org.freedesktop.DBus.Properties", "Get",
         "xyz.openbmc_project.Sensor.Value", property);
 }
@@ -80,7 +80,7 @@ inline void
 
             asyncResp->res.jsonValue["MinReadingRange"] = readingRange;
         }
-        });
+    });
 
     telemetry::getReadingRange(
         serviceName, sensorPath, "MaxValue",
@@ -97,7 +97,7 @@ inline void
 
             asyncResp->res.jsonValue["MaxReadingRange"] = readingRange;
         }
-        });
+    });
 }
 
 inline void getSensorService(
@@ -135,7 +135,7 @@ inline void getSensorService(
         callback(boost::system::errc::make_error_code(
                      boost::system::errc::no_such_file_or_directory),
                  std::string{});
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -268,7 +268,7 @@ inline void requestRoutesMetricDefinitionCollection(App& app)
         asyncResp->res.jsonValue["Name"] = "Metric Definition Collection";
         asyncResp->res.jsonValue["Members"] = nlohmann::json::array();
         asyncResp->res.jsonValue["Members@odata.count"] = 0;
-        });
+    });
 }
 
 inline void requestRoutesMetricDefinition(App& app)
@@ -345,9 +345,9 @@ inline void requestRoutesMetricDefinition(App& app)
 
                 telemetry::fillMinMaxReadingRange(asyncResp, serviceName,
                                                   sensorPath);
-                });
+            });
         });
-        });
+    });
 }
 
 } // namespace redfish

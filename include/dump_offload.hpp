@@ -85,7 +85,7 @@ class Handler : public std::enable_shared_from_this<Handler>
             this->connection->sendStreamHeaders(std::to_string(this->dumpSize),
                                                 "application/octet-stream");
             this->doReadStream();
-            });
+        });
     }
 
     /**
@@ -116,7 +116,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                 this->cleanupSocketFiles();
                 return;
             }
-            },
+        },
             "xyz.openbmc_project.Dump.Manager",
             "/xyz/openbmc_project/dump/" + dumpType + "/entry/" + entryID,
             "xyz.openbmc_project.Dump.Entry", "InitiateOffload",
@@ -190,7 +190,7 @@ class Handler : public std::enable_shared_from_this<Handler>
             }
             BMCWEB_LOG_CRITICAL << "INFO: Reset OffloadUri of " << dumpType
                                 << " dump id " << entryID;
-            },
+        },
             "xyz.openbmc_project.Dump.Manager",
             "/xyz/openbmc_project/dump/" + dumpType + "/entry/" + entryID,
             "org.freedesktop.DBus.Properties", "Set",
@@ -259,7 +259,7 @@ class Handler : public std::enable_shared_from_this<Handler>
             this->dumpSize = *dumpsize;
             this->initiateOffload();
             this->doConnect();
-            },
+        },
             "xyz.openbmc_project.Dump.Manager",
             "/xyz/openbmc_project/dump/" + dumpEntryType + "/entry/" +
                 dumpEntryID,
@@ -306,7 +306,7 @@ class Handler : public std::enable_shared_from_this<Handler>
             };
             this->connection->sendMessage(this->outputBuffer.data(),
                                           streamHandler);
-            });
+        });
     }
 
     std::string entryID;
@@ -354,8 +354,7 @@ inline void requestRoutes(App& app)
         "/redfish/v1/Managers/bmc/LogServices/Dump/Entries/<str>/attachment/")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
         .streamingResponse()
-        .onopen(
-            [](crow::streaming_response::Connection& conn) {
+        .onopen([](crow::streaming_response::Connection& conn) {
         if (!bmcHandlers.empty())
         {
             BMCWEB_LOG_ERROR << "Can't allow dump offload opertaion, one "
@@ -407,30 +406,28 @@ inline void requestRoutes(App& app)
             << "INFO: " << dumpType << " Dump id " << dumpId
             << " offload initiated by: " << conn.req.session->clientIp;
         bmcHandlers[&conn]->getDumpSize(dumpId, dumpType);
-        })
-        .onclose([](crow::streaming_response::Connection& conn, bool& status) {
-            auto handler = bmcHandlers.find(&conn);
-            if (handler == bmcHandlers.end())
-            {
-                BMCWEB_LOG_DEBUG << "No handler to cleanup";
-                return;
-            }
-            handler->second->cleanupSocketFiles();
-            if (!status)
-            {
-                handler->second->resetOffloadURI();
-            }
-            handler->second->outputBuffer.clear();
-            bmcHandlers.erase(handler);
-        });
+    }).onclose([](crow::streaming_response::Connection& conn, bool& status) {
+        auto handler = bmcHandlers.find(&conn);
+        if (handler == bmcHandlers.end())
+        {
+            BMCWEB_LOG_DEBUG << "No handler to cleanup";
+            return;
+        }
+        handler->second->cleanupSocketFiles();
+        if (!status)
+        {
+            handler->second->resetOffloadURI();
+        }
+        handler->second->outputBuffer.clear();
+        bmcHandlers.erase(handler);
+    });
 
     BMCWEB_ROUTE(
         app,
         "/redfish/v1/Systems/system/LogServices/Dump/Entries/<str>/attachment/")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
         .streamingResponse()
-        .onopen(
-            [](crow::streaming_response::Connection& conn) {
+        .onopen([](crow::streaming_response::Connection& conn) {
         if (!systemHandlers.empty())
         {
             BMCWEB_LOG_ERROR << "Can't allow dump offload opertaion, one "
@@ -500,25 +497,24 @@ inline void requestRoutes(App& app)
             << "INFO: " << dumpType << " dump id " << dumpId
             << " offload initiated by: " << conn.req.session->clientIp;
         systemHandlers[&conn]->getDumpSize(dumpId, dumpType);
-        })
-        .onclose([](crow::streaming_response::Connection& conn, bool& status) {
-            auto handler = systemHandlers.find(&conn);
-            if (handler == systemHandlers.end())
-            {
-                BMCWEB_LOG_DEBUG << "No handler to cleanup";
-                return;
-            }
-            handler->second->cleanupSocketFiles();
-            if (!status)
-            {
-                handler->second->resetOffloadURI();
-            }
-            handler->second->outputBuffer.clear();
-            systemHandlers.clear();
-            BMCWEB_LOG_CRITICAL
-                << "INFO:Request closed for system dump offload with"
-                << "url: " << conn.req.target();
-        });
+    }).onclose([](crow::streaming_response::Connection& conn, bool& status) {
+        auto handler = systemHandlers.find(&conn);
+        if (handler == systemHandlers.end())
+        {
+            BMCWEB_LOG_DEBUG << "No handler to cleanup";
+            return;
+        }
+        handler->second->cleanupSocketFiles();
+        if (!status)
+        {
+            handler->second->resetOffloadURI();
+        }
+        handler->second->outputBuffer.clear();
+        systemHandlers.clear();
+        BMCWEB_LOG_CRITICAL
+            << "INFO:Request closed for system dump offload with"
+            << "url: " << conn.req.target();
+    });
 }
 
 } // namespace obmc_dump

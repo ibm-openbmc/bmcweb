@@ -83,7 +83,7 @@ inline void getPcieDevicePath(
         // No matching pcieDevice found
         std::string pcieDevicePath;
         callback(ec, pcieDevicePath);
-        });
+    });
 }
 
 /* @brief get PCIeDevice path & service for the given device
@@ -119,7 +119,7 @@ inline void getPcieDevicePathAndService(
                 return;
             }
             callback(ec1, pcieDevicePath, object.begin()->first);
-            });
+        });
     });
 }
 
@@ -168,7 +168,7 @@ static inline void
             pcieDeviceList.push_back(std::move(pcieDevice));
         }
         asyncResp->res.jsonValue[name + "@odata.count"] = pcieDeviceList.size();
-        });
+    });
 }
 
 /**
@@ -288,7 +288,7 @@ static inline void getPcieSlotLinkAndStatusProperties(
                                 "#OemPCIeDevice.IBM";
                         }
                     }
-                    },
+                },
                     service, pcieSlotPath, "org.freedesktop.DBus.Properties",
                     "GetAll", interface);
             }
@@ -347,7 +347,7 @@ static inline void
             return;
         }
         BMCWEB_LOG_ERROR << "PCIe Slot not found for " << pcieDevice;
-        });
+    });
 }
 
 /**
@@ -412,7 +412,7 @@ inline void handleLinkReset(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 BMCWEB_LOG_DEBUG << "linkReset property set to: "
                                  << (linkReset ? "true" : "false");
                 return;
-                },
+            },
                 service, pcieSlotPath, "org.freedesktop.DBus.Properties", "Set",
                 interface, "linkReset", std::variant<bool>{linkReset});
         }
@@ -450,7 +450,7 @@ inline void requestRoutesSystemPCIeDeviceCollection(App& app)
         asyncResp->res.jsonValue["Members"] = nlohmann::json::array();
         asyncResp->res.jsonValue["Members@odata.count"] = 0;
         getPCIeDeviceList(asyncResp, "Members");
-        });
+    });
 }
 
 inline std::optional<pcie_device::PCIeTypes>
@@ -677,8 +677,8 @@ inline void
             }
             getPCIeDevicePropertiesCallback(pcieDevProperties, device,
                                             pcieDevicePath, pcieSlotPath);
-            });
         });
+    });
 }
 
 inline void requestRoutesSystemPCIeDevice(App& app)
@@ -700,7 +700,7 @@ inline void requestRoutesSystemPCIeDevice(App& app)
             return;
         }
         getPCIeDeviceProperties(asyncResp, device);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/PCIeDevices/<str>/")
         .privileges(redfish::privileges::patchPCIeDevice)
@@ -750,7 +750,7 @@ inline void requestRoutesSystemPCIeDevice(App& app)
         };
 
         findPcieSlotPath(asyncResp, device, std::move(handleLinkResetCallback));
-        });
+    });
 }
 
 inline void requestRoutesSystemPCIeFunctionCollection(App& app)
@@ -852,7 +852,7 @@ inline void requestRoutesSystemPCIeFunctionCollection(App& app)
                 "xyz.openbmc_project.Inventory.Item.PCIeDevice",
                 std::move(getPCIeDeviceCallback));
         });
-        });
+    });
 } // namespace redfish
 
 inline void requestRoutesSystemPCIeFunction(App& app)
@@ -990,7 +990,7 @@ inline void requestRoutesSystemPCIeFunction(App& app)
                 "xyz.openbmc_project.Inventory.Item.PCIeDevice",
                 getPCIeDeviceCallback);
         });
-        });
+    });
 }
 
 } // namespace redfish

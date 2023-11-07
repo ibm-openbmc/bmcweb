@@ -114,7 +114,7 @@ inline void
             std::sort(updatedAssemblyList.begin(), updatedAssemblyList.end());
             callback(updatedAssemblyList);
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -151,7 +151,7 @@ inline void
         checkAssemblyInterface(aResp, chassisPath, sortedAssemblyList,
                                std::move(callback));
         return;
-        });
+    });
 }
 
 template <typename Callback>
@@ -186,7 +186,7 @@ inline void checkForAssemblyAssociations(
             getAssemblyEndpoints(aResp, chassisPath, std::move(callback));
             break;
         }
-        });
+    });
 }
 
 template <typename Callback>
@@ -220,7 +220,7 @@ inline void checkAssociation(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 }
             }
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject", chassisPath,
@@ -264,7 +264,7 @@ inline void getChassisAssembly(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 
         BMCWEB_LOG_ERROR << "Chassis not found";
         messages::resourceNotFound(aResp->res, "Chassis", chassisID);
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",

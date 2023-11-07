@@ -55,7 +55,7 @@ inline static void activateImage(const std::string& objPath,
             BMCWEB_LOG_DEBUG << "error_code = " << errorCode;
             BMCWEB_LOG_DEBUG << "error msg = " << errorCode.message();
         }
-        },
+    },
         service, objPath, "org.freedesktop.DBus.Properties", "Set",
         "xyz.openbmc_project.Software.Activation", "RequestedActivation",
         dbus::utility::DbusVariantType(
@@ -154,7 +154,7 @@ inline void
                 }
             }
         }
-        },
+    },
         "xyz.openbmc_project.Logging", "/xyz/openbmc_project/logging",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
@@ -327,7 +327,7 @@ static void
                         // unless it is an error
 
                         return !task::completed;
-                            },
+                    },
                             "type='signal',interface='org.freedesktop.DBus.Properties',"
                             "member='PropertiesChanged',path='" +
                                 objPath.str + "'");
@@ -336,7 +336,7 @@ static void
                     task->payload.emplace(std::move(payload));
                 }
                 fwUpdateInProgress = false;
-                },
+            },
                 "xyz.openbmc_project.ObjectMapper",
                 "/xyz/openbmc_project/object_mapper",
                 "xyz.openbmc_project.ObjectMapper", "GetObject", objPath.str,
@@ -636,13 +636,13 @@ inline void requestRoutesUpdateServiceActionsSimpleUpdate(App& app)
             {
                 BMCWEB_LOG_DEBUG << "Call to DownloaViaTFTP Success";
             }
-            },
+        },
             "xyz.openbmc_project.Software.Download",
             "/xyz/openbmc_project/software", "xyz.openbmc_project.Common.TFTP",
             "DownloadViaTFTP", fwFile, tftpServer);
 
         BMCWEB_LOG_DEBUG << "Exit UpdateService.SimpleUpdate doPost";
-        });
+    });
 }
 
 inline void
@@ -685,7 +685,7 @@ inline void requestRoutesUpdateServiceActionsOemConcurrentUpdate(App& app)
         handleUpdateServicePost(app, req, asyncResp,
                                 "/redfish/v1/UpdateService/Actions/Oem/"
                                 "OemUpdateService.ConcurrentUpdate");
-            },
+    },
             std::ref(app)));
 }
 
@@ -771,8 +771,8 @@ inline void requestRoutesUpdateService(App& app)
                                         ["HttpPushUriApplyTime"]["ApplyTime"] =
                     "OnReset";
             }
-            });
         });
+    });
     BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/")
         .privileges(redfish::privileges::patchUpdateService)
         .methods(boost::beast::http::verb::patch)(
@@ -841,7 +841,7 @@ inline void requestRoutesUpdateService(App& app)
                             return;
                         }
                         messages::success(asyncResp->res);
-                        },
+                    },
                         "xyz.openbmc_project.Settings",
                         "/xyz/openbmc_project/software/apply_time",
                         "org.freedesktop.DBus.Properties", "Set",
@@ -851,7 +851,7 @@ inline void requestRoutesUpdateService(App& app)
                 }
             }
         }
-        });
+    });
 
 // The "old" behavior of the update service URI causes redfish-service validator
 // failures when the Allow header is supported, given that in the spec,
@@ -873,7 +873,7 @@ inline void requestRoutesUpdateService(App& app)
             "the value contained within HttpPushUri.\"");
         handleUpdateServicePost(app, req, asyncResp,
                                 "/redfish/v1/UpdateService");
-        });
+    });
 #endif
     BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/update/")
         .privileges(redfish::privileges::postUpdateService)
@@ -882,7 +882,7 @@ inline void requestRoutesUpdateService(App& app)
                    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
         handleUpdateServicePost(app, req, asyncResp,
                                 "/redfish/v1/UpdateService");
-            },
+    },
             std::ref(app)));
 }
 
@@ -934,7 +934,7 @@ inline void requestRoutesSoftwareInventoryCollection(App& app)
                 asyncResp->res.jsonValue["Members@odata.count"] =
                     members.size();
             }
-            },
+        },
             // Note that only firmware levels associated with a device
             // are stored under /xyz/openbmc_project/software therefore
             // to ensure only real FirmwareInventory items are returned,
@@ -945,7 +945,7 @@ inline void requestRoutesSoftwareInventoryCollection(App& app)
             "xyz.openbmc_project.ObjectMapper", "GetSubTree",
             "/xyz/openbmc_project/software", static_cast<int32_t>(0),
             std::array<const char*, 1>{"xyz.openbmc_project.Software.Version"});
-        });
+    });
 }
 /* Fill related item links (i.e. bmc, bios) in for inventory */
 inline static void
@@ -1043,7 +1043,7 @@ inline void
         std::string formatDesc = swInvPurpose->substr(endDesc);
         asyncResp->res.jsonValue["Description"] = formatDesc + " image";
         getRelatedItems(asyncResp, *swInvPurpose);
-        });
+    });
 }
 
 inline void requestRoutesSoftwareInventory(App& app)
@@ -1113,13 +1113,13 @@ inline void requestRoutesSoftwareInventory(App& app)
 
             asyncResp->res.jsonValue["Updateable"] = false;
             sw_util::getSwUpdatableStatus(asyncResp, swId);
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/",
             static_cast<int32_t>(0),
             std::array<const char*, 1>{"xyz.openbmc_project.Software.Version"});
-        });
+    });
 }
 
 } // namespace redfish

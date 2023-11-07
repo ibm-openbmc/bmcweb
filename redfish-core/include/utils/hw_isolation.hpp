@@ -70,7 +70,7 @@ inline void retChassisPowerStateOffRequiredError(
             aResp->res,
             sdbusplus::message::object_path(ancestors.begin()->first)
                 .filename());
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetAncestors", resourceObjPath.str,
@@ -158,7 +158,7 @@ inline void
             messages::internalError(aResp->res);
         }
         return;
-        },
+    },
         hwIsolationDbusName, "/xyz/openbmc_project/hardware_isolation",
         "xyz.openbmc_project.HardwareIsolation.Create", "Create",
         resourceObjPath,
@@ -263,10 +263,10 @@ inline void
                 messages::internalError(aResp->res);
             }
             return;
-            },
+        },
             hwIsolationDbusName, resourceIsolatedHwEntry,
             "xyz.openbmc_project.Object.Delete", "Delete");
-        });
+    });
 }
 
 /**
@@ -381,14 +381,14 @@ inline void processHardwareIsolationReq(
             {
                 deisolateResource(aResp, resourceObjPath, objType[0].first);
             }
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetObject",
             "/xyz/openbmc_project/hardware_isolation",
             std::array<const char*, 1>{
                 "xyz.openbmc_project.HardwareIsolation.Create"});
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
@@ -666,13 +666,13 @@ inline void
 
                 assembleEventProperties(aResp, properties, condition,
                                         hwStatusEventObj);
-                });
-            },
+            });
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetObject", hwStatusEventObj,
             std::array<const char*, 1>{"xyz.openbmc_project.Logging.Event"});
-        });
+    });
 }
 
 } // namespace hw_isolation_utils

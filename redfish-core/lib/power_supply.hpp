@@ -86,7 +86,7 @@ inline void
         {
             updatePowerSupplyList(asyncResp, chassisId, endpoint);
         }
-        });
+    });
 }
 
 inline void handlePowerSupplyCollectionHead(
@@ -111,7 +111,7 @@ inline void handlePowerSupplyCollectionHead(
         asyncResp->res.addHeader(
             boost::beast::http::field::link,
             "</redfish/v1/JsonSchemas/PowerSupplyCollection/PowerSupplyCollection.json>; rel=describedby");
-        });
+    });
 }
 
 inline void handlePowerSupplyCollectionGet(
@@ -169,7 +169,7 @@ inline void
         {
             asyncResp->res.jsonValue["Status"]["State"] = "UnavailableOffline";
         }
-        });
+    });
 }
 
 inline void
@@ -195,7 +195,7 @@ inline void
         {
             asyncResp->res.jsonValue["Status"]["Health"] = "Critical";
         }
-        });
+    });
 }
 
 inline void getPowerSupplyStateAndHealth(
@@ -219,7 +219,7 @@ inline void getPowerSupplyStateAndHealth(
         getPowerSupplyState(asyncResp, service, path, available);
 
         getPowerSupplyHealth(asyncResp, service, path, available);
-        });
+    });
 }
 
 inline void
@@ -282,7 +282,7 @@ inline void
         {
             asyncResp->res.jsonValue["SparePartNumber"] = *sparePartNumber;
         }
-        });
+    });
 }
 
 inline void getPowerSupplyFirmwareVersion(
@@ -303,7 +303,7 @@ inline void getPowerSupplyFirmwareVersion(
             return;
         }
         asyncResp->res.jsonValue["FirmwareVersion"] = value;
-        });
+    });
 }
 
 inline void
@@ -325,7 +325,7 @@ inline void
         }
         asyncResp->res.jsonValue["Location"]["PartLocation"]["ServiceLabel"] =
             value;
-        });
+    });
 }
 
 inline void
@@ -369,10 +369,10 @@ inline void
                     nlohmann::json& efficiencyList =
                         asyncResp->res.jsonValue["EfficiencyRatings"];
                     efficiencyList.emplace_back(std::move(item));
-                    });
+                });
             }
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -397,7 +397,7 @@ inline void
                     "redfish", "v1", "Chassis", chassisId, "PowerSubsystem",
                     "PowerSupplies", powerSupplyId, "Metrics");
         }
-        });
+    });
 }
 
 inline void
@@ -450,13 +450,13 @@ inline void
                                           powerSupplyPath);
             getPowerSupplyLocation(asyncResp, object.begin()->first,
                                    powerSupplyPath);
-            });
+        });
 
         getEfficiencyPercent(asyncResp);
         getLocationIndicatorActive(asyncResp, powerSupplyPath);
         getPowerSupplyMetrics(asyncResp, chassisId, powerSupplyId,
                               powerSupplyPath);
-        });
+    });
 }
 
 inline void
@@ -487,8 +487,8 @@ inline void
             asyncResp->res.addHeader(
                 boost::beast::http::field::link,
                 "</redfish/v1/JsonSchemas/PowerSupply/PowerSupply.json>; rel=describedby");
-            });
         });
+    });
 }
 
 inline void
@@ -553,7 +553,7 @@ inline void
             asyncResp, *validChassisPath, powerSupplyId,
             std::bind_front(doPatchPowerSupply, asyncResp,
                             locationIndicatorActive));
-        });
+    });
 }
 
 inline void requestRoutesPowerSupply(App& app)

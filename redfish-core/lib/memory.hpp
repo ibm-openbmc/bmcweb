@@ -625,7 +625,7 @@ inline void getDimmDataByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
         // Check for the hardware status event
         hw_isolation_utils::getHwIsolationStatus(aResp, objPath);
 #endif // end of BMCWEB_ENABLE_HW_ISOLATION
-        });
+    });
 }
 
 inline void assembleDimmPartitionData(
@@ -700,7 +700,7 @@ inline void getDimmPartitionData(std::shared_ptr<bmcweb::AsyncResp> aResp,
         }
         nlohmann::json::json_pointer regionPtr = "/Regions"_json_pointer;
         assembleDimmPartitionData(aResp, properties, regionPtr);
-        }
+    }
 
     );
 }
@@ -735,7 +735,7 @@ inline void getObjectEnable(std::shared_ptr<bmcweb::AsyncResp> aResp,
         }
 
         aResp->res.jsonValue["Enabled"] = enabled;
-        });
+    });
 }
 
 inline void getDimmData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
@@ -837,7 +837,7 @@ inline void getDimmData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         aResp->res.jsonValue["@odata.id"] = crow::utility::urlFromPieces(
             "redfish", "v1", "Systems", "system", "Memory", dimmId);
         return;
-        });
+    });
 }
 
 /**
@@ -898,7 +898,7 @@ inline void requestRoutesMemoryCollection(App& app)
         collection_util::getCollectionMembers(
             asyncResp, boost::urls::url("/redfish/v1/Systems/system/Memory"),
             interfaces);
-        });
+    });
 }
 
 /**
@@ -973,7 +973,7 @@ inline void setDimmData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             }
         }
         messages::resourceNotFound(asyncResp->res, "Memory", dimmId);
-        });
+    });
 }
 
 inline void

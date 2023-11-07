@@ -104,13 +104,13 @@ inline void setPowerCapOverride(
                 }
                 sensorsAsyncResp->asyncResp->res.result(
                     boost::beast::http::status::no_content);
-                },
+            },
                 "xyz.openbmc_project.Settings",
                 "/xyz/openbmc_project/control/host0/power_cap",
                 "org.freedesktop.DBus.Properties", "Set",
                 "xyz.openbmc_project.Control.Power.Cap", "PowerCap",
                 std::variant<uint32_t>(*value));
-            });
+        });
     };
     redfish::chassis_utils::getValidChassisPath(sensorsAsyncResp->asyncResp,
                                                 sensorsAsyncResp->chassisId,
@@ -302,7 +302,7 @@ inline void requestRoutesPower(App& app)
             "/xyz/openbmc_project/inventory", 0,
             std::array<const char*, 1>{
                 "xyz.openbmc_project.Inventory.Item.Chassis"});
-        });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/Power/")
         .privileges(redfish::privileges::patchPower)
@@ -339,7 +339,7 @@ inline void requestRoutesPower(App& app)
             allCollections.emplace("Voltages", *std::move(voltageCollections));
             setSensorsOverride(sensorAsyncResp, allCollections);
         }
-        });
+    });
 }
 
 } // namespace redfish

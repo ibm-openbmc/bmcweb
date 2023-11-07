@@ -82,7 +82,7 @@ inline void getPowerSubsystemAllocationProperties(
             asyncResp->res.jsonValue["Allocation"]["RequestedWatts"] =
                 maxPowerCapValue;
         }
-        });
+    });
 }
 
 inline void getPowerSubsystemAllocation(
@@ -113,7 +113,7 @@ inline void getPowerSubsystemAllocation(
                                                       objectPath);
             }
         }
-        });
+    });
 }
 
 inline void doPowerSubsystemCollection(

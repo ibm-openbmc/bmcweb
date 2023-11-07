@@ -164,8 +164,8 @@ struct NbdProxyServer : std::enable_shared_from_this<NbdProxyServer>
                     self2->ux2wsBuf.consume(self2->ux2wsBuf.size());
                     self2->doRead();
                 }
-                });
             });
+        });
     }
 
     void doWrite(std::function<void()>&& onDone)
@@ -212,7 +212,7 @@ struct NbdProxyServer : std::enable_shared_from_this<NbdProxyServer>
                 return;
             }
             onDone();
-            });
+        });
     }
 
     // Keeps UNIX socket endpoint file path

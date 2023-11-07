@@ -89,7 +89,7 @@ inline void setLocationIndicatorActiveState(
 
         setLocationIndicatorActive(aResp, subtree[0].first,
                                    locationIndicatorActive);
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -126,7 +126,7 @@ inline void
         }
 
         messages::success(asyncResp->res);
-        },
+    },
         processName, objectPath, "org.freedesktop.DBus.Properties", "Set",
         interfaceName, destProperty, dbusPropertyValue);
 }
@@ -155,7 +155,7 @@ inline void
         }
 
         messages::success(asyncResp->res);
-        },
+    },
         processName, objectPath, "org.freedesktop.DBus.Properties", "Set",
         interfaceName, destProperty, dbusPropertyValue);
 }
@@ -209,7 +209,7 @@ inline void requestRoutesManagerResetAction(App& app)
                                               "ResetType");
 
         return;
-        });
+    });
 }
 
 /**
@@ -275,11 +275,11 @@ inline void requestRoutesManagerResetToDefaultsAction(App& app)
             // Factory Reset doesn't actually happen until a reboot
             // Can't erase what the BMC is running on
             doBMCGracefulRestart(asyncResp);
-            },
+        },
             "xyz.openbmc_project.Software.BMC.Updater",
             "/xyz/openbmc_project/software",
             "xyz.openbmc_project.Common.FactoryReset", "Reset");
-        });
+    });
 }
 
 /**
@@ -322,7 +322,7 @@ inline void requestRoutesManagerResetActionInfo(App& app)
         parameters.emplace_back(std::move(parameter));
 
         asyncResp->res.jsonValue["Parameters"] = std::move(parameters);
-        });
+    });
 }
 
 static constexpr const char* objectManagerIface =
@@ -731,7 +731,7 @@ inline void
                 }
             }
         }
-        },
+    },
         connection, path, objectManagerIface, "GetManagedObjects");
 }
 
@@ -854,7 +854,7 @@ inline CreatePIDRet createPidInterface(
                 return;
             }
             messages::success(response->res);
-            },
+        },
             "xyz.openbmc_project.EntityManager", path, iface, "Delete");
         return CreatePIDRet::del;
     }
@@ -1253,7 +1253,7 @@ struct GetPIDValues : std::enable_shared_from_this<GetPIDValues>
                 return;
             }
             self->complete.subtree = subtreeLocal;
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/", 0,
@@ -1316,8 +1316,8 @@ struct GetPIDValues : std::enable_shared_from_this<GetPIDValues>
                 }
                 self->complete.currentProfile = *current;
                 self->complete.supportedProfiles = *supported;
-                });
-            },
+            });
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/", 0,
@@ -1471,7 +1471,7 @@ struct SetPIDValues : std::enable_shared_from_this<SetPIDValues>
                 }
             }
             self->managedObj = mObj;
-            },
+        },
             "xyz.openbmc_project.EntityManager",
             "/xyz/openbmc_project/inventory", objectManagerIface,
             "GetManagedObjects");
@@ -1529,8 +1529,8 @@ struct SetPIDValues : std::enable_shared_from_this<SetPIDValues>
                 self->supportedProfiles = *supported;
                 self->profileConnection = owner;
                 self->profilePath = path;
-                });
-            },
+            });
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/", 0,
@@ -1560,7 +1560,7 @@ struct SetPIDValues : std::enable_shared_from_this<SetPIDValues>
                     BMCWEB_LOG_ERROR << "Error patching profile" << ec;
                     messages::internalError(response->res);
                 }
-                },
+            },
                 profileConnection, profilePath,
                 "org.freedesktop.DBus.Properties", "Set", thermalModeIface,
                 "Current", dbus::utility::DbusVariantType(*profile));
@@ -1697,7 +1697,7 @@ struct SetPIDValues : std::enable_shared_from_this<SetPIDValues>
                                 return;
                             }
                             messages::success(response->res);
-                            },
+                        },
                             "xyz.openbmc_project.EntityManager", path,
                             "org.freedesktop.DBus.Properties", "Set", iface,
                             property.first, property.second);
@@ -1742,7 +1742,7 @@ struct SetPIDValues : std::enable_shared_from_this<SetPIDValues>
                             return;
                         }
                         messages::success(response->res);
-                        },
+                    },
                         "xyz.openbmc_project.EntityManager", chassis,
                         "xyz.openbmc_project.AddObject", "AddObject", output);
                 }
@@ -1803,7 +1803,7 @@ inline void getLocation(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 
         aResp->res.jsonValue["Location"]["PartLocation"]["ServiceLabel"] =
             property;
-        });
+    });
 }
 // avoid name collision systems.hpp
 inline void
@@ -1830,7 +1830,7 @@ inline void
         // Convert to ISO 8601 standard
         aResp->res.jsonValue["LastResetTime"] =
             redfish::time_utils::getDateTimeUint(lastResetTimeStamp);
-        });
+    });
 }
 
 /**
@@ -1931,14 +1931,14 @@ inline void
                 return;
             }
             doBMCGracefulRestart(aResp);
-            },
+        },
 
             "xyz.openbmc_project.Software.BMC.Updater",
             "/xyz/openbmc_project/software/" + firmwareId,
             "org.freedesktop.DBus.Properties", "Set",
             "xyz.openbmc_project.Software.RedundancyPriority", "Priority",
             dbus::utility::DbusVariantType(static_cast<uint8_t>(0)));
-        },
+    },
         "xyz.openbmc_project.Software.BMC.Updater",
         "/xyz/openbmc_project/software", "org.freedesktop.DBus.ObjectManager",
         "GetManagedObjects");
@@ -1978,7 +1978,7 @@ inline void setDateTime(std::shared_ptr<bmcweb::AsyncResp> aResp,
                 return;
             }
             aResp->res.jsonValue["DateTime"] = datetime;
-            },
+        },
             "xyz.openbmc_project.Time.Manager", "/xyz/openbmc_project/time/bmc",
             "org.freedesktop.DBus.Properties", "Set",
             "xyz.openbmc_project.Time.EpochTime", "Elapsed",
@@ -2039,7 +2039,7 @@ inline void getBMCState(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
             aResp->res.jsonValue["Status"]["State"] = "Enabled";
             aResp->res.jsonValue["Status"]["Health"] = "OK";
         }
-        });
+    });
 }
 
 inline void requestRoutesManager(App& app)
@@ -2275,7 +2275,7 @@ inline void requestRoutesManager(App& app)
                             asyncResp->res.jsonValue["SparePartNumber"] =
                                 *sparePartNumber;
                         }
-                        });
+                    });
                 }
                 else if (interfaceName ==
                          "xyz.openbmc_project.Inventory.Decorator.LocationCode")
@@ -2288,14 +2288,14 @@ inline void requestRoutesManager(App& app)
                     getLocationIndicatorActive(asyncResp, path);
                 }
             }
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTree",
             "/xyz/openbmc_project/inventory", int32_t(0),
             std::array<const char*, 1>{
                 "xyz.openbmc_project.Inventory.Item.Bmc"});
-        });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Managers/bmc/")
         .privileges(redfish::privileges::patchManager)
@@ -2417,7 +2417,7 @@ inline void requestRoutesManager(App& app)
             setLocationIndicatorActiveState(asyncResp,
                                             *locationIndicatorActive);
         }
-        });
+    });
 }
 
 inline void requestRoutesManagerCollection(App& app)
@@ -2442,6 +2442,6 @@ inline void requestRoutesManagerCollection(App& app)
         nlohmann::json& bmc = members.emplace_back();
         bmc["@odata.id"] = "/redfish/v1/Managers/bmc";
         asyncResp->res.jsonValue["Members"] = std::move(members);
-        });
+    });
 }
 } // namespace redfish

@@ -97,7 +97,7 @@ inline void requestRoutesEventService(App& app)
 
         asyncResp->res.jsonValue["SSEFilterPropertiesSupported"] =
             std::move(supportedSSEFilters);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/EventService/")
         .privileges(redfish::privileges::patchEventService)
@@ -161,7 +161,7 @@ inline void requestRoutesEventService(App& app)
 
         EventServiceManager::getInstance().setEventServiceConfig(
             eventServiceConfig);
-        });
+    });
 }
 
 inline void requestRoutesSubmitTestEvent(App& app)
@@ -183,7 +183,7 @@ inline void requestRoutesSubmitTestEvent(App& app)
             return;
         }
         asyncResp->res.result(boost::beast::http::status::no_content);
-        });
+    });
 }
 
 inline void doSubscriptionCollection(
@@ -258,11 +258,11 @@ inline void requestRoutesEventDestinationCollection(App& app)
             [asyncResp](const boost::system::error_code ec,
                         dbus::utility::ManagedObjectType& resp) {
             doSubscriptionCollection(ec, asyncResp, resp);
-            },
+        },
             "xyz.openbmc_project.Network.SNMP",
             "/xyz/openbmc_project/network/snmp/manager",
             "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
-        });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/EventService/Subscriptions/")
         .privileges(redfish::privileges::postEventDestinationCollection)
@@ -474,7 +474,7 @@ inline void requestRoutesEventDestinationCollection(App& app)
                             [&id](const redfish::registries::MessageEntry&
                                       messageEntry) {
                         return id == messageEntry.first;
-                            }))
+                    }))
                     {
                         validId = true;
                         break;
@@ -544,7 +544,7 @@ inline void requestRoutesEventDestinationCollection(App& app)
         messages::created(asyncResp->res);
         asyncResp->res.addHeader(
             "Location", "/redfish/v1/EventService/Subscriptions/" + id);
-        });
+    });
 }
 
 inline void requestRoutesEventDestination(App& app)
@@ -603,7 +603,7 @@ inline void requestRoutesEventDestination(App& app)
             mrdJsonArray.emplace_back(std::move(mdr));
         }
         asyncResp->res.jsonValue["MetricReportDefinitions"] = mrdJsonArray;
-        });
+    });
     BMCWEB_ROUTE(app, "/redfish/v1/EventService/Subscriptions/<str>/")
         // The below privilege is wrong, it should be ConfigureManager OR
         // ConfigureSelf
@@ -678,7 +678,7 @@ inline void requestRoutesEventDestination(App& app)
         }
 
         EventServiceManager::getInstance().updateSubscriptionData();
-        });
+    });
     BMCWEB_ROUTE(app, "/redfish/v1/EventService/Subscriptions/<str>/")
         // The below privilege is wrong, it should be ConfigureManager OR
         // ConfigureSelf
@@ -707,7 +707,7 @@ inline void requestRoutesEventDestination(App& app)
             return;
         }
         EventServiceManager::getInstance().deleteSubscription(param);
-        });
+    });
 }
 
 } // namespace redfish

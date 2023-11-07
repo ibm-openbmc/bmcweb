@@ -761,7 +761,7 @@ inline void deleteIPv4(const std::string& ifaceId, const std::string& ipHash,
         {
             messages::internalError(asyncResp->res);
         }
-        },
+    },
         "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ifaceId + ipHash,
         "xyz.openbmc_project.Object.Delete", "Delete");
@@ -779,7 +779,7 @@ inline void updateIPv4DefaultGateway(
             return;
         }
         asyncResp->res.result(boost::beast::http::status::no_content);
-        },
+    },
         "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ifaceId,
         "org.freedesktop.DBus.Properties", "Set",
@@ -801,8 +801,8 @@ inline void createIPv4(const std::string& ifaceId, uint8_t prefixLength,
                        const std::string& gateway, const std::string& address,
                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    auto createIpHandler =
-        [asyncResp, ifaceId, gateway](const boost::system::error_code ec) {
+    auto createIpHandler = [asyncResp, ifaceId,
+                            gateway](const boost::system::error_code ec) {
         if (ec)
         {
             messages::internalError(asyncResp->res);
@@ -855,13 +855,13 @@ inline void
                 return;
             }
             updateIPv4DefaultGateway(ifaceId, gateway, asyncResp);
-            },
+        },
             "xyz.openbmc_project.Network",
             "/xyz/openbmc_project/network/" + ifaceId,
             "xyz.openbmc_project.Network.IP.Create", "IP",
             "xyz.openbmc_project.Network.IP.Protocol.IPv4", address,
             prefixLength, gateway);
-        },
+    },
         "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ifaceId + id,
         "xyz.openbmc_project.Object.Delete", "Delete");
@@ -885,7 +885,7 @@ inline void deleteIPv6(const std::string& ifaceId, const std::string& ipHash,
         {
             messages::internalError(asyncResp->res);
         }
-        },
+    },
         "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ifaceId + ipHash,
         "xyz.openbmc_project.Object.Delete", "Delete");
@@ -921,13 +921,13 @@ inline void
             {
                 messages::internalError(asyncResp->res);
             }
-            },
+        },
             "xyz.openbmc_project.Network",
             "/xyz/openbmc_project/network/" + ifaceId,
             "xyz.openbmc_project.Network.IP.Create", "IP",
             "xyz.openbmc_project.Network.IP.Protocol.IPv6", address,
             prefixLength, "");
-        },
+    },
         "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ifaceId + id,
         "xyz.openbmc_project.Object.Delete", "Delete");
@@ -947,8 +947,8 @@ inline void createIPv6(const std::string& ifaceId, uint8_t prefixLength,
                        const std::string& address,
                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    auto createIpHandler =
-        [asyncResp, address](const boost::system::error_code& ec) {
+    auto createIpHandler = [asyncResp,
+                            address](const boost::system::error_code& ec) {
         if (ec)
         {
             if (ec == boost::system::errc::io_error)
@@ -991,7 +991,7 @@ inline void
         {
             messages::internalError(asyncResp->res);
         }
-        },
+    },
         "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ifaceId + ipHash,
         "xyz.openbmc_project.Object.Delete", "Delete");
@@ -1027,13 +1027,13 @@ inline void deleteAndCreateIPv6DefaultGateway(
             {
                 messages::internalError(asyncResp->res);
             }
-            },
+        },
             "xyz.openbmc_project.Network",
             "/xyz/openbmc_project/network/" + ifaceId,
             "xyz.openbmc_project.Network.StaticRoute.Create", "StaticRoute",
             "0:0:0:0:0:0:0:0", gateway, prefixLength,
             "xyz.openbmc_project.Network.IP.Protocol.IPv6");
-        },
+    },
         "xyz.openbmc_project.Network",
         +"/xyz/openbmc_project/network/" + ifaceId + id,
         "xyz.openbmc_project.Object.Delete", "Delete");
@@ -1235,7 +1235,7 @@ void getEthernetIfaceData(const std::string& ethifaceId,
         extractIPv6DefaultGatewayData(ethifaceId, resp, ipv6GatewayData);
         // Finally make a callback with useful data
         callback(true, ethData, ipv4Data, ipv6Data, ipv6GatewayData);
-        },
+    },
         "xyz.openbmc_project.Network", "/xyz/openbmc_project/network",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
@@ -1287,7 +1287,7 @@ void getEthernetIfaceList(CallbackFunc&& callback)
         }
         // Finally make a callback with useful data
         callback(true, ifaceList);
-        },
+    },
         "xyz.openbmc_project.Network", "/xyz/openbmc_project/network",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
@@ -1309,7 +1309,7 @@ inline void
         {
             messages::internalError(asyncResp->res);
         }
-        },
+    },
         "xyz.openbmc_project.Network", "/xyz/openbmc_project/network/config",
         "org.freedesktop.DBus.Properties", "Set",
         "xyz.openbmc_project.Network.SystemConfiguration", "HostName",
@@ -1328,7 +1328,7 @@ inline void
         {
             messages::internalError(asyncResp->res);
         }
-        },
+    },
         "xyz.openbmc_project.Network", objPath,
         "org.freedesktop.DBus.Properties", "Set",
         "xyz.openbmc_project.Network.EthernetInterface", "MTU",
@@ -1347,7 +1347,7 @@ inline void
         {
             messages::internalError(asyncResp->res);
         }
-        },
+    },
         "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ifaceId,
         "org.freedesktop.DBus.Properties", "Set",
@@ -1441,7 +1441,7 @@ inline void
             messages::internalError(asyncResp->res);
             return;
         }
-        },
+    },
         "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ifaceId,
         "org.freedesktop.DBus.Properties", "Set",
@@ -1464,7 +1464,7 @@ inline void setDHCPEnabled(const std::string& ifaceId,
             return;
         }
         messages::success(asyncResp->res);
-        },
+    },
         "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ifaceId,
         "org.freedesktop.DBus.Properties", "Set",
@@ -1484,7 +1484,7 @@ inline void setIPv6AcceptRA(const std::string& ifaceId, const bool ipv6AcceptRA,
             return;
         }
         messages::success(asyncResp->res);
-        },
+    },
         "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ifaceId,
         "org.freedesktop.DBus.Properties", "Set",
@@ -1504,7 +1504,7 @@ inline void setEthernetInterfaceBoolProperty(
             messages::internalError(asyncResp->res);
             return;
         }
-        },
+    },
         "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ifaceId,
         "org.freedesktop.DBus.Properties", "Set",
@@ -1526,7 +1526,7 @@ inline void setDHCPConfig(const std::string& propertyName, const bool& value,
             messages::internalError(asyncResp->res);
             return;
         }
-        },
+    },
         "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ethifaceId + "/" + nwType,
         "org.freedesktop.DBus.Properties", "Set",
@@ -1547,7 +1547,7 @@ inline void handleSLAACAutoConfigPatch(
             return;
         }
         messages::success(asyncResp->res);
-        },
+    },
         "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ifaceId,
         "org.freedesktop.DBus.Properties", "Set",
@@ -1851,7 +1851,7 @@ inline void handleStaticNameServersPatch(
             messages::internalError(asyncResp->res);
             return;
         }
-        },
+    },
         "xyz.openbmc_project.Network",
         "/xyz/openbmc_project/network/" + ifaceId,
         "org.freedesktop.DBus.Properties", "Set",
@@ -2170,7 +2170,7 @@ inline void requestEthernetInterfacesRoutes(App& app)
             asyncResp->res.jsonValue["@odata.id"] =
                 "/redfish/v1/Managers/bmc/EthernetInterfaces";
         });
-        });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Managers/bmc/EthernetInterfaces/<str>/")
         .privileges(redfish::privileges::getEthernetInterface)
@@ -2207,8 +2207,8 @@ inline void requestEthernetInterfacesRoutes(App& app)
 
             parseInterfaceData(asyncResp, ifaceId, ethData, ipv4Data, ipv6Data,
                                ipv6GatewayData);
-            });
         });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Managers/bmc/EthernetInterfaces/<str>/")
         .privileges(redfish::privileges::patchEthernetInterface)
@@ -2390,8 +2390,8 @@ inline void requestEthernetInterfacesRoutes(App& app)
             {
                 handleMTUSizePatch(ifaceId, *mtuSize, asyncResp);
             }
-            });
         });
+    });
 }
 
 } // namespace redfish

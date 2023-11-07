@@ -31,24 +31,24 @@ inline void getInputHistoryPaths(
         associationPath, [asyncResp, callback{std::move(callback)}](
                              const boost::system::error_code& ec,
                              const dbus::utility::MapperEndPoints& endpoints) {
-            if (ec)
+        if (ec)
+        {
+            if (ec.value() != EBADR)
             {
-                if (ec.value() != EBADR)
-                {
-                    BMCWEB_LOG_ERROR << "D-Bus response error: " << ec;
-                    messages::internalError(asyncResp->res);
-                    return;
-                }
-
-                // Association does not exist.  This is a valid situation; some
-                // power supplies do not have input power history.  Pass an
-                // empty vector to the callback.
-                callback(std::vector<std::string>{});
+                BMCWEB_LOG_ERROR << "D-Bus response error: " << ec;
+                messages::internalError(asyncResp->res);
                 return;
             }
 
-            callback(endpoints);
-        });
+            // Association does not exist.  This is a valid situation; some
+            // power supplies do not have input power history.  Pass an
+            // empty vector to the callback.
+            callback(std::vector<std::string>{});
+            return;
+        }
+
+        callback(endpoints);
+    });
 }
 
 inline bool checkPowerSupplyId(const std::string& powerSupplyPath,
@@ -70,32 +70,32 @@ inline void getValidPowerSupplyPath(
         powerPath, [asyncResp, powerSupplyId, callback{std::move(callback)}](
                        const boost::system::error_code& ec,
                        const dbus::utility::MapperEndPoints& endpoints) {
-            if (ec)
+        if (ec)
+        {
+            if (ec.value() != EBADR)
             {
-                if (ec.value() != EBADR)
-                {
-                    BMCWEB_LOG_ERROR << "D-Bus response error: " << ec;
-                    messages::internalError(asyncResp->res);
-                }
+                BMCWEB_LOG_ERROR << "D-Bus response error: " << ec;
+                messages::internalError(asyncResp->res);
+            }
+            return;
+        }
+
+        for (const auto& endpoint : endpoints)
+        {
+            if (checkPowerSupplyId(endpoint, powerSupplyId))
+            {
+                callback(endpoint);
                 return;
             }
+        }
 
-            for (const auto& endpoint : endpoints)
-            {
-                if (checkPowerSupplyId(endpoint, powerSupplyId))
-                {
-                    callback(endpoint);
-                    return;
-                }
-            }
-
-            if (!endpoints.empty())
-            {
-                messages::resourceNotFound(asyncResp->res, "PowerSupplies",
-                                           powerSupplyId);
-                return;
-            }
-        });
+        if (!endpoints.empty())
+        {
+            messages::resourceNotFound(asyncResp->res, "PowerSupplies",
+                                       powerSupplyId);
+            return;
+        }
+    });
 }
 
 } // namespace power_supply_utils

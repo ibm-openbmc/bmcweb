@@ -1560,7 +1560,7 @@ class Router
 
             req.userRole = userRole;
             rule.handle(req, asyncResp, params);
-            },
+        },
             "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
             "xyz.openbmc_project.User.Manager", "GetUserInfo", username);
     }

@@ -104,7 +104,7 @@ inline void resolveRoT(const std::string& command,
             const dbus::utility::MapperGetSubTreeResponse& subtree) {
         hothGetSubtreeCallback(command, asyncResp, rotId, entityHandler, ec,
                                subtree);
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -180,7 +180,7 @@ inline void
         [asyncResp{asyncResp}](const boost::system::error_code ec,
                                const std::vector<uint8_t>& responseBytes) {
         invocationCallback(asyncResp, ec, responseBytes);
-        },
+    },
         resolvedEntity.service, resolvedEntity.object, resolvedEntity.interface,
         "SendHostCommand", bytes);
 }

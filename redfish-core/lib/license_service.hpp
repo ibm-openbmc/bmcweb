@@ -63,7 +63,7 @@ inline void getLicenseEntryCollection(
             asyncResp->res.jsonValue["Members@odata.count"] =
                 entriesArray.size();
         }
-        },
+    },
         "xyz.openbmc_project.PLDM", "/xyz/openbmc_project/license",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
@@ -90,7 +90,7 @@ inline void requestRoutesLicenseService(App& app)
                  "/redfish/v1/LicenseService/Actions/"
                  "LicenseService.Install",
              }}}};
-        });
+    });
 }
 
 static void resetLicenseActivationStatus(
@@ -108,7 +108,7 @@ static void resetLicenseActivationStatus(
             return;
         }
         licenseActivationStatusMatch = nullptr;
-        },
+    },
         "com.ibm.License.Manager", "/com/ibm/license",
         "org.freedesktop.DBus.Properties", "Set",
         "com.ibm.License.LicenseManager", "LicenseActivationStatus",
@@ -130,7 +130,7 @@ static void
             return;
         }
         resetLicenseActivationStatus(asyncResp);
-        },
+    },
         "com.ibm.License.Manager", "/com/ibm/license",
         "org.freedesktop.DBus.Properties", "Set",
         "com.ibm.License.LicenseManager", "LicenseString",
@@ -196,7 +196,7 @@ inline void requestRoutesLicenseEntryCollection(App& app)
         asyncResp->res.jsonValue["Name"] = "License Collection";
 
         getLicenseEntryCollection(asyncResp);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/LicenseService/Licenses")
         .privileges({{"ConfigureManager"}})
@@ -304,12 +304,12 @@ inline void requestRoutesLicenseEntryCollection(App& app)
                     "signal',"
                     "member='PropertiesChanged',path='/com/ibm/license'",
                     callback);
-            },
+        },
             "com.ibm.License.Manager", "/com/ibm/license",
             "org.freedesktop.DBus.Properties", "Set",
             "com.ibm.License.LicenseManager", "LicenseString",
             std::variant<std::string>(licenseString));
-        });
+    });
 }
 
 inline void translateLicenseTypeDbusToRedfish(
@@ -535,7 +535,7 @@ inline void
                     "UnavailableOffline";
             }
         }
-        },
+    },
         "xyz.openbmc_project.PLDM", "/xyz/openbmc_project/license",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
@@ -549,6 +549,6 @@ inline void requestRoutesLicenseEntry(App& app)
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                const std::string& param) {
         getLicenseEntryById(asyncResp, param);
-        });
+    });
 }
 } // namespace redfish

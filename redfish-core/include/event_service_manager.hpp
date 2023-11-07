@@ -100,7 +100,7 @@ static const Message*
         std::find_if(registry.begin(), registry.end(),
                      [&messageKey](const MessageEntry& messageEntry) {
         return messageKey == messageEntry.first;
-        });
+    });
     if (messageIt != registry.end())
     {
         return &messageIt->second;
