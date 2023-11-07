@@ -127,7 +127,7 @@ inline void
         asyncResp->res.jsonValue["Slots"][index]["Links"]["PCIeDevice"] = {
             {{"@odata.id",
               "/redfish/v1/Systems/system/PCIeDevices/" + devName}}};
-        });
+    });
 }
 
 inline void
@@ -177,7 +177,7 @@ inline void
         asyncResp->res
             .jsonValue["Slots"][index]["Links"]["Processors@odata.count"] =
             processorArray.size();
-        });
+    });
 }
 
 /**
@@ -249,7 +249,7 @@ inline void linkAssociatedDiskBackplane(
 
         redfish::chassis_utils::getChassisAssembly(
             asyncResp, chassisId, std::move(backplaneAssemblyCallback));
-        });
+    });
 }
 
 inline void getLocationCode(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -282,7 +282,7 @@ inline void getLocationCode(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         }
         asyncResp->res.jsonValue["Slots"][index]["Location"]["PartLocation"]
                                 ["ServiceLabel"] = property;
-        });
+    });
 }
 
 inline void
@@ -333,7 +333,7 @@ inline void
             crow::utility::urlFromPieces(
                 "redfish", "v1", "Systems", "system", "FabricAdapters",
                 fabric_util::buildFabricUniquePath(fabricAdapterPath));
-        });
+    });
 }
 
 inline void getPCIeSlotProperties(
@@ -497,7 +497,7 @@ inline void getValidPCIeSlotList(
         });
 
         callback(std::move(slotPathConnNames));
-        });
+    });
 }
 
 inline void doHandlePCIeSlotCollectionGet(
@@ -533,9 +533,9 @@ inline void doHandlePCIeSlotCollectionGet(
                 }
                 getPCIeSlotProperties(asyncResp, propertiesList, connectionName,
                                       pcieSlotPath);
-                });
+            });
         }
-        });
+    });
 }
 
 inline void handlePCIeSlotCollectionGet(
@@ -559,7 +559,7 @@ inline void handlePCIeSlotCollectionGet(
             return;
         }
         doHandlePCIeSlotCollectionGet(asyncResp, chassisID, *validChassisPath);
-        });
+    });
 }
 
 inline void doHandlePCIeSlotPatch(
@@ -593,7 +593,7 @@ inline void doHandlePCIeSlotPatch(
             auto indicatorOnOff = locationIndicatorActiveMap.at(idx);
             setLocationIndicatorActive(asyncResp, pcieSlotPath, indicatorOnOff);
         }
-        });
+    });
 }
 
 inline void
@@ -648,7 +648,7 @@ inline void
         }
         doHandlePCIeSlotPatch(asyncResp, total, chassisId, *validChassisPath,
                               std::move(locationIndicatorActiveMap));
-        });
+    });
 }
 
 inline void requestRoutesPCIeSlots(App& app)

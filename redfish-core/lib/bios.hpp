@@ -232,11 +232,11 @@ inline void
                     messages::internalError(asyncResp->res);
                 }
             }
-            },
+        },
             service, "/xyz/openbmc_project/bios_config/manager",
             "org.freedesktop.DBus.Properties", "Get",
             "xyz.openbmc_project.BIOSConfig.Manager", "BaseBIOSTable");
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject",
@@ -344,17 +344,17 @@ inline void requestRoutesBiosSettings(App& app)
                         messages::internalError(asyncResp->res);
                     }
                 }
-                },
+            },
                 service, "/xyz/openbmc_project/bios_config/manager",
                 "org.freedesktop.DBus.Properties", "Get",
                 "xyz.openbmc_project.BIOSConfig.Manager", "PendingAttributes");
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetObject",
             "/xyz/openbmc_project/bios_config/manager",
             std::array<const char*, 0>());
-        });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/Bios/Settings")
         .privileges({{"ConfigureManager"}})
@@ -661,18 +661,18 @@ inline void requestRoutesBiosSettings(App& app)
                     messages::internalError(asyncResp->res);
                     return;
                 }
-                },
+            },
                 "xyz.openbmc_project.BIOSConfigManager",
                 "/xyz/openbmc_project/bios_config/manager",
                 "org.freedesktop.DBus.Properties", "Set",
                 "xyz.openbmc_project.BIOSConfig.Manager", "PendingAttributes",
                 std::variant<PendingAttributesType>(pendingAttributes));
-            },
+        },
             "xyz.openbmc_project.BIOSConfigManager",
             "/xyz/openbmc_project/bios_config/manager",
             "org.freedesktop.DBus.Properties", "Get",
             "xyz.openbmc_project.BIOSConfig.Manager", "BaseBIOSTable");
-        });
+    });
 }
 
 /**
@@ -843,17 +843,17 @@ inline void requestRoutesBiosAttributeRegistry(App& app)
                     }
                     attributeArray.push_back(attributeItem);
                 }
-                },
+            },
                 service, "/xyz/openbmc_project/bios_config/manager",
                 "org.freedesktop.DBus.Properties", "Get",
                 "xyz.openbmc_project.BIOSConfig.Manager", "BaseBIOSTable");
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetObject",
             "/xyz/openbmc_project/bios_config/manager",
             std::array<const char*, 0>());
-        });
+    });
 }
 
 /**
@@ -888,7 +888,7 @@ inline void
             messages::internalError(asyncResp->res);
             return;
         }
-        },
+    },
         "org.open_power.Software.Host.Updater", "/xyz/openbmc_project/software",
         "xyz.openbmc_project.Common.FactoryReset", "Reset");
 }

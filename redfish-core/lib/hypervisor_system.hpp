@@ -102,7 +102,7 @@ inline void getHypervisorState(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
             messages::internalError(aResp->res);
             return;
         }
-        });
+    });
 }
 
 /**
@@ -154,7 +154,7 @@ inline void
             "/redfish/v1/Systems/hypervisor/Actions/ComputerSystem.Reset";
         reset["@Redfish.ActionInfo"] =
             "/redfish/v1/Systems/hypervisor/ResetActionInfo";
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject",
@@ -444,7 +444,7 @@ void getHypervisorIfaceData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             BMCWEB_LOG_DEBUG << "Hypervisor Interface not found";
         }
         callback(found, ethData, ipv4Data, ipv6Data);
-        },
+    },
         "xyz.openbmc_project.Network.Hypervisor",
         "/xyz/openbmc_project/network/hypervisor",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
@@ -516,7 +516,7 @@ inline void handleHypSLAACAutoConfigPatch(
             return;
         }
         messages::success(asyncResp->res);
-        },
+    },
         "xyz.openbmc_project.Network.Hypervisor",
         "/xyz/openbmc_project/network/hypervisor/" + ifaceId,
         "org.freedesktop.DBus.Properties", "Set",
@@ -542,7 +542,7 @@ inline void
         {
             messages::internalError(asyncResp->res);
         }
-        },
+    },
         "xyz.openbmc_project.Network.Hypervisor",
         "/xyz/openbmc_project/network/hypervisor/config",
         "org.freedesktop.DBus.Properties", "Set",
@@ -596,7 +596,7 @@ inline void
 
             return;
         }
-        },
+    },
         "xyz.openbmc_project.Network.Hypervisor",
         "/xyz/openbmc_project/network/hypervisor/" + ifaceId,
         "xyz.openbmc_project.Network.IP.Create", "IP", protocol, address,
@@ -628,7 +628,7 @@ inline void
         redfish::EventServiceManager::getInstance().sendEvent(
             redfish::messages::resourceChanged(), eventOrigin,
             "EthernetInterface");
-        },
+    },
         "xyz.openbmc_project.Network.Hypervisor",
         "/xyz/openbmc_project/network/hypervisor/" + ifaceId + "/" + protocol +
             "/addr0",
@@ -790,7 +790,7 @@ inline void setIpv6DhcpOperatingMode(
             messages::internalError(asyncResp->res);
             return;
         }
-        },
+    },
         "xyz.openbmc_project.Network.Hypervisor",
         "/xyz/openbmc_project/network/hypervisor/" + ifaceId,
         "org.freedesktop.DBus.Properties", "Set",
@@ -862,7 +862,7 @@ inline void setDHCPEnabled(const std::string& ifaceId,
             messages::internalError(asyncResp->res);
             return;
         }
-        },
+    },
         "xyz.openbmc_project.Network.Hypervisor",
         "/xyz/openbmc_project/network/hypervisor/" + ifaceId,
         "org.freedesktop.DBus.Properties", "Set",
@@ -882,7 +882,7 @@ inline void
             messages::internalError(asyncResp->res);
             return;
         }
-        },
+    },
         "xyz.openbmc_project.Network.Hypervisor",
         "/xyz/openbmc_project/network/hypervisor/" + ifaceId + "/ipv4/addr0",
         "org.freedesktop.DBus.Properties", "Set",
@@ -1089,7 +1089,7 @@ inline void handleHypV6DefaultGatewayPatch(
             messages::internalError(asyncResp->res);
             return;
         }
-        },
+    },
         "xyz.openbmc_project.Network.Hypervisor",
         "/xyz/openbmc_project/network/hypervisor/" + ifaceId,
         "org.freedesktop.DBus.Properties", "Set",
@@ -1147,8 +1147,8 @@ inline void requestRoutesHypervisorSystems(App& app)
             getHypervisorState(asyncResp);
             getHypervisorActions(asyncResp);
             // TODO: Add "SystemType" : "hypervisor"
-            });
         });
+    });
 
     /**
      * HypervisorInterfaceCollection class to handle the GET and PATCH on
@@ -1204,12 +1204,12 @@ inline void requestRoutesHypervisorSystems(App& app)
                 ifaceArray.push_back(std::move(ethIface));
             }
             asyncResp->res.jsonValue["Members@odata.count"] = ifaceArray.size();
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
             "/xyz/openbmc_project/network/hypervisor", 0, interfaces);
-        });
+    });
 
     BMCWEB_ROUTE(app,
                  "/redfish/v1/Systems/hypervisor/EthernetInterfaces/<str>/")
@@ -1241,8 +1241,8 @@ inline void requestRoutesHypervisorSystems(App& app)
                 "Hypervisor's Virtual Management Ethernet Interface";
             parseInterfaceData(asyncResp->res.jsonValue, ifaceId, ethData,
                                ipv4Data, ipv6Data);
-            });
         });
+    });
 
     // Restrict the hypervisor ethernet interface PATCH to ConfigureManager
     BMCWEB_ROUTE(app,
@@ -1462,9 +1462,9 @@ inline void requestRoutesHypervisorSystems(App& app)
                 handleHypV6DefaultGatewayPatch(
                     ifaceId, ipv6StaticDefaultGw.front(), asyncResp);
             }
-            });
-        asyncResp->res.result(boost::beast::http::status::accepted);
         });
+        asyncResp->res.result(boost::beast::http::status::accepted);
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/hypervisor/ResetActionInfo/")
         .privileges(redfish::privileges::getActionInfo)
@@ -1523,13 +1523,13 @@ inline void requestRoutesHypervisorSystems(App& app)
             parameter["AllowableValues"] = std::move(allowed);
             parameters.emplace_back(std::move(parameter));
             asyncResp->res.jsonValue["Parameters"] = std::move(parameters);
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetObject",
             "/xyz/openbmc_project/state/hypervisor0",
             std::array<const char*, 1>{"xyz.openbmc_project.State.Host"});
-        });
+    });
 
     BMCWEB_ROUTE(app,
                  "/redfish/v1/Systems/hypervisor/Actions/ComputerSystem.Reset/")
@@ -1589,12 +1589,12 @@ inline void requestRoutesHypervisorSystems(App& app)
                 return;
             }
             messages::success(asyncResp->res);
-            },
+        },
             "xyz.openbmc_project.State.Hypervisor",
             "/xyz/openbmc_project/state/hypervisor0",
             "org.freedesktop.DBus.Properties", "Set",
             "xyz.openbmc_project.State.Host", "RequestedHostTransition",
             dbus::utility::DbusVariantType{std::move(command)});
-        });
+    });
 }
 } // namespace redfish::hypervisor

@@ -204,7 +204,7 @@ class Server
                                   [connection] { connection->start(); });
             }
             doAccept();
-            });
+        });
     }
 
   private:

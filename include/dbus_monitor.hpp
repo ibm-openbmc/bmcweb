@@ -111,15 +111,14 @@ inline void requestRoutes(App& app)
         .privileges({{"Login"}})
         .websocket()
         .onopen([&](crow::websocket::Connection& conn) {
-            BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";
-            sessions.try_emplace(&conn);
-        })
+        BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";
+        sessions.try_emplace(&conn);
+    })
         .onclose([&](crow::websocket::Connection& conn, const std::string&) {
-            sessions.erase(&conn);
-        })
-        .onmessage(
-            [&](crow::websocket::Connection& conn, const std::string& data,
-                bool) {
+        sessions.erase(&conn);
+    })
+        .onmessage([&](crow::websocket::Connection& conn,
+                       const std::string& data, bool) {
         const auto sessionPair = sessions.find(&conn);
         if (sessionPair == sessions.end())
         {
@@ -247,7 +246,7 @@ inline void requestRoutes(App& app)
                     *crow::connections::systemBus, objectManagerMatchString,
                     onPropertyUpdate, &conn));
         }
-        });
+    });
 }
 } // namespace dbus_monitor
 } // namespace crow

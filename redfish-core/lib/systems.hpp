@@ -232,7 +232,7 @@ inline void getProcessorSummary(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             return;
         }
         getProcessorProperties(aResp, properties);
-        });
+    });
 }
 
 /*
@@ -317,7 +317,7 @@ inline void getComputerSystem(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                                         return;
                                     }
                                     updateDimmProperties(aResp, dimmState);
-                                    });
+                                });
                                 return;
                             }
 
@@ -363,7 +363,7 @@ inline void getComputerSystem(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                                 aResp->res.jsonValue["MemorySummary"]["Status"]
                                                     ["State"] = "Enabled";
                             }
-                            });
+                        });
                     }
                     else if (interfaceName ==
                              "xyz.openbmc_project.Inventory.Item.Cpu")
@@ -420,7 +420,7 @@ inline void getComputerSystem(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                                 BMCWEB_LOG_DEBUG << "UUID = " << valueStr;
                                 aResp->res.jsonValue["UUID"] = valueStr;
                             }
-                            });
+                        });
                     }
                     else if (interfaceName ==
                              "xyz.openbmc_project.Inventory.Item.System")
@@ -493,7 +493,7 @@ inline void getComputerSystem(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                             sw_util::populateSoftwareInformation(
                                 aResp, sw_util::biosPurpose, "BiosVersion",
                                 false);
-                            });
+                        });
 
                         sdbusplus::asio::getProperty<std::string>(
                             *crow::connections::systemBus, connection.first,
@@ -511,13 +511,13 @@ inline void getComputerSystem(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                             }
 
                             aResp->res.jsonValue["AssetTag"] = value;
-                            });
+                        });
                     }
                 }
                 break;
             }
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -598,7 +598,7 @@ inline void getHostState(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
             aResp->res.jsonValue["PowerState"] = "Off";
             aResp->res.jsonValue["Status"]["State"] = "Disabled";
         }
-        });
+    });
 }
 
 /**
@@ -729,7 +729,7 @@ inline void getBootProgress(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
 
         aResp->res.jsonValue["BootProgress"]["LastState"] =
             dbusToRfBootProgress(bootProgressStr);
-        });
+    });
 }
 
 /**
@@ -763,7 +763,7 @@ inline void getBootProgressLastStateTime(
         // Convert to ISO 8601 standard
         aResp->res.jsonValue["BootProgress"]["LastStateTime"] =
             redfish::time_utils::getDateTimeUintUs(lastStateTime);
-        });
+    });
 }
 
 /**
@@ -800,7 +800,7 @@ inline void getLastResetTime(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
         // Convert to ISO 8601 standard
         aResp->res.jsonValue["LastResetTime"] =
             redfish::time_utils::getDateTimeUint(lastResetTimeStamp);
-        });
+    });
 }
 
 /**
@@ -851,7 +851,7 @@ inline void getAutomaticRetry(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                 aResp->res
                     .jsonValue["Boot"]["RemainingAutomaticRetryAttempts"] =
                     autoRebootAttemptsLeft;
-                });
+            });
         }
         else
         {
@@ -868,7 +868,7 @@ inline void getAutomaticRetry(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
         aResp->res.jsonValue["Boot"]
                             ["AutomaticRetryConfig@Redfish.AllowableValues"] = {
             "Disabled", "RetryAttempts"};
-        });
+    });
 }
 
 /**
@@ -913,7 +913,7 @@ inline void
         }
 
         aResp->res.jsonValue["PowerRestorePolicy"] = policyMapsIt->second;
-        });
+    });
 }
 
 /**
@@ -949,7 +949,7 @@ inline void getStopBootOnFault(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
         {
             aResp->res.jsonValue["Boot"]["StopBootOnFault"] = "Never";
         }
-        });
+    });
 }
 
 /**
@@ -1029,8 +1029,8 @@ inline void getTrustedModuleRequiredToBoot(
                 aResp->res.jsonValue["Boot"]["TrustedModuleRequiredToBoot"] =
                     "Disabled";
             }
-            });
-        },
+        });
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/", int32_t(0),
@@ -1110,11 +1110,11 @@ inline void setTrustedModuleRequiredToBoot(
                 return;
             }
             BMCWEB_LOG_DEBUG << "Set TrustedModuleRequiredToBoot done.";
-            },
+        },
             serv, path, "org.freedesktop.DBus.Properties", "Set",
             "xyz.openbmc_project.Control.TPM.Policy", "TPMEnable",
             dbus::utility::DbusVariantType(tpmRequired));
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/", int32_t(0),
@@ -1182,11 +1182,11 @@ inline void setAssetTag(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 messages::internalError(aResp->res);
                 return;
             }
-            },
+        },
             service, path, "org.freedesktop.DBus.Properties", "Set",
             "xyz.openbmc_project.Inventory.Decorator.AssetTag", "AssetTag",
             dbus::utility::DbusVariantType(assetTag));
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -1244,12 +1244,11 @@ inline void setStopBootOnFault(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         return;
     }
 
-    sdbusplus::asio::setProperty(*crow::connections::systemBus,
-                                 "xyz.openbmc_project.Settings",
-                                 "/xyz/openbmc_project/logging/settings",
-                                 "xyz.openbmc_project.Logging.Settings",
-                                 "QuiesceOnHwError", *stopBootEnabled,
-                                 [aResp](const boost::system::error_code& ec) {
+    sdbusplus::asio::setProperty(
+        *crow::connections::systemBus, "xyz.openbmc_project.Settings",
+        "/xyz/openbmc_project/logging/settings",
+        "xyz.openbmc_project.Logging.Settings", "QuiesceOnHwError",
+        *stopBootEnabled, [aResp](const boost::system::error_code& ec) {
         if (ec)
         {
             if (ec.value() != EBADR)
@@ -1303,7 +1302,7 @@ inline void setAutomaticRetry(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             messages::internalError(aResp->res);
             return;
         }
-        },
+    },
         "xyz.openbmc_project.Settings",
         "/xyz/openbmc_project/control/host0/auto_reboot",
         "org.freedesktop.DBus.Properties", "Set",
@@ -1353,7 +1352,7 @@ inline void
             messages::internalError(aResp->res);
             return;
         }
-        },
+    },
         "xyz.openbmc_project.Settings",
         "/xyz/openbmc_project/control/host0/power_restore_policy",
         "org.freedesktop.DBus.Properties", "Set",
@@ -1426,7 +1425,7 @@ inline void getProvisioningStatus(std::shared_ptr<bmcweb::AsyncResp> aResp)
         {
             oemPFR["ProvisioningStatus"] = "NotProvisioned";
         }
-        });
+    });
 }
 #endif
 
@@ -1568,8 +1567,8 @@ inline void getPowerMode(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
 
                 translatePowerMode(aResp, *powerMode);
             }
-            });
-        },
+        });
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/", int32_t(0),
@@ -1687,11 +1686,11 @@ inline void setPowerMode(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 messages::internalError(aResp->res);
                 return;
             }
-            },
+        },
             service, path, "org.freedesktop.DBus.Properties", "Set",
             "xyz.openbmc_project.Control.Power.Mode", "PowerMode",
             dbus::utility::DbusVariantType(powerMode));
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/", int32_t(0),
@@ -1819,7 +1818,7 @@ inline void
             }
             hostWatchdogTimer["TimeoutAction"] = action;
         }
-        });
+    });
 }
 
 /**
@@ -1859,7 +1858,7 @@ inline void setWDTProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 messages::internalError(aResp->res);
                 return;
             }
-            },
+        },
             "xyz.openbmc_project.Watchdog",
             "/xyz/openbmc_project/watchdog/host0",
             "org.freedesktop.DBus.Properties", "Set",
@@ -1877,7 +1876,7 @@ inline void setWDTProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 messages::internalError(aResp->res);
                 return;
             }
-            },
+        },
             "xyz.openbmc_project.Watchdog",
             "/xyz/openbmc_project/watchdog/host0",
             "org.freedesktop.DBus.Properties", "Set",
@@ -2025,8 +2024,8 @@ inline void getIdlePowerSaver(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
                 messages::internalError(aResp->res);
                 return;
             }
-            });
-        },
+        });
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/", int32_t(0),
@@ -2056,7 +2055,7 @@ inline void doGetEnabledPanelFunctions(
             return;
         }
         callback(enabledFuncs);
-        },
+    },
         "com.ibm.PanelApp", "/com/ibm/panel_app", "com.ibm.panel",
         "getEnabledFunctions");
 }
@@ -2069,11 +2068,11 @@ inline void getEnabledPanelFunctions(
 {
     doGetEnabledPanelFunctions(
         asyncResp, [asyncResp](const std::vector<uint8_t>& enabledFuncs) {
-            nlohmann::json& oem = asyncResp->res.jsonValue["Oem"];
-            oem["@odata.type"] = "#OemComputerSystem.Oem";
-            oem["IBM"]["@odata.type"] = "#OemComputerSystem.IBM";
-            oem["IBM"]["EnabledPanelFunctions"] = enabledFuncs;
-        });
+        nlohmann::json& oem = asyncResp->res.jsonValue["Oem"];
+        oem["@odata.type"] = "#OemComputerSystem.Oem";
+        oem["IBM"]["@odata.type"] = "#OemComputerSystem.IBM";
+        oem["IBM"]["EnabledPanelFunctions"] = enabledFuncs;
+    });
 }
 
 /**
@@ -2133,7 +2132,7 @@ inline void
         asyncResp->res.jsonValue["Result"] = {std::get<1>(result),
                                               std::get<2>(result)};
         messages::success(asyncResp->res);
-        },
+    },
         "com.ibm.PanelApp", "/com/ibm/panel_app", "com.ibm.panel",
         "ExecuteFunction", funcNo);
 }
@@ -2169,7 +2168,7 @@ inline void handleSystemActionsOemExecutePanelFunctionPost(
             return;
         }
         executePanelFunction(asyncResp, funcNo);
-        });
+    });
 }
 
 /**
@@ -2269,7 +2268,7 @@ inline void setIdlePowerSaver(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                     messages::internalError(aResp->res);
                     return;
                 }
-                },
+            },
                 service, path, "org.freedesktop.DBus.Properties", "Set",
                 "xyz.openbmc_project.Control.Power.IdlePowerSaver", "Enabled",
                 dbus::utility::DbusVariantType(*ipsEnable));
@@ -2284,7 +2283,7 @@ inline void setIdlePowerSaver(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                     messages::internalError(aResp->res);
                     return;
                 }
-                },
+            },
                 service, path, "org.freedesktop.DBus.Properties", "Set",
                 "xyz.openbmc_project.Control.Power.IdlePowerSaver",
                 "EnterUtilizationPercent",
@@ -2302,7 +2301,7 @@ inline void setIdlePowerSaver(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                     messages::internalError(aResp->res);
                     return;
                 }
-                },
+            },
                 service, path, "org.freedesktop.DBus.Properties", "Set",
                 "xyz.openbmc_project.Control.Power.IdlePowerSaver",
                 "EnterDwellTime",
@@ -2318,7 +2317,7 @@ inline void setIdlePowerSaver(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                     messages::internalError(aResp->res);
                     return;
                 }
-                },
+            },
                 service, path, "org.freedesktop.DBus.Properties", "Set",
                 "xyz.openbmc_project.Control.Power.IdlePowerSaver",
                 "ExitUtilizationPercent",
@@ -2336,13 +2335,13 @@ inline void setIdlePowerSaver(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                     messages::internalError(aResp->res);
                     return;
                 }
-                },
+            },
                 service, path, "org.freedesktop.DBus.Properties", "Set",
                 "xyz.openbmc_project.Control.Power.IdlePowerSaver",
                 "ExitDwellTime",
                 dbus::utility::DbusVariantType(timeMilliseconds));
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/", int32_t(0),
@@ -2417,8 +2416,8 @@ inline void requestRoutesSystemsCollection(App& app)
                 ifaceArray.push_back(std::move(hypervisor));
                 resCount = ifaceArray.size();
             }
-            });
         });
+    });
 }
 
 /**
@@ -2441,7 +2440,7 @@ inline void doNMI(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
             return;
         }
         messages::success(asyncResp->res);
-        },
+    },
         serviceName, objectPath, interfaceName, method);
 }
 
@@ -2566,7 +2565,7 @@ inline void requestRoutesSystemActionsReset(App& app)
                     return;
                 }
                 messages::success(asyncResp->res);
-                },
+            },
                 "xyz.openbmc_project.State.Host",
                 "/xyz/openbmc_project/state/host0",
                 "org.freedesktop.DBus.Properties", "Set",
@@ -2585,14 +2584,14 @@ inline void requestRoutesSystemActionsReset(App& app)
                     return;
                 }
                 messages::success(asyncResp->res);
-                },
+            },
                 "xyz.openbmc_project.State.Chassis",
                 "/xyz/openbmc_project/state/chassis0",
                 "org.freedesktop.DBus.Properties", "Set",
                 "xyz.openbmc_project.State.Chassis", "RequestedPowerTransition",
                 dbus::utility::DbusVariantType{command});
         }
-        });
+    });
 }
 
 inline void handleComputerSystemCollectionHead(
@@ -2767,7 +2766,7 @@ inline void requestRoutesSystems(App& app)
                 return;
             }
             getLocationIndicatorActive(asyncResp, *validSystemsPath);
-            });
+        });
 
         // TODO (Gunnar): Remove IndicatorLED after enough time has passed
         getIndicatorLedState(asyncResp);
@@ -2793,7 +2792,7 @@ inline void requestRoutesSystems(App& app)
         getPowerMode(asyncResp);
         getIdlePowerSaver(asyncResp);
         getEnabledPanelFunctions(asyncResp);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/")
         .privileges(redfish::privileges::patchComputerSystem)
@@ -2900,7 +2899,7 @@ inline void requestRoutesSystems(App& app)
                 }
                 setLocationIndicatorActive(asyncResp, *validSystemsPath,
                                            locationIndicatorActive);
-                });
+            });
         }
 
         // TODO (Gunnar): Remove IndicatorLED after enough time has
@@ -2992,7 +2991,7 @@ inline void requestRoutesSystems(App& app)
             setIdlePowerSaver(asyncResp, ipsEnable, ipsEnterUtil, ipsEnterTime,
                               ipsExitUtil, ipsExitTime);
         }
-        });
+    });
 }
 
 inline void handleSystemCollectionResetActionHead(
@@ -3059,6 +3058,6 @@ inline void requestRoutesSystemResetActionInfo(App& app)
         parameters.emplace_back(std::move(parameter));
 
         asyncResp->res.jsonValue["Parameters"] = std::move(parameters);
-        });
+    });
 }
 } // namespace redfish

@@ -82,7 +82,7 @@ inline void getCollectionMembersWithPathConversion(
             members.push_back(std::move(member));
         }
         aResp->res.jsonValue["Members@odata.count"] = members.size();
-        });
+    });
 }
 
 /**

@@ -23,20 +23,20 @@ class KvmSession
             boost::asio::ip::make_address("127.0.0.1"), 5900);
         hostSocket.async_connect(
             endpoint, [this, &connIn](const boost::system::error_code& ec) {
-                if (ec)
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR
+                    << "conn:" << &conn
+                    << ", Couldn't connect to KVM socket port: " << ec;
+                if (ec != boost::asio::error::operation_aborted)
                 {
-                    BMCWEB_LOG_ERROR
-                        << "conn:" << &conn
-                        << ", Couldn't connect to KVM socket port: " << ec;
-                    if (ec != boost::asio::error::operation_aborted)
-                    {
-                        connIn.close("Error in connecting to KVM port");
-                    }
-                    return;
+                    connIn.close("Error in connecting to KVM port");
                 }
+                return;
+            }
 
-                doRead();
-            });
+            doRead();
+        });
     }
 
     void onMessage(const std::string& data)
@@ -96,7 +96,7 @@ class KvmSession
             outputBuffer.consume(bytesRead);
 
             doRead();
-            });
+        });
     }
 
     void doWrite()
@@ -162,26 +162,26 @@ inline void requestRoutes(App& app)
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
         .websocket()
         .onopen([](crow::websocket::Connection& conn) {
-            BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";
+        BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";
 
-            if (sessions.size() == maxSessions)
-            {
-                conn.close("Max sessions are already connected");
-                return;
-            }
+        if (sessions.size() == maxSessions)
+        {
+            conn.close("Max sessions are already connected");
+            return;
+        }
 
-            sessions[&conn] = std::make_unique<KvmSession>(conn);
-        })
+        sessions[&conn] = std::make_unique<KvmSession>(conn);
+    })
         .onclose([](crow::websocket::Connection& conn, const std::string&) {
-            sessions.erase(&conn);
-        })
+        sessions.erase(&conn);
+    })
         .onmessage([](crow::websocket::Connection& conn,
                       const std::string& data, bool) {
-            if (sessions[&conn])
-            {
-                sessions[&conn]->onMessage(data);
-            }
-        });
+        if (sessions[&conn])
+        {
+            sessions[&conn]->onMessage(data);
+        }
+    });
 }
 
 } // namespace obmc_kvm

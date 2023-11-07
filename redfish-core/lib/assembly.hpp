@@ -137,7 +137,7 @@ inline void
 
                 assemblyArray.at(
                     assemblyIndex)["Oem"]["OpenBMC"]["ReadyToRemove"] = false;
-                },
+            },
                 "xyz.openbmc_project.ObjectMapper",
                 "/xyz/openbmc_project/object_mapper",
                 "xyz.openbmc_project.ObjectMapper", "GetObject",
@@ -190,7 +190,7 @@ inline void
 
                             assembleAssemblyProperties(aResp, properties,
                                                        assemblyData, assembly);
-                            });
+                        });
                     }
                     else if (interface == "xyz.openbmc_project.Inventory."
                                           "Decorator.LocationCode")
@@ -215,7 +215,7 @@ inline void
 
                             assemblyData["Location"]["PartLocation"]
                                         ["ServiceLabel"] = property;
-                            });
+                        });
                     }
                     else if (interface == "xyz.openbmc_project.State."
                                           "Decorator.OperationalStatus")
@@ -249,7 +249,7 @@ inline void
                             {
                                 assemblyData["Status"]["Health"] = "OK";
                             }
-                            });
+                        });
                     }
                     else if (interface == "xyz.openbmc_project.Inventory.Item")
                     {
@@ -308,7 +308,7 @@ inline void
                             {
                                 assemblyData["Status"]["State"] = "Enabled";
                             }
-                            });
+                        });
                     }
                 }
             }
@@ -316,7 +316,7 @@ inline void
             nlohmann::json& assemblyArray = aResp->res.jsonValue["Assemblies"];
             nlohmann::json& assemblyData = assemblyArray.at(assemblyIndex);
             getLocationIndicatorActive(aResp, assembly, assemblyData);
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetObject", assembly,
@@ -345,7 +345,7 @@ static void
             return;
         }
         messages::success(asyncResp->res);
-        },
+    },
         "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
         "org.freedesktop.systemd1.Manager", method,
         "xyz.openbmc_project.adcsensor.service", "replace");
@@ -395,7 +395,7 @@ static void doBatteryCM(const std::string& assembly, const bool readyToRemove,
                     return;
                 }
                 startOrStopADCSensor(true, asyncResp);
-                },
+            },
                 serviceName, assembly, "org.freedesktop.DBus.Properties", "Set",
                 "xyz.openbmc_project.State.Decorator."
                 "OperationalStatus",
@@ -405,7 +405,7 @@ static void doBatteryCM(const std::string& assembly, const bool readyToRemove,
 
         BMCWEB_LOG_ERROR << "No OperationalStatus interface on " << assembly;
         messages::internalError(asyncResp->res);
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject", assembly,
@@ -589,7 +589,7 @@ inline void setAssemblylocationIndicators(
                         messages::internalError(asyncResp->res);
                         return;
                     }
-                    },
+                },
                     "com.ibm.VPD.Manager", "/com/ibm/VPD/Manager",
                     "com.ibm.VPD.Manager", action,
                     sdbusplus::message::object_path(assembly));
@@ -676,7 +676,7 @@ inline void checkAssemblyInterface(
                 getAssemblyProperties(aResp, chassisPath, updatedAssemblyList);
             }
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -709,21 +709,21 @@ inline void
         assemblyPath, [aResp, chassisPath, setLocationIndicatorActiveFlag,
                        req](const boost::system::error_code ec,
                             const dbus::utility::MapperEndPoints& endpoints) {
-            if (ec)
-            {
-                BMCWEB_LOG_DEBUG << "DBUS response "
-                                    "error";
-                messages::internalError(aResp->res);
-                return;
-            }
-
-            dbus::utility::MapperEndPoints sortedAssemblyList = endpoints;
-            std::sort(sortedAssemblyList.begin(), sortedAssemblyList.end());
-
-            checkAssemblyInterface(aResp, chassisPath, sortedAssemblyList,
-                                   setLocationIndicatorActiveFlag, req);
+        if (ec)
+        {
+            BMCWEB_LOG_DEBUG << "DBUS response "
+                                "error";
+            messages::internalError(aResp->res);
             return;
-        });
+        }
+
+        dbus::utility::MapperEndPoints sortedAssemblyList = endpoints;
+        std::sort(sortedAssemblyList.begin(), sortedAssemblyList.end());
+
+        checkAssemblyInterface(aResp, chassisPath, sortedAssemblyList,
+                               setLocationIndicatorActiveFlag, req);
+        return;
+    });
 }
 
 /**
@@ -773,7 +773,7 @@ inline void checkForAssemblyAssociations(
             getAssemblyEndpoints(aResp, chassisPath,
                                  setLocationIndicatorActiveFlag, req);
         }
-        });
+    });
 }
 
 /**
@@ -835,7 +835,7 @@ inline void checkAssociation(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             }
         }
         return;
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject", chassisPath,
@@ -900,7 +900,7 @@ inline void getChassis(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 
         BMCWEB_LOG_ERROR << "Chassis not found";
         messages::resourceNotFound(aResp->res, "Chassis", chassisID);
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
@@ -1095,13 +1095,13 @@ inline void fillWithAssemblyId(
                                  std::to_string(assembledObjectId));
 
             aResp->res.jsonValue[assemblyUriPropPath] = uriValwithId;
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTree",
             "/xyz/openbmc_project/inventory", int32_t(0),
             chassisAssemblyIfaces);
-        });
+    });
 }
 
 } // namespace assembly
@@ -1125,7 +1125,7 @@ inline void requestRoutesAssembly(App& app)
         BMCWEB_LOG_DEBUG << "chassis =" << chassisId;
         assembly::getChassis(asyncResp, chassisId,
                              setLocationIndicatorActiveFlag, req);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/Assembly/")
         .privileges({{"ConfigureComponents"}})
@@ -1138,6 +1138,6 @@ inline void requestRoutesAssembly(App& app)
         BMCWEB_LOG_DEBUG << "Chassis = " << chassisID;
         assembly::getChassis(asyncResp, chassisID,
                              setLocationIndicatorActiveFlag, req);
-        });
+    });
 }
 } // namespace redfish

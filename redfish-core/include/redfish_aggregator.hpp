@@ -680,7 +680,7 @@ class RedfishAggregator
                     << "No satellite BMCs detected.  Redfish Aggregation not enabled";
             }
             handler(ec, satelliteInfo);
-            },
+        },
             "xyz.openbmc_project.EntityManager",
             "/xyz/openbmc_project/inventory",
             "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");

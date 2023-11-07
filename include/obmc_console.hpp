@@ -64,7 +64,7 @@ inline void doWrite()
             return;
         }
         doWrite();
-        });
+    });
 }
 
 inline void doRead()
@@ -95,7 +95,7 @@ inline void doRead()
             session->sendBinary(payload);
         }
         doRead();
-        });
+    });
 }
 
 inline void connectHandler(const boost::system::error_code& ec)
@@ -120,11 +120,11 @@ inline void requestRoutes(App& app)
         .privileges({{"ConfigureManager"}})
         .websocket()
         .onopen([](crow::websocket::Connection& conn) {
-            BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";
-            // Ensure user has ConfigureManager, setting above does nothing
-            auto getUserInfo =
-                [&conn](const boost::system::error_code& ec,
-                        const dbus::utility::DBusPropertiesMap& userInfo) {
+        BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";
+        // Ensure user has ConfigureManager, setting above does nothing
+        auto getUserInfo =
+            [&conn](const boost::system::error_code& ec,
+                    const dbus::utility::DBusPropertiesMap& userInfo) {
             if (ec)
             {
                 BMCWEB_LOG_ERROR << "GetUserInfo failed...";
@@ -133,10 +133,9 @@ inline void requestRoutes(App& app)
             }
 
             const std::string* userRolePtr = nullptr;
-            auto userInfoIter = std::find_if(userInfo.begin(), userInfo.end(),
-                                             [](const auto& p) {
-                return p.first == "UserPrivilege";
-            });
+            auto userInfoIter = std::find_if(
+                userInfo.begin(), userInfo.end(),
+                [](const auto& p) { return p.first == "UserPrivilege"; });
             if (userInfoIter != userInfo.end())
             {
                 userRolePtr = std::get_if<std::string>(&userInfoIter->second);
@@ -176,29 +175,29 @@ inline void requestRoutes(App& app)
                     conn.getIoContext());
                 hostSocket->async_connect(ep, connectHandler);
             }
-            };
-            crow::connections::systemBus->async_method_call(
-                std::move(getUserInfo), "xyz.openbmc_project.User.Manager",
-                "/xyz/openbmc_project/user", "xyz.openbmc_project.User.Manager",
-                "GetUserInfo", conn.getUserName());
-        })
+        };
+        crow::connections::systemBus->async_method_call(
+            std::move(getUserInfo), "xyz.openbmc_project.User.Manager",
+            "/xyz/openbmc_project/user", "xyz.openbmc_project.User.Manager",
+            "GetUserInfo", conn.getUserName());
+    })
         .onclose([](crow::websocket::Connection& conn,
                     [[maybe_unused]] const std::string& reason) {
-            BMCWEB_LOG_INFO << "Closing websocket. Reason: " << reason;
+        BMCWEB_LOG_INFO << "Closing websocket. Reason: " << reason;
 
-            sessions.erase(&conn);
-            if (sessions.empty())
-            {
-                hostSocket = nullptr;
-                inputBuffer.clear();
-                inputBuffer.shrink_to_fit();
-            }
-        })
+        sessions.erase(&conn);
+        if (sessions.empty())
+        {
+            hostSocket = nullptr;
+            inputBuffer.clear();
+            inputBuffer.shrink_to_fit();
+        }
+    })
         .onmessage([]([[maybe_unused]] crow::websocket::Connection& conn,
                       const std::string& data, [[maybe_unused]] bool isBinary) {
-            inputBuffer += data;
-            doWrite();
-        });
+        inputBuffer += data;
+        doWrite();
+    });
 }
 } // namespace obmc_console
 } // namespace crow

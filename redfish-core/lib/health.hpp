@@ -200,7 +200,7 @@ struct HealthPopulate : std::enable_shared_from_this<HealthPopulate>
                 return;
             }
             self->globalInventoryPath = resp[0];
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", "/", 0,
@@ -229,7 +229,7 @@ struct HealthPopulate : std::enable_shared_from_this<HealthPopulate>
                 }
                 it = self->statuses.erase(it);
             }
-            },
+        },
             "xyz.openbmc_project.ObjectMapper", "/",
             "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
     }

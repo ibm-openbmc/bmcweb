@@ -60,7 +60,7 @@ inline void getFanSensors(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         }
 
         updateFanSensorList(asyncResp, chassisId, path, value);
-        });
+    });
 }
 
 inline void
@@ -81,7 +81,7 @@ inline void
 
         getFanSensors(asyncResp, chassisId, object.begin()->first,
                       fanSensorPath);
-        });
+    });
 }
 
 inline void
@@ -123,9 +123,9 @@ inline void
                 {
                     getFanSensorPaths(asyncResp, sensorsEndpoint, chassisId);
                 }
-                });
+            });
         }
-        });
+    });
 }
 
 inline void handleEnvironmentMetricsHead(
@@ -222,9 +222,9 @@ inline void getPowerWatts(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                                                  chassisId, "Sensors",
                                                  "total_power");
                 asyncResp->res.jsonValue["PowerWatts"]["Reading"] = value;
-                });
             });
         });
+    });
 }
 
 inline void
@@ -287,7 +287,7 @@ inline void
             asyncResp->res.jsonValue["PowerLimitWatts"]["AllowableMax"] =
                 *maxCap;
         }
-        });
+    });
 }
 
 inline void handleEnvironmentMetricsGet(
@@ -346,7 +346,7 @@ inline void
             }
             return;
         }
-        });
+    });
 }
 
 inline void
@@ -377,15 +377,15 @@ inline void
         "/xyz/openbmc_project/control/host0/power_cap",
         "xyz.openbmc_project.Control.Power.Cap", "PowerCapEnable",
         powerCapEnable, [asyncResp](const boost::system::error_code& ec) {
-            if (ec)
+        if (ec)
+        {
+            if (ec.value() != EBADR)
             {
-                if (ec.value() != EBADR)
-                {
-                    messages::internalError(asyncResp->res);
-                }
-                return;
+                messages::internalError(asyncResp->res);
             }
-        });
+            return;
+        }
+    });
 }
 
 inline void handleEnvironmentMetricsPatch(
@@ -437,7 +437,7 @@ inline void handleEnvironmentMetricsPatch(
         {
             setPowerControlMode(asyncResp, *controlMode);
         }
-        });
+    });
 }
 
 inline void requestRoutesEnvironmentMetrics(App& app)

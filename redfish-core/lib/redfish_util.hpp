@@ -83,7 +83,7 @@ void getMainChassisId(std::shared_ptr<bmcweb::AsyncResp> asyncResp,
         std::string chassisId = subtree[0].first.substr(idPos + 1);
         BMCWEB_LOG_DEBUG << "chassisId = " << chassisId;
         callback(chassisId, asyncResp);
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -194,7 +194,7 @@ void getPortStatusAndPath(
         }
 
         callback(ec, socketData);
-        },
+    },
         "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
         "org.freedesktop.systemd1.Manager", "ListUnits");
 }
@@ -248,7 +248,7 @@ void getPortNumber(const std::string& socketPath, CallbackFunc&& callback)
             BMCWEB_LOG_ERROR << ec3;
         }
         callback(ec, port);
-        });
+    });
 }
 
 } // namespace redfish

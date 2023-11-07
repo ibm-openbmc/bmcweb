@@ -288,7 +288,7 @@ struct TaskData : std::enable_shared_from_this<TaskData>
                     [self] { self->match.reset(); });
                 return;
             }
-            });
+        });
 
         extendTimer(timeout);
         messages.emplace_back(messages::taskStarted(std::to_string(index)));
@@ -338,7 +338,7 @@ inline void requestRoutesTaskMonitor(App& app)
             // we compare against the string version as on failure
             // strtoul returns 0
             return std::to_string(task->index) == strParam;
-            });
+        });
 
         if (find == task::tasks.end())
         {
@@ -353,7 +353,7 @@ inline void requestRoutesTaskMonitor(App& app)
             return;
         }
         ptr->populateResp(asyncResp->res);
-        });
+    });
 }
 
 inline void requestRoutesTask(App& app)
@@ -379,7 +379,7 @@ inline void requestRoutesTask(App& app)
             // we compare against the string version as on failure
             // strtoul returns 0
             return std::to_string(task->index) == strParam;
-            });
+        });
 
         if (find == task::tasks.end())
         {
@@ -420,7 +420,7 @@ inline void requestRoutesTask(App& app)
                 2, ' ', true, nlohmann::json::error_handler_t::replace);
         }
         asyncResp->res.jsonValue["PercentComplete"] = ptr->percentComplete;
-        });
+    });
 }
 
 inline void requestRoutesTaskCollection(App& app)
@@ -453,7 +453,7 @@ inline void requestRoutesTaskCollection(App& app)
                                   std::to_string(task->index);
             members.emplace_back(std::move(member));
         }
-        });
+    });
 }
 
 inline void requestRoutesTaskService(App& app)
@@ -482,7 +482,7 @@ inline void requestRoutesTaskService(App& app)
         asyncResp->res.jsonValue["ServiceEnabled"] = true;
         asyncResp->res.jsonValue["Tasks"]["@odata.id"] =
             "/redfish/v1/TaskService/Tasks";
-        });
+    });
 }
 
 } // namespace redfish

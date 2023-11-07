@@ -60,7 +60,7 @@ inline void requestRoutesStorageCollection(App& app)
         members.emplace_back(member);
         asyncResp->res.jsonValue["Members"] = std::move(members);
         asyncResp->res.jsonValue["Members@odata.count"] = 1;
-        });
+    });
 }
 
 inline void getDrives(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
@@ -98,7 +98,7 @@ inline void getDrives(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
         }
 
         count = driveArray.size();
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
@@ -174,7 +174,7 @@ inline void
                     asyncResp->res.jsonValue["StorageControllers"][index]
                                             ["Status"]["State"] = "Disabled";
                 }
-                });
+            });
 
             sdbusplus::asio::getAllProperties(
                 *crow::connections::systemBus, connectionName, path,
@@ -228,9 +228,9 @@ inline void
                 {
                     controller["Model"] = *model;
                 }
-                });
+            });
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -259,7 +259,7 @@ inline void requestRoutesStorage(App& app)
 
         getDrives(asyncResp);
         getStorageControllers(asyncResp);
-        });
+    });
 }
 
 inline void getDriveAsset(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -314,7 +314,7 @@ inline void getDriveAsset(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         {
             asyncResp->res.jsonValue["Model"] = *model;
         }
-        });
+    });
 }
 
 inline void getDrivePresent(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -337,7 +337,7 @@ inline void getDrivePresent(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         {
             asyncResp->res.jsonValue["Status"]["State"] = "Disabled";
         }
-        });
+    });
 }
 
 inline void getDriveState(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -363,7 +363,7 @@ inline void getDriveState(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         {
             asyncResp->res.jsonValue["Status"]["State"] = "Updating";
         }
-        });
+    });
 }
 
 inline std::optional<drive::MediaType> convertDriveType(std::string_view type)
@@ -524,7 +524,7 @@ inline void
                 }
             }
         }
-        });
+    });
 }
 
 static void addAllDriveInfo(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -590,7 +590,7 @@ inline void requestRoutesDrive(App& app)
                                     dbus::utility::MapperServiceMap>& object) {
                 return sdbusplus::message::object_path(object.first)
                            .filename() == driveId;
-                });
+            });
 
             if (drive == subtree.end())
             {
@@ -620,23 +620,23 @@ inline void requestRoutesDrive(App& app)
             getMainChassisId(
                 asyncResp, [](const std::string& chassisId,
                               const std::shared_ptr<bmcweb::AsyncResp>& aRsp) {
-                    aRsp->res.jsonValue["Links"]["Chassis"]["@odata.id"] =
-                        "/redfish/v1/Chassis/" + chassisId;
-                });
+                aRsp->res.jsonValue["Links"]["Chassis"]["@odata.id"] =
+                    "/redfish/v1/Chassis/" + chassisId;
+            });
 
             // default it to Enabled
             asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
 
             addAllDriveInfo(asyncResp, connectionNames[0].first, path,
                             connectionNames[0].second);
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTree",
             "/xyz/openbmc_project/inventory", int32_t(0),
             std::array<const char*, 1>{
                 "xyz.openbmc_project.Inventory.Item.Drive"});
-        });
+    });
 }
 
 /**
@@ -727,10 +727,10 @@ inline void chassisDriveCollectionGet(
                     // navigation links will be registered in next patch set
                 }
                 asyncResp->res.jsonValue["Members@odata.count"] = resp.size();
-                }); // end association lambda
+            }); // end association lambda
 
-        }           // end Iterate over all retrieved ObjectPaths
-        },
+        }       // end Iterate over all retrieved ObjectPaths
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -818,7 +818,7 @@ inline void
                 const boost::system::error_code ec,
                 const dbus::utility::MapperGetSubTreeResponse& subtree) {
             buildDrive(asyncResp, chassisId, driveName, ec, subtree);
-            },
+        },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
             "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -878,10 +878,10 @@ inline void
                     return; // no drives = no failures
                 }
                 matchAndFillDrive(asyncResp, chassisId, driveName, resp);
-                });
+            });
             break;
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",

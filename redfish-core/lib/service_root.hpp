@@ -82,8 +82,8 @@ inline void
             }
             asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
                 isACFWindowActive;
-            });
         });
+    });
 }
 
 inline void
@@ -160,12 +160,12 @@ inline void
                                 asyncResp->res
                                     .jsonValue["Oem"]["IBM"]["Model"] = *model;
                             }
-                            });
+                        });
                     }
                 }
             }
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",

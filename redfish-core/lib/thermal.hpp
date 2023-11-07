@@ -43,7 +43,7 @@ inline void requestRoutesThermal(App& app)
 
         // TODO Need to get Chassis Redundancy information.
         getChassisData(sensorAsyncResp);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/Thermal/")
         .privileges(redfish::privileges::patchThermal)
@@ -87,7 +87,7 @@ inline void requestRoutesThermal(App& app)
             allCollections.emplace("Fans", *std::move(fanCollections));
         }
         setSensorsOverride(sensorsAsyncResp, allCollections);
-        });
+    });
 }
 
 } // namespace redfish

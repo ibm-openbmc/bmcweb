@@ -53,7 +53,7 @@ inline void
             return;
         }
         callback(endpoints);
-        });
+    });
 }
 
 /**
@@ -333,7 +333,7 @@ inline void
                     const boost::system::error_code ec,
                     const dbus::utility::DBusPropertiesMap& properties) {
                 fillCableProperties(asyncResp->res, ec, properties);
-                });
+            });
 
             sdbusplus::asio::getProperty<std::string>(
                 *crow::connections::systemBus, service, cableObjectPath,
@@ -353,7 +353,7 @@ inline void
                     return;
                 }
                 asyncResp->res.jsonValue["PartNumber"] = property;
-                });
+            });
         }
     }
 }
@@ -412,8 +412,8 @@ inline void requestRoutesCable(App& app)
                 return;
             }
             messages::resourceNotFound(asyncResp->res, "Cable", cableId);
-            });
         });
+    });
 }
 
 /**
@@ -439,7 +439,7 @@ inline void requestRoutesCableCollection(App& app)
             "xyz.openbmc_project.Inventory.Item.Cable"};
         collection_util::getCollectionMembers(
             asyncResp, boost::urls::url("/redfish/v1/Cables"), interfaces);
-        });
+    });
 }
 
 } // namespace redfish

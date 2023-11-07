@@ -70,7 +70,7 @@ inline void
             errLogUri.append("/attachment");
             aResp->res.jsonValue[errorLogPropPath] = errLogUri;
         }
-        });
+    });
 }
 
 } // namespace error_log_utils

@@ -136,7 +136,7 @@ inline void getInputHistoryServiceAndInterface(
         const std::string& interface = *it;
 
         callback(service, interface);
-        });
+    });
 }
 
 inline void getInputHistory(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -171,8 +171,8 @@ inline void getInputHistory(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 historyPaths.erase(historyPaths.cbegin());
                 getInputHistory(asyncResp, historyPaths);
             }
-            });
         });
+    });
 }
 
 inline void getValidInputHistoryPaths(
@@ -210,9 +210,9 @@ inline void getValidInputHistoryPaths(
                 }
 
                 callback(historyPaths);
-                });
             });
         });
+    });
 }
 
 inline void handleHead(App& app, const crow::Request& req,
@@ -266,7 +266,7 @@ inline void handleGet(App& app, const crow::Request& req,
 
         // Get input history values and add them to the response
         getInputHistory(asyncResp, historyPaths);
-        });
+    });
 }
 
 } // namespace power_supply_metrics
