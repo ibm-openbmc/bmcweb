@@ -420,9 +420,15 @@ inline void
             asyncResp->res.result(
                 boost::beast::http::status::internal_server_error);
             asyncResp->res.jsonValue["Description"] = internalServerError;
-            BMCWEB_LOG_DEBUG << "deleteConfigFiles: Failed to delete the "
+            BMCWEB_LOG_ERROR << "deleteConfigFiles: Failed to delete the "
                                 "config files directory. ec : "
                              << ec;
+        }
+        else
+        {
+            BMCWEB_LOG_CRITICAL
+                << "INFO:config files directory delete successful. PATH: "
+                << loc;
         }
         std::string origin = "/ibm/v1/Host/ConfigFiles";
         redfish::EventServiceManager::getInstance().sendEvent(
@@ -485,13 +491,13 @@ inline void
 {
     std::string filePath("/var/lib/bmcweb/ibm-management-console/configfiles/" +
                          fileID);
-    BMCWEB_LOG_DEBUG << "Removing the file : " << filePath << "\n";
+    BMCWEB_LOG_CRITICAL << "INFO:Removing the file : " << filePath << "\n";
     std::ifstream fileOpen(filePath.c_str());
     if (static_cast<bool>(fileOpen))
     {
         if (remove(filePath.c_str()) == 0)
         {
-            BMCWEB_LOG_DEBUG << "File removed!\n";
+            BMCWEB_LOG_CRITICAL << "INFO:configFile removed!\n";
             asyncResp->res.jsonValue["Description"] = "File Deleted";
             std::string origin = "/ibm/v1/Host/ConfigFiles/" + fileID;
             redfish::EventServiceManager::getInstance().sendEvent(
