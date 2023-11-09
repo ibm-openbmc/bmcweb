@@ -90,8 +90,8 @@ inline void
             {
                 aResp->res.jsonValue["IndicatorLED"] = "Off";
             }
-            });
         });
+    });
 }
 
 /**
@@ -146,13 +146,13 @@ inline void
                 return;
             }
             messages::success(aResp->res);
-            },
+        },
             "xyz.openbmc_project.LED.GroupManager",
             "/xyz/openbmc_project/led/groups/enclosure_identify",
             "org.freedesktop.DBus.Properties", "Set",
             "xyz.openbmc_project.Led.Group", "Asserted",
             dbus::utility::DbusVariantType(ledOn));
-        },
+    },
         "xyz.openbmc_project.LED.GroupManager",
         "/xyz/openbmc_project/led/groups/enclosure_identify_blink",
         "org.freedesktop.DBus.Properties", "Set",
@@ -191,8 +191,8 @@ inline void getLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             }
 
             jsonInput = assert;
-            });
         });
+    });
 }
 
 inline void setLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
@@ -223,8 +223,8 @@ inline void setLedAsset(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                 }
                 return;
             }
-            });
         });
+    });
 }
 
 /**
@@ -261,7 +261,7 @@ inline void
         {
             getLedAsset(aResp, endpoint, jsonIn);
         }
-        });
+    });
 }
 
 inline void
@@ -304,6 +304,6 @@ inline void
         {
             setLedAsset(aResp, endpoint, ledState);
         }
-        });
+    });
 }
 } // namespace redfish

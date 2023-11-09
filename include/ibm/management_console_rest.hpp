@@ -424,12 +424,8 @@ inline void
                                 "config files directory. ec : "
                              << ec;
         }
-        else
-        {
-            BMCWEB_LOG_CRITICAL
-                << "INFO:config files directory delete successful. PATH: "
-                << loc;
-        }
+        BMCWEB_LOG_CRITICAL
+            << "INFO:config files directory delete successful. PATH: " << loc;
         std::string origin = "/ibm/v1/Host/ConfigFiles";
         redfish::EventServiceManager::getInstance().sendEvent(
             redfish::messages::resourceRemoved(), origin, "IBMConfigFile");
@@ -491,13 +487,13 @@ inline void
 {
     std::string filePath("/var/lib/bmcweb/ibm-management-console/configfiles/" +
                          fileID);
-    BMCWEB_LOG_CRITICAL << "INFO:Removing the file : " << filePath << "\n";
     std::ifstream fileOpen(filePath.c_str());
     if (static_cast<bool>(fileOpen))
     {
         if (remove(filePath.c_str()) == 0)
         {
-            BMCWEB_LOG_CRITICAL << "INFO:configFile removed!\n";
+            BMCWEB_LOG_CRITICAL << "INFO:configFile removed, FilePath: "
+                                << filePath;
             asyncResp->res.jsonValue["Description"] = "File Deleted";
             std::string origin = "/ibm/v1/Host/ConfigFiles/" + fileID;
             redfish::EventServiceManager::getInstance().sendEvent(
@@ -505,7 +501,7 @@ inline void
         }
         else
         {
-            BMCWEB_LOG_ERROR << "File not removed!\n";
+            BMCWEB_LOG_ERROR << "File not removed, FilePath: " << filePath;
             asyncResp->res.result(
                 boost::beast::http::status::internal_server_error);
             asyncResp->res.jsonValue["Description"] = internalServerError;
@@ -513,7 +509,7 @@ inline void
     }
     else
     {
-        BMCWEB_LOG_ERROR << "File not found!\n";
+        BMCWEB_LOG_ERROR << "File not found, FilePath: " << filePath;
         asyncResp->res.result(boost::beast::http::status::not_found);
         asyncResp->res.jsonValue["Description"] = resourceNotFoundMsg;
     }
@@ -860,8 +856,8 @@ inline void
     deleteVMIDbusEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                        const std::string& entryId)
 {
-    auto respHandler =
-        [asyncResp, entryId](const boost::system::error_code ec) {
+    auto respHandler = [asyncResp,
+                        entryId](const boost::system::error_code ec) {
         if (ec)
         {
             BMCWEB_LOG_ERROR << "deleteVMIDbusEntry respHandler got error "
@@ -917,7 +913,7 @@ inline void
 
         BMCWEB_LOG_CRITICAL << "INFO:Successfully got VMI client certificate";
         asyncResp->res.jsonValue["Certificate"] = *cert;
-        },
+    },
         "xyz.openbmc_project.Certs.ca.authority.Manager",
         "/xyz/openbmc_project/certs/ca/entry/" + entryId,
         "org.freedesktop.DBus.Properties", "Get",
@@ -978,7 +974,7 @@ inline void getCSREntryAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             BMCWEB_LOG_CRITICAL << "INFO:Erasing match of entryId: " << entryId;
             ackMatches.erase(entryId);
         }
-        },
+    },
         "xyz.openbmc_project.Certs.ca.authority.Manager",
         "/xyz/openbmc_project/certs/ca/entry/" + entryId,
         "org.freedesktop.DBus.Properties", "Get",
@@ -1036,8 +1032,8 @@ static void
 
         timeout->async_wait(timeoutHandler);
 
-        auto callback =
-            [asyncResp, timeout, entryId](sdbusplus::message::message& msg) {
+        auto callback = [asyncResp, timeout,
+                         entryId](sdbusplus::message::message& msg) {
             BMCWEB_LOG_DEBUG << "Match fired" << msg.get();
             boost::container::flat_map<std::string, std::variant<std::string>>
                 values;
@@ -1067,7 +1063,7 @@ static void
         ackMatches.emplace(
             entryId, std::make_unique<sdbusplus::bus::match::match>(
                          *crow::connections::systemBus, matchStr, callback));
-        },
+    },
         "xyz.openbmc_project.Certs.ca.authority.Manager",
         "/xyz/openbmc_project/certs/ca", "xyz.openbmc_project.Certs.Authority",
         "SignCSR", csrString);
@@ -1149,7 +1145,7 @@ inline void requestRoutes(App& app)
             "/ibm/v1/HMC/BroadcastService";
         asyncResp->res.jsonValue["Certificate"]["@odata.id"] =
             "/ibm/v1/Host/Certificate";
-        });
+    });
 
     BMCWEB_ROUTE(app, "/ibm/v1/Host/ConfigFiles")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
@@ -1157,7 +1153,7 @@ inline void requestRoutes(App& app)
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
         handleConfigFileList(asyncResp);
-        });
+    });
 
     BMCWEB_ROUTE(app,
                  "/ibm/v1/Host/ConfigFiles/Actions/IBMConfigFiles.DeleteAll")
@@ -1166,7 +1162,7 @@ inline void requestRoutes(App& app)
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
         deleteConfigFiles(asyncResp);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/ibm/v1/Host/ConfigFiles/<str>")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
@@ -1183,7 +1179,7 @@ inline void requestRoutes(App& app)
             return;
         }
         handleFileUrl(req, asyncResp, fileName);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/ibm/v1/Host/Certificate")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
@@ -1197,7 +1193,7 @@ inline void requestRoutes(App& app)
             {"target", "/ibm/v1/Host/Actions/SignCSR"}};
         asyncResp->res.jsonValue["root"] = {
             {"target", "/ibm/v1/Host/Certificate/root"}};
-        });
+    });
 
     BMCWEB_ROUTE(app, "/ibm/v1/Host/Certificate/root")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
@@ -1228,7 +1224,7 @@ inline void requestRoutes(App& app)
         strStream << inFile.rdbuf();
         inFile.close();
         asyncResp->res.jsonValue["Certificate"] = strStream.str();
-        });
+    });
 
     BMCWEB_ROUTE(app, "/ibm/v1/Host/Actions/SignCSR")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
@@ -1243,7 +1239,7 @@ inline void requestRoutes(App& app)
         }
 
         handleCsrRequest(asyncResp, csrString);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/ibm/v1/Host/ConfigFiles")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
@@ -1256,7 +1252,7 @@ inline void requestRoutes(App& app)
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
         getLockServiceData(asyncResp);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/ibm/v1/HMC/LockService/Actions/LockService.AcquireLock")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
@@ -1272,7 +1268,7 @@ inline void requestRoutes(App& app)
             return;
         }
         handleAcquireLockAPI(req, asyncResp, body);
-        });
+    });
     BMCWEB_ROUTE(app, "/ibm/v1/HMC/LockService/Actions/LockService.ReleaseLock")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
         .methods(boost::beast::http::verb::post)(
@@ -1303,7 +1299,7 @@ inline void requestRoutes(App& app)
             redfish::messages::propertyValueNotInList(asyncResp->res, type,
                                                       "Type");
         }
-        });
+    });
     BMCWEB_ROUTE(app, "/ibm/v1/HMC/LockService/Actions/LockService.GetLockList")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
         .methods(boost::beast::http::verb::post)(
@@ -1318,7 +1314,7 @@ inline void requestRoutes(App& app)
             return;
         }
         handleGetLockListAPI(asyncResp, listSessionIds);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/ibm/v1/HMC/BroadcastService")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
@@ -1326,7 +1322,7 @@ inline void requestRoutes(App& app)
             [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
         handleBroadcastService(req, asyncResp);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/ibm/v1/OCC/Control/<str>/Actions/PassThrough.Send")
         .privileges({{"OemIBMPerformService"}})
@@ -1335,7 +1331,7 @@ inline void requestRoutes(App& app)
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                const std::string& name) {
         handlePassThrough(req, asyncResp, name);
-        });
+    });
 }
 
 } // namespace ibm_mc

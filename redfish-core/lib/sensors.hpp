@@ -580,7 +580,7 @@ void getChassis(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                              &nodeSensorList, culledSensorList);
             BMCWEB_LOG_DEBUG << "Finishing with " << culledSensorList->size();
             callback(culledSensorList);
-            });
+        });
     };
 
     // Get the Chassis Collection
@@ -1013,7 +1013,7 @@ inline void populateFanRedundancy(
                                  [sensorsAsyncResp](const std::string& entry) {
                     return entry.find(sensorsAsyncResp->chassisId) !=
                            std::string::npos;
-                    });
+                });
 
                 if (found == endpoints.end())
                 {
@@ -1100,7 +1100,7 @@ inline void populateFanRedundancy(
                             std::find_if(fanRedfish.begin(), fanRedfish.end(),
                                          [itemName](const nlohmann::json& fan) {
                             return fan["MemberId"] == itemName;
-                            });
+                        });
                         if (schemaItem != fanRedfish.end())
                         {
                             nlohmann::json::object_t collectionId;
@@ -1140,10 +1140,10 @@ inline void populateFanRedundancy(
                     redundancy["Status"]["State"] = "Enabled";
 
                     jResp.push_back(std::move(redundancy));
-                    });
                 });
+            });
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -1965,10 +1965,10 @@ void getPowerSupplyAttributesData(
     const std::string& psAttributesConnection = (*it).second;
 
     // Response handler for Get DeratingFactor property
-    auto respHandler =
-        [sensorsAsyncResp, inventoryItems,
-         callback{std::forward<Callback>(callback)}](
-            const boost::system::error_code ec, const uint32_t value) {
+    auto respHandler = [sensorsAsyncResp, inventoryItems,
+                        callback{std::forward<Callback>(callback)}](
+                           const boost::system::error_code ec,
+                           const uint32_t value) {
         BMCWEB_LOG_DEBUG << "getPowerSupplyAttributesData respHandler enter";
         if (ec)
         {
@@ -2721,7 +2721,7 @@ inline void setSensorsOverride(
                         messages::internalError(
                             sensorAsyncResp->asyncResp->res);
                     }
-                    },
+                },
                     item.second, item.first, "org.freedesktop.DBus.Properties",
                     "Set", "xyz.openbmc_project.Sensor.Value", "Value",
                     dbus::utility::DbusVariantType(iterator->second.first));
@@ -2884,7 +2884,7 @@ inline void
         std::string type = path.filename();
         objectPropertiesToJson(name, type, sensors::node::sensors, valuesDict,
                                asyncResp->res.jsonValue, nullptr);
-        });
+    });
 }
 
 inline void handleSensorGet(App& app, const crow::Request& req,
@@ -2936,7 +2936,7 @@ inline void handleSensorGet(App& app, const crow::Request& req,
         }
         getSensorFromDbus(asyncResp, sensorPath, subtree);
         BMCWEB_LOG_DEBUG << "respHandler1 exit";
-        });
+    });
 }
 
 } // namespace sensors

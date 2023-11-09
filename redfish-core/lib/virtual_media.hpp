@@ -31,7 +31,7 @@ namespace redfish
  */
 inline std::string getTransferProtocolTypeFromUri(const std::string& imageUri)
 {
-    boost::urls::result<boost::urls::url_view> url =
+    boost::system::result<boost::urls::url_view> url =
         boost::urls::parse_uri(imageUri);
     if (!url)
     {
@@ -197,7 +197,7 @@ inline void getVmResourceList(std::shared_ptr<bmcweb::AsyncResp> aResp,
             members.emplace_back(std::move(item));
         }
         aResp->res.jsonValue["Members@odata.count"] = members.size();
-        },
+    },
         service, "/xyz/openbmc_project/VirtualMedia",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
@@ -271,7 +271,7 @@ inline void getVmData(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         }
 
         messages::resourceNotFound(aResp->res, "VirtualMedia", resName);
-        },
+    },
         service, "/xyz/openbmc_project/VirtualMedia",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
@@ -400,7 +400,7 @@ inline bool
 
         return false;
     }
-    boost::urls::result<boost::urls::url_view> url =
+    boost::system::result<boost::urls::url_view> url =
         boost::urls::parse_uri(imageUrl);
     if (!url)
     {
@@ -701,7 +701,7 @@ inline void doMountVmLegacy(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             BMCWEB_LOG_ERROR << "Service responded with error";
             messages::generalError(asyncResp->res);
         }
-        },
+    },
         service, "/xyz/openbmc_project/VirtualMedia/Legacy/" + name,
         "xyz.openbmc_project.VirtualMedia.Legacy", "Mount", imageUrl, rw,
         unixFd);
@@ -728,7 +728,7 @@ inline void doVmAction(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 messages::internalError(asyncResp->res);
                 return;
             }
-            },
+        },
             service, "/xyz/openbmc_project/VirtualMedia/Legacy/" + name,
             "xyz.openbmc_project.VirtualMedia.Legacy", "Unmount");
     }
@@ -743,7 +743,7 @@ inline void doVmAction(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 messages::internalError(asyncResp->res);
                 return;
             }
-            },
+        },
             service, "/xyz/openbmc_project/VirtualMedia/Proxy/" + name,
             "xyz.openbmc_project.VirtualMedia.Proxy", "Unmount");
     }
@@ -873,10 +873,10 @@ inline void handleManagersVirtualMediaActionInsertPost(
             }
             BMCWEB_LOG_DEBUG << "Parent item not found";
             messages::resourceNotFound(asyncResp->res, "VirtualMedia", resName);
-            },
+        },
             service, "/xyz/openbmc_project/VirtualMedia",
             "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject",
@@ -959,10 +959,10 @@ inline void handleManagersVirtualMediaActionEject(
             }
             BMCWEB_LOG_DEBUG << "Parent item not found";
             messages::resourceNotFound(asyncResp->res, "VirtualMedia", resName);
-            },
+        },
             service, "/xyz/openbmc_project/VirtualMedia",
             "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject",
@@ -1005,7 +1005,7 @@ inline void handleManagersVirtualMediaCollectionGet(
         BMCWEB_LOG_DEBUG << "GetObjectType: " << service;
 
         getVmResourceList(asyncResp, service, name);
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject",
@@ -1043,7 +1043,7 @@ inline void
         BMCWEB_LOG_DEBUG << "GetObjectType: " << service;
 
         getVmData(asyncResp, service, name, resName);
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject",

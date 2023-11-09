@@ -234,7 +234,7 @@ inline void requestRoutes(App& app)
             BMCWEB_LOG_DEBUG << "Couldn't interpret password";
             asyncResp->res.result(boost::beast::http::status::bad_request);
         }
-        });
+    });
 
     BMCWEB_ROUTE(app, "/logout")
         .methods(boost::beast::http::verb::post)(
@@ -256,7 +256,7 @@ inline void requestRoutes(App& app)
                                      R"("cache","cookies","storage")");
             persistent_data::SessionStore::getInstance().removeSession(session);
         }
-        });
+    });
 }
 } // namespace login_routes
 } // namespace crow

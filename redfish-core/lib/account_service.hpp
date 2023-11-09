@@ -295,7 +295,7 @@ inline void translateAccountType(
         }
         messages::success(asyncResp->res);
         return;
-        },
+    },
         "xyz.openbmc_project.User.Manager", dbusObjectPath,
         "org.freedesktop.DBus.Properties", "Set",
         "xyz.openbmc_project.User.Attributes", "UserGroups",
@@ -413,7 +413,7 @@ inline void handleRoleMapPatch(
                     }
                     asyncResp->res.jsonValue[serverType]["RemoteRoleMapping"]
                                             [index] = nullptr;
-                    },
+                },
                     ldapDbusService, roleMapObjData[index].first,
                     "xyz.openbmc_project.Object.Delete", "Delete");
             }
@@ -491,7 +491,7 @@ inline void handleRoleMapPatch(
                         asyncResp->res
                             .jsonValue[serverType]["RemoteRoleMapping"][index]
                                       ["RemoteGroup"] = *remoteGroup;
-                        },
+                    },
                         ldapDbusService, roleMapObjData[index].first,
                         propertyInterface, "Set",
                         "xyz.openbmc_project.User.PrivilegeMapperEntry",
@@ -531,7 +531,7 @@ inline void handleRoleMapPatch(
                         asyncResp->res
                             .jsonValue[serverType]["RemoteRoleMapping"][index]
                                       ["LocalRole"] = *localRole;
-                        },
+                    },
                         ldapDbusService, roleMapObjData[index].first,
                         propertyInterface, "Set",
                         "xyz.openbmc_project.User.PrivilegeMapperEntry",
@@ -607,7 +607,7 @@ inline void handleRoleMapPatch(
                     roleMapEntry["LocalRole"] = *localRole;
                     roleMapEntry["RemoteGroup"] = *remoteGroup;
                     remoteRoleJson.push_back(std::move(roleMapEntry));
-                    },
+                },
                     ldapDbusService, dbusObjectPath, ldapPrivMapperInterface,
                     "Create", *remoteGroup,
                     getPrivilegeFromRoleId(std::move(*localRole)));
@@ -776,9 +776,9 @@ inline void getLDAPConfigData(const std::string& ldapType,
                 }
             }
             callback(true, confData, ldapType);
-            },
-            service, ldapRootObject, dbusObjManagerIntf, "GetManagedObjects");
         },
+            service, ldapRootObject, dbusObjManagerIntf, "GetManagedObjects");
+    },
         mapperBusName, mapperObjectPath, mapperIntf, "GetObject",
         ldapConfigObjectName, interfaces);
 }
@@ -899,7 +899,7 @@ inline void handleServiceAddressPatch(
                                             serviceAddressList.front());
         }
         BMCWEB_LOG_DEBUG << "Updated the service address";
-        },
+    },
         ldapDbusService, ldapConfigObject, propertyInterface, "Set",
         ldapConfigInterface, "LDAPServerURI",
         dbus::utility::DbusVariantType(serviceAddressList.front()));
@@ -931,7 +931,7 @@ inline void
         asyncResp->res.jsonValue[ldapServerElementName]["Authentication"]
                                 ["Username"] = username;
         BMCWEB_LOG_DEBUG << "Updated the username";
-        },
+    },
         ldapDbusService, ldapConfigObject, propertyInterface, "Set",
         ldapConfigInterface, "LDAPBindDN",
         dbus::utility::DbusVariantType(username));
@@ -963,7 +963,7 @@ inline void
         asyncResp->res.jsonValue[ldapServerElementName]["Authentication"]
                                 ["Password"] = "";
         BMCWEB_LOG_DEBUG << "Updated the password";
-        },
+    },
         ldapDbusService, ldapConfigObject, propertyInterface, "Set",
         ldapConfigInterface, "LDAPBindDNPassword",
         dbus::utility::DbusVariantType(password));
@@ -1020,7 +1020,7 @@ inline void
                 asyncResp->res, "BaseDistinguishedNames", baseDNList.front());
         }
         BMCWEB_LOG_DEBUG << "Updated the base DN";
-        },
+    },
         ldapDbusService, ldapConfigObject, propertyInterface, "Set",
         ldapConfigInterface, "LDAPBaseDN",
         dbus::utility::DbusVariantType(baseDNList.front()));
@@ -1055,7 +1055,7 @@ inline void
             serverTypeJson["LDAPService"]["SearchSettings"];
         searchSettingsJson["UsernameAttribute"] = userNameAttribute;
         BMCWEB_LOG_DEBUG << "Updated the user name attr.";
-        },
+    },
         ldapDbusService, ldapConfigObject, propertyInterface, "Set",
         ldapConfigInterface, "UserNameAttribute",
         dbus::utility::DbusVariantType(userNameAttribute));
@@ -1075,7 +1075,7 @@ inline void setPropertyAllowUnauthACFUpload(
             messages::internalError(asyncResp->res);
             return;
         }
-        });
+    });
 }
 
 inline void getAcfProperties(
@@ -1189,7 +1189,7 @@ inline void getAcfProperties(
         }
         asyncResp->res.jsonValue["Oem"]["IBM"]["ACF"]["AllowUnauthACFUpload"] =
             allowUnauthACFUpload;
-        });
+    });
 }
 
 /**
@@ -1222,7 +1222,7 @@ inline void handleGroupNameAttrPatch(
             serverTypeJson["LDAPService"]["SearchSettings"];
         searchSettingsJson["GroupsAttribute"] = groupsAttribute;
         BMCWEB_LOG_DEBUG << "Updated the groupname attr";
-        },
+    },
         ldapDbusService, ldapConfigObject, propertyInterface, "Set",
         ldapConfigInterface, "GroupNameAttribute",
         dbus::utility::DbusVariantType(groupsAttribute));
@@ -1253,7 +1253,7 @@ inline void handleServiceEnablePatch(
         asyncResp->res.jsonValue[ldapServerElementName]["ServiceEnabled"] =
             serviceEnabled;
         BMCWEB_LOG_DEBUG << "Updated Service enable = " << serviceEnabled;
-        },
+    },
         ldapDbusService, ldapConfigObject, propertyInterface, "Set",
         ldapEnableInterface, "Enabled",
         dbus::utility::DbusVariantType(serviceEnabled));
@@ -1511,7 +1511,7 @@ inline void handleLDAPPatch(nlohmann::json& input,
             handleRoleMapPatch(asyncResp, confData.groupRoleList, serverT,
                                *remoteRoleMapData);
         }
-        });
+    });
 }
 
 inline void updateUserProperties(
@@ -1576,7 +1576,7 @@ inline void updateUserProperties(
                 }
                 messages::success(asyncResp->res);
                 return;
-                },
+            },
                 "xyz.openbmc_project.User.Manager", dbusObjectPath,
                 "org.freedesktop.DBus.Properties", "Set",
                 "xyz.openbmc_project.User.Attributes", "UserEnabled",
@@ -1602,7 +1602,7 @@ inline void updateUserProperties(
                     return;
                 }
                 messages::success(asyncResp->res);
-                },
+            },
                 "xyz.openbmc_project.User.Manager", dbusObjectPath,
                 "org.freedesktop.DBus.Properties", "Set",
                 "xyz.openbmc_project.User.Attributes", "UserPrivilege",
@@ -1631,7 +1631,7 @@ inline void updateUserProperties(
                 }
                 messages::success(asyncResp->res);
                 return;
-                },
+            },
                 "xyz.openbmc_project.User.Manager", dbusObjectPath,
                 "org.freedesktop.DBus.Properties", "Set",
                 "xyz.openbmc_project.User.Attributes",
@@ -1643,7 +1643,7 @@ inline void updateUserProperties(
             translateAccountType(accountType, asyncResp, dbusObjectPath,
                                  isUserItself);
         }
-        });
+    });
 }
 
 inline void uploadACF(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -1672,7 +1672,7 @@ inline void uploadACF(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             return;
         }
         getAcfProperties(asyncResp, messageFDbus);
-        },
+    },
         "xyz.openbmc_project.Certs.ACF."
         "Manager",
         "/xyz/openbmc_project/certs/ACF", "xyz.openbmc_project.Certs.ACF",
@@ -1790,8 +1790,8 @@ inline void triggerUnauthenticatedACFUpload(
             BMCWEB_LOG_ERROR << "ACF upload not allowed";
             messages::insufficientPrivilege(asyncResp->res);
             return;
-            });
         });
+    });
 }
 
 inline void handleAccountServiceHead(
@@ -1896,7 +1896,7 @@ inline void
             asyncResp->res.jsonValue["AccountLockoutThreshold"] =
                 *maxLoginAttemptBeforeLockout;
         }
-        });
+    });
 
     auto callback = [asyncResp](bool success, const LDAPConfigData& confData,
                                 const std::string& ldapType) {
@@ -1947,7 +1947,7 @@ inline void handleAccountServicePatch(
                 return;
             }
             messages::success(asyncResp->res);
-            },
+        },
             "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
             "org.freedesktop.DBus.Properties", "Set",
             "xyz.openbmc_project.User.AccountPolicy", "MinPasswordLength",
@@ -1995,7 +1995,7 @@ inline void handleAccountServicePatch(
                 return;
             }
             messages::success(asyncResp->res);
-            },
+        },
             "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
             "org.freedesktop.DBus.Properties", "Set",
             "xyz.openbmc_project.User.AccountPolicy", "AccountUnlockTimeout",
@@ -2011,7 +2011,7 @@ inline void handleAccountServicePatch(
                 return;
             }
             messages::success(asyncResp->res);
-            },
+        },
             "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
             "org.freedesktop.DBus.Properties", "Set",
             "xyz.openbmc_project.User.AccountPolicy",
@@ -2098,7 +2098,7 @@ inline void handleAccountCollectionGet(
             }
         }
         asyncResp->res.jsonValue["Members@odata.count"] = memberArray.size();
-        },
+    },
         "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
@@ -2204,7 +2204,7 @@ inline void handleAccountCollectionPost(
                     // If password is invalid
                     messages::propertyValueFormatError(asyncResp->res, password,
                                                        "Password");
-                    },
+                },
                     "xyz.openbmc_project.User.Manager", userPath,
                     "xyz.openbmc_project.Object.Delete", "Delete");
 
@@ -2215,11 +2215,11 @@ inline void handleAccountCollectionPost(
             messages::created(asyncResp->res);
             asyncResp->res.addHeader(
                 "Location", "/redfish/v1/AccountService/Accounts/" + username);
-            },
+        },
             "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
             "xyz.openbmc_project.User.Manager", "CreateUser", username,
             *pModGroupsList, *roleId, *enabled);
-        });
+    });
 }
 
 inline void
@@ -2286,7 +2286,7 @@ inline void
                 const std::pair<sdbusplus::message::object_path,
                                 dbus::utility::DBusInteracesMap>& user) {
             return accountName == user.first.filename();
-            });
+        });
 
         if (userIt == users.end())
         {
@@ -2408,12 +2408,12 @@ inline void
                     return;
                 }
                 getAcfProperties(asyncResp, messageFDbus);
-                },
+            },
                 "xyz.openbmc_project.Certs.ACF.Manager",
                 "/xyz/openbmc_project/certs/ACF",
                 "xyz.openbmc_project.Certs.ACF", "GetACFInfo");
         }
-        },
+    },
         "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
 }
@@ -2458,7 +2458,7 @@ inline void
         }
 
         messages::accountRemoved(asyncResp->res);
-        },
+    },
         "xyz.openbmc_project.User.Manager", userPath,
         "xyz.openbmc_project.Object.Delete", "Delete");
 }
@@ -2667,7 +2667,7 @@ inline void
 
         updateUserProperties(asyncResp, newUser, password, enabled, roleId,
                              locked, accountType, isUserItself);
-        },
+    },
         "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
         "xyz.openbmc_project.User.Manager", "RenameUser", username,
         *newUserName);

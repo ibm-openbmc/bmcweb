@@ -84,7 +84,7 @@ static void pcieTopologyRefreshWatchdog(
             (*countPtr) = 0;
             return;
         }
-        },
+    },
         "xyz.openbmc_project.PLDM", "/xyz/openbmc_project/pldm",
         "org.freedesktop.DBus.Properties", "Get", "com.ibm.PLDM.PCIeTopology",
         "PCIeTopologyRefresh");
@@ -121,7 +121,7 @@ inline void
              aResp](const boost::system::error_code ec1) {
             pcieTopologyRefreshWatchdog(ec1, timer, aResp, &count);
         });
-        },
+    },
         "xyz.openbmc_project.PLDM", "/xyz/openbmc_project/pldm",
         "org.freedesktop.DBus.Properties", "Set", "com.ibm.PLDM.PCIeTopology",
         "PCIeTopologyRefresh", std::variant<bool>(state));
@@ -148,7 +148,7 @@ inline void
             messages::internalError(aResp->res);
             return;
         }
-        },
+    },
         "xyz.openbmc_project.PLDM", "/xyz/openbmc_project/pldm",
         "org.freedesktop.DBus.Properties", "Set", "com.ibm.PLDM.PCIeTopology",
         "SavePCIeTopologyInfo", std::variant<bool>(state));

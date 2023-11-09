@@ -65,7 +65,7 @@ inline void getServiceName(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 
         BMCWEB_LOG_DEBUG << "Can't find usb code update service!";
         return;
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
@@ -104,7 +104,7 @@ inline void
                 "/redfish/v1/Managers/bmc#/Oem/IBM";
             aResp->res.jsonValue["Oem"]["IBM"]["USBCodeUpdateEnabled"] =
                 usbCodeUpdateState;
-            });
+        });
     };
     getServiceName(aResp, usbCodeUpdateObjectPath, std::move(callback));
 }
@@ -133,7 +133,7 @@ inline void
                 messages::internalError(aResp->res);
                 return;
             }
-            },
+        },
             service, usbCodeUpdateObjectPath, "org.freedesktop.DBus.Properties",
             "Set", "xyz.openbmc_project.Control.Service.Attributes", "Enabled",
             std::variant<bool>(state));

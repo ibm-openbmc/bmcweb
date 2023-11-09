@@ -311,7 +311,7 @@ inline void requestRoutesTriggerCollection(App& app)
             boost::urls::url("/redfish/v1/TelemetryService/Triggers"),
             interfaces,
             "/xyz/openbmc_project/Telemetry/Triggers/TelemetryService");
-        });
+    });
 }
 
 inline void requestRoutesTrigger(App& app)
@@ -350,8 +350,8 @@ inline void requestRoutesTrigger(App& app)
             {
                 messages::internalError(asyncResp->res);
             }
-            });
         });
+    });
 
     BMCWEB_ROUTE(app, "/redfish/v1/TelemetryService/Triggers/<str>/")
         .privileges(redfish::privileges::deleteTriggers)
@@ -381,10 +381,10 @@ inline void requestRoutesTrigger(App& app)
             }
 
             asyncResp->res.result(boost::beast::http::status::no_content);
-            },
+        },
             telemetry::service, triggerPath,
             "xyz.openbmc_project.Object.Delete", "Delete");
-        });
+    });
 }
 
 } // namespace redfish

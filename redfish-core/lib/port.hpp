@@ -52,7 +52,7 @@ inline void getPortProperties(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 
                     aResp->res.jsonValue["Location"]["PartLocation"]
                                         ["ServiceLabel"] = value;
-                    });
+                });
             }
             else if (interface == "xyz.openbmc_project.Association.Definitions")
             {
@@ -114,7 +114,7 @@ inline void getPortCollection(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
             members.emplace_back(std::move(item));
         }
         aResp->res.jsonValue["Members@odata.count"] = members.size();
-        });
+    });
 }
 
 inline void
@@ -169,7 +169,7 @@ inline void
         [aResp, systemName, adapterId](const std::string&, const std::string&,
                                        const dbus::utility::InterfaceList&) {
         doPortCollectionGet(aResp, systemName, adapterId);
-        });
+    });
 }
 
 /**
@@ -238,7 +238,7 @@ inline void getValidPortPath(
         }
         BMCWEB_LOG_WARNING << "Port not found";
         messages::resourceNotFound(aResp->res, "Port", portId);
-        });
+    });
 }
 
 inline void handlePortHead(crow::App& app, const crow::Request& req,
@@ -263,7 +263,7 @@ inline void handlePortHead(crow::App& app, const crow::Request& req,
                 boost::beast::http::field::link,
                 "</redfish/v1/JsonSchemas/Port/Port.json>; rel=describedby");
         });
-        });
+    });
 }
 
 inline void handlePortGet(App& app, const crow::Request& req,
@@ -299,8 +299,8 @@ inline void handlePortGet(App& app, const crow::Request& req,
             aResp->res.jsonValue["Name"] = portId;
 
             getPortProperties(aResp, portPath, serviceMap);
-            });
         });
+    });
 }
 
 inline void
@@ -354,7 +354,7 @@ inline void handlePortPatch(App& app, const crow::Request& req,
                 const dbus::utility::MapperServiceMap& serviceMap) {
             setPortProperties(aResp, portPath, serviceMap,
                               locationIndicatorActive);
-            });
+        });
     });
 }
 

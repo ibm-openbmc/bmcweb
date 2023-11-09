@@ -44,7 +44,7 @@ inline void getPrettyName(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         BMCWEB_LOG_DEBUG << "Pretty Name: " << prettyName;
 
         asyncResp->res.jsonValue[namePath] = prettyName;
-        });
+    });
 }
 
 } // namespace name_util

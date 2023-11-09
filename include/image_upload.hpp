@@ -68,7 +68,7 @@ inline void
         if (std::find_if(interfaces.begin(), interfaces.end(),
                          [](const auto& i) {
             return i.first == "xyz.openbmc_project.Software.Version";
-            }) != interfaces.end())
+        }) != interfaces.end())
         {
             timeout.cancel();
             std::string leaf = path.filename();
@@ -116,7 +116,7 @@ inline void requestRoutes(App& app)
             [](const crow::Request& req,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
         uploadImageHandler(req, asyncResp);
-        });
+    });
 }
 } // namespace image_upload
 } // namespace crow

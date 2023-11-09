@@ -243,6 +243,7 @@ endif
 
 add_project_arguments(
 cxx.get_supported_arguments([
+  '-DBOOST_ASIO_DISABLE_CONCEPTS',
   '-DBOOST_ALL_NO_LIB',
   '-DBOOST_ALLOW_DEPRECATED_HEADERS',
   '-DBOOST_ASIO_DISABLE_THREADS',
@@ -297,12 +298,43 @@ else
 endif
 bmcweb_dependencies += nlohmann_json
 
-boost = dependency('boost',version : '>=1.81.0', required : false, include_type: 'system')
-if not boost.found()
-  boost = subproject('boost', required: true).get_variable('boost_dep')
-  boost = boost.as_system('system')
+boost = dependency(
+  'boost',
+  modules: [
+    'url',
+    ],
+  version : '>=1.83.0',
+  required : false,
+  include_type: 'system'
+)
+if boost.found()
+  bmcweb_dependencies += [boost]
+else
+  cmake = import('cmake')
+  opt = cmake.subproject_options()
+  opt.add_cmake_defines({
+    'BOOST_INCLUDE_LIBRARIES': 'asio;beast;callable_traits;headers;process;type_index;url;uuid'
+  })
+  boost = cmake.subproject('boost', required: true, options: opt)
+  boost_asio = boost.dependency('boost_asio').as_system()
+  boost_beast = boost.dependency('boost_beast').as_system()
+  boost_callable_traits = boost.dependency('boost_callable_traits').as_system()
+  boost_headers = boost.dependency('boost_headers').as_system()
+  boost_process = boost.dependency('boost_process').as_system()
+  boost_type_index = boost.dependency('boost_type_index').as_system()
+  boost_url = boost.dependency('boost_url').as_system()
+  boost_uuid = boost.dependency('boost_uuid').as_system()
+  bmcweb_dependencies += [
+    boost_asio,
+    boost_beast,
+    boost_callable_traits,
+    boost_headers,
+    boost_process,
+    boost_type_index,
+    boost_url,
+    boost_uuid
+  ]
 endif
-bmcweb_dependencies += boost
 
 if get_option('tests').enabled()
   gtest = dependency('gtest', main: true,disabler: true, required : false)
@@ -342,7 +374,6 @@ srcfiles_bmcweb = files(
   'src/boost_asio_ssl.cpp',
   'src/boost_asio.cpp',
   'src/boost_beast.cpp',
-  'src/boost_url.cpp',
   'src/dbus_singleton.cpp',
 )
 

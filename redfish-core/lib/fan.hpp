@@ -82,7 +82,7 @@ inline void doFanCollection(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         {
             updateFanList(asyncResp, chassisId, endpoint);
         }
-        });
+    });
 }
 
 inline void
@@ -107,7 +107,7 @@ inline void
         asyncResp->res.addHeader(
             boost::beast::http::field::link,
             "</redfish/v1/JsonSchemas/FanCollection/FanCollection.json>; rel=describedby");
-        });
+    });
 }
 
 inline void
@@ -169,7 +169,7 @@ inline void
         }
 
         messages::resourceNotFound(asyncResp->res, "Fan", fanId);
-        });
+    });
 }
 
 inline void getFanHealth(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -192,7 +192,7 @@ inline void getFanHealth(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         {
             asyncResp->res.jsonValue["Status"]["Health"] = "Critical";
         }
-        });
+    });
 }
 
 inline void getFanState(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -215,7 +215,7 @@ inline void getFanState(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         {
             asyncResp->res.jsonValue["Status"]["State"] = "Absent";
         }
-        });
+    });
 }
 
 inline void getFanAsset(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -276,7 +276,7 @@ inline void getFanAsset(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         {
             asyncResp->res.jsonValue["SparePartNumber"] = *sparePartNumber;
         }
-        });
+    });
 }
 
 inline void getFanLocation(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -298,7 +298,7 @@ inline void getFanLocation(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
         asyncResp->res.jsonValue["Location"]["PartLocation"]["ServiceLabel"] =
             value;
-        });
+    });
 }
 
 inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -343,7 +343,7 @@ inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             getFanState(asyncResp, object.begin()->first, fanPath);
             getFanAsset(asyncResp, object.begin()->first, fanPath);
             getFanLocation(asyncResp, object.begin()->first, fanPath);
-            });
+        });
 
         getLocationIndicatorActive(asyncResp, fanPath);
     });
@@ -375,7 +375,7 @@ inline void handleFanHead(App& app, const crow::Request& req,
                 boost::beast::http::field::link,
                 "</redfish/v1/JsonSchemas/Fan/Fan.json>; rel=describedby");
         });
-        });
+    });
 }
 
 inline void handleFanGet(App& app, const crow::Request& req,
@@ -444,8 +444,8 @@ inline void handleFanPatch(App& app, const crow::Request& req,
                 setLocationIndicatorActive(asyncResp, fanPath,
                                            *locationIndicatorActive);
             }
-            });
         });
+    });
 }
 
 inline void requestRoutesFan(App& app)

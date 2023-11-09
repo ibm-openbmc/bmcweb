@@ -58,8 +58,8 @@ inline void getLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
             aResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
                 "#OemComputerSystem.IBM";
             aResp->res.jsonValue["Oem"]["IBM"]["LampTest"] = assert;
-            });
         });
+    });
 }
 
 /**
@@ -112,11 +112,11 @@ inline void setLampTestState(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
                     messages::internalError(aResp->res);
                     return;
                 }
-                },
+            },
                 "com.ibm.PanelApp", "/com/ibm/panel_app", "com.ibm.panel",
                 "TriggerPanelLampTest", state);
-            });
         });
+    });
 }
 
 } // namespace redfish

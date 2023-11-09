@@ -133,7 +133,7 @@ class ServerSentEvents : public std::enable_shared_from_this<ServerSentEvents>
                              << bytesTransferred;
 
             self->doWrite();
-            });
+        });
     }
 
     void startSSE()
@@ -177,7 +177,7 @@ class ServerSentEvents : public std::enable_shared_from_this<ServerSentEvents>
             BMCWEB_LOG_DEBUG << "startSSE  Header sent.";
             state = SseConnState::initialized;
             checkQueue();
-            });
+        });
     }
 
     void checkQueue(const bool newRecord = false)

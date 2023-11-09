@@ -129,7 +129,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                 return;
             }
             doWrite();
-            });
+        });
     }
 
     void doRead()
@@ -158,7 +158,7 @@ class Handler : public std::enable_shared_from_this<Handler>
             std::string_view payload(outputBuffer.data(), bytesRead);
             session->sendBinary(payload);
             doRead();
-            });
+        });
     }
 
     // this has to public
@@ -183,26 +183,25 @@ inline void requestRoutes(App& app)
         .privileges({{"OemIBMPerformService"}})
         .websocket()
         .onopen([](crow::websocket::Connection& conn) {
-            BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";
+        BMCWEB_LOG_DEBUG << "Connection " << &conn << " opened";
 
-            // TODO: this user check must be removed when WebSocket privileges
-            // work.
-            if (conn.getUserName() != "service")
+        // TODO: this user check must be removed when WebSocket privileges
+        // work.
+        if (conn.getUserName() != "service")
+        {
+            BMCWEB_LOG_DEBUG << "only service user have access to obmc_shell";
+            conn.close("only service user have access to bmc console");
+        }
+        if (auto it = mapHandler.find(&conn); it == mapHandler.end())
+        {
+            auto insertData =
+                mapHandler.emplace(&conn, std::make_shared<Handler>(&conn));
+            if (std::get<bool>(insertData))
             {
-                BMCWEB_LOG_DEBUG
-                    << "only service user have access to obmc_shell";
-                conn.close("only service user have access to bmc console");
+                std::get<0>(insertData)->second->connect();
             }
-            if (auto it = mapHandler.find(&conn); it == mapHandler.end())
-            {
-                auto insertData =
-                    mapHandler.emplace(&conn, std::make_shared<Handler>(&conn));
-                if (std::get<bool>(insertData))
-                {
-                    std::get<0>(insertData)->second->connect();
-                }
-            }
-        })
+        }
+    })
         .onclose(
             [](crow::websocket::Connection& conn, const std::string& reason) {
         BMCWEB_LOG_DEBUG << "bmc-shell console.onclose(reason = '" << reason
@@ -212,19 +211,19 @@ inline void requestRoutes(App& app)
             it->second->doClose();
             mapHandler.erase(it);
         }
-        })
+    })
         .onmessage([]([[maybe_unused]] crow::websocket::Connection& conn,
                       const std::string& data, [[maybe_unused]] bool isBinary) {
-            if (auto it = mapHandler.find(&conn); it != mapHandler.end())
-            {
-                it->second->inputBuffer += data;
-                it->second->doWrite();
-            }
-            else
-            {
-                BMCWEB_LOG_ERROR << "connection to webScoket not found";
-            }
-        });
+        if (auto it = mapHandler.find(&conn); it != mapHandler.end())
+        {
+            it->second->inputBuffer += data;
+            it->second->doWrite();
+        }
+        else
+        {
+            BMCWEB_LOG_ERROR << "connection to webScoket not found";
+        }
+    });
 }
 
 } // namespace obmc_shell

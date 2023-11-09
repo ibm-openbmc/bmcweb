@@ -557,8 +557,8 @@ inline std::string convertToAscii(const uint64_t& element)
     std::span<unsigned char> bytearray{p, 8};
 
     if (std::count_if(bytearray.begin(), bytearray.end(), [](unsigned char c) {
-            return (std::isprint(c) == 0);
-        }) != 0)
+        return (std::isprint(c) == 0);
+    }) != 0)
     {
         return {};
     }
@@ -800,7 +800,7 @@ inline bool validateAndSplitUrl(std::string_view destUrl, std::string& urlProto,
                                 std::string& host, uint16_t& port,
                                 std::string& path)
 {
-    boost::urls::result<boost::urls::url_view> url =
+    boost::system::result<boost::urls::url_view> url =
         boost::urls::parse_uri(destUrl);
     if (!url)
     {

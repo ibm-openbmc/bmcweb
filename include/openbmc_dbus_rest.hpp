@@ -172,7 +172,7 @@ inline void
                 node = node->NextSiblingElement("node");
             }
         }
-        },
+    },
         processName, objectPath, "org.freedesktop.DBus.Introspectable",
         "Introspect");
 }
@@ -219,10 +219,10 @@ inline void getPropertiesForEnumerate(
                 {
                     propertyJson = val;
                 }
-                },
+            },
                 value);
         }
-        });
+    });
 }
 
 // Find any results that weren't picked up by ObjectManagers, to be
@@ -341,7 +341,7 @@ inline void getManagedObjectsForEnumerate(
                             {
                                 propertyJson = val;
                             }
-                            },
+                        },
                             property.second);
                     }
                 }
@@ -356,7 +356,7 @@ inline void getManagedObjectsForEnumerate(
                 }
             }
         }
-        },
+    },
         connectionName, objectManagerPath, "org.freedesktop.DBus.ObjectManager",
         "GetManagedObjects");
 }
@@ -391,7 +391,7 @@ inline void findObjectManagerPathForEnumerate(
                 }
             }
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetAncestors", objectName,
@@ -465,7 +465,7 @@ inline void getObjectAndEnumerate(
                     transaction->objectPath, connection.first, transaction);
             }
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject",
@@ -1490,10 +1490,9 @@ inline void findActionOnInterface(
                         }
 
                         crow::connections::systemBus->async_send(
-                            m,
-                            [transaction,
-                             returnType](boost::system::error_code ec2,
-                                         sdbusplus::message_t& m2) {
+                            m, [transaction,
+                                returnType](boost::system::error_code ec2,
+                                            sdbusplus::message_t& m2) {
                             if (ec2)
                             {
                                 transaction->methodFailed = true;
@@ -1518,7 +1517,7 @@ inline void findActionOnInterface(
                             transaction->methodPassed = true;
 
                             handleMethodResponse(transaction, m2, returnType);
-                            });
+                        });
                         break;
                     }
                     methodNode = methodNode->NextSiblingElement("method");
@@ -1526,7 +1525,7 @@ inline void findActionOnInterface(
             }
             interfaceNode = interfaceNode->NextSiblingElement("interface");
         }
-        },
+    },
         connectionName, transaction->path,
         "org.freedesktop.DBus.Introspectable", "Introspect");
 }
@@ -1591,7 +1590,7 @@ inline void handleAction(const crow::Request& req,
         {
             findActionOnInterface(transaction, object.first);
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject", objectPath,
@@ -1628,7 +1627,7 @@ inline void handleDelete(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         {
             findActionOnInterface(transaction, object.first);
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject", objectPath,
@@ -1654,7 +1653,7 @@ inline void handleList(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             asyncResp->res.jsonValue["message"] = "200 OK";
             asyncResp->res.jsonValue["data"] = objectPaths;
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", objectPath,
@@ -1694,7 +1693,7 @@ inline void handleEnumerate(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         // Add the data for the path passed in to the results
         // as if GetSubTree returned it, and continue on enumerating
         getObjectAndEnumerate(transaction);
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetSubTree", objectPath, 0,
@@ -1750,59 +1749,58 @@ inline void handleGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                     m, [asyncResp, response,
                         propertyName](const boost::system::error_code ec2,
                                       sdbusplus::message_t& msg) {
-                        if (ec2)
+                    if (ec2)
+                    {
+                        BMCWEB_LOG_ERROR << "Bad dbus request error: " << ec2;
+                    }
+                    else
+                    {
+                        nlohmann::json properties;
+                        int r = convertDBusToJSON("a{sv}", msg, properties);
+                        if (r < 0)
                         {
-                            BMCWEB_LOG_ERROR << "Bad dbus request error: "
-                                             << ec2;
+                            BMCWEB_LOG_ERROR << "convertDBusToJSON failed";
                         }
                         else
                         {
-                            nlohmann::json properties;
-                            int r = convertDBusToJSON("a{sv}", msg, properties);
-                            if (r < 0)
+                            for (const auto& prop : properties.items())
                             {
-                                BMCWEB_LOG_ERROR << "convertDBusToJSON failed";
-                            }
-                            else
-                            {
-                                for (const auto& prop : properties.items())
-                                {
-                                    // if property name is empty, or
-                                    // matches our search query, add it
-                                    // to the response json
+                                // if property name is empty, or
+                                // matches our search query, add it
+                                // to the response json
 
-                                    if (propertyName->empty())
-                                    {
-                                        (*response)[prop.key()] =
-                                            std::move(prop.value());
-                                    }
-                                    else if (prop.key() == *propertyName)
-                                    {
-                                        *response = std::move(prop.value());
-                                    }
+                                if (propertyName->empty())
+                                {
+                                    (*response)[prop.key()] =
+                                        std::move(prop.value());
+                                }
+                                else if (prop.key() == *propertyName)
+                                {
+                                    *response = std::move(prop.value());
                                 }
                             }
                         }
-                        if (response.use_count() == 1)
+                    }
+                    if (response.use_count() == 1)
+                    {
+                        if (!propertyName->empty() && response->empty())
                         {
-                            if (!propertyName->empty() && response->empty())
-                            {
-                                setErrorResponse(
-                                    asyncResp->res,
-                                    boost::beast::http::status::not_found,
-                                    propNotFoundDesc, notFoundMsg);
-                            }
-                            else
-                            {
-                                asyncResp->res.jsonValue["status"] = "ok";
-                                asyncResp->res.jsonValue["message"] = "200 OK";
-                                asyncResp->res.jsonValue["data"] = *response;
-                            }
+                            setErrorResponse(
+                                asyncResp->res,
+                                boost::beast::http::status::not_found,
+                                propNotFoundDesc, notFoundMsg);
                         }
-                    });
+                        else
+                        {
+                            asyncResp->res.jsonValue["status"] = "ok";
+                            asyncResp->res.jsonValue["message"] = "200 OK";
+                            asyncResp->res.jsonValue["data"] = *response;
+                        }
+                    }
+                });
             }
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject", *path,
@@ -2006,18 +2004,18 @@ inline void handlePut(const crow::Request& req,
                                         transaction->asyncResp->res
                                             .jsonValue["data"] = nullptr;
                                     }
-                                    });
+                                });
                             }
                         }
                         propNode = propNode->NextSiblingElement("property");
                     }
                     ifaceNode = ifaceNode->NextSiblingElement("interface");
                 }
-                },
+            },
                 connectionName, transaction->objectPath,
                 "org.freedesktop.DBus.Introspectable", "Introspect");
         }
-        },
+    },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
         "xyz.openbmc_project.ObjectMapper", "GetObject",
@@ -2203,7 +2201,7 @@ inline void
 
                 interface = interface->NextSiblingElement("interface");
             }
-            },
+        },
             processName, objectPath, "org.freedesktop.DBus.Introspectable",
             "Introspect");
     }
@@ -2370,17 +2368,17 @@ inline void
                         m, [&propertyItem,
                             asyncResp](const boost::system::error_code& e,
                                        sdbusplus::message_t& msg) {
-                            if (e)
-                            {
-                                return;
-                            }
+                        if (e)
+                        {
+                            return;
+                        }
 
-                            convertDBusToJSON("v", msg, propertyItem);
-                        });
+                        convertDBusToJSON("v", msg, propertyItem);
+                    });
                 }
                 property = property->NextSiblingElement("property");
             }
-            },
+        },
             processName, objectPath, "org.freedesktop.DBus.Introspectable",
             "Introspect");
     }
@@ -2428,7 +2426,7 @@ inline void requestRoutes(App& app)
         bus["name"] = "system";
         asyncResp->res.jsonValue["busses"] = std::move(buses);
         asyncResp->res.jsonValue["status"] = "ok";
-        });
+    });
 
     BMCWEB_ROUTE(app, "/bus/system/")
         .privileges({{"Login"}})
@@ -2459,7 +2457,7 @@ inline void requestRoutes(App& app)
         crow::connections::systemBus->async_method_call(
             std::move(myCallback), "org.freedesktop.DBus", "/",
             "org.freedesktop.DBus", "ListNames");
-        });
+    });
 
     BMCWEB_ROUTE(app, "/list/")
         .privileges({{"Login"}})
@@ -2467,7 +2465,7 @@ inline void requestRoutes(App& app)
             [](const crow::Request&,
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
         handleList(asyncResp, "/");
-        });
+    });
 
     BMCWEB_ROUTE(app, "/xyz/<path>")
         .privileges({{"Login"}})
@@ -2477,7 +2475,7 @@ inline void requestRoutes(App& app)
                const std::string& path) {
         std::string objectPath = "/xyz/" + path;
         handleDBusUrl(req, asyncResp, objectPath);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/xyz/<path>")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
@@ -2488,7 +2486,7 @@ inline void requestRoutes(App& app)
                const std::string& path) {
         std::string objectPath = "/xyz/" + path;
         handleDBusUrl(req, asyncResp, objectPath);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/org/<path>")
         .privileges({{"Login"}})
@@ -2498,7 +2496,7 @@ inline void requestRoutes(App& app)
                const std::string& path) {
         std::string objectPath = "/org/" + path;
         handleDBusUrl(req, asyncResp, objectPath);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/org/<path>")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
@@ -2509,7 +2507,7 @@ inline void requestRoutes(App& app)
                const std::string& path) {
         std::string objectPath = "/org/" + path;
         handleDBusUrl(req, asyncResp, objectPath);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/download/dump/<str>/")
         .privileges({{"ConfigureManager"}})
@@ -2573,7 +2571,7 @@ inline void requestRoutes(App& app)
         }
         asyncResp->res.result(boost::beast::http::status::not_found);
         return;
-        });
+    });
 
     BMCWEB_ROUTE(app, "/bus/system/<str>/")
         .privileges({{"Login"}})
@@ -2583,7 +2581,7 @@ inline void requestRoutes(App& app)
                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                const std::string& connection) {
         introspectObjects(connection, "/", asyncResp);
-        });
+    });
 
     BMCWEB_ROUTE(app, "/bus/system/<str>/<path>")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})

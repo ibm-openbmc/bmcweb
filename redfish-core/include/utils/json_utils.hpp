@@ -466,9 +466,9 @@ inline bool readJsonHelper(nlohmann::json& jsonRequest, crow::Response& res,
                     std::remove_pointer_t<std::decay_t<decltype(val)>>;
                 return details::unpackValue<ContainedT>(
                     item.value(), unpackSpec.key, res, *val);
-                         },
+            },
                          unpackSpec.value) &&
-                result;
+                     result;
 
             unpackSpec.complete = true;
             break;
@@ -490,7 +490,7 @@ inline bool readJsonHelper(nlohmann::json& jsonRequest, crow::Response& res,
                 using ContainedType =
                     std::remove_pointer_t<std::decay_t<decltype(val)>>;
                 return details::IsOptional<ContainedType>::value;
-                },
+            },
                 perUnpack.value);
             if (isOptional)
             {
