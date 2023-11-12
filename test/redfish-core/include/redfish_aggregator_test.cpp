@@ -1,5 +1,5 @@
+#ifdef BMCWEB_ENABLE_REDFISH_AGGREGATION
 #include "redfish_aggregator.hpp"
-
 #include <nlohmann/json.hpp>
 
 #include <gtest/gtest.h> // IWYU pragma: keep
@@ -519,3 +519,4 @@ TEST(processResponse, DifferentContentType)
 
 } // namespace
 } // namespace redfish
+#endif

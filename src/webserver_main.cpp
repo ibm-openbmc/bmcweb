@@ -19,7 +19,9 @@
 #include <obmc_shell.hpp>
 #include <openbmc_dbus_rest.hpp>
 #include <redfish.hpp>
+#ifdef BMCWEB_ENABLE_REDFISH_AGGREGATION
 #include <redfish_aggregator.hpp>
+#endif
 #include <sdbusplus/asio/connection.hpp>
 #include <sdbusplus/bus.hpp>
 #include <sdbusplus/server.hpp>

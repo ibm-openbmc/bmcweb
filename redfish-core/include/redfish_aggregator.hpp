@@ -1,5 +1,6 @@
 #pragma once
 
+#ifdef BMCWEB_ENABLE_REDFISH_AGGREGATION
 #include <aggregation_utils.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <dbus_utility.hpp>
@@ -973,3 +974,4 @@ class RedfishAggregator
 };
 
 } // namespace redfish
+#endif
