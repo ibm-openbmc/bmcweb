@@ -1,3 +1,4 @@
+#ifdef BMCWEB_ENABLE_REDFISH_AGGREGATION
 #include "redfish_aggregator.hpp"
 
 #include <nlohmann/json.hpp>
@@ -519,3 +520,4 @@ TEST(processResponse, DifferentContentType)
 
 } // namespace
 } // namespace redfish
+#endif

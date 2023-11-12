@@ -1,7 +1,6 @@
 #pragma once
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/ip/basic_endpoint.hpp>
-#include <boost/asio/ip/tcp.hpp>
 #include <sdbusplus/message.hpp>
 
 #include <charconv>
@@ -21,19 +20,14 @@ class Resolver
 
     ~Resolver() = default;
 
-    Resolver(const Resolver&) = delete;
-    Resolver(Resolver&&) = delete;
-    Resolver& operator=(const Resolver&) = delete;
-    Resolver& operator=(Resolver&&) = delete;
-
     template <typename ResolveHandler>
-    void asyncResolve(const std::string& host, uint16_t port,
+    void asyncResolve(const std::string& host, const std::string& port,
                       ResolveHandler&& handler)
     {
         BMCWEB_LOG_DEBUG << "Trying to resolve: " << host << ":" << port;
         uint64_t flag = 0;
         crow::connections::systemBus->async_method_call(
-            [host, port, handler{std::forward<ResolveHandler>(handler)}](
+            [host, port, handler{std::move(handler)}](
                 const boost::system::error_code ec,
                 const std::vector<
                     std::tuple<int32_t, int32_t, std::vector<uint8_t>>>& resp,
@@ -78,7 +72,16 @@ class Resolver
                     handler(ec, endpointList);
                     return;
                 }
-                endpoint.port(port);
+                uint16_t portNum;
+                auto it = std::from_chars(port.data(),
+                                          port.data() + port.size(), portNum);
+                if (it.ec != std::errc())
+                {
+                    BMCWEB_LOG_ERROR << "Failed to get the Port";
+                    handler(ec, endpointList);
+                    return;
+                }
+                endpoint.port(portNum);
                 BMCWEB_LOG_DEBUG << "resolved endpoint is : " << endpoint;
                 endpointList.push_back(endpoint);
             }
