@@ -372,52 +372,60 @@ class Subscription : public persistent_data::UserSubscription
 
     Subscription(const std::string& inHost, uint16_t inPort,
                  const std::string& inPath, const std::string& inUriProto) :
-        host(inHost),
-        port(inPort), policy(std::make_shared<crow::ConnectionPolicy>()),
-        client(policy), path(inPath), uriProto(inUriProto)
+        eventSeqNum(1),
+        host(inHost), port(inPort), path(inPath), uriProto(inUriProto)
     {
         // Subscription constructor
-        policy->invalidResp = retryRespHandler;
     }
 
     explicit Subscription(
         const std::shared_ptr<boost::asio::ip::tcp::socket>& adaptor) :
-        policy(std::make_shared<crow::ConnectionPolicy>()),
-        client(policy),
+        eventSeqNum(1),
         sseConn(std::make_shared<crow::ServerSentEvents>(adaptor))
     {}
 
     ~Subscription() = default;
 
-    bool sendEvent(std::string& msg)
+    void sendEvent(std::string& msg)
     {
         if (subscriptionType == "SNMPTrap")
         {
-            return true; // Don't need send SNMPTrap event.
+            return; // Don't need send SNMPTrap event.
         }
 
-        persistent_data::EventServiceConfig eventServiceConfig =
-            persistent_data::EventServiceStore::getInstance()
-                .getEventServiceConfig();
-        if (!eventServiceConfig.enabled)
+        if (conn == nullptr)
         {
-            return false;
-        }
+            BMCWEB_LOG_ERROR
+                << "HttpClient connection is null. Create a conn for id:"
+                << subId << " destination: " << host << ":" << port;
+            conn = std::make_shared<crow::HttpClient>(
+                crow::connections::systemBus->get_io_context(), subId, host,
+                port, path, uriProto, httpHeaders);
+            uint32_t retryAttempts = 0;
+            uint32_t retryTimeoutInterval = 0;
+            persistent_data::EventServiceConfig eventServiceConfig =
+                persistent_data::EventServiceStore::getInstance()
+                    .getEventServiceConfig();
 
-        bool useSSL = (uriProto == "https");
-        // A connection pool will be created if one does not already exist
-        client.sendData(msg, host, port, path, useSSL, httpHeaders,
-                        boost::beast::http::verb::post);
-        eventSeqNum++;
+            retryAttempts = eventServiceConfig.retryAttempts;
+            retryTimeoutInterval = eventServiceConfig.retryTimeoutInterval;
+
+            conn->setRetryPolicy(retryPolicy);
+            conn->setRetryConfig(retryAttempts, retryTimeoutInterval);
+        }
+        if (conn->getConnState() != crow::ConnState::terminated)
+        {
+            conn->sendData(msg);
+            this->eventSeqNum++;
+        }
 
         if (sseConn != nullptr)
         {
             sseConn->sendData(eventSeqNum, msg);
         }
-        return true;
     }
 
-    bool sendTestEventLog()
+    void sendTestEventLog()
     {
         nlohmann::json logEntryArray;
         logEntryArray.push_back({});
@@ -441,7 +449,7 @@ class Subscription : public persistent_data::UserSubscription
 
         std::string strMsg = msg.dump(2, ' ', true,
                                       nlohmann::json::error_handler_t::replace);
-        return this->sendEvent(strMsg);
+        this->sendEvent(strMsg);
     }
 
 #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
@@ -553,11 +561,21 @@ class Subscription : public persistent_data::UserSubscription
         this->sendEvent(strMsg);
     }
 
-    void updateRetryConfig(uint32_t retryAttempts,
-                           uint32_t retryTimeoutInterval)
+    void updateRetryConfig(const uint32_t retryAttempts,
+                           const uint32_t retryTimeoutInterval)
     {
-        policy->maxRetryAttempts = retryAttempts;
-        policy->retryIntervalSecs = std::chrono::seconds(retryTimeoutInterval);
+        if (conn != nullptr)
+        {
+            conn->setRetryConfig(retryAttempts, retryTimeoutInterval);
+        }
+    }
+
+    void updateRetryPolicy()
+    {
+        if (conn != nullptr)
+        {
+            conn->setRetryPolicy(retryPolicy);
+        }
     }
 
     uint64_t getEventSeqNum() const
@@ -565,32 +583,21 @@ class Subscription : public persistent_data::UserSubscription
         return eventSeqNum;
     }
 
+    void setSubId(const std::string& idr)
+    {
+        subId = idr;
+    }
+
   private:
-    uint64_t eventSeqNum = 1;
+    uint64_t eventSeqNum;
+    std::string subId;
     std::string host;
-    uint16_t port = 0;
-    std::shared_ptr<crow::ConnectionPolicy> policy;
-    crow::HttpClient client;
+    uint16_t port;
     std::string path;
     std::string uriProto;
     std::shared_ptr<crow::ServerSentEvents> sseConn = nullptr;
-
-    // Check used to indicate what response codes are valid as part of our retry
-    // policy.  2XX is considered acceptable
-    static boost::system::error_code retryRespHandler(unsigned int respCode)
-    {
-        BMCWEB_LOG_DEBUG
-            << "Checking response code validity for SubscriptionEvent";
-        if ((respCode < 200) || (respCode >= 300))
-        {
-            return boost::system::errc::make_error_code(
-                boost::system::errc::result_out_of_range);
-        }
-
-        // Return 0 if the response code is valid
-        return boost::system::errc::make_error_code(
-            boost::system::errc::success);
-    }
+    std::shared_ptr<crow::HttpClient> conn = nullptr;
+    std::string retryPolicyName = "SubscriptionEvent";
 };
 
 class EventServiceManager
@@ -652,7 +659,6 @@ class EventServiceManager
             std::string path;
             bool status = crow::utility::validateAndSplitUrl(
                 newSub->destinationUrl, urlProto, host, port, path);
-
             if (!status)
             {
                 BMCWEB_LOG_ERROR
@@ -663,6 +669,7 @@ class EventServiceManager
                 std::make_shared<Subscription>(host, port, path, urlProto);
 
             subValue->id = newSub->id;
+            subValue->setSubId(newSub->id);
             subValue->destinationUrl = newSub->destinationUrl;
             subValue->protocol = newSub->protocol;
             subValue->retryPolicy = newSub->retryPolicy;
@@ -690,6 +697,7 @@ class EventServiceManager
 #endif
             // Update retry configuration.
             subValue->updateRetryConfig(retryAttempts, retryTimeoutInterval);
+            subValue->updateRetryPolicy();
         }
     }
 
@@ -879,16 +887,23 @@ class EventServiceManager
         return subValue;
     }
 
-    void addSubscription(const std::shared_ptr<Subscription>& subValue,
-                         std::string& id, const bool updateFile = true)
+    std::string addSubscription(const std::shared_ptr<Subscription>& subValue,
+                                const std::string& subscriptionId = "",
+                                const bool updateFile = true)
     {
         std::uniform_int_distribution<uint32_t> dist(0);
         bmcweb::OpenSSLGenerator gen;
 
+        std::string id;
+
         int retry = 3;
-        while (retry != 0)
+        while (retry)
         {
-            if (id.empty())
+            if (!subscriptionId.empty())
+            {
+                id = subscriptionId;
+            }
+            else
             {
                 id = std::to_string(dist(gen));
                 if (gen.error())
@@ -909,7 +924,7 @@ class EventServiceManager
         if (retry <= 0)
         {
             BMCWEB_LOG_ERROR << "Failed to generate random number";
-            return;
+            return "";
         }
 
         std::shared_ptr<persistent_data::UserSubscription> newSub =
@@ -937,13 +952,15 @@ class EventServiceManager
         }
 
 #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
-        if (redfishLogFilePosition != 0)
-        {
-            cacheRedfishLogFile();
-        }
+
+        cacheRedfishLogFile();
+
 #endif
         // Update retry configuration.
         subValue->updateRetryConfig(retryAttempts, retryTimeoutInterval);
+        subValue->updateRetryPolicy();
+
+        return id;
     }
 
     bool isSubscriptionExist(const std::string& id)
@@ -996,17 +1013,13 @@ class EventServiceManager
         return false;
     }
 
-    bool sendTestEventLog()
+    void sendTestEventLog()
     {
         for (const auto& it : this->subscriptionsMap)
         {
             std::shared_ptr<Subscription> entry = it.second;
-            if (!entry->sendTestEventLog())
-            {
-                return false;
-            }
+            entry->sendTestEventLog();
         }
-        return true;
     }
 
     void sendEvent(nlohmann::json eventMessage, const std::string& origin,
@@ -1076,6 +1089,23 @@ class EventServiceManager
             {
                 BMCWEB_LOG_INFO << "Not subscribed to this resource";
             }
+        }
+    }
+    void sendBroadcastMsg(const std::string& broadcastMsg)
+    {
+        for (const auto& it : this->subscriptionsMap)
+        {
+            std::shared_ptr<Subscription> entry = it.second;
+            nlohmann::json msgJson;
+            msgJson["Timestamp"] =
+                redfish::time_utils::getDateTimeOffsetNow().first;
+            msgJson["OriginOfCondition"] = "/ibm/v1/HMC/BroadcastService";
+            msgJson["Name"] = "Broadcast Message";
+            msgJson["Message"] = broadcastMsg;
+
+            std::string strMsg = msgJson.dump(
+                2, ' ', true, nlohmann::json::error_handler_t::replace);
+            entry->sendEvent(strMsg);
         }
     }
 

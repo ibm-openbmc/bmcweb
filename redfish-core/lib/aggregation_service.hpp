@@ -1,5 +1,5 @@
 #pragma once
-
+#ifdef BMCWEB_ENABLE_REDFISH_AGGREGATION
 #include "app.hpp"
 #include "error_messages.hpp"
 #include "http_request.hpp"
@@ -224,3 +224,4 @@ inline void requestRoutesAggregationSource(App& app)
 }
 
 } // namespace redfish
+#endif

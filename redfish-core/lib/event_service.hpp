@@ -15,19 +15,12 @@
 */
 #pragma once
 #include "event_service_manager.hpp"
-#include "snmp_trap_event_clients.hpp"
 
 #include <app.hpp>
 #include <boost/beast/http/fields.hpp>
-#include <http/utility.hpp>
-#include <logging.hpp>
-#include <query.hpp>
 #include <registries/privilege_registry.hpp>
-#include <sdbusplus/unpack_properties.hpp>
-#include <utils/dbus_utils.hpp>
 
 #include <charconv>
-#include <span>
 
 namespace redfish
 {
@@ -40,8 +33,10 @@ static constexpr const std::array<const char*, 3> supportedRetryPolicies = {
     "TerminateAfterRetries", "SuspendRetries", "RetryForever"};
 
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
-static constexpr const std::array<const char*, 2> supportedResourceTypes = {
-    "IBMConfigFile", "Task"};
+static constexpr const std::array<const char*, 8> supportedResourceTypes = {
+    "IBMConfigFile",  "Task",    "BroadcastService",
+    "ComputerSystem", "Manager", "EthernetInterface",
+    "LogEntry",       "Bios"};
 #else
 static constexpr const std::array<const char*, 1> supportedResourceTypes = {
     "Task"};
@@ -49,28 +44,292 @@ static constexpr const std::array<const char*, 1> supportedResourceTypes = {
 
 static constexpr const uint8_t maxNoOfSubscriptions = 20;
 
+inline void
+    getSnmpTrapClientdata(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                          const std::string& id, const std::string& objectPath)
+{
+    asyncResp->res.jsonValue = {
+        {"@odata.type", "#EventDestination.v1_7_0.EventDestination"},
+        {"Protocol", "SNMPv2c"}};
+    asyncResp->res.jsonValue["@odata.id"] =
+        "/redfish/v1/EventService/Subscriptions/" + id;
+    asyncResp->res.jsonValue["Id"] = id;
+    asyncResp->res.jsonValue["Name"] = "Event Destination " + id;
+
+    asyncResp->res.jsonValue["SubscriptionType"] = "SNMPTrap";
+    asyncResp->res.jsonValue["EventFormatType"] = "Event";
+
+    std::shared_ptr<Subscription> subValue =
+        EventServiceManager::getInstance().getSubscription(id);
+    if (subValue != nullptr)
+    {
+        asyncResp->res.jsonValue["Context"] = subValue->customText;
+    }
+    else
+    {
+        asyncResp->res.jsonValue["Context"] = "";
+    }
+
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](
+            const boost::system::error_code ec,
+            const std::vector<
+                std::pair<std::string, std::variant<std::string, uint16_t>>>&
+                propertiesList) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "D-Bus response error on GetSubTree " << ec;
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        std::string address;
+        std::string port;
+
+        for (const std::pair<std::string, std::variant<std::string, uint16_t>>&
+                 property : propertiesList)
+        {
+            const std::string& propertyName = property.first;
+
+            if (propertyName == "Address")
+            {
+                const std::string* value =
+                    std::get_if<std::string>(&property.second);
+                if (value == nullptr)
+                {
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                address = *value;
+            }
+            else if (propertyName == "Port")
+            {
+                const uint16_t* value = std::get_if<uint16_t>(&property.second);
+                if (value == nullptr)
+                {
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                port = std::to_string(*value);
+            }
+        }
+
+        if (address == "" || port == "")
+        {
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        std::string destination = "snmp://";
+        destination.append(address);
+        destination.append(":");
+        destination.append(port);
+
+        asyncResp->res.jsonValue["Destination"] = std::move(destination);
+        },
+        "xyz.openbmc_project.Network.SNMP", objectPath,
+        "org.freedesktop.DBus.Properties", "GetAll",
+        "xyz.openbmc_project.Network.Client");
+}
+
+inline void
+    getSnmpTrapClient(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                      const std::string& id)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp, id](const boost::system::error_code ec,
+                        dbus::utility::ManagedObjectType& resp) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "D-Bus response error on GetManagedObjects "
+                             << ec;
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        for (const auto& objpath : resp)
+        {
+            sdbusplus::message::object_path path(objpath.first);
+            const std::string snmpId = path.filename();
+            if (snmpId.empty())
+            {
+                BMCWEB_LOG_ERROR << "The SNMP client ID is wrong";
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            const std::string subscriptionId = "snmp" + snmpId;
+            if (id != subscriptionId)
+            {
+                continue;
+            }
+
+            getSnmpTrapClientdata(asyncResp, id, objpath.first);
+            return;
+        }
+
+        messages::resourceNotFound(asyncResp->res, "Subscriptions", id);
+        EventServiceManager::getInstance().deleteSubscription(id);
+        },
+        "xyz.openbmc_project.Network.SNMP",
+        "/xyz/openbmc_project/network/snmp/manager",
+        "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
+}
+
+inline void
+    createSnmpTrapClient(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                         const std::string& host, const uint16_t& snmpTrapPort,
+                         const std::shared_ptr<Subscription>& subValue)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp, subValue](const boost::system::error_code ec,
+                              const std::string& dbusSNMPid) {
+        if (ec)
+        {
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        sdbusplus::message::object_path path(dbusSNMPid);
+        const std::string snmpId = path.filename();
+        if (snmpId.empty())
+        {
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        const std::string subscriptionId = "snmp" +
+                                           http_helpers::urlEncode(snmpId);
+
+        std::string id = EventServiceManager::getInstance().addSubscription(
+            subValue, subscriptionId);
+
+        if (id.empty())
+        {
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        asyncResp->res.addHeader("Location",
+                                 "/redfish/v1/EventService/Subscriptions/" +
+                                     subscriptionId);
+        messages::created(asyncResp->res);
+        },
+        "xyz.openbmc_project.Network.SNMP",
+        "/xyz/openbmc_project/network/snmp/manager",
+        "xyz.openbmc_project.Network.Client.Create", "Client", host,
+        snmpTrapPort);
+}
+inline void
+    checkSnmpTrapClient(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                        const std::string& host, const std::string& port,
+                        const std::string& destUrl,
+                        const std::shared_ptr<Subscription>& subValue)
+{
+    uint16_t snmpTrapPort = 0;
+    // Check the port
+    auto ret = std::from_chars(
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        port.data(), port.data() + port.size(), snmpTrapPort);
+    if (ret.ec != std::errc())
+    {
+        messages::propertyValueTypeError(asyncResp->res, destUrl,
+                                         "Destination");
+        return;
+    }
+
+    crow::connections::systemBus->async_method_call(
+        [asyncResp, host, snmpTrapPort, destUrl,
+         subValue](const boost::system::error_code ec,
+                   dbus::utility::ManagedObjectType& resp) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR << "D-Bus response error on GetManagedObjects "
+                             << ec;
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        for (const auto& object : resp)
+        {
+            for (const auto& interface : object.second)
+            {
+                if (interface.first == "xyz.openbmc_project.Network.Client")
+                {
+                    std::string address;
+                    uint16_t portNum = 0;
+                    for (const auto& property : interface.second)
+                    {
+                        if (property.first == "Address")
+                        {
+                            const std::string* value =
+                                std::get_if<std::string>(&property.second);
+                            if (value == nullptr)
+                            {
+                                continue;
+                            }
+                            address = *value;
+                        }
+                        else if (property.first == "Port")
+                        {
+                            const uint16_t* value =
+                                std::get_if<uint16_t>(&property.second);
+                            if (value == nullptr)
+                            {
+                                continue;
+                            }
+                            portNum = *value;
+                        }
+                    }
+
+                    if (address == host && portNum == snmpTrapPort)
+                    {
+                        messages::resourceAlreadyExists(
+                            asyncResp->res,
+                            "EventDestination.v1_7_0.EventDestination",
+                            "Destination", destUrl);
+                        return;
+                    }
+                }
+            }
+        }
+        // Create the snmp client
+        createSnmpTrapClient(asyncResp, host, snmpTrapPort, subValue);
+        },
+        "xyz.openbmc_project.Network.SNMP",
+        "/xyz/openbmc_project/network/snmp/manager",
+        "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
+}
+
+inline void
+    getSnmpSubscriptionList(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                            const std::string& snmpId,
+                            nlohmann::json& memberArray)
+{
+    const std::string subscriptionId = "snmp" + snmpId;
+    memberArray.push_back(
+        {{"@odata.id",
+          "/redfish/v1/EventService/Subscriptions/" + subscriptionId}});
+    asyncResp->res.jsonValue["Members@odata.count"] = memberArray.size();
+}
+
 inline void requestRoutesEventService(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/EventService/")
         .privileges(redfish::privileges::getEventService)
         .methods(boost::beast::http::verb::get)(
-            [&app](const crow::Request& req,
-                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
-        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
-        {
-            return;
-        }
-
-        asyncResp->res.jsonValue["@odata.id"] = "/redfish/v1/EventService";
-        asyncResp->res.jsonValue["@odata.type"] =
-            "#EventService.v1_5_0.EventService";
-        asyncResp->res.jsonValue["Id"] = "EventService";
-        asyncResp->res.jsonValue["Name"] = "Event Service";
-        asyncResp->res.jsonValue["Subscriptions"]["@odata.id"] =
-            "/redfish/v1/EventService/Subscriptions";
-        asyncResp->res
-            .jsonValue["Actions"]["#EventService.SubmitTestEvent"]["target"] =
-            "/redfish/v1/EventService/Actions/EventService.SubmitTestEvent";
+            [](const crow::Request&,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+        asyncResp->res.jsonValue = {
+            {"@odata.type", "#EventService.v1_5_0.EventService"},
+            {"Id", "EventService"},
+            {"Name", "Event Service"},
+            {"Subscriptions",
+             {{"@odata.id", "/redfish/v1/EventService/Subscriptions"}}},
+            {"Actions",
+             {{"#EventService.SubmitTestEvent",
+               {{"target", "/redfish/v1/EventService/Actions/"
+                           "EventService.SubmitTestEvent"}}}}},
+            {"@odata.id", "/redfish/v1/EventService"}};
 
         const persistent_data::EventServiceConfig eventServiceConfig =
             persistent_data::EventServiceStore::getInstance()
@@ -87,27 +346,22 @@ inline void requestRoutesEventService(App& app)
         asyncResp->res.jsonValue["RegistryPrefixes"] = supportedRegPrefixes;
         asyncResp->res.jsonValue["ResourceTypes"] = supportedResourceTypes;
 
-        nlohmann::json::object_t supportedSSEFilters;
-        supportedSSEFilters["EventFormatType"] = true;
-        supportedSSEFilters["MessageId"] = true;
-        supportedSSEFilters["MetricReportDefinition"] = true;
-        supportedSSEFilters["RegistryPrefix"] = true;
-        supportedSSEFilters["OriginResource"] = false;
-        supportedSSEFilters["ResourceType"] = false;
+        nlohmann::json supportedSSEFilters = {
+            {"EventFormatType", true},        {"MessageId", true},
+            {"MetricReportDefinition", true}, {"RegistryPrefix", true},
+            {"OriginResource", false},        {"ResourceType", false}};
 
         asyncResp->res.jsonValue["SSEFilterPropertiesSupported"] =
-            std::move(supportedSSEFilters);
+            supportedSSEFilters;
         });
 
     BMCWEB_ROUTE(app, "/redfish/v1/EventService/")
         .privileges(redfish::privileges::patchEventService)
         .methods(boost::beast::http::verb::patch)(
-            [&app](const crow::Request& req,
-                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
-        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
-        {
-            return;
-        }
+            [](const crow::Request& req,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+
+            {
         std::optional<bool> serviceEnabled;
         std::optional<uint32_t> retryAttemps;
         std::optional<uint32_t> retryInterval;
@@ -119,7 +373,6 @@ inline void requestRoutesEventService(App& app)
         {
             return;
         }
-
         persistent_data::EventServiceConfig eventServiceConfig =
             persistent_data::EventServiceStore::getInstance()
                 .getEventServiceConfig();
@@ -170,115 +423,94 @@ inline void requestRoutesSubmitTestEvent(App& app)
         app, "/redfish/v1/EventService/Actions/EventService.SubmitTestEvent/")
         .privileges(redfish::privileges::postEventService)
         .methods(boost::beast::http::verb::post)(
-            [&app](const crow::Request& req,
-                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
-        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
-        {
-            return;
-        }
-        if (!EventServiceManager::getInstance().sendTestEventLog())
-        {
-            messages::serviceDisabled(asyncResp->res,
-                                      "/redfish/v1/EventService/");
-            return;
-        }
+            [](const crow::Request&,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+        EventServiceManager::getInstance().sendTestEventLog();
         asyncResp->res.result(boost::beast::http::status::no_content);
         });
 }
 
-inline void doSubscriptionCollection(
-    const boost::system::error_code ec,
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    dbus::utility::ManagedObjectType& resp)
-{
-    nlohmann::json& memberArray = asyncResp->res.jsonValue["Members"];
-    std::vector<std::string> subscripIds =
-        EventServiceManager::getInstance().getAllIDs();
-    memberArray = nlohmann::json::array();
-
-    for (const std::string& id : subscripIds)
-    {
-        if (!boost::starts_with(id, "snmp"))
-        {
-            nlohmann::json::object_t member;
-            member["@odata.id"] = crow::utility::urlFromPieces(
-                "redfish", "v1", "EventService", "Subscriptions", id);
-            memberArray.push_back(std::move(member));
-        }
-    }
-
-    asyncResp->res.jsonValue["Members@odata.count"] = memberArray.size();
-
-    if (ec)
-    {
-        if (ec.value() == EBADR)
-        {
-            // This is an optional process so just return if it isn't there
-            return;
-        }
-
-        BMCWEB_LOG_ERROR << "D-Bus response error on GetManagedObjects " << ec;
-        messages::internalError(asyncResp->res);
-        return;
-    }
-
-    for (const auto& objpath : resp)
-    {
-        sdbusplus::message::object_path path(objpath.first);
-        const std::string snmpId = path.filename();
-        if (snmpId.empty())
-        {
-            BMCWEB_LOG_ERROR << "The SNMP client ID is wrong";
-            messages::internalError(asyncResp->res);
-            return;
-        }
-
-        getSnmpSubscriptionList(asyncResp, snmpId, memberArray);
-    }
-}
-
 inline void requestRoutesEventDestinationCollection(App& app)
 {
-    BMCWEB_ROUTE(app, "/redfish/v1/EventService/Subscriptions/")
+    BMCWEB_ROUTE(app, "/redfish/v1/EventService/Subscriptions")
         .privileges(redfish::privileges::getEventDestinationCollection)
         .methods(boost::beast::http::verb::get)(
-            [&app](const crow::Request& req,
-                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
-        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+            [](const crow::Request&,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+        asyncResp->res.jsonValue = {
+            {"@odata.type",
+             "#EventDestinationCollection.EventDestinationCollection"},
+            {"@odata.id", "/redfish/v1/EventService/Subscriptions"},
+            {"Name", "Event Destination Collections"}};
+
+        nlohmann::json& memberArray = asyncResp->res.jsonValue["Members"];
+
+        std::vector<std::string> subscripIds =
+            EventServiceManager::getInstance().getAllIDs();
+        memberArray = nlohmann::json::array();
+
+        for (const std::string& id : subscripIds)
         {
-            return;
+            if (!boost::starts_with(id, "snmp"))
+            {
+                memberArray.push_back(
+                    {{"@odata.id",
+                      "/redfish/v1/EventService/Subscriptions/" + id}});
+            }
         }
-        asyncResp->res.jsonValue["@odata.type"] =
-            "#EventDestinationCollection.EventDestinationCollection";
-        asyncResp->res.jsonValue["@odata.id"] =
-            "/redfish/v1/EventService/Subscriptions";
-        asyncResp->res.jsonValue["Name"] = "Event Destination Collections";
+
+        asyncResp->res.jsonValue["Members@odata.count"] = memberArray.size();
 
         crow::connections::systemBus->async_method_call(
-            [asyncResp](const boost::system::error_code ec,
-                        dbus::utility::ManagedObjectType& resp) {
-            doSubscriptionCollection(ec, asyncResp, resp);
+            [asyncResp, &memberArray](const boost::system::error_code ec,
+                                      dbus::utility::ManagedObjectType& resp) {
+            if (ec)
+            {
+                if (ec.value() == EBADR)
+                {
+                    // this is an optional process so just return if
+                    // it isn't there
+                    return;
+                }
+
+                BMCWEB_LOG_ERROR << "D-Bus response error on GetManagedObjects "
+                                 << ec;
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            for (const std::pair<sdbusplus::message::object_path,
+                                 dbus::utility::DBusInteracesMap>& objpath :
+                 resp)
+            {
+                sdbusplus::message::object_path path(objpath.first);
+                const std::string snmpId = path.filename();
+                if (snmpId.empty())
+                {
+                    BMCWEB_LOG_ERROR << "The SNMP client ID is wrong";
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+
+                getSnmpSubscriptionList(asyncResp, snmpId, memberArray);
+            }
             },
             "xyz.openbmc_project.Network.SNMP",
             "/xyz/openbmc_project/network/snmp/manager",
             "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
         });
-
     BMCWEB_ROUTE(app, "/redfish/v1/EventService/Subscriptions/")
         .privileges(redfish::privileges::postEventDestinationCollection)
         .methods(boost::beast::http::verb::post)(
-            [&app](const crow::Request& req,
-                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
-        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
-        {
-            return;
-        }
+            [](const crow::Request& req,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
         if (EventServiceManager::getInstance().getNumberOfSubscriptions() >=
             maxNoOfSubscriptions)
         {
             messages::eventSubscriptionLimitExceeded(asyncResp->res);
             return;
         }
+
         std::string destUrl;
         std::string protocol;
         std::optional<std::string> context;
@@ -290,7 +522,6 @@ inline void requestRoutesEventDestinationCollection(App& app)
         std::optional<std::vector<std::string>> resTypes;
         std::optional<std::vector<nlohmann::json>> headers;
         std::optional<std::vector<nlohmann::json>> mrdJsonArray;
-
         if (!json_util::readJsonPatch(
                 req, asyncResp->res, "Destination", destUrl, "Context", context,
                 "Protocol", protocol, "SubscriptionType", subscriptionType,
@@ -301,7 +532,6 @@ inline void requestRoutesEventDestinationCollection(App& app)
         {
             return;
         }
-
         if (regPrefixes && msgIds)
         {
             if (!regPrefixes->empty() && !msgIds->empty())
@@ -313,11 +543,11 @@ inline void requestRoutesEventDestinationCollection(App& app)
         }
 
         std::string host;
-        std::string urlProto;
+        std::string uriProto;
+        // std::string port;
         uint16_t port = 0;
         std::string path;
-
-        if (!crow::utility::validateAndSplitUrl(destUrl, urlProto, host, port,
+        if (!crow::utility::validateAndSplitUrl(destUrl, uriProto, host, port,
                                                 path))
         {
             BMCWEB_LOG_WARNING
@@ -332,7 +562,7 @@ inline void requestRoutesEventDestinationCollection(App& app)
             path = "/";
         }
         std::shared_ptr<Subscription> subValue =
-            std::make_shared<Subscription>(host, port, path, urlProto);
+            std::make_shared<Subscription>(host, port, path, uriProto);
 
         subValue->destinationUrl = destUrl;
 
@@ -343,10 +573,10 @@ inline void requestRoutesEventDestinationCollection(App& app)
             return;
         }
         subValue->protocol = protocol;
-
-        if (subscriptionType)
+        
+	if (subscriptionType)
         {
-            if (*subscriptionType != "RedfishEvent" &&
+            if ((*subscriptionType != "RedfishEvent") &&
                 (*subscriptionType != "SNMPTrap"))
             {
                 messages::propertyValueNotInList(
@@ -366,6 +596,14 @@ inline void requestRoutesEventDestinationCollection(App& app)
                 subValue->subscriptionType = "RedfishEvent"; // Default
             }
         }
+
+        if ((protocol != "Redfish") && (protocol != "SNMPv2c"))
+        {
+            messages::propertyValueNotInList(asyncResp->res, protocol,
+                                             "Protocol");
+            return;
+        }
+        subValue->protocol = protocol;
 
         if (eventFormatType2)
         {
@@ -401,7 +639,7 @@ inline void requestRoutesEventDestinationCollection(App& app)
                     if (value == nullptr)
                     {
                         messages::propertyValueFormatError(
-                            asyncResp->res, item.value().dump(2, 1),
+                            asyncResp->res, item.value().dump(2, true),
                             "HttpHeaders/" + item.key());
                         return;
                     }
@@ -465,15 +703,16 @@ inline void requestRoutesEventDestinationCollection(App& app)
                 // Check for Message ID in each of the selected Registry
                 for (const std::string& it : registryPrefix)
                 {
-                    const std::span<const redfish::registries::MessageEntry>
+                    const boost::beast::span<
+                        const redfish::registries::MessageEntry>
                         registry =
                             redfish::registries::getRegistryFromPrefix(it);
 
                     if (std::any_of(
-                            registry.begin(), registry.end(),
+                            registry.cbegin(), registry.cend(),
                             [&id](const redfish::registries::MessageEntry&
                                       messageEntry) {
-                        return id == messageEntry.first;
+                        return !id.compare(messageEntry.first);
                             }))
                     {
                         validId = true;
@@ -509,7 +748,6 @@ inline void requestRoutesEventDestinationCollection(App& app)
             // Default "TerminateAfterRetries"
             subValue->retryPolicy = "TerminateAfterRetries";
         }
-
         if (mrdJsonArray)
         {
             for (nlohmann::json& mrdObj : *mrdJsonArray)
@@ -525,22 +763,22 @@ inline void requestRoutesEventDestinationCollection(App& app)
                 subValue->metricReportDefinitions.emplace_back(mrdUri);
             }
         }
-
         if (protocol == "SNMPv2c")
         {
-            addSnmpTrapClient(asyncResp, host, port, destUrl, subValue);
+            // Check whether the client already exists
+            checkSnmpTrapClient(asyncResp, host, std::to_string(port), destUrl,
+                                subValue);
             return;
         }
 
-        // There is no need to set the default subscription id here.
-        std::string id;
-        EventServiceManager::getInstance().addSubscription(subValue, id);
+        std::string id =
+            EventServiceManager::getInstance().addSubscription(subValue);
         if (id.empty())
         {
             messages::internalError(asyncResp->res);
             return;
         }
-
+        subValue->setSubId(id);
         messages::created(asyncResp->res);
         asyncResp->res.addHeader(
             "Location", "/redfish/v1/EventService/Subscriptions/" + id);
@@ -552,17 +790,13 @@ inline void requestRoutesEventDestination(App& app)
     BMCWEB_ROUTE(app, "/redfish/v1/EventService/Subscriptions/<str>/")
         .privileges(redfish::privileges::getEventDestination)
         .methods(boost::beast::http::verb::get)(
-            [&app](const crow::Request& req,
-                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                   const std::string& param) {
-        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
-        {
-            return;
-        }
-
+            [](const crow::Request&,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+               const std::string& param) {
         if (boost::starts_with(param, "snmp"))
         {
-            getSnmpTrapClient(asyncResp, param);
+            const std::string& id = param;
+            getSnmpTrapClient(asyncResp, id);
             return;
         }
 
@@ -575,9 +809,9 @@ inline void requestRoutesEventDestination(App& app)
         }
         const std::string& id = param;
 
-        asyncResp->res.jsonValue["@odata.type"] =
-            "#EventDestination.v1_8_0.EventDestination";
-        asyncResp->res.jsonValue["Protocol"] = subValue->protocol;
+        asyncResp->res.jsonValue = {
+            {"@odata.type", "#EventDestination.v1_7_0.EventDestination"},
+            {"Protocol", subValue->protocol}};
         asyncResp->res.jsonValue["@odata.id"] =
             "/redfish/v1/EventService/Subscriptions/" + id;
         asyncResp->res.jsonValue["Id"] = id;
@@ -595,12 +829,10 @@ inline void requestRoutesEventDestination(App& app)
         asyncResp->res.jsonValue["MessageIds"] = subValue->registryMsgIds;
         asyncResp->res.jsonValue["DeliveryRetryPolicy"] = subValue->retryPolicy;
 
-        nlohmann::json::array_t mrdJsonArray;
+        std::vector<nlohmann::json> mrdJsonArray;
         for (const auto& mdrUri : subValue->metricReportDefinitions)
         {
-            nlohmann::json::object_t mdr;
-            mdr["@odata.id"] = mdrUri;
-            mrdJsonArray.emplace_back(std::move(mdr));
+            mrdJsonArray.push_back({{"@odata.id", mdrUri}});
         }
         asyncResp->res.jsonValue["MetricReportDefinitions"] = mrdJsonArray;
         });
@@ -611,13 +843,9 @@ inline void requestRoutesEventDestination(App& app)
         //.privileges(redfish::privileges::patchEventDestination)
         .privileges({{"ConfigureManager"}})
         .methods(boost::beast::http::verb::patch)(
-            [&app](const crow::Request& req,
-                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                   const std::string& param) {
-        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
-        {
-            return;
-        }
+            [](const crow::Request& req,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+               const std::string& param) {
         std::shared_ptr<Subscription> subValue =
             EventServiceManager::getInstance().getSubscription(param);
         if (subValue == nullptr)
@@ -636,7 +864,6 @@ inline void requestRoutesEventDestination(App& app)
         {
             return;
         }
-
         if (context)
         {
             subValue->customText = *context;
@@ -647,7 +874,7 @@ inline void requestRoutesEventDestination(App& app)
             boost::beast::http::fields fields;
             for (const nlohmann::json& headerChunk : *headers)
             {
-                for (const auto& it : headerChunk.items())
+                for (auto& it : headerChunk.items())
                 {
                     const std::string* value =
                         it.value().get_ptr<const std::string*>();
@@ -675,6 +902,7 @@ inline void requestRoutesEventDestination(App& app)
                 return;
             }
             subValue->retryPolicy = *retryPolicy;
+            subValue->updateRetryPolicy();
         }
 
         EventServiceManager::getInstance().updateSubscriptionData();
@@ -686,18 +914,43 @@ inline void requestRoutesEventDestination(App& app)
         //.privileges(redfish::privileges::deleteEventDestination)
         .privileges({{"ConfigureManager"}})
         .methods(boost::beast::http::verb::delete_)(
-            [&app](const crow::Request& req,
-                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                   const std::string& param) {
-        if (!redfish::setUpRedfishRoute(app, req, asyncResp))
-        {
-            return;
-        }
-
+            [](const crow::Request&,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+               const std::string& param) {
         if (boost::starts_with(param, "snmp"))
         {
-            deleteSnmpTrapClient(asyncResp, param);
+            std::string_view snmpTrapId = param;
+
+            // Erase "snmp" in the request to find the corresponding
+            // dbus snmp client id. For example, the snmpid in the
+            // request is "snmp1", which will be "1" after being erased.
+            snmpTrapId = snmpTrapId.substr(4, snmpTrapId.length() - 4);
+
+            const std::string snmpPath =
+                "/xyz/openbmc_project/network/snmp/manager/" +
+                std::string(snmpTrapId);
+
+            crow::connections::systemBus->async_method_call(
+                [asyncResp, param](const boost::system::error_code ec) {
+                if (ec)
+                {
+                    // The snmp trap id is incorrect
+                    if (ec.value() == EBADR)
+                    {
+                        messages::resourceNotFound(asyncResp->res,
+                                                   "Subscription", param);
+                        return;
+                    }
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                messages::success(asyncResp->res);
+                },
+                "xyz.openbmc_project.Network.SNMP", snmpPath,
+                "xyz.openbmc_project.Object.Delete", "Delete");
+
             EventServiceManager::getInstance().deleteSubscription(param);
+
             return;
         }
 
