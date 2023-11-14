@@ -229,10 +229,9 @@ inline void linkAssociatedDiskBackplane(
                                 drivePath);
             if (it != assemblyList.end())
             {
-                asyncResp->res.jsonValue["Slots"][index]["Links"]["Oem"]
-                                        ["@odata.type"] = "#OemPCIeSlots.Oem";
                 asyncResp->res.jsonValue["Slots"][index]["Links"]["Oem"]["IBM"]
-                                        ["@odata.type"] = "#OemPCIeSlots.IBM";
+                                        ["@odata.type"] =
+                    "#OemPCIeSlots.v1_0_0.PCIeLinks";
                 asyncResp->res.jsonValue["Slots"][index]["Links"]["Oem"]["IBM"]
                                         ["AssociatedAssembly"]["@odata.id"] =
                     "/redfish/v1/Chassis/" + chassisId +
@@ -327,8 +326,8 @@ inline void
         const std::string& fabricAdapterPath = fabricAdapterPaths.front();
         nlohmann::json& slot = asyncResp->res.jsonValue["Slots"][index];
 
-        slot["Links"]["Oem"]["@odata.type"] = "#OemPCIeSlots.Oem";
-        slot["Links"]["Oem"]["IBM"]["@odata.type"] = "#OemPCIeSlots.IBM";
+        slot["Links"]["Oem"]["IBM"]["@odata.type"] =
+            "#OemPCIeSlots.v1_0_0.PCIeLinks";
         slot["Links"]["Oem"]["IBM"]["UpstreamFabricAdapter"]["@odata.id"] =
             crow::utility::urlFromPieces(
                 "redfish", "v1", "Systems", "system", "FabricAdapters",
@@ -413,8 +412,7 @@ inline void getPCIeSlotProperties(
 
     if (busId != nullptr)
     {
-        slot["Oem"]["@odata.type"] = "#OemPCIeSlots.Oem";
-        slot["Oem"]["IBM"]["@odata.type"] = "#OemPCIeSlots.IBM";
+        slot["Oem"]["IBM"]["@odata.type"] = "#OemPCIeSlots.v1_0_0.PCIeSlot";
         slot["Oem"]["IBM"]["LinkId"] = *busId;
     }
 
