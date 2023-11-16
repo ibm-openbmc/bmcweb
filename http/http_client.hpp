@@ -497,7 +497,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         }
 
         // Let's close the connection and restart from resolve.
-        doCleanup(true);
+        shutdownConn(true);
     }
     void restartConnection()
     {
@@ -538,11 +538,6 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         {
             state = ConnState::closed;
         }
-    }
-    void doCleanup(bool retry)
-    {
-        BMCWEB_LOG_ERROR << "doCleanup called with retry " << retry;
-        shutdownConn(retry);
     }
 
     void doClose(bool retry = false)
