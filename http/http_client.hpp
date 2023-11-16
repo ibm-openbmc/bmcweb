@@ -48,7 +48,6 @@
 #include <memory>
 #include <queue>
 #include <string>
-
 namespace crow
 {
 
@@ -502,7 +501,9 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
     }
     void restartConnection()
     {
-        BMCWEB_LOG_ERROR << "restartConnection ";
+        BMCWEB_LOG_DEBUG << host << ":" << std::to_string(port)
+                         << ", id: " << std::to_string(connId)
+                         << " restartConnection ";
         conn = makeConnection(ioc, sslConn.has_value());
         doResolve();
     }
@@ -530,6 +531,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         {
             // Now let's try to resend the data
             state = ConnState::retry;
+            // reconnect to server using new socket
             restartConnection();
         }
         else
@@ -618,7 +620,6 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
     std::unique_ptr<boost::asio::ip::tcp::socket>
         makeConnection(boost::asio::io_context& iocIn, bool useSsl)
     {
-        BMCWEB_LOG_ERROR << "makeConnection ssl" << useSsl;
         auto newconn = std::make_unique<boost::asio::ip::tcp::socket>(iocIn);
         if (useSsl)
         {
@@ -782,9 +783,6 @@ class ConnectionPool : public std::enable_shared_from_this<ConnectionPool>
                 }
                 else
                 {
-                    BMCWEB_LOG_ERROR << "Reusing existing connection "
-                                     << commonMsg << "with state "
-                                     << static_cast<int>(conn->state);
                     conn->restartConnection();
                 }
                 return;
