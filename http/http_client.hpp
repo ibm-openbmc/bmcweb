@@ -643,7 +643,6 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
                 boost::asio::ssl::context::tlsv13_client};
             sslConn.emplace(*newconn.get(), sslCtx);
             setCipherSuiteTLSext();
-            BMCWEB_LOG_ERROR << "created  ssl Conn" << sslConn.has_value();
         }
         return newconn;
     }
