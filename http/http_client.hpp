@@ -379,6 +379,16 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         unsigned int respCode = parser->get().result_int();
         BMCWEB_LOG_DEBUG << "recvMessage() Header Response Code: " << respCode;
 
+        // Handle the case of stream_truncated.  Some servers close the ssl
+        // connection uncleanly, so check to see if we got a full response
+        // before we handle this as an error.
+        if (!parser->is_done())
+        {
+            state = ConnState::recvFailed;
+            waitAndRetry();
+            return;
+        }
+
         // Make sure the received response code is valid as defined by
         // the associated retry policy
         if (connPolicy->invalidResp(respCode))
@@ -498,12 +508,13 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         // Let's close the connection and restart from resolve.
         shutdownConn(true);
     }
+
     void restartConnection()
     {
         BMCWEB_LOG_DEBUG << host << ":" << std::to_string(port)
                          << ", id: " << std::to_string(connId)
                          << " restartConnection ";
-        conn = makeConnection(ioc, sslConn.has_value());
+        initializeConnection(sslConn.has_value());
         doResolve();
     }
     void shutdownConn(bool retry)
@@ -611,11 +622,11 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
             return;
         }
     }
-    std::unique_ptr<boost::asio::ip::tcp::socket>
-        makeConnection(boost::asio::io_context& iocIn, bool useSsl)
+
+    void initializeConnection(bool ssl)
     {
-        auto newconn = std::make_unique<boost::asio::ip::tcp::socket>(iocIn);
-        if (useSsl)
+        conn = std::make_unique<boost::asio::ip::tcp::socket>(ioc);
+        if (ssl)
         {
             /* std::optional<boost::asio::ssl::context> sslCtx =
                 ensuressl::getSSLClientContext();
@@ -635,10 +646,9 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
             } */
             boost::asio::ssl::context sslCtx{
                 boost::asio::ssl::context::tlsv13_client};
-            sslConn.emplace(*newconn.get(), sslCtx);
+            sslConn.emplace(*conn.get(), sslCtx);
             setCipherSuiteTLSext();
         }
-        return newconn;
     }
 
   public:
@@ -649,9 +659,10 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         unsigned int connIdIn) :
         subId(idIn),
         connPolicy(connPolicyIn), host(destIPIn), port(destPortIn),
-        connId(connIdIn), ioc(iocIn), conn(makeConnection(iocIn, useSSL)),
-        timer(iocIn)
-    {}
+        connId(connIdIn), ioc(iocIn), timer(iocIn)
+    {
+        initializeConnection(useSSL);
+    }
 };
 
 class ConnectionPool : public std::enable_shared_from_this<ConnectionPool>
