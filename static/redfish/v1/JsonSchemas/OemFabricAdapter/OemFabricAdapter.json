@@ -63,5 +63,7 @@
             "type": "object"
         }
     },
-    "title": "#OemFabricAdapter"
+    "owningEntity": "IBM",
+    "release": "1.0",
+    "title": "#OemFabricAdapter.v1_0_0"
 }

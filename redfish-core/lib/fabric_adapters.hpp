@@ -307,9 +307,8 @@ inline void doAdapterGet(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
         aResp, systemName, fabricAdapterPath,
         [aResp](const std::string& chassisName,
                 const dbus::utility::MapperEndPoints& /*pcieSlotPaths*/) {
-        aResp->res.jsonValue["Oem"]["@odata.type"] = "#OemFabricAdapter.Oem";
         aResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
-            "#OemFabricAdapter.IBM";
+            "#OemFabricAdapter.v1_0_0.IBM";
         aResp->res.jsonValue["Oem"]["IBM"]["Slots"]["@odata.id"] =
             crow::utility::urlFromPieces("redfish", "v1", "Chassis",
                                          chassisName, "PCIeSlots");
