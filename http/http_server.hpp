@@ -21,6 +21,7 @@
 #include <vector>
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
 #include <persistent_data.hpp>
+#include <include/ibm/flight_recorder.hpp>
 #endif
 namespace crow
 {
@@ -161,6 +162,7 @@ class Server
                         << "INFO: Receivied USR1 signal to dump latest session "
                            "data for bmc dump";
                     persistent_data::getConfig().writeCurrentSessionData();
+                    bmcweb::flightrecorder::FlightRecorder::GetInstance().playRecorder();
                     this->startAsyncWaitForSignal();
                 }
 #endif

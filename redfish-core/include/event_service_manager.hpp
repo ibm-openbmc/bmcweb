@@ -36,7 +36,7 @@
 #include <sdbusplus/bus/match.hpp>
 #include <server_sent_events.hpp>
 #include <utils/json_utils.hpp>
-
+#include <include/ibm/flight_recorder.hpp>
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
@@ -1071,6 +1071,9 @@ class EventServiceManager
                     2, ' ', true, nlohmann::json::error_handler_t::replace);
                 entry->sendEvent(strMsg);
                 eventId++; // increament the eventId
+#ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
+                bmcweb::flightrecorder::FlightRecorder::GetInstance().saveRecord(msgJson);
+#endif
             }
             else
             {
