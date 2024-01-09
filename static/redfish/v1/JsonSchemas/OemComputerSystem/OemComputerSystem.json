@@ -279,7 +279,8 @@
                     "type": "string"
                 }
             },
-            "type": "object"
+            "type": "object",
+            "versionAdded": "v1_0_0"
         }
     },
     "title": "#OemComputerSystem"
