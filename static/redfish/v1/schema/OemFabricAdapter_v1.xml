@@ -40,7 +40,7 @@
         <Annotation Term="OData.Description" String="Oem properties for IBM." />
         <Annotation Term="OData.AutoExpand"/>
 
-        <Property Name="Slots" Type="OemFabricAdapter.IBM">
+        <Property Name="Slots" Type="Resource.Resource">
           <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
           <Annotation Term="OData.Description" String="PCIe Slots"/>
          <Annotation Term="OData.LongDescription" String="Represent PCIe Slots contained by the adapter"/>
