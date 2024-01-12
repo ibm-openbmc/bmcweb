@@ -434,8 +434,12 @@ inline void getPCIeSlotProperties(
     linkAssociatedDiskBackplane(asyncResp, pcieSlotPath, index);
 
     // Get pcie slot location indicator state
-    nlohmann::json& slotLIA = slots.back();
-    getLocationIndicatorActive(asyncResp, pcieSlotPath, slotLIA);
+    getLocationIndicatorActive(asyncResp, pcieSlotPath,
+                               [asyncResp, index](bool asserted) {
+        nlohmann::json& slotArray = asyncResp->res.jsonValue["Slots"];
+        nlohmann::json& slotItem = slotArray.at(index);
+        slotItem["LocationIndicatorActive"] = asserted;
+    });
 }
 
 // Get all valid  PCIe Slots which are on the given chassis
