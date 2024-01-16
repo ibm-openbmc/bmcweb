@@ -313,9 +313,13 @@ inline void
                 }
             }
 
-            nlohmann::json& assemblyArray = aResp->res.jsonValue["Assemblies"];
-            nlohmann::json& assemblyData = assemblyArray.at(assemblyIndex);
-            getLocationIndicatorActive(aResp, assembly, assemblyData);
+            getLocationIndicatorActive(aResp, assembly,
+                                       [aResp, assemblyIndex](bool asserted) {
+                nlohmann::json& assemblyArray =
+                    aResp->res.jsonValue["Assemblies"];
+                nlohmann::json& assemblyData = assemblyArray.at(assemblyIndex);
+                assemblyData["LocationIndicatorActive"] = asserted;
+            });
         },
             "xyz.openbmc_project.ObjectMapper",
             "/xyz/openbmc_project/object_mapper",
