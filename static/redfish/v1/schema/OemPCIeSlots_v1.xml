@@ -46,9 +46,10 @@
           <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
           <Annotation Term="OData.Description" String="Represent association slot with assembly."/>
         </Property>
-        <Property Name="UpstreamFabricAdapter" Type="FabricAdapter.FabricAdapter">
+        <Property Name="UpstreamFabricAdapters" Type="Collection(FabricAdapter.FabricAdapter)">
           <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
-          <Annotation Term="OData.Description" String="Upstream Link to FabricAdapter."/>
+          <Annotation Term="OData.Description" String="The upstream fabric adapters."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain an array of links to the upstream fabric adapters."/>
         </Property>
       </ComplexType>
 

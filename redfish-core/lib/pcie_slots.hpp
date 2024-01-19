@@ -314,24 +314,22 @@ inline void
             BMCWEB_LOG_DEBUG << "FabricAdapter Slot association not found";
             return;
         }
-        if (fabricAdapterPaths.size() > 1)
-        {
-            BMCWEB_LOG_ERROR << "DBUS response has more than FabricAdapters of "
-                             << fabricAdapterPaths.size();
-            messages::internalError(asyncResp->res);
-            return;
-        }
 
         // Add a link to FabricAdapter
-        const std::string& fabricAdapterPath = fabricAdapterPaths.front();
         nlohmann::json& slot = asyncResp->res.jsonValue["Slots"][index];
+        nlohmann::json& linkOemIbm = slot["Links"]["Oem"]["IBM"];
+        linkOemIbm["@odata.type"] = "#OemPCIeSlots.v1_0_0.PCIeLinks";
 
-        slot["Links"]["Oem"]["IBM"]["@odata.type"] =
-            "#OemPCIeSlots.v1_0_0.PCIeLinks";
-        slot["Links"]["Oem"]["IBM"]["UpstreamFabricAdapter"]["@odata.id"] =
-            crow::utility::urlFromPieces(
-                "redfish", "v1", "Systems", "system", "FabricAdapters",
+        nlohmann::json& fabricArray = linkOemIbm["UpstreamFabricAdapters"];
+        for (const auto& fabricAdapterPath : fabricAdapterPaths)
+        {
+            nlohmann::json::object_t item;
+            item["@odata.id"] = boost::urls::format(
+                "/redfish/v1/Systems/system/FabricAdapters/{}",
                 fabric_util::buildFabricUniquePath(fabricAdapterPath));
+            fabricArray.emplace_back(std::move(item));
+        }
+        linkOemIbm["UpstreamFabricAdapters@odata.count"] = fabricArray.size();
     });
 }
 
