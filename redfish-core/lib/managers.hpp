@@ -2065,7 +2065,7 @@ inline void requestRoutesManager(App& app)
         asyncResp->res.jsonValue["ManagerType"] = "BMC";
         asyncResp->res.jsonValue["UUID"] = systemd_utils::getUuid();
         asyncResp->res.jsonValue["ServiceEntryPointUUID"] = uuid;
-        asyncResp->res.jsonValue["Model"] = "OpenBmc"; // TODO(ed), get model
+        asyncResp->res.jsonValue["Model"] = "BMC on System Backplane";
 
         asyncResp->res.jsonValue["LogServices"]["@odata.id"] =
             "/redfish/v1/Managers/bmc/LogServices";
