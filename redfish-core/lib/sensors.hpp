@@ -2611,7 +2611,7 @@ inline void setSensorsOverride(
     BMCWEB_LOG_INFO << "setSensorsOverride for subNode"
                     << sensorAsyncResp->chassisSubNode << "\n";
 
-    const char* propertyValueName = nullptr;
+    std::string_view propertyValueName;
     std::unordered_map<std::string, std::pair<double, std::string>> overrideMap;
     std::string memberId;
     double value = 0.0;
@@ -2643,7 +2643,8 @@ inline void setSensorsOverride(
     }
 
     auto getChassisSensorListCb =
-        [sensorAsyncResp, overrideMap](
+        [sensorAsyncResp, overrideMap,
+         propertyValueNameStr = std::string(propertyValueName)](
             const std::shared_ptr<std::set<std::string>>& sensorsList) {
         // Match sensor names in the PATCH request to those managed by the
         // chassis node
@@ -2665,10 +2666,10 @@ inline void setSensorsOverride(
         }
         // Get the connection to which the memberId belongs
         auto getObjectsWithConnectionCb =
-            [sensorAsyncResp,
-             overrideMap](const std::set<std::string>& /*connections*/,
-                          const std::set<std::pair<std::string, std::string>>&
-                              objectsWithConnection) {
+            [sensorAsyncResp, overrideMap, propertyValueNameStr](
+                const std::set<std::string>& /*connections*/,
+                const std::set<std::pair<std::string, std::string>>&
+                    objectsWithConnection) {
             if (objectsWithConnection.size() != overrideMap.size())
             {
                 BMCWEB_LOG_INFO
@@ -2701,30 +2702,10 @@ inline void setSensorsOverride(
                     messages::internalError(sensorAsyncResp->asyncResp->res);
                     return;
                 }
-                crow::connections::systemBus->async_method_call(
-                    [sensorAsyncResp](const boost::system::error_code ec) {
-                    if (ec)
-                    {
-                        if (ec.value() ==
-                            boost::system::errc::permission_denied)
-                        {
-                            BMCWEB_LOG_WARNING
-                                << "Manufacturing mode is not Enabled...can't "
-                                   "Override the sensor value. ";
-
-                            messages::insufficientPrivilege(
-                                sensorAsyncResp->asyncResp->res);
-                            return;
-                        }
-                        BMCWEB_LOG_DEBUG
-                            << "setOverrideValueStatus DBUS error: " << ec;
-                        messages::internalError(
-                            sensorAsyncResp->asyncResp->res);
-                    }
-                },
-                    item.second, item.first, "org.freedesktop.DBus.Properties",
-                    "Set", "xyz.openbmc_project.Sensor.Value", "Value",
-                    dbus::utility::DbusVariantType(iterator->second.first));
+                setDbusProperty(sensorAsyncResp->asyncResp, item.second,
+                                item.first, "xyz.openbmc_project.Sensor.Value",
+                                "Value", propertyValueNameStr,
+                                iterator->second.first);
             }
         };
         // Get object with connection for the given sensor name
