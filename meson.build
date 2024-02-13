@@ -363,6 +363,7 @@ endif
 srcfiles_bmcweb = [
   'src/webserver_main.cpp',
   'redfish-core/src/error_messages.cpp',
+  'redfish-core/src/utils/dbus_utils.cpp',
   'redfish-core/src/utils/json_utils.cpp',
   'src/boost_url.cpp'
 ]
@@ -375,6 +376,7 @@ srcfiles_unittest = [
   'redfish-core/ut/privileges_test.cpp',
   'redfish-core/ut/lock_test.cpp',
   'redfish-core/ut/configfile_test.cpp',
+  'redfish-core/ut/dbus_utils.cpp',
   'redfish-core/ut/time_utils_test.cpp',
   'redfish-core/ut/stl_utils_test.cpp',
   'http/ut/utility_test.cpp'

@@ -21,6 +21,7 @@
 #include <dbus_singleton.hpp>
 #include <error_messages.hpp>
 #include <registries/privilege_registry.hpp>
+#include <utils/dbus_utils.hpp>
 #include <utils/json_utils.hpp>
 
 #include <optional>
@@ -688,20 +689,12 @@ inline void updateIPv4DefaultGateway(
     const std::string& ifaceId, const std::string& gateway,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
-            if (ec)
-            {
-                messages::internalError(asyncResp->res);
-                return;
-            }
-            asyncResp->res.result(boost::beast::http::status::no_content);
-        },
-        "xyz.openbmc_project.Network",
-        "/xyz/openbmc_project/network/" + ifaceId,
-        "org.freedesktop.DBus.Properties", "Set",
+    setDbusProperty(
+        asyncResp, "xyz.openbmc_project.Network",
+        sdbusplus::message::object_path("/xyz/openbmc_project/network") /
+            ifaceId,
         "xyz.openbmc_project.Network.EthernetInterface", "DefaultGateway",
-        std::variant<std::string>(gateway));
+        "Gateway", gateway);
 }
 /**
  * @brief Creates a static IPv4 entry
@@ -998,17 +991,11 @@ inline void
                                            "HostName");
         return;
     }
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
-            if (ec)
-            {
-                messages::internalError(asyncResp->res);
-            }
-        },
-        "xyz.openbmc_project.Network", "/xyz/openbmc_project/network/config",
-        "org.freedesktop.DBus.Properties", "Set",
+    setDbusProperty(
+        asyncResp, "xyz.openbmc_project.Network",
+        sdbusplus::message::object_path("/xyz/openbmc_project/network/config"),
         "xyz.openbmc_project.Network.SystemConfiguration", "HostName",
-        std::variant<std::string>(hostname));
+        "HostName", hostname);
 }
 
 inline void
@@ -1017,18 +1004,12 @@ inline void
                           const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     std::vector<std::string> vectorDomainname = {domainname};
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
-            if (ec)
-            {
-                messages::internalError(asyncResp->res);
-            }
-        },
-        "xyz.openbmc_project.Network",
-        "/xyz/openbmc_project/network/" + ifaceId,
-        "org.freedesktop.DBus.Properties", "Set",
-        "xyz.openbmc_project.Network.EthernetInterface", "DomainName",
-        std::variant<std::vector<std::string>>(vectorDomainname));
+    setDbusProperty(
+        asyncResp, "xyz.openbmc_project.Network",
+        sdbusplus::message::object_path("/xyz/openbmc_project/network") /
+            ifaceId,
+        "xyz.openbmc_project.Network.EthernetInterface", "DomainName", "FQDN",
+        vectorDomainname);
 }
 
 inline bool isHostnameValid(const std::string& hostname)
@@ -1095,19 +1076,12 @@ inline void
                           const std::string& macAddress,
                           const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    crow::connections::systemBus->async_method_call(
-        [asyncResp, macAddress](const boost::system::error_code ec) {
-            if (ec)
-            {
-                messages::internalError(asyncResp->res);
-                return;
-            }
-        },
-        "xyz.openbmc_project.Network",
-        "/xyz/openbmc_project/network/" + ifaceId,
-        "org.freedesktop.DBus.Properties", "Set",
-        "xyz.openbmc_project.Network.MACAddress", "MACAddress",
-        std::variant<std::string>(macAddress));
+    setDbusProperty(
+        asyncResp, "xyz.openbmc_project.Network",
+        sdbusplus::message::object_path("/xyz/openbmc_project/network") /
+            ifaceId,
+        "xyz.openbmc_project.Network.MACAddress", "MACAddress", "MACAddress",
+        macAddress);
 }
 
 inline void setDHCPEnabled(const std::string& ifaceId,
@@ -1116,41 +1090,24 @@ inline void setDHCPEnabled(const std::string& ifaceId,
                            const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     const std::string dhcp = getDhcpEnabledEnumeration(v4Value, v6Value);
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
-            if (ec)
-            {
-                BMCWEB_LOG_ERROR << "D-Bus responses error: " << ec;
-                messages::internalError(asyncResp->res);
-                return;
-            }
-            messages::success(asyncResp->res);
-        },
-        "xyz.openbmc_project.Network",
-        "/xyz/openbmc_project/network/" + ifaceId,
-        "org.freedesktop.DBus.Properties", "Set",
-        "xyz.openbmc_project.Network.EthernetInterface", propertyName,
-        std::variant<std::string>{dhcp});
+    setDbusProperty(
+        asyncResp, "xyz.openbmc_project.Network",
+        sdbusplus::message::object_path("/xyz/openbmc_project/network") /
+            ifaceId,
+        "xyz.openbmc_project.Network.EthernetInterface", propertyName, "DHCPv4",
+        dhcp);
 }
 
 inline void setEthernetInterfaceBoolProperty(
     const std::string& ifaceId, const std::string& propertyName,
     const bool& value, const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
-            if (ec)
-            {
-                BMCWEB_LOG_ERROR << "D-Bus responses error: " << ec;
-                messages::internalError(asyncResp->res);
-                return;
-            }
-        },
-        "xyz.openbmc_project.Network",
-        "/xyz/openbmc_project/network/" + ifaceId,
-        "org.freedesktop.DBus.Properties", "Set",
+    setDbusProperty(
+        asyncResp, "xyz.openbmc_project.Network",
+        sdbusplus::message::object_path("/xyz/openbmc_project/network") /
+            ifaceId,
         "xyz.openbmc_project.Network.EthernetInterface", propertyName,
-        std::variant<bool>{value});
+        "InterfaceEnabled", value);
 }
 
 inline void setDHCPv4Config(const std::string& propertyName, const bool& value,

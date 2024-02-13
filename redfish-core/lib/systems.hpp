@@ -28,6 +28,7 @@
 #include <boost/container/flat_map.hpp>
 #include <registries/privilege_registry.hpp>
 #include <utils/fw_utils.hpp>
+#include <utils/dbus_utils.hpp>
 #include <utils/json_utils.hpp>
 
 #include <variant>
@@ -2610,65 +2611,19 @@ inline void requestRoutesSystemActionsReset(App& app)
                     return;
                 }
 
+		sdbusplus::message::object_path statePath("/xyz/openbmc_project/state");
                 if (hostCommand)
                 {
-                    crow::connections::systemBus->async_method_call(
-                        [asyncResp,
-                         resetType](const boost::system::error_code ec) {
-                            if (ec)
-                            {
-                                BMCWEB_LOG_ERROR << "D-Bus responses error: "
-                                                 << ec;
-                                if (ec.value() ==
-                                    boost::asio::error::invalid_argument)
-                                {
-                                    messages::actionParameterNotSupported(
-                                        asyncResp->res, resetType, "Reset");
-                                }
-                                else
-                                {
-                                    messages::internalError(asyncResp->res);
-                                }
-                                return;
-                            }
-                            messages::success(asyncResp->res);
-                        },
-                        "xyz.openbmc_project.State.Host",
-                        "/xyz/openbmc_project/state/host0",
-                        "org.freedesktop.DBus.Properties", "Set",
-                        "xyz.openbmc_project.State.Host",
-                        "RequestedHostTransition",
-                        std::variant<std::string>{command});
+                    setDbusProperty(asyncResp, "xyz.openbmc_project.State.Host",
+                        statePath / "host0", "xyz.openbmc_project.State.Host",
+                        "RequestedHostTransition", "Reset", command);
                 }
                 else
                 {
-                    crow::connections::systemBus->async_method_call(
-                        [asyncResp,
-                         resetType](const boost::system::error_code ec) {
-                            if (ec)
-                            {
-                                BMCWEB_LOG_ERROR << "D-Bus responses error: "
-                                                 << ec;
-                                if (ec.value() ==
-                                    boost::asio::error::invalid_argument)
-                                {
-                                    messages::actionParameterNotSupported(
-                                        asyncResp->res, resetType, "Reset");
-                                }
-                                else
-                                {
-                                    messages::internalError(asyncResp->res);
-                                }
-                                return;
-                            }
-                            messages::success(asyncResp->res);
-                        },
+                    setDbusProperty(asyncResp, "xyz.openbmc_project.State.Chassis",
+                        statePath / "chassis0",
                         "xyz.openbmc_project.State.Chassis",
-                        "/xyz/openbmc_project/state/chassis0",
-                        "org.freedesktop.DBus.Properties", "Set",
-                        "xyz.openbmc_project.State.Chassis",
-                        "RequestedPowerTransition",
-                        std::variant<std::string>{command});
+                        "RequestedPowerTransition", "Reset", command);
                 }
             });
 }

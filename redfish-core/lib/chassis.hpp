@@ -22,6 +22,7 @@
 #include <boost/container/flat_map.hpp>
 #include <registries/privilege_registry.hpp>
 #include <utils/collection.hpp>
+#include <utils/dbus_utils.hpp>
 #include <utils/name_utils.hpp>
 
 #include <variant>
@@ -785,22 +786,8 @@ inline void
                 objectPath = "/xyz/openbmc_project/state/chassis0";
             }
 
-            crow::connections::systemBus->async_method_call(
-                [asyncResp](const boost::system::error_code ec) {
-                    // Use "Set" method to set the property value.
-                    if (ec)
-                    {
-                        BMCWEB_LOG_DEBUG << "[Set] Bad D-Bus request error: "
-                                         << ec;
-                        messages::internalError(asyncResp->res);
-                        return;
-                    }
-
-                    messages::success(asyncResp->res);
-                },
-                processName, objectPath, "org.freedesktop.DBus.Properties",
-                "Set", interfaceName, destProperty,
-                std::variant<std::string>{propertyValue});
+            setDbusProperty(asyncResp, processName, objectPath, interfaceName,
+                            destProperty, "ResetType", propertyValue);
         },
         busName, path, interface, method, "/", 0, interfaces);
 }
