@@ -2295,46 +2295,6 @@ inline void doNMI(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 }
 
 /**
- * Handle error responses from d-bus for system power requests
- */
-inline void handleSystemActionResetError(const boost::system::error_code& ec,
-                                         const sdbusplus::message_t& eMsg,
-                                         std::string_view resetType,
-                                         crow::Response& res)
-{
-    if (ec.value() == boost::asio::error::invalid_argument)
-    {
-        messages::actionParameterNotSupported(res, resetType, "Reset");
-        return;
-    }
-
-    if (eMsg.get_error() == nullptr)
-    {
-        BMCWEB_LOG_ERROR << "D-Bus response error: " << ec;
-        messages::internalError(res);
-        return;
-    }
-    std::string_view errorMessage = eMsg.get_error()->name;
-
-    // If operation failed due to BMC not being in Ready state, tell
-    // user to retry in a bit
-    if ((errorMessage ==
-         std::string_view(
-             "xyz.openbmc_project.State.Chassis.Error.BMCNotReady")) ||
-        (errorMessage ==
-         std::string_view("xyz.openbmc_project.State.Host.Error.BMCNotReady")))
-    {
-        BMCWEB_LOG_DEBUG << "BMC not ready, operation not allowed right now";
-        messages::serviceTemporarilyUnavailable(res, "10");
-        return;
-    }
-
-    BMCWEB_LOG_ERROR << "System Action Reset transition fail " << ec
-                     << " sdbusplus:" << errorMessage;
-    messages::internalError(res);
-}
-
-/**
  * SystemActionsReset class supports handle POST method for Reset action.
  * The class retrieves and sends data directly to D-Bus.
  */
@@ -2361,87 +2321,65 @@ inline void requestRoutesSystemActionsReset(App& app)
             return;
         }
 
-        // Get the command and host vs. chassis
-        std::string command;
-        bool hostCommand = true;
-        if ((resetType == "On") || (resetType == "ForceOn"))
-        {
-            command = "xyz.openbmc_project.State.Host.Transition.On";
-            hostCommand = true;
-        }
-        else if (resetType == "ForceOff")
-        {
-            command = "xyz.openbmc_project.State.Chassis.Transition.Off";
-            hostCommand = false;
-        }
-        else if (resetType == "GracefulShutdown")
-        {
-            command = "xyz.openbmc_project.State.Host.Transition.Off";
-            hostCommand = true;
-        }
-        else if (resetType == "GracefulRestart")
-        {
-            command =
-                "xyz.openbmc_project.State.Host.Transition.GracefulWarmReboot";
-            hostCommand = true;
-        }
-        else if (resetType == "PowerCycle")
-        {
-            command = "xyz.openbmc_project.State.Host.Transition.Reboot";
-            hostCommand = true;
-        }
-        else if (resetType == "Nmi")
-        {
-            doNMI(asyncResp);
-            return;
-        }
-        else
-        {
-            messages::actionParameterUnknown(asyncResp->res, "Reset",
-                                             resetType);
-            return;
-        }
+    // Get the command and host vs. chassis
+    std::string command;
+    bool hostCommand = true;
+    if ((resetType == "On") || (resetType == "ForceOn"))
+    {
+        command = "xyz.openbmc_project.State.Host.Transition.On";
+        hostCommand = true;
+    }
+    else if (resetType == "ForceOff")
+    {
+        command = "xyz.openbmc_project.State.Chassis.Transition.Off";
+        hostCommand = false;
+    }
+    else if (resetType == "ForceRestart")
+    {
+        command = "xyz.openbmc_project.State.Host.Transition.ForceWarmReboot";
+        hostCommand = true;
+    }
+    else if (resetType == "GracefulShutdown")
+    {
+        command = "xyz.openbmc_project.State.Host.Transition.Off";
+        hostCommand = true;
+    }
+    else if (resetType == "GracefulRestart")
+    {
+        command =
+            "xyz.openbmc_project.State.Host.Transition.GracefulWarmReboot";
+        hostCommand = true;
+    }
+    else if (resetType == "PowerCycle")
+    {
+        command = "xyz.openbmc_project.State.Host.Transition.Reboot";
+        hostCommand = true;
+    }
+    else if (resetType == "Nmi")
+    {
+        doNMI(asyncResp);
+        return;
+    }
+    else
+    {
+        messages::actionParameterUnknown(asyncResp->res, "Reset", resetType);
+        return;
+    }
+    sdbusplus::message::object_path statePath("/xyz/openbmc_project/state");
 
-        if (hostCommand)
-        {
-            crow::connections::systemBus->async_method_call(
-                [asyncResp, resetType](const boost::system::error_code& ec,
-                                       sdbusplus::message_t& sdbusErrMsg) {
-                if (ec)
-                {
-                    handleSystemActionResetError(ec, sdbusErrMsg, resetType,
-                                                 asyncResp->res);
-
-                    return;
-                }
-                messages::success(asyncResp->res);
-                },
-                "xyz.openbmc_project.State.Host",
-                "/xyz/openbmc_project/state/host0",
-                "org.freedesktop.DBus.Properties", "Set",
-                "xyz.openbmc_project.State.Host", "RequestedHostTransition",
-                dbus::utility::DbusVariantType{command});
-        }
-        else
-        {
-            crow::connections::systemBus->async_method_call(
-                [asyncResp, resetType](const boost::system::error_code& ec,
-                                       sdbusplus::message_t& sdbusErrMsg) {
-                if (ec)
-                {
-                    handleSystemActionResetError(ec, sdbusErrMsg, resetType,
-                                                 asyncResp->res);
-                    return;
-                }
-                messages::success(asyncResp->res);
-                },
-                "xyz.openbmc_project.State.Chassis",
-                "/xyz/openbmc_project/state/chassis0",
-                "org.freedesktop.DBus.Properties", "Set",
-                "xyz.openbmc_project.State.Chassis", "RequestedPowerTransition",
-                dbus::utility::DbusVariantType{command});
-        }
-        });
+    if (hostCommand)
+    {
+        setDbusProperty(asyncResp, "xyz.openbmc_project.State.Host",
+                        statePath / "host0", "xyz.openbmc_project.State.Host",
+                        "RequestedHostTransition", "Reset", command);
+    }
+    else
+    {
+        setDbusProperty(asyncResp, "xyz.openbmc_project.State.Chassis",
+                        statePath / "chassis0",
+                        "xyz.openbmc_project.State.Chassis",
+                        "RequestedPowerTransition", "Reset", command);
+    }
 }
 
 inline void handleComputerSystemCollectionHead(
