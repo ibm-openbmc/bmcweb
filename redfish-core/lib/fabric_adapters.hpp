@@ -7,6 +7,7 @@
 #include "utils/collection.hpp"
 #include "utils/dbus_utils.hpp"
 #include "utils/json_utils.hpp"
+#include "utils/name_utils.hpp"
 
 #include <boost/system/error_code.hpp>
 #include <boost/url/format.hpp>
@@ -236,6 +237,9 @@ inline void getValidFabricAdapterPath(
         {
             if (checkFabricAdapterId(adapterPath, adapterId))
             {
+                nlohmann::json::json_pointer namePtr("/Name");
+                name_util::getPrettyName(asyncResp, adapterPath,
+                                         serviceMap[0].first,namePtr);    
                 callback(adapterPath, serviceMap.begin()->first);
                 return;
             }
