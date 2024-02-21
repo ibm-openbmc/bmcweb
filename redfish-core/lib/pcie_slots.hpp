@@ -11,11 +11,13 @@
 #include "generated/enums/pcie_slots.hpp"
 #include "http_request.hpp"
 #include "human_sort.hpp"
+#include "led.hpp"
 #include "logging.hpp"
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 #include "utils/chassis_utils.hpp"
 #include "utils/dbus_utils.hpp"
+#include "utils/json_utils.hpp"
 #include "utils/pcie_util.hpp"
 
 #include <asm-generic/errno.h>
@@ -31,7 +33,9 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -257,6 +261,14 @@ inline void onPcieSlotGetAllDone(
     // Get FabricAdapter device link if exists
     addLinkedFabricAdapter(asyncResp, pcieSlotPath, index);
 
+    // Get pcie slot location indicator state
+    getLocationIndicatorActive(
+        asyncResp, pcieSlotPath, [asyncResp, index](bool asserted) {
+            nlohmann::json& slotArray = asyncResp->res.jsonValue["Slots"];
+            nlohmann::json& slotItem = slotArray.at(index);
+            slotItem["LocationIndicatorActive"] = asserted;
+        });
+
     // Get pcie device link
     addLinkedPcieDevices(asyncResp, pcieSlotPath, index);
 }
@@ -303,9 +315,9 @@ inline void afterGetValidPCIeSlotList(
 inline void getValidPCIeSlotList(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& chassisID, const std::string& chassisPath,
-    std::function<void(
+    const std::function<void(
         const boost::system::error_code&,
-        const std::vector<std::pair<std::string, std::string>>&)>&& callback)
+        const std::vector<std::pair<std::string, std::string>>&)>& callback)
 {
     BMCWEB_LOG_DEBUG("Get properties for PCIeSlots associated to chassis = {}",
                      chassisID);
@@ -394,12 +406,118 @@ inline void handlePCIeSlotCollectionGet(
                         chassisID));
 }
 
+inline void afterHandlePCIeSlotsPatch(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, size_t total,
+    const std::map<unsigned int, bool>& locationIndicatorActiveMap,
+    const boost::system::error_code& ec,
+    const std::vector<std::pair<std::string, std::string>>& slotPathConnNames)
+{
+    if (ec)
+    {
+        if (ec.value() == EBADR)
+        {
+            // This chassis have no PCIeSlot association.
+            return;
+        }
+        BMCWEB_LOG_ERROR("D-Bus response error on GetSubTree {}", ec.value());
+        messages::internalError(asyncResp->res);
+        return;
+    }
+    if (slotPathConnNames.size() != total)
+    {
+        BMCWEB_LOG_WARNING(
+            "The actual number of PCIeSlots is different from the number of the input slots");
+        uint64_t totalCount = static_cast<uint64_t>(total);
+        messages::invalidIndex(asyncResp->res, totalCount);
+    }
+
+    unsigned int idx = 0;
+    for (const auto& [pcieSlotPath, connectionName] : slotPathConnNames)
+    {
+        idx++;
+        if (!locationIndicatorActiveMap.contains(idx))
+        {
+            continue;
+        }
+
+        auto indicatorOnOff = locationIndicatorActiveMap.at(idx);
+        setLocationIndicatorActive(asyncResp, pcieSlotPath, indicatorOnOff);
+    }
+}
+
+inline void afterGetValidChassisPathForPatch(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& chassisId, size_t total,
+    const std::map<unsigned int, bool>& locationIndicatorActiveMap,
+    const std::optional<std::string>& validChassisPath)
+{
+    if (!validChassisPath)
+    {
+        BMCWEB_LOG_WARNING("Not a valid chassis ID:{}", chassisId);
+        messages::resourceNotFound(asyncResp->res, "Chassis", chassisId);
+        return;
+    }
+    getValidPCIeSlotList(asyncResp, chassisId, *validChassisPath,
+                         std::bind_front(afterHandlePCIeSlotsPatch, asyncResp,
+                                         total, locationIndicatorActiveMap));
+}
+
+inline void handlePCIeSlotsPatch(
+    App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& chassisId)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+
+    std::optional<std::vector<nlohmann::json::object_t>> slots;
+    if (!json_util::readJsonPatch(req, asyncResp->res, "Slots", slots))
+    {
+        return;
+    }
+    if (!slots || slots->empty())
+    {
+        return;
+    }
+    std::map<unsigned int, bool> locationIndicatorActiveMap;
+    unsigned int slotIndex = 0;
+    for (nlohmann::json::object_t& slot : *slots)
+    {
+        slotIndex++;
+        if (slot.empty())
+        {
+            continue;
+        }
+
+        bool locationIndicatorActive = false;
+        if (json_util::readJsonObject(slot, asyncResp->res,
+                                      "LocationIndicatorActive",
+                                      locationIndicatorActive))
+        {
+            locationIndicatorActiveMap[slotIndex] = locationIndicatorActive;
+        }
+    }
+
+    size_t total = slots->size();
+    chassis_utils::getValidChassisPath(
+        asyncResp, chassisId,
+        std::bind_front(afterGetValidChassisPathForPatch, asyncResp, chassisId,
+                        total, locationIndicatorActiveMap));
+}
+
 inline void requestRoutesPCIeSlots(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/PCIeSlots/")
         .privileges(redfish::privileges::getPCIeSlots)
         .methods(boost::beast::http::verb::get)(
             std::bind_front(handlePCIeSlotCollectionGet, std::ref(app)));
+
+    BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/PCIeSlots/")
+        .privileges(redfish::privileges::patchPCIeSlots)
+        .methods(boost::beast::http::verb::patch)(
+            std::bind_front(handlePCIeSlotsPatch, std::ref(app)));
 }
 
 } // namespace redfish
