@@ -116,6 +116,7 @@ RedfishService::RedfishService(App& app)
     requestRoutesChassisResetActionInfo(app);
     requestRoutesChassisNetworkAdapter(app);
     requestRoutesUpdateService(app);
+    requestRoutesUpdateServiceActionsOemConcurrentUpdate(app);
     requestRoutesStorage(app);
     requestRoutesStorageController(app);
     requestRoutesChassisDrive(app);

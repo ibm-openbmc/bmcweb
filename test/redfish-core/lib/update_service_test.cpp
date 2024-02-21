@@ -161,7 +161,8 @@ TEST(UpdateService, MissingContentTypeReturnsHeaderMissing)
     request.method(boost::beast::http::verb::post);
 
     crow::App app;
-    handleUpdateServicePost(app, request, asyncResp);
+    handleUpdateServicePost(app, request, asyncResp,
+                            "/redfish/v1/UpdateService");
 
     EXPECT_EQ(asyncResp->res.result(), boost::beast::http::status::bad_request);
     EXPECT_EQ(asyncResp->res.jsonValue,
@@ -193,7 +194,8 @@ TEST(UpdateService, EmptyContentTypeReturnsHeaderMissing)
     request.addHeader(boost::beast::http::field::content_type, "");
 
     crow::App app;
-    handleUpdateServicePost(app, request, asyncResp);
+    handleUpdateServicePost(app, request, asyncResp,
+                            "/redfish/v1/UpdateService");
 
     EXPECT_EQ(asyncResp->res.result(), boost::beast::http::status::bad_request);
     EXPECT_EQ(asyncResp->res.jsonValue,
@@ -226,7 +228,8 @@ TEST(UpdateService, InvalidContentTypeReturnsCompleteHeader)
                       "application/json");
 
     crow::App app;
-    handleUpdateServicePost(app, request, asyncResp);
+    handleUpdateServicePost(app, request, asyncResp,
+                            "/redfish/v1/UpdateService");
 
     EXPECT_EQ(asyncResp->res.result(), boost::beast::http::status::bad_request);
     EXPECT_EQ(asyncResp->res.jsonValue,
