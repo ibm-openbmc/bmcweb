@@ -4,6 +4,7 @@
 #include "bmcweb_config.h"
 
 #include "async_resp.hpp"
+#include "audit_events.hpp"
 #include "authentication.hpp"
 #include "complete_response_fields.hpp"
 #include "forward_unauthorized.hpp"
@@ -488,6 +489,31 @@ class Connection :
     {
         res = std::move(thisRes);
         res.keepAlive(keepAlive);
+
+        if constexpr (BMCWEB_AUDIT_EVENTS)
+        {
+            if (audit::wantAudit(*req))
+            {
+                if (userSession != nullptr)
+                {
+                    bool requestSuccess = false;
+                    // Look for good return codes and if so we know the
+                    // operation passed
+                    if ((res.resultInt() >= 200) && (res.resultInt() < 300))
+                    {
+                        requestSuccess = true;
+                    }
+
+                    audit::auditEvent(*req, userSession->username,
+                                      requestSuccess);
+                }
+                else
+                {
+                    BMCWEB_LOG_DEBUG(
+                        "UserSession is null, not able to log audit event!");
+                }
+            }
+        }
 
         completeResponseFields(accept, res);
         res.addHeader(boost::beast::http::field::date, getCachedDateStr());

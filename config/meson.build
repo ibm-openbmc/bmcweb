@@ -3,6 +3,7 @@
 conf_data = configuration_data()
 
 feature_options = [
+    'audit-events',
     'basic-auth',
     'cookie-auth',
     'experimental-http2',
