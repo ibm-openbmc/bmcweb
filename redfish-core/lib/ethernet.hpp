@@ -102,6 +102,8 @@ struct EthernetInterfaceData
     bool autoNeg;
     bool dnsv4Enabled;
     bool dnsv6Enabled;
+    bool domainv4Enabled;
+    bool domainv6Enabled;
     bool ntpv4Enabled;
     bool ntpv6Enabled;
     bool hostNamev4Enabled;
@@ -398,6 +400,15 @@ inline bool extractEthernetInterfaceData(
                                 ethData.dnsv4Enabled = *dnsEnabled;
                             }
                         }
+                        else if (propertyPair.first == "DomainEnabled")
+                        {
+                            const bool* domainEnabled =
+                                std::get_if<bool>(&propertyPair.second);
+                            if (domainEnabled != nullptr)
+                            {
+                                ethData.domainv4Enabled = *domainEnabled;
+                            }
+                        }
                         else if (propertyPair.first == "NTPEnabled")
                         {
                             const bool* ntpEnabled =
@@ -437,6 +448,15 @@ inline bool extractEthernetInterfaceData(
                             if (dnsEnabled != nullptr)
                             {
                                 ethData.dnsv6Enabled = *dnsEnabled;
+                            }
+                        }
+                        if (propertyPair.first == "DomainEnabled")
+                        {
+                            const bool* domainEnabled =
+                                std::get_if<bool>(&propertyPair.second);
+                            if (domainEnabled != nullptr)
+                            {
+                                ethData.domainv6Enabled = *domainEnabled;
                             }
                         }
                         else if (propertyPair.first == "NTPEnabled")
@@ -1628,8 +1648,8 @@ inline void handleDHCPPatch(const std::string& ifaceId,
         nextNTPv6 = *v6dhcpParms.useNtpServers;
     }
 
-    bool nextUsev4Domain = ethData.hostNamev4Enabled;
-    bool nextUsev6Domain = ethData.hostNamev6Enabled;
+    bool nextUsev4Domain = ethData.domainv4Enabled;
+    bool nextUsev6Domain = ethData.domainv6Enabled;
     if (v4dhcpParms.useDomainName)
     {
         nextUsev4Domain = *v4dhcpParms.useDomainName;
@@ -1648,8 +1668,8 @@ inline void handleDHCPPatch(const std::string& ifaceId,
     BMCWEB_LOG_DEBUG << "set NTPEnabled...";
     setDHCPConfig("NTPEnabled", nextNTPv4, asyncResp, ifaceId,
                   NetworkType::dhcp4);
-    BMCWEB_LOG_DEBUG << "set HostNameEnabled...";
-    setDHCPConfig("HostNameEnabled", nextUsev4Domain, asyncResp, ifaceId,
+    BMCWEB_LOG_DEBUG << "set DomainEnabled...";
+    setDHCPConfig("DomainEnabled", nextUsev4Domain, asyncResp, ifaceId,
                   NetworkType::dhcp4);
     BMCWEB_LOG_DEBUG << "set DNSEnabled for dhcp6...";
     setDHCPConfig("DNSEnabled", nextDNSv6, asyncResp, ifaceId,
@@ -1657,8 +1677,8 @@ inline void handleDHCPPatch(const std::string& ifaceId,
     BMCWEB_LOG_DEBUG << "set NTPEnabled for dhcp6...";
     setDHCPConfig("NTPEnabled", nextNTPv6, asyncResp, ifaceId,
                   NetworkType::dhcp6);
-    BMCWEB_LOG_DEBUG << "set HostNameEnabled for dhcp6...";
-    setDHCPConfig("HostNameEnabled", nextUsev6Domain, asyncResp, ifaceId,
+    BMCWEB_LOG_DEBUG << "set DomainEnabled for dhcp6...";
+    setDHCPConfig("DomainEnabled", nextUsev6Domain, asyncResp, ifaceId,
                   NetworkType::dhcp6);
 }
 
