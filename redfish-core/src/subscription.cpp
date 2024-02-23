@@ -183,6 +183,11 @@ void Subscription::onHbTimeout(const std::weak_ptr<Subscription>& weakSelf,
 
 bool Subscription::sendEventToSubscriber(std::string&& msg)
 {
+    if (userSub->subscriptionType == "SNMPTrap")
+    {
+        return false; // Don't need send SNMPTrap event.
+    }
+
     persistent_data::EventServiceConfig eventServiceConfig =
         persistent_data::EventServiceStore::getInstance()
             .getEventServiceConfig();
