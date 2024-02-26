@@ -7117,12 +7117,15 @@ inline void getFullAuditLogAttachment(
         return;
     }
 
-    // Max file size based on default configuration: 10MB
-    constexpr int maxFileSize = 10485760;
+    /* Max file size based on default configuration:
+     *   - Raw audit log: 10MB
+     *   - Allow up to 20MB to adjust for JSON metadata
+     */
+    constexpr int maxFileSize = 20971520;
     if (size > maxFileSize)
     {
-        BMCWEB_LOG_ERROR << "File size exceeds maximum allowed size of "
-                         << maxFileSize;
+        BMCWEB_LOG_ERROR << "File size " << size
+                         << " exceeds maximum allowed size of " << maxFileSize;
         messages::internalError(asyncResp->res);
         close(fd);
         return;
