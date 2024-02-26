@@ -66,10 +66,9 @@ class App
     }
 
     void handle(Request& req,
-                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                bool bypassAuth = false)
+                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
     {
-        router.handle(req, asyncResp, bypassAuth);
+        router.handle(req, asyncResp);
     }
 
     DynamicRule& routeDynamic(std::string&& rule)
