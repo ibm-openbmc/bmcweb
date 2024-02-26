@@ -48,7 +48,7 @@ inline void
     // Restart the request without if-match
     req.req.erase(boost::beast::http::field::if_match);
     BMCWEB_LOG_DEBUG << "Restarting request";
-    app.handle(req, asyncResp, true);
+    app.handle(req, asyncResp);
 }
 
 inline bool handleIfMatch(crow::App& app, const crow::Request& req,
@@ -97,7 +97,7 @@ inline bool handleIfMatch(crow::App& app, const crow::Request& req,
     getReqAsyncResp->res.setCompleteRequestHandler(std::bind_front(
         afterIfMatchRequest, std::ref(app), asyncResp, req, ifMatch));
 
-    app.handle(newReq, getReqAsyncResp, true);
+    app.handle(newReq, getReqAsyncResp);
     return false;
 }
 
