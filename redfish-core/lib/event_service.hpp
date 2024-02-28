@@ -353,13 +353,12 @@ inline void requestRoutesEventDestinationCollection(App& app)
         */
         if (protocol == "snmp")
         {
-            if (!url.value().port().empty())
+            const std::string_view urlPort = url.value().port();
+            if (!urlPort.empty())
             {
                 uint16_t portTmp = 0;
                 // Check the port
-                auto ret = std::from_chars(url.value().port().data(),
-                                           url.value().port().data() +
-                                               url.value().port().size(),
+                auto ret = std::from_chars(urlPort.begin(), urlPort.end(),
                                            portTmp);
                 if (ret.ec != std::errc())
                 {
@@ -373,12 +372,12 @@ inline void requestRoutesEventDestinationCollection(App& app)
                 size_t pos = destUrl.find(':');
                 if (pos != std::string::npos)
                 {
-                    std::string tmp_str = std::string(destUrl).substr(pos + 1);
-                    size_t pos2 = tmp_str.find(':');
+                    std::string tmpStr = std::string(destUrl).substr(pos + 1);
+                    size_t pos2 = tmpStr.find(':');
                     if (pos2 != std::string::npos)
                     {
-                        std::string port_str = tmp_str.substr(pos2 + 1);
-                        if (!port_str.empty())
+                        std::string portStr = tmpStr.substr(pos2 + 1);
+                        if (!portStr.empty())
                         {
                             messages::propertyValueFormatError(
                                 asyncResp->res, destUrl, "Destination");
