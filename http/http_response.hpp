@@ -181,11 +181,6 @@ struct Response
 
     void end()
     {
-        std::string etag = computeEtag();
-        if (!etag.empty())
-        {
-            addHeader(boost::beast::http::field::etag, etag);
-        }
         if (completed)
         {
             BMCWEB_LOG_ERROR << this << " Response was ended twice";
