@@ -6728,9 +6728,22 @@ static LogParseError
     // Fill the MessageArgs into the Message
     if (messageArgs.size() > 0)
     {
-        int i = 0;
+        if (messageArgs[0] != "USYS_CONFIG")
+        {
+            BMCWEB_LOG_WARNING << "Unexpected audit log entry type: "
+                               << messageArgs[0];
+        }
+
+        uint i = 0;
         for (auto messageArg : messageArgs)
         {
+            if (messageArg == nullptr)
+            {
+                BMCWEB_LOG_DEBUG << "Handle null messageArg";
+                messageArg = "";
+                messageArgs[i] = "";
+            }
+
             std::string argStr = "%" + std::to_string(++i);
             size_t argPos = msg.find(argStr);
             if (argPos != std::string::npos)
