@@ -14,6 +14,7 @@
 #include "http_request.hpp"
 #include "http_response.hpp"
 #include "logging.hpp"
+#include "oem_messages.hpp"
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 #include "task_messages.hpp"
@@ -205,8 +206,8 @@ struct TaskData : std::enable_shared_from_this<TaskData>
                 self->finishTask();
                 self->state = "Cancelled";
                 self->status = "Warning";
-                self->messages.emplace_back(
-                    messages::taskAborted(std::to_string(self->index)));
+                self->messages.emplace_back(messages::taskAborted(
+                    std::to_string(self->index), "None", "None", "None"));
                 // Send event :TaskAborted
                 sendTaskEvent(self->state, self->index);
                 self->callback(ec, msg, self);
