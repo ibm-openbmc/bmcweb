@@ -435,10 +435,6 @@ inline void getCableAssociatedChassis(
     sdbusplus::message::object_path endpointPath{cableObjectPath};
     endpointPath /= associationName;
 
-    constexpr std::array<std::string_view, 2> chassisInterfaces = {
-        "xyz.openbmc_project.Inventory.Item.Board",
-        "xyz.openbmc_project.Inventory.Item.Chassis"};
-
     dbus::utility::getAssociatedSubTreePaths(
         endpointPath,
         sdbusplus::message::object_path("/xyz/openbmc_project/inventory"), 0,

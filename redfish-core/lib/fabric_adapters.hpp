@@ -14,6 +14,7 @@
 #include "logging.hpp"
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
+#include "utils/chassis_utils.hpp"
 #include "utils/collection.hpp"
 #include "utils/dbus_utils.hpp"
 #include "utils/json_utils.hpp"
@@ -241,12 +242,10 @@ inline void doCheckFabricAdapterChassis(
                        const dbus::utility::MapperEndPoints&)>
         callback)
 {
-    constexpr std::array<std::string_view, 1> chassisInterface{
-        "xyz.openbmc_project.Inventory.Item.Chassis"};
     dbus::utility::getAssociatedSubTreePaths(
         fabricAdapterPath + "/chassis",
         sdbusplus::message::object_path("/xyz/openbmc_project/inventory"), 0,
-        chassisInterface,
+        chassisInterfaces,
         std::bind_front(afterDoCheckFabricAdapterChassis, asyncResp,
                         pcieSlotPaths, std::move(callback)));
 }
