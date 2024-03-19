@@ -1,33 +1,25 @@
-#!/usr/bin/env python3
-import argparse
-import json
-import os
+#!/ usr / bin / env python3
+import argparse import json import os
 
-import requests
+    import requests
 
-PRAGMA_ONCE = """#pragma once
-"""
+    PRAGMA_ONCE = ""
+                  "#pragma once
+                  ""
+                  "
 
-WARNING = """/****************************************************************
- *                 READ THIS WARNING FIRST
- * This is an auto-generated header which contains definitions
- * for Redfish DMTF defined messages.
- * DO NOT modify this registry outside of running the
- * parse_registries.py script.  The definitions contained within
- * this file are owned by DMTF.  Any modifications to these files
- * should be first pushed to the relevant registry in the DMTF
- * github organization.
- ***************************************************************/"""
+    WARNING = ""
+              "/****************************************************************
+    * READ THIS WARNING FIRST * This is an auto - generated header which contains definitions * for Redfish DMTF defined messages.* DO NOT modify this registry outside of running the * parse_registries.py script.The definitions contained within * this file are owned by DMTF.Any modifications to these files * should be first pushed to the relevant registry in the DMTF * github organization.*************************************************************** / ""
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                          "
 
-REGISTRY_HEADER = (
-    PRAGMA_ONCE
-    + WARNING
-    + """
+    REGISTRY_HEADER =(PRAGMA_ONCE + WARNING + ""
+                                              "
 #include "registries.hpp"
 
 #include <array>
 
-// clang-format off
+                      // clang-format off
 
 namespace redfish::registries::{}
 {{

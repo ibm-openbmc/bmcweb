@@ -40,31 +40,33 @@ struct MessageRegistries
         std::vector<const registries::MessageEntry*>& entries)>;
     using MessageMap =
         std::unordered_map<std::string, std::pair<MessageFileGet, MessageGet>>;
-    static  auto makeFileGetter(auto& srcheader, auto& srcurl) {
-            return [&srcheader, &srcurl](const registries::Header*& header,
-                                         const char*& url) {
-                header = &srcheader;
-                url = srcurl;
-            };
-        }
-    static auto makeMessageGetter(auto& srcheader, auto& registry) {
-            return [&srcheader,
-                    &registry](const registries::Header*& header,
-                               std::vector<const registries::MessageEntry*>&
-                                   registryEntries) {
-                header = &srcheader;
-                for (const auto& entry : registry)
-                {
-                    registryEntries.emplace_back(&entry);
-                }
-            };
-        }
+    static auto makeFileGetter(auto& srcheader, auto& srcurl)
+    {
+        return [&srcheader, &srcurl](const registries::Header*& header,
+                                     const char*& url) {
+            header = &srcheader;
+            url = srcurl;
+        };
+    }
+    static auto makeMessageGetter(auto& srcheader, auto& registry)
+    {
+        return
+            [&srcheader, &registry](
+                const registries::Header*& header,
+                std::vector<const registries::MessageEntry*>& registryEntries) {
+            header = &srcheader;
+            for (const auto& entry : registry)
+            {
+                registryEntries.emplace_back(&entry);
+            }
+        };
+    }
+
   private:
     MessageMap messageRegistries;
 
     MessageRegistries()
     {
-        
         registerMessage(
             "Base",
             makeFileGetter(registries::base::header, registries::base::url),
