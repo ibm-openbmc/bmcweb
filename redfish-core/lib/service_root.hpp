@@ -44,7 +44,6 @@ struct ServiceRootRegistry
     {
         for (const auto& provider : rootProviders)
         {
-            
             provider(root);
         }
     }
@@ -113,7 +112,7 @@ inline void handleServiceRootGetImpl(
 
     asyncResp->res.jsonValue["Links"]["ManagerProvidingService"]["@odata.id"] =
         "/redfish/v1/Managers/bmc";
-    
+
     ServiceRootRegistry::globalInstance().update(asyncResp->res.jsonValue);
     nlohmann::json& protocolFeatures =
         asyncResp->res.jsonValue["ProtocolFeaturesSupported"];

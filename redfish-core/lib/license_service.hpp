@@ -696,7 +696,8 @@ inline void exportLicenseServiceRoutes(App& app)
     requestRoutesLicenseService(app);
     requestRoutesLicenseEntryCollection(app);
     requestRoutesLicenseEntry(app);
-    MessageRegistries::globalInstance().registerMessage("License",
+    MessageRegistries::globalInstance().registerMessage(
+        "License",
         MessageRegistries::makeFileGetter(registries::license::header,
                                           registries::license::url),
         MessageRegistries::makeMessageGetter(registries::license::header,
@@ -705,7 +706,6 @@ inline void exportLicenseServiceRoutes(App& app)
         [](nlohmann::json& root) {
         root["LicenseService"] = {{"@odata.id", "/redfish/v1/LicenseService"}};
         root["@odata.type"] = "#ServiceRoot.v1_12_0.ServiceRoot";
-        
     });
     BMCWEB_LOG_DEBUG("License Serice Called");
 }

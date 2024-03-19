@@ -13,20 +13,20 @@ project('bmcweb', 'cpp',
             'werror=true',
            ])
 
-# Project related links
+#Project related links
 
 project_pretty_name = 'bmcweb'
 project_url = 'https://github.com/openbmc/' + project_pretty_name
 project_issues_url = project_url + '/issues/new'
 summary('Issues',project_issues_url, section: 'Report Issues')
 
-# Validate the c++ Standard
+#Validate the c++ Standard
 
 if get_option('cpp_std') != 'c++20'
     error('This project requires c++20 support')
 endif
 
-# Get compiler and default build type
+#Get compiler and default build type
 
 cxx = meson.get_compiler('cpp')
 build = get_option('buildtype')
@@ -34,8 +34,7 @@ optimization = get_option('optimization')
 summary('Build Type',build, section : 'Build Info')
 summary('Optimization',optimization, section : 'Build Info')
 
-
-# remove debug information for minsize buildtype
+#remove debug information for minsize buildtype
 if(get_option('buildtype') == 'minsize')
   add_project_arguments(['-fdata-sections', '-ffunction-sections'], language : 'cpp')
   add_project_arguments('-DNDEBUG', language : 'cpp')
@@ -45,13 +44,13 @@ if(get_option('dns-resolver') == 'systemd-dbus')
   add_project_arguments('-DBMCWEB_DBUS_DNS_RESOLVER', language : 'cpp')
 endif
 
-# Disable lto when compiling with no optimization
+#Disable lto when compiling with no optimization
 if(get_option('optimization') == '0')
   add_project_arguments('-fno-lto', language: 'cpp')
   message('Disabling lto & its supported features as optimization is disabled')
 endif
 
-# Include Directories
+#Include Directories
 
 incdir = include_directories(
   'include',
@@ -60,7 +59,7 @@ incdir = include_directories(
   'http'
 )
 
-# Get the options and enable the respective features
+#Get the options and enable the respective features
 ## create a MAP of  "options : feature_flag"
 
 feature_map = {
@@ -97,12 +96,12 @@ feature_map = {
   'xtoken-auth'                                 : '-DBMCWEB_ENABLE_XTOKEN_AUTHENTICATION',
   'audit-events'                                : '-DBMCWEB_ENABLE_LINUX_AUDIT_EVENTS',
   'redfish-license'                             : '-DBMCWEB_ENABLE_REDFISH_LICENSE',
-  #'vm-nbdproxy'                                : '-DBMCWEB_ENABLE_VM_NBDPROXY',
+#'vm-nbdproxy' : '-DBMCWEB_ENABLE_VM_NBDPROXY',
   'ibm-led-extensions'                          : '-DBMCWEB_ENABLE_IBM_LED_EXTENSIONS',
 }
 
-# Get the options status and build a project summary to show which flags are
-# being enabled during the configuration time.
+#Get the options status and build a project summary to show which flags are
+#being enabled during the configuration time.
 
 foreach option_key,option_value : feature_map
   if(get_option(option_key).allowed())
@@ -132,9 +131,9 @@ if(get_option('tests').allowed())
   summary('unittest','NA', section : 'Enabled Features')
 endif
 
-# Add compiler arguments
+#Add compiler arguments
 
-# -Wpedantic, -Wextra comes by default with warning level
+#- Wpedantic, - Wextra comes by default with warning level
 add_project_arguments(
   cxx.get_supported_arguments([
   '-Wcast-align',
@@ -170,8 +169,8 @@ add_project_arguments(
   language:'cpp')
 endif
 
-# if compiler is gnu-gcc , and version is > 8.0 then we add few more
-# compiler arguments , we know that will pass
+#if compiler is gnu - gcc, and version is > 8.0 then we add few more
+#compiler arguments, we know that will pass
 
 if (cxx.get_id() == 'gcc' and cxx.version().version_compare('>8.0'))
   add_project_arguments(
@@ -190,8 +189,8 @@ endif
 
 if (get_option('buildtype') != 'plain')
   if (get_option('b_lto') == true and get_option('optimization')!='0')
-    # Reduce the binary size by removing unnecessary
-    # dynamic symbol table entries
+#Reduce the binary size by removing unnecessary
+#dynamic symbol table entries
 
     add_project_arguments(
      cxx.get_supported_arguments([
@@ -217,7 +216,7 @@ if( get_option('bmcweb-logging') != 'disabled' or \
   summary('debug', '-DBMCWEB_ENABLE_DEBUG', section : 'Enabled Features')
 endif
 
-# Set Compiler Security flags
+#Set Compiler Security flags
 
 security_flags = [
   '-fstack-protector-strong',
@@ -238,7 +237,7 @@ if not (get_option('buildtype') == 'plain' or get_option('buildtype').startswith
   language: 'cpp')
 endif
 
-# Boost dependency configuration
+#Boost dependency configuration
 
 add_project_arguments(
 cxx.get_supported_arguments([
@@ -258,8 +257,8 @@ cxx.get_supported_arguments([
 ]),
 language : 'cpp')
 
-# Find the dependency modules, if not found use meson wrap to get them
-# automatically during the configure step
+#Find the dependency modules, if not found use meson wrap to get them
+#automatically during the configure step
 bmcweb_dependencies = []
 
 pam = cxx.find_library('pam', required: true)
@@ -374,12 +373,12 @@ summary({
 
 install_subdir('static', install_dir : 'share/www', strip_directory : true)
 
-# Config subdirectory
+#Config subdirectory
 
 subdir('config')
 bmcweb_dependencies += conf_h_dep
 
-# Source files
+#Source files
 fs = import('fs')
 
 srcfiles_bmcweb = files(
@@ -402,7 +401,7 @@ bmcweblib = static_library(
   dependencies: bmcweb_dependencies,
 )
 
-# Generate the bmcweb executable
+#Generate the bmcweb executable
 executable(
   'bmcweb',
   'src/webserver_main.cpp',
@@ -459,7 +458,7 @@ if (get_option('audit-events').allowed())
 endif
 
 if(get_option('tests').allowed())
-    # generate the test executable
+#generate the test executable
     foreach test_src : srcfiles_unittest
       test_bin = executable(
         fs.stem(test_src),

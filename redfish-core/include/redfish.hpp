@@ -104,7 +104,7 @@ class RedfishService
         requestRoutesFanCollection(app);
 #endif
 #ifdef BMCWEB_ENABLE_REDFISH_LICENSE
-        
+
         exportLicenseServiceRoutes(app);
 #endif
         requestRoutesManagerCollection(app);
