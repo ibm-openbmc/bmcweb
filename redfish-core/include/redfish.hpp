@@ -14,7 +14,6 @@
 // limitations under the License.
 */
 #pragma once
-
 #include "account_service.hpp"
 #include "aggregation_service.hpp"
 #include "assembly.hpp"
@@ -29,6 +28,9 @@
 #include "fabric_adapters.hpp"
 #include "fan.hpp"
 #include "hypervisor_system.hpp"
+#ifdef BMCWEB_ENABLE_REDFISH_LICENSE
+#include "license_service.hpp"
+#endif
 #include "log_services.hpp"
 #include "manager_diagnostic_data.hpp"
 #include "managers.hpp"
@@ -58,7 +60,6 @@
 #include "trigger.hpp"
 #include "update_service.hpp"
 #include "virtual_media.hpp"
-
 namespace redfish
 {
 /*
@@ -101,6 +102,10 @@ class RedfishService
         requestRoutesThermalSubsystem(app);
         requestRoutesFan(app);
         requestRoutesFanCollection(app);
+#endif
+#ifdef BMCWEB_ENABLE_REDFISH_LICENSE
+        
+        exportLicenseServiceRoutes(app);
 #endif
         requestRoutesManagerCollection(app);
         requestRoutesManager(app);

@@ -146,7 +146,13 @@ option(
                     - enabled: treated as 'debug'
                     - For the other logging level option, see DEVELOPING.md.'''
 )
-
+option(
+     'redfish-license',
+     type : 'feature',
+     value : 'disabled',
+     description : '''Enable License transactions through Redfish. Paths are
+                      under /redfish/v1/LicenseService/Licenses/'''
+)
 option(
     'basic-auth',
     type: 'feature',

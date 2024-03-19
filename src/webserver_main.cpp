@@ -111,20 +111,20 @@ static int run()
     crow::ibm_mc::requestRoutes(app);
     crow::ibm_mc_lock::Lock::getInstance();
     // Start BMC and Host state change dbus monitor
-    crow::dbus_monitor::registerStateChangeSignal();
+    // crow::dbus_monitor::registerStateChangeSignal();
     // Start Dump created signal monitor for BMC and System Dump
-    crow::dbus_monitor::registerDumpUpdateSignal();
+    // crow::dbus_monitor::registerDumpUpdateSignal();
     // Start BIOS Attr change dbus monitor
-    crow::dbus_monitor::registerBIOSAttrUpdateSignal();
+    // crow::dbus_monitor::registerBIOSAttrUpdateSignal();
     // Start event log entry created monitor
-    crow::dbus_monitor::registerEventLogCreatedSignal();
+    // crow::dbus_monitor::registerEventLogCreatedSignal();
     // Start PostCode change signal
-    crow::dbus_monitor::registerPostCodeChangeSignal();
+    // crow::dbus_monitor::registerPostCodeChangeSignal();
     // Start hypervisor app dbus monitor for hypervisor
     // network configurations
-    crow::dbus_monitor::registerVMIConfigChangeSignal();
+    // crow::dbus_monitor::registerVMIConfigChangeSignal();
     // Start Platform and Partition SAI state change monitor
-    crow::dbus_monitor::registerSAIStateChangeSignal();
+    // crow::dbus_monitor::registerSAIStateChangeSignal();
 #endif
 
 #ifdef BMCWEB_ENABLE_GOOGLE_API

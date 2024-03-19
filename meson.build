@@ -96,6 +96,7 @@ feature_map = {
   'vm-websocket'                                : '-DBMCWEB_ENABLE_VM_WEBSOCKET',
   'xtoken-auth'                                 : '-DBMCWEB_ENABLE_XTOKEN_AUTHENTICATION',
   'audit-events'                                : '-DBMCWEB_ENABLE_LINUX_AUDIT_EVENTS',
+  'redfish-license'                             : '-DBMCWEB_ENABLE_REDFISH_LICENSE',
   #'vm-nbdproxy'                                : '-DBMCWEB_ENABLE_VM_NBDPROXY',
   'ibm-led-extensions'                          : '-DBMCWEB_ENABLE_IBM_LED_EXTENSIONS',
 }

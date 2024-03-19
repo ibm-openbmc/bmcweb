@@ -29,7 +29,31 @@
 
 namespace redfish
 {
+struct ServiceRootRegistry
+{
+    using RootProvider = std::function<void(nlohmann::json&)>;
+    std::vector<RootProvider> rootProviders;
+    ServiceRootRegistry() = default;
 
+  public:
+    void addRootProvider(RootProvider&& provider)
+    {
+        rootProviders.emplace_back(std::move(provider));
+    }
+    void update(nlohmann::json& root)
+    {
+        for (const auto& provider : rootProviders)
+        {
+            
+            provider(root);
+        }
+    }
+    static ServiceRootRegistry& globalInstance()
+    {
+        static ServiceRootRegistry instance;
+        return instance;
+    }
+};
 inline void
     handleServiceRootHead(App& app, const crow::Request& req,
                           const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
@@ -89,7 +113,8 @@ inline void handleServiceRootGetImpl(
 
     asyncResp->res.jsonValue["Links"]["ManagerProvidingService"]["@odata.id"] =
         "/redfish/v1/Managers/bmc";
-
+    
+    ServiceRootRegistry::globalInstance().update(asyncResp->res.jsonValue);
     nlohmann::json& protocolFeatures =
         asyncResp->res.jsonValue["ProtocolFeaturesSupported"];
     protocolFeatures["ExcerptQuery"] = false;
