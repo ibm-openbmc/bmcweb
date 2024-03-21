@@ -151,7 +151,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
     boost::asio::io_context& ioc;
     std::optional<boost::beast::ssl_stream<boost::asio::ip::tcp::socket&>>
         sslConn;
-    std::unique_ptr<boost::asio::ip::tcp::socket> conn;
+    boost::asio::ip::tcp::socket conn;
 
     boost::asio::steady_timer timer;
 
@@ -194,7 +194,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         timer.async_wait(std::bind_front(onTimeout, weak_from_this()));
 
         boost::asio::async_connect(
-            *conn, endpointList,
+            conn, endpointList,
             std::bind_front(&ConnectionInfo::afterConnect, this,
                             shared_from_this()));
     }
@@ -293,7 +293,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         else
         {
             boost::beast::http::async_write(
-                *conn, req,
+                conn, req,
                 std::bind_front(&ConnectionInfo::afterWrite, this,
                                 shared_from_this()));
         }
@@ -346,7 +346,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         else
         {
             boost::beast::http::async_read(
-                *conn, buffer, *parser,
+                conn, buffer, *parser,
                 std::bind_front(&ConnectionInfo::afterRead, this,
                                 shared_from_this()));
         }
@@ -364,7 +364,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         }
 
         timer.cancel();
-        if (ec)
+        if (ec && ec != boost::asio::ssl::error::stream_truncated)
         {
             BMCWEB_LOG_ERROR << "recvMessage() failed: " << ec.message()
                              << " from " << host << ": "
@@ -375,6 +375,10 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         }
         BMCWEB_LOG_DEBUG << "recvMessage() bytes transferred: "
                          << bytesTransferred;
+        if (!parser)
+        {
+            return;
+        }
         BMCWEB_LOG_DEBUG << "recvMessage() data: " << parser->get().body();
 
         unsigned int respCode = parser->get().result_int();
@@ -521,8 +525,8 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
     void shutdownConn(bool retry)
     {
         boost::beast::error_code ec;
-        conn->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
-        conn->close();
+        conn.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+        conn.close();
 
         // not_connected happens sometimes so don't bother reporting it.
         if (ec && ec != boost::beast::errc::not_connected)
@@ -542,7 +546,6 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         {
             // Now let's try to resend the data
             state = ConnState::retry;
-            // reconnect to server using new socket
             restartConnection();
         }
         else
@@ -626,7 +629,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
 
     void initializeConnection(bool ssl)
     {
-        conn = std::make_unique<boost::asio::ip::tcp::socket>(ioc);
+        conn = boost::asio::ip::tcp::socket(ioc);
         if (ssl)
         {
             /* std::optional<boost::asio::ssl::context> sslCtx =
@@ -647,7 +650,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
             } */
             boost::asio::ssl::context sslCtx{
                 boost::asio::ssl::context::tlsv13_client};
-            sslConn.emplace(*conn.get(), sslCtx);
+            sslConn.emplace(conn, sslCtx);
             setCipherSuiteTLSext();
         }
     }
@@ -660,7 +663,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         unsigned int connIdIn) :
         subId(idIn),
         connPolicy(connPolicyIn), host(destIPIn), port(destPortIn),
-        connId(connIdIn), ioc(iocIn), timer(iocIn)
+        connId(connIdIn), ioc(iocIn), conn(iocIn), timer(iocIn)
     {
         initializeConnection(useSSL);
     }
@@ -735,7 +738,7 @@ class ConnectionPool : public std::enable_shared_from_this<ConnectionPool>
                 // Server is not keep-alive enabled so we need to close the
                 // connection and then start over from resolve
                 conn->doClose();
-                conn->restartConnection();
+                conn->doResolve();
             }
             return;
         }
