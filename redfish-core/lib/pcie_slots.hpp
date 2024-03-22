@@ -17,7 +17,9 @@
 #include <sdbusplus/asio/property.hpp>
 #include <sdbusplus/unpack_properties.hpp>
 
+#include <algorithm>
 #include <array>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -28,6 +30,55 @@
 
 namespace redfish
 {
+
+inline void
+    addLinkedPcieDevices(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                         const std::string& slotPath, size_t index)
+{
+    // Collect device associated with this slot and
+    // populate it here
+    constexpr std::array<std::string_view, 1> interfaces = {
+        "xyz.openbmc_project.Inventory.Item.PCIeDevice"};
+    dbus::utility::getSubTree(
+        slotPath, 0, interfaces,
+        [asyncResp,
+         index](const boost::system::error_code& ec,
+                const dbus::utility::MapperGetSubTreeResponse& subtree) {
+        if (ec)
+        {
+            BMCWEB_LOG_ERROR("D-Bus response error on GetSubTree {}",
+                             ec.value());
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        if (subtree.empty())
+        {
+            BMCWEB_LOG_DEBUG(
+                "Can't find PCIeDevice D-Bus object for given slot");
+            return;
+        }
+
+        // Assuming only one device path per slot.
+        const std::string& pcieDevciePath = std::get<0>(subtree[0]);
+
+        std::string devName = pcie_util::buildPCIeUniquePath(pcieDevciePath);
+
+        if (devName.empty())
+        {
+            BMCWEB_LOG_ERROR("Failed to find / in pcie device path");
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        nlohmann::json::object_t item;
+        nlohmann::json::array_t deviceArray;
+        item["@odata.id"] = boost::urls::format(
+            "/redfish/v1/Systems/system/PCIeDevices/{}", devName);
+        deviceArray.emplace_back(item);
+        asyncResp->res.jsonValue["Slots"][index]["Links"]["PCIeDevice"] =
+            std::move(deviceArray);
+    });
+}
 
 inline void
     onPcieSlotGetAllDone(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -129,6 +180,9 @@ inline void
 
     size_t index = slots.size();
     slots.emplace_back(std::move(slot));
+
+    // Get pcie device link
+    addLinkedPcieDevices(asyncResp, pcieSlotPath, index);
 
     // Get pcie slot location indicator state
     getLocationIndicatorActive(asyncResp, pcieSlotPath,
