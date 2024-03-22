@@ -26,10 +26,10 @@
                 <Annotation Term="OData.AdditionalProperties" Bool="true" />
                 <Annotation Term="OData.Description" String="OemAssembly Oem properties." />
                 <Annotation Term="OData.AutoExpand" />
-                <Property Name="Assembly" Type="OemAssembly.v1_0_0.Assembly" />
+                <Property Name="OpenBMC" Type="OemAssembly.v1_0_0.OpenBMC" />
             </ComplexType>
 
-            <ComplexType Name="Assembly" BaseType="Resource.OemObject">
+            <ComplexType Name="OpenBMC" BaseType="Resource.OemObject">
                 <Annotation Term="OData.AdditionalProperties" Bool="true" />
                 <Annotation Term="OData.Description" String="Oem properties for OpenBMC." />
                 <Annotation Term="OData.AutoExpand" />
