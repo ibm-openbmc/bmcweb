@@ -110,7 +110,7 @@ inline void
             "tod_battery")
         {
             tempyArray.at(assemblyIndex)["Oem"]["OpenBMC"]["@odata.type"] =
-                "#OemAssembly.v1_0_0.Assembly";
+                "#OemAssembly.v1_0_0.OpenBMC";
 
             crow::connections::systemBus->async_method_call(
                 [aResp, assemblyIndex](const boost::system::error_code ec) {
@@ -290,8 +290,7 @@ inline void
                             if (fru == "panel0" || fru == "panel1")
                             {
                                 assemblyData["Oem"]["OpenBMC"]["@odata.type"] =
-                                    "#OemAssembly.v1_0_"
-                                    "0.Assembly";
+                                    "#OemAssembly.v1_0_0.OpenBMC";
 
                                 // if panel is not present,
                                 // implies it is already
