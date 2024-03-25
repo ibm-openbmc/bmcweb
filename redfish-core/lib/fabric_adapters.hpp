@@ -186,6 +186,7 @@ inline void doAdapterGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
 inline void afterGetValidFabricAdapterPath(
     const std::string& adapterId,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     std::function<void(const boost::system::error_code&,
                        const std::string& fabricAdapterPath,
                        const std::string& serviceName)>& callback,
@@ -206,6 +207,11 @@ inline void afterGetValidFabricAdapterPath(
         {
             fabricAdapterPath = adapterPath;
             serviceName = serviceMap.begin()->first;
+
+            nlohmann::json::json_pointer ptr("/Name");
+            name_util::getPrettyName(asyncResp, adapterPath,
+                                     serviceMap[0].first, ptr);
+
             break;
         }
     }
@@ -213,7 +219,7 @@ inline void afterGetValidFabricAdapterPath(
 }
 
 inline void getValidFabricAdapterPath(
-    const std::string& adapterId,
+    const std::string& adapterId, const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     std::function<void(const boost::system::error_code& ec,
                        const std::string& fabricAdapterPath,
                        const std::string& serviceName)>&& callback)
@@ -222,7 +228,7 @@ inline void getValidFabricAdapterPath(
         "xyz.openbmc_project.Inventory.Item.FabricAdapter"};
     dbus::utility::getSubTree("/xyz/openbmc_project/inventory", 0, interfaces,
                               std::bind_front(afterGetValidFabricAdapterPath,
-                                              adapterId, std::move(callback)));
+                                              adapterId, asyncResp, std::move(callback)));
 }
 
 inline void afterHandleFabricAdapterGet(
@@ -278,7 +284,7 @@ inline void
         return;
     }
     getValidFabricAdapterPath(
-        adapterId, std::bind_front(afterHandleFabricAdapterGet, asyncResp,
+        adapterId, asyncResp, std::bind_front(afterHandleFabricAdapterGet, asyncResp,
                                    systemName, adapterId));
 }
 
@@ -399,7 +405,7 @@ inline void
         return;
     }
     getValidFabricAdapterPath(
-        adapterId,
+        adapterId, asyncResp,
         std::bind_front(afterHandleFabricAdapterHead, asyncResp, adapterId));
 }
 
