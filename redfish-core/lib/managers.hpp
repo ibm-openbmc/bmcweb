@@ -576,30 +576,64 @@ inline void setTimeZoneName(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         "org.freedesktop.timedate1", "SetTimezone", timeZoneName, interactive);
 }
 
-inline void checkForQuiesced(
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+inline void getBMCState(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    dbus::utility::getProperty<std::string>(
-        "org.freedesktop.systemd1",
-        "/org/freedesktop/systemd1/unit/obmc_2dbmc_2dservice_2dquiesce_400_2etarget",
-        "org.freedesktop.systemd1.Unit", "ActiveState",
-        // ast-grep-ignore: long-lambda
+    sdbusplus::asio::getProperty<std::string>(
+        *crow::connections::systemBus, "xyz.openbmc_project.State.BMC",
+        "/xyz/openbmc_project/state/bmc0", "xyz.openbmc_project.State.BMC",
+        "CurrentBMCState",
         [asyncResp](const boost::system::error_code& ec,
-                    const std::string& val) {
-            if (!ec)
+                    const std::string& bmcState) {
+            if (ec)
             {
-                if (val == "active")
-                {
-                    asyncResp->res.jsonValue["Status"]["Health"] =
-                        resource::Health::Critical;
-                    asyncResp->res.jsonValue["Status"]["State"] =
-                        resource::State::Quiesced;
-                    return;
-                }
+                BMCWEB_LOG_DEBUG("DBUS response error reading CurrentBmcState");
+                asyncResp->res.jsonValue["Status"]["State"] =
+                    resource::State::Enabled;
+                asyncResp->res.jsonValue["Status"]["Health"] =
+                    resource::Health::OK;
+                return;
             }
-            asyncResp->res.jsonValue["Status"]["Health"] = resource::Health::OK;
-            asyncResp->res.jsonValue["Status"]["State"] =
-                resource::State::Enabled;
+
+            if (bmcState == "xyz.openbmc_project.State.BMC.BMCState.Ready")
+            {
+                asyncResp->res.jsonValue["Status"]["State"] =
+                    resource::State::Enabled;
+                asyncResp->res.jsonValue["Status"]["Health"] =
+                    resource::Health::OK;
+            }
+            else if (bmcState ==
+                     "xyz.openbmc_project.State.BMC.BMCState.Quiesced")
+            {
+                asyncResp->res.jsonValue["Status"]["State"] =
+                    resource::State::Quiesced;
+                asyncResp->res.jsonValue["Status"]["Health"] =
+                    resource::Health::Critical;
+            }
+            else if (bmcState ==
+                     "xyz.openbmc_project.State.BMC.BMCState.NotReady")
+            {
+                asyncResp->res.jsonValue["Status"]["State"] =
+                    resource::State::Starting;
+                asyncResp->res.jsonValue["Status"]["Health"] =
+                    resource::Health::OK;
+            }
+            else if (bmcState ==
+                     "xyz.openbmc_project.State.BMC.BMCState.UpdateInProgress")
+            {
+                asyncResp->res.jsonValue["Status"]["State"] =
+                    resource::State::Updating;
+                asyncResp->res.jsonValue["Status"]["Health"] =
+                    resource::Health::OK;
+            }
+            else
+            {
+                BMCWEB_LOG_DEBUG("Unsupported D-Bus CurrentBMCState: {}",
+                                 bmcState);
+                asyncResp->res.jsonValue["Status"]["State"] =
+                    resource::State::Enabled;
+                asyncResp->res.jsonValue["Status"]["Health"] =
+                    resource::Health::OK;
+            }
         });
 }
 
@@ -827,27 +861,7 @@ inline void handleManagerGet(
 
     getMainChassisId(asyncResp, std::bind_front(getManagedChassis));
 
-    dbus::utility::getProperty<double>(
-        "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-        "org.freedesktop.systemd1.Manager", "Progress",
-        // ast-grep-ignore: long-lambda
-        [asyncResp](const boost::system::error_code& ec, double val) {
-            if (ec)
-            {
-                BMCWEB_LOG_ERROR("Error while getting progress");
-                messages::internalError(asyncResp->res);
-                return;
-            }
-            if (val < 1.0)
-            {
-                asyncResp->res.jsonValue["Status"]["Health"] =
-                    resource::Health::OK;
-                asyncResp->res.jsonValue["Status"]["State"] =
-                    resource::State::Starting;
-                return;
-            }
-            checkForQuiesced(asyncResp);
-        });
+    getBMCState(asyncResp);
 
     manager_utils::getValidManagerPath(
         asyncResp, managerId, std::bind_front(getManagerData, asyncResp));
