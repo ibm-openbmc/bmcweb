@@ -209,6 +209,30 @@ void getAssemblyLocationCode(
     });
 }
 
+void getAssemblyPresence(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                         const auto& serviceName, const auto& assembly,
+                         const auto& assemblyIndex)
+{
+    sdbusplus::asio::getProperty<bool>(
+        *crow::connections::systemBus, serviceName, assembly,
+        "xyz.openbmc_project.Inventory.Item", "Present",
+        [asyncResp, assemblyIndex](const boost::system::error_code ec,
+                                   const bool value) {
+        nlohmann::json& assemblyArray = asyncResp->res.jsonValue["Assemblies"];
+        nlohmann::json& assemblyData = assemblyArray.at(assemblyIndex);
+
+        if (ec)
+        {
+            assemblyData["Status"]["State"] = "Enabled";
+
+            BMCWEB_LOG_DEBUG("DBUS response error: {}", ec.value());
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        assemblyData["Status"]["State"] = value ? "Enabled" : "Absent";
+    });
+}
 /**
  * @brief Get properties for the assemblies associated to given chassis
  * @param[in] asyncResp - Shared pointer for asynchronous calls.
@@ -275,6 +299,11 @@ inline void
                     {
                         getAssemblyLocationCode(asyncResp, serviceName,
                                                 assembly, assemblyIndex);
+                    }
+                    else if (interface == "xyz.openbmc_project.Inventory.Item")
+                    {
+                        getAssemblyPresence(asyncResp, serviceName, assembly,
+                                            assemblyIndex);
                     }
                 }
             }
