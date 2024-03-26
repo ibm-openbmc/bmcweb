@@ -10,6 +10,7 @@
 #include <boost/beast/websocket.hpp>
 #include <boost/url/url_view.hpp>
 
+#include <memory>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -19,7 +20,11 @@ namespace crow
 
 struct Request
 {
-    boost::beast::http::request<boost::beast::http::string_body> req;
+    using http_request_body =
+        boost::beast::http::request<boost::beast::http::string_body>;
+    std::shared_ptr<http_request_body> reqPtr;
+    http_request_body& req;
+
     boost::beast::http::fields& fields;
     std::string_view url{};
     boost::urls::url_view urlView{};
@@ -34,10 +39,9 @@ struct Request
     std::shared_ptr<persistent_data::UserSession> session;
 
     std::string userRole{};
-    Request(boost::beast::http::request<boost::beast::http::string_body> reqIn,
-            std::error_code& ec) :
-        req(std::move(reqIn)),
-        fields(req.base()), body(req.body())
+    Request(http_request_body reqIn, std::error_code& ec) :
+        reqPtr(std::make_shared<http_request_body>(std::move(reqIn))),
+        req(*reqPtr), fields(req.base()), body(req.body())
     {
         if (!setUrlInfo())
         {
@@ -46,8 +50,8 @@ struct Request
     }
 
     Request(const Request& other) :
-        req(other.req), fields(req.base()), isSecure(other.isSecure),
-        body(req.body()), ioService(other.ioService),
+        reqPtr(other.reqPtr), req(*reqPtr), fields(req.base()),
+        isSecure(other.isSecure), body(req.body()), ioService(other.ioService),
         ipAddress(other.ipAddress), session(other.session),
         userRole(other.userRole)
     {
@@ -55,8 +59,9 @@ struct Request
     }
 
     Request(Request&& other) noexcept :
-        req(std::move(other.req)), fields(req.base()), isSecure(other.isSecure),
-        body(req.body()), ioService(other.ioService),
+        reqPtr(std::move(other.reqPtr)), req(*reqPtr), fields(req.base()),
+        isSecure(std::move(other.isSecure)), body(req.body()),
+        ioService(std::move(other.ioService)),
         ipAddress(std::move(other.ipAddress)),
         session(std::move(other.session)), userRole(std::move(other.userRole))
     {
