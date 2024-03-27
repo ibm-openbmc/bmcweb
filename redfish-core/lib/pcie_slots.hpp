@@ -95,7 +95,7 @@ inline void
     constexpr std::array<std::string_view, 1> interfaces = {
         "xyz.openbmc_project.Inventory.Item.PCIeDevice"};
     dbus::utility::getSubTree(
-        slotPath, 0, interfaces,
+        slotPath, 1, interfaces,
         [asyncResp,
          index](const boost::system::error_code& ec,
                 const dbus::utility::MapperGetSubTreeResponse& subtree) {
