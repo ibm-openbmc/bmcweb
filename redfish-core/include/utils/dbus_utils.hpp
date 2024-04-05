@@ -62,7 +62,7 @@ void setDbusProperty(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                                           const sdbusplus::message_t& msg) {
         details::afterSetProperty(asyncResp, redfishPropertyNameStr, jsonProp,
                                   ec, msg);
-    });
+        });
 }
 
 } // namespace redfish

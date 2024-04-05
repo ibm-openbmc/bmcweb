@@ -2321,65 +2321,62 @@ inline void requestRoutesSystemActionsReset(App& app)
             return;
         }
 
-    // Get the command and host vs. chassis
-    std::string command;
-    bool hostCommand = true;
-    if ((resetType == "On") || (resetType == "ForceOn"))
-    {
-        command = "xyz.openbmc_project.State.Host.Transition.On";
-        hostCommand = true;
-    }
-    else if (resetType == "ForceOff")
-    {
-        command = "xyz.openbmc_project.State.Chassis.Transition.Off";
-        hostCommand = false;
-    }
-    else if (resetType == "ForceRestart")
-    {
-        command = "xyz.openbmc_project.State.Host.Transition.ForceWarmReboot";
-        hostCommand = true;
-    }
-    else if (resetType == "GracefulShutdown")
-    {
-        command = "xyz.openbmc_project.State.Host.Transition.Off";
-        hostCommand = true;
-    }
-    else if (resetType == "GracefulRestart")
-    {
-        command =
-            "xyz.openbmc_project.State.Host.Transition.GracefulWarmReboot";
-        hostCommand = true;
-    }
-    else if (resetType == "PowerCycle")
-    {
-        command = "xyz.openbmc_project.State.Host.Transition.Reboot";
-        hostCommand = true;
-    }
-    else if (resetType == "Nmi")
-    {
-        doNMI(asyncResp);
-        return;
-    }
-    else
-    {
-        messages::actionParameterUnknown(asyncResp->res, "Reset", resetType);
-        return;
-    }
-    sdbusplus::message::object_path statePath("/xyz/openbmc_project/state");
-
-    if (hostCommand)
-    {
-        setDbusProperty(asyncResp, "xyz.openbmc_project.State.Host",
-                        statePath / "host0", "xyz.openbmc_project.State.Host",
-                        "RequestedHostTransition", "Reset", command);
-    }
-    else
-    {
-        setDbusProperty(asyncResp, "xyz.openbmc_project.State.Chassis",
-                        statePath / "chassis0",
-                        "xyz.openbmc_project.State.Chassis",
-                        "RequestedPowerTransition", "Reset", command);
-    }
+        // Get the command and host vs. chassis
+        std::string command;
+        bool hostCommand = true;
+        if ((resetType == "On") || (resetType == "ForceOn"))
+        {
+            command = "xyz.openbmc_project.State.Host.Transition.On";
+            hostCommand = true;
+        }
+        else if (resetType == "ForceOff")
+        {
+            command = "xyz.openbmc_project.State.Chassis.Transition.Off";
+            hostCommand = false;
+        }
+        else if (resetType == "GracefulShutdown")
+        {
+            command = "xyz.openbmc_project.State.Host.Transition.Off";
+            hostCommand = true;
+        }
+        else if (resetType == "GracefulRestart")
+        {
+            command =
+                "xyz.openbmc_project.State.Host.Transition.GracefulWarmReboot";
+            hostCommand = true;
+        }
+        else if (resetType == "PowerCycle")
+        {
+            command = "xyz.openbmc_project.State.Host.Transition.Reboot";
+            hostCommand = true;
+        }
+        else if (resetType == "Nmi")
+        {
+            doNMI(asyncResp);
+            return;
+        }
+        else
+        {
+            messages::actionParameterUnknown(asyncResp->res, "Reset",
+                                             resetType);
+            return;
+        }
+        sdbusplus::message::object_path statePath("/xyz/openbmc_project/state");
+        if (hostCommand)
+        {
+            setDbusProperty(asyncResp, "xyz.openbmc_project.State.Host",
+                            statePath / "host0",
+                            "xyz.openbmc_project.State.Host",
+                            "RequestedHostTransition", "Reset", command);
+        }
+        else
+        {
+            setDbusProperty(asyncResp, "xyz.openbmc_project.State.Chassis",
+                            statePath / "chassis0",
+                            "xyz.openbmc_project.State.Chassis",
+                            "RequestedPowerTransition", "Reset", command);
+        }
+        });
 }
 
 inline void handleComputerSystemCollectionHead(

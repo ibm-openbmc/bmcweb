@@ -508,10 +508,12 @@ inline void handleHypSLAACAutoConfigPatch(
     const std::string dhcp = translateIPv6AutoConfigToDHCPEnabled(
         ethData.dhcpEnabled, ipv6AutoConfigEnabled);
     setDbusProperty(asyncResp, "xyz.openbmc_project.Network.Hypervisor",
-		    sdbusplus::message::object_path(
-			    "/xyz/openbmc_project/network/hypervisor") / ifaceId,
-		    "xyz.openbmc_project.Network.EthernetInterface", "DHCPEnabled",
-		    "StatelessAddressAutoConfig/IPv6AutoConfigEnabled", dhcp);
+                    sdbusplus::message::object_path(
+                        "/xyz/openbmc_project/network/hypervisor") /
+                        ifaceId,
+                    "xyz.openbmc_project.Network.EthernetInterface",
+                    "DHCPEnabled",
+                    "StatelessAddressAutoConfig/IPv6AutoConfigEnabled", dhcp);
 }
 
 inline void
@@ -767,10 +769,11 @@ inline void setIpv6DhcpOperatingMode(
         }
     }
     setDbusProperty(asyncResp, "xyz.openbmc_project.Network.Hypervisor",
-		    sdbusplus::message::object_path(
-			    "/xyz/openbmc_project/network/hypervisor") / ifaceId,
-		    "xyz.openbmc_project.Network.EthernetInterface", "DHCPEnabled",
-		    "DHCPv6/OperatingMode", ipv6DHCP);
+                    sdbusplus::message::object_path(
+                        "/xyz/openbmc_project/network/hypervisor") /
+                        ifaceId,
+                    "xyz.openbmc_project.Network.EthernetInterface",
+                    "DHCPEnabled", "DHCPv6/OperatingMode", ipv6DHCP);
 }
 
 inline void setDHCPEnabled(const std::string& ifaceId,
@@ -830,7 +833,6 @@ inline void setDHCPEnabled(const std::string& ifaceId,
         }
     }
 
-
     setDbusProperty(asyncResp, "xyz.openbmc_project.Network.Hypervisor",
                     sdbusplus::message::object_path(
                         "/xyz/openbmc_project/network/hypervisor") /
@@ -844,10 +846,10 @@ inline void
                             const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     setDbusProperty(asyncResp, "xyz.openbmc_project.Network.Hypervisor",
-		    "/xyz/openbmc_project/network/hypervisor/" + ifaceId +
+                    "/xyz/openbmc_project/network/hypervisor/" + ifaceId +
                         "/ipv4/addr0",
-			"xyz.openbmc_project.Object.Enable", "Enabled",
-			"InterfaceEnabled", isActive);
+                    "xyz.openbmc_project.Object.Enable", "Enabled",
+                    "InterfaceEnabled", isActive);
 }
 
 inline void handleHypervisorIPv4StaticPatch(
@@ -1042,10 +1044,12 @@ inline void handleHypV6DefaultGatewayPatch(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     setDbusProperty(asyncResp, "xyz.openbmc_project.Network.Hypervisor",
-		    sdbusplus::message::object_path(
-			    "/xyz/openbmc_project/network/hypervisor") / ifaceId,
-		    "xyz.openbmc_project.Network.EthernetInterface", "DefaultGateway6",
-		    "IPv6DefaultGateway", ipv6DefaultGateway);
+                    sdbusplus::message::object_path(
+                        "/xyz/openbmc_project/network/hypervisor") /
+                        ifaceId,
+                    "xyz.openbmc_project.Network.EthernetInterface",
+                    "DefaultGateway6", "IPv6DefaultGateway",
+                    ipv6DefaultGateway);
 }
 
 inline void requestRoutesHypervisorSystems(App& app)
