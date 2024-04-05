@@ -507,21 +507,13 @@ inline void handleHypSLAACAutoConfigPatch(
 {
     const std::string dhcp = translateIPv6AutoConfigToDHCPEnabled(
         ethData.dhcpEnabled, ipv6AutoConfigEnabled);
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
-        if (ec)
-        {
-            BMCWEB_LOG_ERROR << "D-Bus responses error: " << ec;
-            messages::internalError(asyncResp->res);
-            return;
-        }
-        messages::success(asyncResp->res);
-    },
-        "xyz.openbmc_project.Network.Hypervisor",
-        "/xyz/openbmc_project/network/hypervisor/" + ifaceId,
-        "org.freedesktop.DBus.Properties", "Set",
-        "xyz.openbmc_project.Network.EthernetInterface", "DHCPEnabled",
-        std::variant<std::string>{dhcp});
+    setDbusProperty(asyncResp, "xyz.openbmc_project.Network.Hypervisor",
+                    sdbusplus::message::object_path(
+                        "/xyz/openbmc_project/network/hypervisor") /
+                        ifaceId,
+                    "xyz.openbmc_project.Network.EthernetInterface",
+                    "DHCPEnabled",
+                    "StatelessAddressAutoConfig/IPv6AutoConfigEnabled", dhcp);
 }
 
 inline void
@@ -536,18 +528,11 @@ inline void
     }
 
     asyncResp->res.jsonValue["HostName"] = hostName;
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
-        if (ec)
-        {
-            messages::internalError(asyncResp->res);
-        }
-    },
-        "xyz.openbmc_project.Network.Hypervisor",
-        "/xyz/openbmc_project/network/hypervisor/config",
-        "org.freedesktop.DBus.Properties", "Set",
-        "xyz.openbmc_project.Network.SystemConfiguration", "HostName",
-        std::variant<std::string>(hostName));
+    setDbusProperty(asyncResp, "xyz.openbmc_project.Network.Hypervisor",
+                    sdbusplus::message::object_path(
+                        "/xyz/openbmc_project/network/hypervisor/config"),
+                    "xyz.openbmc_project.Network.SystemConfiguration",
+                    "HostName", "HostName", hostName);
 }
 
 /**
@@ -783,19 +768,12 @@ inline void setIpv6DhcpOperatingMode(
                 "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.none";
         }
     }
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
-        if (ec)
-        {
-            messages::internalError(asyncResp->res);
-            return;
-        }
-    },
-        "xyz.openbmc_project.Network.Hypervisor",
-        "/xyz/openbmc_project/network/hypervisor/" + ifaceId,
-        "org.freedesktop.DBus.Properties", "Set",
-        "xyz.openbmc_project.Network.EthernetInterface", "DHCPEnabled",
-        std::variant<std::string>(ipv6DHCP));
+    setDbusProperty(asyncResp, "xyz.openbmc_project.Network.Hypervisor",
+                    sdbusplus::message::object_path(
+                        "/xyz/openbmc_project/network/hypervisor") /
+                        ifaceId,
+                    "xyz.openbmc_project.Network.EthernetInterface",
+                    "DHCPEnabled", "DHCPv6/OperatingMode", ipv6DHCP);
 }
 
 inline void setDHCPEnabled(const std::string& ifaceId,
@@ -855,39 +833,23 @@ inline void setDHCPEnabled(const std::string& ifaceId,
         }
     }
 
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
-        if (ec)
-        {
-            messages::internalError(asyncResp->res);
-            return;
-        }
-    },
-        "xyz.openbmc_project.Network.Hypervisor",
-        "/xyz/openbmc_project/network/hypervisor/" + ifaceId,
-        "org.freedesktop.DBus.Properties", "Set",
-        "xyz.openbmc_project.Network.EthernetInterface", "DHCPEnabled",
-        std::variant<std::string>(ipv4DHCP));
+    setDbusProperty(asyncResp, "xyz.openbmc_project.Network.Hypervisor",
+                    sdbusplus::message::object_path(
+                        "/xyz/openbmc_project/network/hypervisor") /
+                        ifaceId,
+                    "xyz.openbmc_project.Network.EthernetInterface",
+                    "DHCPEnabled", "DHCPv4/DHCPEnabled", ipv4DHCP);
 }
 
 inline void
     setIPv4InterfaceEnabled(const std::string& ifaceId, const bool& isActive,
                             const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
-        if (ec)
-        {
-            BMCWEB_LOG_ERROR << "D-Bus responses error: " << ec;
-            messages::internalError(asyncResp->res);
-            return;
-        }
-    },
-        "xyz.openbmc_project.Network.Hypervisor",
-        "/xyz/openbmc_project/network/hypervisor/" + ifaceId + "/ipv4/addr0",
-        "org.freedesktop.DBus.Properties", "Set",
-        "xyz.openbmc_project.Object.Enable", "Enabled",
-        std::variant<bool>(isActive));
+    setDbusProperty(asyncResp, "xyz.openbmc_project.Network.Hypervisor",
+                    "/xyz/openbmc_project/network/hypervisor/" + ifaceId +
+                        "/ipv4/addr0",
+                    "xyz.openbmc_project.Object.Enable", "Enabled",
+                    "InterfaceEnabled", isActive);
 }
 
 inline void handleHypervisorIPv4StaticPatch(
@@ -1081,20 +1043,13 @@ inline void handleHypV6DefaultGatewayPatch(
     const std::string& ifaceId, const std::string& ipv6DefaultGateway,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
-        if (ec)
-        {
-            BMCWEB_LOG_ERROR << "D-Bus responses error: " << ec;
-            messages::internalError(asyncResp->res);
-            return;
-        }
-    },
-        "xyz.openbmc_project.Network.Hypervisor",
-        "/xyz/openbmc_project/network/hypervisor/" + ifaceId,
-        "org.freedesktop.DBus.Properties", "Set",
-        "xyz.openbmc_project.Network.EthernetInterface", "DefaultGateway6",
-        std::variant<std::string>(ipv6DefaultGateway));
+    setDbusProperty(asyncResp, "xyz.openbmc_project.Network.Hypervisor",
+                    sdbusplus::message::object_path(
+                        "/xyz/openbmc_project/network/hypervisor") /
+                        ifaceId,
+                    "xyz.openbmc_project.Network.EthernetInterface",
+                    "DefaultGateway6", "IPv6DefaultGateway",
+                    ipv6DefaultGateway);
 }
 
 inline void requestRoutesHypervisorSystems(App& app)
