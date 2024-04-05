@@ -286,7 +286,7 @@ inline void translateAccountType(
     }
     setDbusProperty(asyncResp, "xyz.openbmc_project.User.Manager",
                     dbusObjectPath, "xyz.openbmc_project.User.Attributes",
-                    "UserGroups", "AccountTypes", updatedUserGroups);
+                    "UserGroups", "AccountTypes", updatedUserGroup);
 }
 
 inline void userErrorMessageHandler(
@@ -454,7 +454,7 @@ inline void handleRoleMapPatch(
                         asyncResp, ldapDbusService, roleMapObjData[index].first,
                         "xyz.openbmc_project.User.PrivilegeMapperEntry",
                         "GroupName",
-                        std::format("RemoteRoleMapping/{}/RemoteGroup", index),
+                        "RemoteRoleMapping/" + std::to_string(index) + "/RemoteGroup",
                         *remoteGroup);
                 }
 
@@ -465,7 +465,7 @@ inline void handleRoleMapPatch(
                         asyncResp, ldapDbusService, roleMapObjData[index].first,
                         "xyz.openbmc_project.User.PrivilegeMapperEntry",
                         "Privilege",
-                        std::format("RemoteRoleMapping/{}/LocalRole", index),
+			"RemoteRoleMapping/" + std::to_string(index) + "/LocalRole",
                         *localRole);
                 }
             }

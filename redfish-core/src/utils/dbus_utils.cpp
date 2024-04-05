@@ -28,29 +28,29 @@ void afterSetProperty(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             messages::insufficientPrivilege(asyncResp->res);
         }
         const sd_bus_error* dbusError = msg.get_error();
+        std::string propertyValueStr = propertyValue.dump(
+            2, ' ', true, nlohmann::json::error_handler_t::replace);
         if (dbusError != nullptr)
         {
             std::string_view errorName(dbusError->name);
 
             if (errorName == "xyz.openbmc_project.Common.Error.InvalidArgument")
             {
-                BMCWEB_LOG_WARNING("DBUS response error: {}", ec);
+                BMCWEB_LOG_WARNING << "DBUS response error: " << ec;
                 messages::propertyValueIncorrect(
-                    asyncResp->res, redfishPropertyName, propertyValue);
+                    asyncResp->res, redfishPropertyName, propertyValueStr);
                 return;
             }
             if (errorName ==
                 "xyz.openbmc_project.State.Chassis.Error.BMCNotReady")
             {
-                BMCWEB_LOG_WARNING(
-                    "BMC not ready, operation not allowed right now");
+                BMCWEB_LOG_WARNING << "BMC not ready, operation not allowed right now";
                 messages::serviceTemporarilyUnavailable(asyncResp->res, "10");
                 return;
             }
             if (errorName == "xyz.openbmc_project.State.Host.Error.BMCNotReady")
             {
-                BMCWEB_LOG_WARNING(
-                    "BMC not ready, operation not allowed right now");
+                BMCWEB_LOG_WARNING << "BMC not ready, operation not allowed right now";
                 messages::serviceTemporarilyUnavailable(asyncResp->res, "10");
                 return;
             }
@@ -61,8 +61,7 @@ void afterSetProperty(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 return;
             }
         }
-        BMCWEB_LOG_ERROR("D-Bus error setting Redfish Property {} ec={}",
-                         redfishPropertyName, ec);
+        BMCWEB_LOG_ERROR << "D-Bus error setting Redfish Property " << redfishPropertyName << " ec=" << ec;
         messages::internalError(asyncResp->res);
         return;
     }
