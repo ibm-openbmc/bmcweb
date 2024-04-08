@@ -44,11 +44,66 @@
 namespace redfish
 {
 
+inline void afterAddLinkedPcieDevices(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, size_t index,
+    const boost::system::error_code& ec,
+    const dbus::utility::MapperEndPoints& pcieDevicePaths)
+{
+    if (ec)
+    {
+        if (ec.value() != EBADR)
+        {
+            BMCWEB_LOG_ERROR("D-Bus response error on GetSubTree {}",
+                             ec.value());
+            messages::internalError(asyncResp->res);
+        }
+        return;
+    }
+    if (pcieDevicePaths.empty())
+    {
+        BMCWEB_LOG_DEBUG("Can't find PCIeDevice D-Bus object for given slot");
+        return;
+    }
+
+    // Assuming only one device path per slot.
+    sdbusplus::message::object_path pcieDevicePath(pcieDevicePaths.front());
+    std::string devName = pcieDevicePath.filename();
+
+    if (devName.empty())
+    {
+        BMCWEB_LOG_ERROR("Failed to find / in pcie device path");
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    nlohmann::json::object_t item;
+    nlohmann::json::array_t deviceArray;
+    item["@odata.id"] = boost::urls::format(
+        "/redfish/v1/Systems/system/PCIeDevices/{}", devName);
+    deviceArray.emplace_back(item);
+    asyncResp->res.jsonValue["Slots"][index]["Links"]["PCIeDevice"] =
+        std::move(deviceArray);
+}
+
+inline void addLinkedPcieDevices(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& pcieSlotPath, size_t index)
+{
+    constexpr std::array<std::string_view, 1> pcieDeviceInterfaces = {
+        "xyz.openbmc_project.Inventory.Item.PCIeDevice"};
+
+    dbus::utility::getAssociatedSubTreePaths(
+        pcieSlotPath + "/containing",
+        sdbusplus::message::object_path("/xyz/openbmc_project/inventory"), 0,
+        pcieDeviceInterfaces,
+        std::bind_front(afterAddLinkedPcieDevices, asyncResp, index));
+}
+
 inline void onPcieSlotGetAllDone(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const boost::system::error_code& ec,
     const dbus::utility::DBusPropertiesMap& propertiesList,
-    const std::string& /*pcieSlotPath*/)
+    const std::string& pcieSlotPath)
 {
     if (ec)
     {
@@ -135,7 +190,11 @@ inline void onPcieSlotGetAllDone(
         slot["HotPluggable"] = *hotPluggable;
     }
 
+    size_t index = slots.size();
     slots.emplace_back(std::move(slot));
+
+    // Get pcie device link
+    addLinkedPcieDevices(asyncResp, pcieSlotPath, index);
 }
 
 // Get all valid  PCIe Slots which are on the given chassis
