@@ -1330,17 +1330,32 @@ inline void
                                            "HostName");
         return;
     }
-    crow::connections::systemBus->async_method_call(
-        [asyncResp](const boost::system::error_code ec) {
+
+    auto handleHostnameCallback =
+        [asyncResp, hostname](const boost::system::error_code& ec,
+                              const sdbusplus::message_t& msg) {
         if (ec)
         {
+            const sd_bus_error* dbusError = msg.get_error();
+            if ((dbusError != nullptr) &&
+                (dbusError->name ==
+                 std::string_view(
+                     "xyz.openbmc_project.Common.Error.InvalidArgument")))
+            {
+                BMCWEB_LOG_WARNING << "DBUS response error: " << ec;
+                messages::propertyValueIncorrect(asyncResp->res, "Hostname",
+                                                 hostname);
+                return;
+            }
             messages::internalError(asyncResp->res);
         }
-    },
-        "xyz.openbmc_project.Network", "/xyz/openbmc_project/network/config",
-        "org.freedesktop.DBus.Properties", "Set",
-        "xyz.openbmc_project.Network.SystemConfiguration", "HostName",
-        dbus::utility::DbusVariantType(hostname));
+    };
+
+    sdbusplus::asio::setProperty(
+        *crow::connections::systemBus, "xyz.openbmc_project.Network",
+        "/xyz/openbmc_project/network/config",
+        "xyz.openbmc_project.Network.SystemConfiguration", "HostName", hostname,
+        std::move(handleHostnameCallback));
 }
 
 inline void
