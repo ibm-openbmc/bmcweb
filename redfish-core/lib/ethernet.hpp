@@ -1463,6 +1463,8 @@ inline void
 {
     static constexpr std::string_view dbusNotAllowedError =
         "xyz.openbmc_project.Common.Error.NotAllowed";
+    static constexpr std::string_view dbusInvalidArgumentError =
+        "xyz.openbmc_project.Common.Error.InvalidArgument";
 
     crow::connections::systemBus->async_method_call(
         [asyncResp, macAddress](const boost::system::error_code ec,
@@ -1479,6 +1481,11 @@ inline void
             {
                 messages::propertyNotWritable(asyncResp->res, "MACAddress");
                 return;
+            }
+            if (err->name == dbusInvalidArgumentError)
+            {
+                messages::propertyValueIncorrect(asyncResp->res, "MACAddress",
+                                                 macAddress);
             }
             messages::internalError(asyncResp->res);
             return;
