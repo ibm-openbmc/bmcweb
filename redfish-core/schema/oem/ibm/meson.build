@@ -1,5 +1,10 @@
 # IBM schemas that should be installed
-schemas = ['IBMFabricAdapter', 'IBMManagerAccount', 'IBMPCIeSlots']
+schemas = [
+    'IBMFabricAdapter',
+    'IBMManagerAccount',
+    'IBMPCIeSlots',
+    'IBMServiceRoot',
+]
 
 foreach schema : schemas
     install_data(
