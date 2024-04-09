@@ -1303,12 +1303,11 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
             if (resourceDumpParams.size() > 3)
             {
-                BMCWEB_LOG_ERROR << "Invalid value for OEMDiagnosticDataType";
+                BMCWEB_LOG_WARNING("Invalid value for OEMDiagnosticDataType");
                 messages::invalidObject(
                     asyncResp->res,
-                    crow::utility::urlFromPieces(
-                        "redfish", "v1", "Systems", "system", "LogServices",
-                        "Dump", "Actions", "LogService.CollectDiagnosticData"));
+                    boost::urls::format(
+                        "/redfish/v1/Systems/system/LogServices/Dump/Actions/LogService.CollectDiagnosticData"));
                 return;
             }
         }
