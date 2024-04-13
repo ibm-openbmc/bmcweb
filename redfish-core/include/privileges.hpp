@@ -44,7 +44,7 @@ constexpr const size_t maxPrivilegeCount = 32;
  * "hostconsole" user group. This privilege is required to access the host
  * console.
  */
-static const std::array<std::string, maxPrivilegeCount> privilegeNames{
+constexpr std::array<std::string_view, maxPrivilegeCount> privilegeNames{
     "Login",
     "ConfigureManager",
     "ConfigureComponents",
