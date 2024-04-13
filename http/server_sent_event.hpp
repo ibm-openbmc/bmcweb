@@ -8,13 +8,10 @@
 #include <boost/beast/core/multi_buffer.hpp>
 #include <boost/beast/http/buffer_body.hpp>
 #include <boost/beast/websocket.hpp>
+#include <boost/beast/websocket/ssl.hpp>
 
 #include <array>
 #include <functional>
-
-#ifdef BMCWEB_ENABLE_SSL
-#include <boost/beast/websocket/ssl.hpp>
-#endif
 
 namespace crow
 {
