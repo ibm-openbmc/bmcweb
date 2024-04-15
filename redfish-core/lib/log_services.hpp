@@ -1114,6 +1114,14 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                     "com.ibm.Dump.Create.CreateParameters.Password",
                     resourceDumpParams[2]));
             }
+
+            if (resourceDumpParams.size() > 3)
+            {
+                BMCWEB_LOG_WARNING << "Invalid value for OEMDiagnosticDataType";
+                messages::invalidObject(asyncResp->res,
+                                        "OEMDiagnosticDataType");
+                return;
+            }
         }
         else
         {
