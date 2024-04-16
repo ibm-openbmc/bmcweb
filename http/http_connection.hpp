@@ -29,7 +29,6 @@
 #include <boost/beast/http/parser.hpp>
 #include <boost/beast/http/read.hpp>
 #include <boost/beast/http/write.hpp>
-#include <boost/beast/ssl/ssl_stream.hpp>
 #include <boost/beast/websocket.hpp>
 
 #include <atomic>
@@ -58,7 +57,7 @@ struct IsTls : std::false_type
 {};
 
 template <typename T>
-struct IsTls<boost::beast::ssl_stream<T>> : std::true_type
+struct IsTls<boost::asio::ssl::stream<T>> : std::true_type
 {};
 
 template <typename Adaptor, typename Handler>

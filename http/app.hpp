@@ -32,7 +32,7 @@ namespace crow
 class App
 {
   public:
-    using ssl_socket_t = boost::beast::ssl_stream<boost::asio::ip::tcp::socket>;
+    using ssl_socket_t = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>;
     using raw_socket_t = boost::asio::ip::tcp::socket;
 
     using socket_type =

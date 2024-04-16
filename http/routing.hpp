@@ -21,7 +21,7 @@
 #include "verb.hpp"
 #include "websocket.hpp"
 
-#include <boost/beast/ssl/ssl_stream.hpp>
+#include <boost/asio/ssl/stream.hpp>
 #include <boost/container/flat_map.hpp>
 #include <boost/url/format.hpp>
 #include <sdbusplus/unpack_properties.hpp>
