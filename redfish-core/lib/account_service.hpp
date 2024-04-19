@@ -1122,8 +1122,6 @@ inline void getAcfProperties(
         if (expirationDateCpy.length() != 10)
         {
             BMCWEB_LOG_ERROR << "expirationDate format invalid";
-            asyncResp->res = {};
-            messages::internalError(asyncResp->res);
             return;
         }
         while ((pos = expirationDateCpy.find(delimiter)) != std::string::npos)
@@ -1135,8 +1133,6 @@ inline void getAcfProperties(
             if (*endPtr != '\0')
             {
                 BMCWEB_LOG_ERROR << "expirationDate format enum";
-                asyncResp->res = {};
-                messages::internalError(asyncResp->res);
                 return;
             }
             expirationDateCpy.erase(0, pos + delimiter.length());
