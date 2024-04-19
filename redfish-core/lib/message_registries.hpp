@@ -59,8 +59,8 @@ inline void handleMessageRegistryFileCollectionGet(
                         "BiosAttributeRegistry"}))
     {
         nlohmann::json::object_t member;
-        member["@odata.id"] = crow::utility::urlFromPieces(
-            "redfish", "v1", "Registries", memberName);
+        member["@odata.id"] = boost::urls::format("/redfish/v1/Registries/{}",
+                                                  memberName);
         members.emplace_back(std::move(member));
     }
 
