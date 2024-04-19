@@ -57,6 +57,12 @@ inline void handleMessageRegistryFileCollectionGet(
     for (const char* memberName :
          std::to_array({"Base", "TaskEvent", "ResourceEvent", "OpenBMC",
                         "BiosAttributeRegistry"}))
+    {
+        nlohmann::json::object_t member;
+        member["@odata.id"] = crow::utility::urlFromPieces(
+            "redfish", "v1", "Registries", memberName);
+        members.emplace_back(std::move(member));
+    }
 
     for (const char* memberName : std::to_array(
              {"Base", "TaskEvent", "ResourceEvent", "OpenBMC", "License"}))
