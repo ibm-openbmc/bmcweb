@@ -20,6 +20,7 @@
 #include "registries.hpp"
 #include "registries/base_message_registry.hpp"
 #include "registries/bios_registry.hpp"
+#include "registries/license_message_registry.hpp"
 #include "registries/openbmc_message_registry.hpp"
 #include "registries/privilege_registry.hpp"
 #include "registries/resource_event_message_registry.hpp"
@@ -52,9 +53,13 @@ inline void handleMessageRegistryFileCollectionGet(
     asyncResp->res.jsonValue["Members@odata.count"] = 5;
 
     nlohmann::json& members = asyncResp->res.jsonValue["Members"];
+
     for (const char* memberName :
          std::to_array({"Base", "TaskEvent", "ResourceEvent", "OpenBMC",
                         "BiosAttributeRegistry"}))
+
+    for (const char* memberName : std::to_array(
+             {"Base", "TaskEvent", "ResourceEvent", "OpenBMC", "License"}))
     {
         nlohmann::json::object_t member;
         member["@odata.id"] = boost::urls::format("/redfish/v1/Registries/{}",
@@ -111,6 +116,11 @@ inline void handleMessageRoutesMessageRegistryFileGet(
     {
         header = &registries::bios::header;
         dmtf.clear();
+    }
+    else if (registry == "License")
+    {
+        header = &registries::license::header;
+        url = registries::license::url;
     }
     else
     {
@@ -197,6 +207,15 @@ inline void handleMessageRegistryGet(
         header = &registries::resource_event::header;
         for (const registries::MessageEntry& entry :
              registries::resource_event::registry)
+        {
+            registryEntries.emplace_back(&entry);
+        }
+    }
+    else if (registry == "License")
+    {
+        header = &registries::license::header;
+        for (const registries::MessageEntry& entry :
+             registries::license::registry)
         {
             registryEntries.emplace_back(&entry);
         }

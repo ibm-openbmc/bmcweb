@@ -83,9 +83,11 @@ using DBusInterfacesMap =
 using ManagedObjectType =
     std::vector<std::pair<sdbusplus::message::object_path, DBusInterfacesMap>>;
 
+// List of interfaces
+using InterfaceList = std::vector<std::string>;
+
 // Map of service name to list of interfaces
-using MapperServiceMap =
-    std::vector<std::pair<std::string, std::vector<std::string>>>;
+using MapperServiceMap = std::vector<std::pair<std::string, InterfaceList>>;
 
 // Map of object paths to MapperServiceMaps
 using MapperGetSubTreeResponse =
@@ -147,7 +149,7 @@ template <typename Callback>
 inline void checkDbusPathExists(const std::string& path, Callback&& callback)
 {
     crow::connections::systemBus->async_method_call(
-        [callback{std::forward<Callback>(callback)}](
+        [callback = std::forward<Callback>(callback)](
             const boost::system::error_code& ec,
             const dbus::utility::MapperGetObject& objectNames) {
         callback(!ec && !objectNames.empty());

@@ -140,7 +140,7 @@ option(
     'bmcweb-logging',
     type: 'combo',
     choices : [ 'disabled', 'enabled', 'debug', 'info', 'warning', 'error', 'critical' ],
-    value: 'disabled',
+    value: 'error',
     description: '''Enable output the extended logging level.
                     - disabled: disable bmcweb log traces.
                     - enabled: treated as 'debug'
@@ -152,6 +152,13 @@ option(
     type: 'feature',
     value: 'enabled',
     description: 'Enable basic authentication'
+)
+option(
+     'redfish-license',
+     type : 'feature',
+     value : 'disabled',
+     description : '''Enable License transactions through Redfish. Paths are
+                      under /redfish/v1/LicenseService/Licenses/'''
 )
 
 option(

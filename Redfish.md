@@ -197,7 +197,6 @@ Fields common to all schemas
 - HotPluggable
 - Links/ComputerSystems
 - Links/ManagedBy
-- PCIeDevices
 - PCIeSlots
 - Power
   - Shall be included if component contains voltage/current sensing components,
@@ -329,6 +328,9 @@ Fields common to all schemas
 #### /redfish/v1/Chassis/{ChassisId}/ThermalSubsystem/ThermalMetrics/
 
 ##### ThermalMetrics
+
+- TemperatureReadingsCelsius/DataSourceUri
+- TemperatureReadingsCelsius/Reading
 
 #### /redfish/v1/Chassis/{ChassisId}/ThermalSubsystem/Fans
 
