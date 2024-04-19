@@ -9,6 +9,7 @@
 #include "http_request.hpp"
 #include "query.hpp"
 #include "registries.hpp"
+#include "registries/bios_registry.hpp"
 #include "registries/privilege_registry.hpp"
 #include "registries_selector.hpp"
 
@@ -48,7 +49,7 @@ inline void handleMessageRegistryFileCollectionGet(
 
     static constexpr const auto registryFiles = std::to_array(
         {"Base", "TaskEvent", "ResourceEvent", "OpenBMC", "Telemetry",
-         "HeartbeatEvent"});
+         "HeartbeatEvent", "BiosAttributeRegistry"});
 
     for (const char* memberName : registryFiles)
     {
