@@ -21,7 +21,7 @@
 #include "dbus_singleton.hpp"
 #include "dbus_utility.hpp"
 #include "generated/enums/computer_system.hpp"
-#include "health.hpp"
+#include "generated/enums/resource.hpp"
 #include "hypervisor_system.hpp"
 #include "led.hpp"
 #include "query.hpp"
@@ -3217,30 +3217,6 @@ inline void
         nlohmann::json::array_t({"KVMIP"});
 
 #endif // BMCWEB_ENABLE_KVM
-
-    auto health = std::make_shared<HealthPopulate>(asyncResp);
-    if constexpr (bmcwebEnableHealthPopulate)
-    {
-        constexpr std::array<std::string_view, 4> inventoryForSystems{
-            "xyz.openbmc_project.Inventory.Item.Dimm",
-            "xyz.openbmc_project.Inventory.Item.Cpu",
-            "xyz.openbmc_project.Inventory.Item.Drive",
-            "xyz.openbmc_project.Inventory.Item.StorageController"};
-
-        dbus::utility::getSubTreePaths(
-            "/", 0, inventoryForSystems,
-            [health](const boost::system::error_code& ec,
-                     const std::vector<std::string>& resp) {
-            if (ec)
-            {
-                // no inventory
-                return;
-            }
-
-            health->inventory = resp;
-        });
-        health->populate();
-    }
 
     getMainChassisId(asyncResp,
                      [](const std::string& chassisId,
