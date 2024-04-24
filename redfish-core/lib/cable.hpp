@@ -7,6 +7,7 @@
 #include "dbus_singleton.hpp"
 #include "dbus_utility.hpp"
 #include "error_messages.hpp"
+#include "generated/enums/cable.hpp"
 #include "generated/enums/resource.hpp"
 #include "http_request.hpp"
 #include "http_response.hpp"
@@ -60,10 +61,11 @@ inline void fillCableProperties(
 
     const std::string* cableTypeDescription = nullptr;
     const double* length = nullptr;
+    const std::string* cableStatus = nullptr;
 
     const bool success = sdbusplus::unpackPropertiesNoThrow(
         dbus_utils::UnpackErrorPrinter(), properties, "CableTypeDescription",
-        cableTypeDescription, "Length", length);
+        cableTypeDescription, "Length", length, "CableStatus", cableStatus);
 
     if (!success)
     {
@@ -91,6 +93,37 @@ inline void fillCableProperties(
         else
         {
             asyncResp->res.jsonValue["LengthMeters"] = *length;
+        }
+    }
+
+    if (cableStatus != nullptr && !cableStatus->empty())
+    {
+        if (*cableStatus ==
+            "xyz.openbmc_project.Inventory.Item.Cable.Status.Inactive")
+        {
+            asyncResp->res.jsonValue["CableStatus"] =
+                cable::CableStatus::Normal;
+            asyncResp->res.jsonValue["Status"]["State"] =
+                resource::State::StandbyOffline;
+            asyncResp->res.jsonValue["Status"]["Health"] = resource::Health::OK;
+        }
+        else if (*cableStatus ==
+                 "xyz.openbmc_project.Inventory.Item.Cable.Status.Running")
+        {
+            asyncResp->res.jsonValue["CableStatus"] =
+                cable::CableStatus::Normal;
+            asyncResp->res.jsonValue["Status"]["State"] =
+                resource::State::Enabled;
+            asyncResp->res.jsonValue["Status"]["Health"] = resource::Health::OK;
+        }
+        else if (*cableStatus ==
+                 "xyz.openbmc_project.Inventory.Item.Cable.Status.PoweredOff")
+        {
+            asyncResp->res.jsonValue["CableStatus"] =
+                cable::CableStatus::Disabled;
+            asyncResp->res.jsonValue["Status"]["State"] =
+                resource::State::StandbyOffline;
+            asyncResp->res.jsonValue["Status"]["Health"] = resource::Health::OK;
         }
     }
 }
