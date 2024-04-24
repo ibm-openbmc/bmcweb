@@ -49,7 +49,8 @@ static constexpr std::array<std::pair<std::string_view, std::string_view>, 3>
 
 inline void extractNTPServersAndDomainNamesData(
     const dbus::utility::ManagedObjectType& dbusData,
-    std::vector<std::string>& ntpData, std::vector<std::string>& dnData)
+    std::vector<std::string>& ntpData, std::vector<std::string>& dynamicNtpData,
+    std::vector<std::string>& dnData)
 {
     for (const auto& obj : dbusData)
     {
@@ -73,6 +74,16 @@ inline void extractNTPServersAndDomainNamesData(
                         ntpData = *ntpServers;
                     }
                 }
+                else if (propertyPair.first == "NTPServers")
+                {
+                    const std::vector<std::string>* dynamicNtpServers =
+                        std::get_if<std::vector<std::string>>(
+                            &propertyPair.second);
+                    if (dynamicNtpServers != nullptr)
+                    {
+                        dynamicNtpData = *dynamicNtpServers;
+                    }
+                }
                 else if (propertyPair.first == "DomainName")
                 {
                     const std::vector<std::string>* domainNames =
@@ -92,25 +103,26 @@ inline void extractNTPServersAndDomainNamesData(
 template <typename CallbackFunc>
 void getEthernetIfaceData(CallbackFunc&& callback)
 {
-    crow::connections::systemBus->async_method_call(
-        [callback{std::forward<CallbackFunc>(callback)}](
-            const boost::system::error_code errorCode,
+    sdbusplus::message::object_path path("/xyz/openbmc_project/network");
+    dbus::utility::getManagedObjects(
+        "xyz.openbmc_project.Network", path,
+        [callback = std::forward<CallbackFunc>(callback)](
+            const boost::system::error_code& ec,
             const dbus::utility::ManagedObjectType& dbusData) {
         std::vector<std::string> ntpServers;
+        std::vector<std::string> dynamicNtpServers;
         std::vector<std::string> domainNames;
 
-        if (errorCode)
+        if (ec)
         {
-            callback(false, ntpServers, domainNames);
+            callback(false, ntpServers, dynamicNtpServers, domainNames);
             return;
         }
 
-        extractNTPServersAndDomainNamesData(dbusData, ntpServers, domainNames);
+        extractNTPServersAndDomainNamesData(dbusData, ntpServers,
+                                            dynamicNtpServers, domainNames);
 
-        callback(true, ntpServers, domainNames);
-    },
-        "xyz.openbmc_project.Network", "/xyz/openbmc_project/network",
-        "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
+        callback(true, ntpServers, dynamicNtpServers, domainNames);
 }
 
 inline void afterNetworkPortRequest(
@@ -152,7 +164,7 @@ inline void getNetworkData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         boost::beast::http::field::link,
         "</redfish/v1/JsonSchemas/ManagerNetworkProtocol/NetworkProtocol.json>; rel=describedby");
     asyncResp->res.jsonValue["@odata.type"] =
-        "#ManagerNetworkProtocol.v1_5_0.ManagerNetworkProtocol";
+        "#ManagerNetworkProtocol.v1_9_0.ManagerNetworkProtocol";
     asyncResp->res.jsonValue["@odata.id"] =
         "/redfish/v1/Managers/bmc/NetworkProtocol";
     asyncResp->res.jsonValue["Id"] = "NetworkProtocol";
@@ -189,6 +201,7 @@ inline void getNetworkData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     getEthernetIfaceData(
         [hostName, asyncResp](const bool& success,
                               const std::vector<std::string>& ntpServers,
+                              const std::vector<std::string>& dynamicNtpServers,
                               const std::vector<std::string>& domainNames) {
         if (!success)
         {
@@ -197,6 +210,8 @@ inline void getNetworkData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             return;
         }
         asyncResp->res.jsonValue["NTP"]["NTPServers"] = ntpServers;
+        asyncResp->res.jsonValue["NTP"]["NetworkSuppliedServers"] =
+            dynamicNtpServers;
         if (!hostName.empty())
         {
             std::string fqdn = hostName;
@@ -525,6 +540,7 @@ inline void requestRoutesNetworkProtocol(App& app)
                 [asyncResp, ntpServerObjects](
                     const bool success,
                     std::vector<std::string>& currentNtpServers,
+                    std::vector<std::string>& /*dynamicNtpServers*/,
                     const std::vector<std::string>& /*domainNames*/) {
                 if (!success)
                 {
