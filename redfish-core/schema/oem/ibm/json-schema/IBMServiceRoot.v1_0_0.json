@@ -69,6 +69,12 @@
                     "pattern": "^([-+][0-1][0-9]:[0-5][0-9])$",
                     "readonly": false,
                     "type": ["string", "null"]
+                },
+                "ACFWindowActive": {
+                    "description": "An indication of whether the time window for an unauthorized agent to upload an ACF is active.",
+                    "longDescription": "This property shall indicate if the time window for an unauthorized agent to upload an ACF is active.",
+                    "readonly": true,
+                    "type": ["boolean", "null"]
                 }
             },
             "type": "object"
