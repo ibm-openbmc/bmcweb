@@ -23,7 +23,7 @@ foreach option_key, schema : schemas
 endforeach
 
 # Additional IBM schemas that should be installed
-ibm_schemas = ['OpenBMCAssembly', 'OpenBMCMessage']
+ibm_schemas = ['OpenBMCAssembly', 'OpenBMCLogEntry', 'OpenBMCMessage']
 
 foreach schema : ibm_schemas
     install_data(
