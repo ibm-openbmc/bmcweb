@@ -95,9 +95,13 @@ int run()
 
     if constexpr (BMCWEB_REST)
     {
-        crow::dbus_monitor::requestRoutes(app);
         crow::image_upload::requestRoutes(app);
         crow::openbmc_mapper::requestRoutes(app);
+    }
+
+    if constexpr (BMCWEB_EVENT_SUBSCRIPTION)
+    {
+        crow::dbus_monitor::requestRoutes(app);
     }
 
     if constexpr (BMCWEB_HOST_SERIAL_SOCKET)

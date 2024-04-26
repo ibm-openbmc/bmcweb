@@ -440,6 +440,14 @@ option(
     resources such as EthernetInterfaces and ComputerSystem.Reset.''',
 )
 
+# BMCWEB_EVENT_SUBSCRIPTION
+option(
+    'event-subscription',
+    type: 'feature',
+    value: 'enabled',
+    description: 'Enable Event Subscription through websocket',
+)
+
 # BMCWEB_EXPERIMENTAL_REDFISH_MULTI_COMPUTER_SYSTEM
 option(
     'experimental-redfish-multi-computer-system',

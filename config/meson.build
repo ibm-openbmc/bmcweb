@@ -6,6 +6,7 @@ feature_options = [
     'audit-events',
     'basic-auth',
     'cookie-auth',
+    'event-subscription',
     'experimental-http2',
     'experimental-redfish-dbus-log-subscription',
     'experimental-redfish-multi-computer-system',
