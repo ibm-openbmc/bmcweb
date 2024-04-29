@@ -58,6 +58,7 @@
 #include <functional>
 #include <iomanip>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -1235,6 +1236,14 @@ inline void requestRoutesSystemLogServiceCollection(App& app)
                         }
                     }
                 });
+
+            if constexpr (BMCWEB_AUDIT_EVENTS)
+            {
+                nlohmann::json::object_t auditLog;
+                auditLog["@odata.id"] =
+                    "/redfish/v1/Systems/system/LogServices/AuditLog";
+                logServiceArray.push_back(std::move(auditLog));
+            }
         });
 }
 
