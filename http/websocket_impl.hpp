@@ -125,6 +125,11 @@ class ConnectionImpl : public Connection
                                         shared_from_this(), std::move(mobile)));
     }
 
+    const std::string& getUserName() const override
+    {
+        return session->username;
+    }
+
     void sendBinary(std::string_view msg) override
     {
         ws.binary(true);
