@@ -389,7 +389,8 @@ inline bool getFilterParam(std::string_view value, Query& query)
 }
 
 inline std::optional<Query> parseParameters(boost::urls::params_view urlParams,
-                                            crow::Response& res)
+                                            crow::Response& res,
+                                            std::string_view url)
 {
     Query ret{};
     for (const boost::urls::params_view::value_type& it : urlParams)
@@ -405,6 +406,14 @@ inline std::optional<Query> parseParameters(boost::urls::params_view urlParams,
         }
         else if (it.key == "$expand" && BMCWEB_INSECURE_ENABLE_REDFISH_QUERY)
         {
+            // Only allow expand for a few endpoints
+            if ((!url.starts_with("/redfish/v1/Cables")) &&
+                (!url.starts_with("/redfish/v1/Systems/system")) &&
+                (!url.starts_with("/redfish/v1/Chassis")))
+            {
+                messages::queryParameterValueFormatError(res, it.value, it.key);
+                return std::nullopt;
+            }
             if (!getExpandType(it.value, ret))
             {
                 messages::queryParameterValueFormatError(res, it.value, it.key);
