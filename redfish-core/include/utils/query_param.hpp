@@ -290,6 +290,12 @@ inline bool getExpandType(std::string_view value, Query& query)
     {
         return false;
     }
+
+    if (query.expandLevel > 3)
+    {
+        return false;
+    }
+
     value.remove_prefix(static_cast<size_t>(it.ptr - value.data()));
     return value == ")";
 }
