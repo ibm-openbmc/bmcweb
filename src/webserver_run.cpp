@@ -17,6 +17,7 @@
 #include "logging.hpp"
 #include "login_routes.hpp"
 #include "obmc_console.hpp"
+#include "obmc_hypervisor.hpp"
 #include "obmc_shell.hpp"
 #include "openbmc_dbus_rest.hpp"
 #include "redfish.hpp"
@@ -104,6 +105,11 @@ int run()
     if constexpr (BMCWEB_HOST_SERIAL_SOCKET)
     {
         crow::obmc_console::requestRoutes(app);
+    }
+
+    if constexpr (BMCWEB_HYPERVISOR_SERIAL_SOCKET)
+    {
+        crow::obmc_hypervisor::requestRoutes(app);
     }
 
     if constexpr (BMCWEB_BMC_SHELL_SOCKET)

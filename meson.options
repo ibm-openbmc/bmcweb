@@ -553,3 +553,12 @@ option(
                        possible to access secure shell. Path is
                        \'/bmc-console\'.''',
 )
+
+# BMCWEB_HYPERVISOR_SERIAL_SOCKET
+option(
+    'hypervisor-serial-socket',
+    type: 'feature',
+    value: 'enabled',
+    description: '''Enable hypervisor serial console WebSocket. Path is
+                      \'/console1\'.''',
+)
