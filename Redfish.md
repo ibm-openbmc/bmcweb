@@ -268,6 +268,7 @@ Fields common to all schemas
 
 #### EnvironmentMetrics
 
+- PowerLimitWatts
 - PowerWatts/DataSourceUri
 - PowerWatts/Reading
 
