@@ -13,6 +13,7 @@
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 #include "utils/chassis_utils.hpp"
+#include "utils/fan_utils.hpp"
 #include "utils/json_utils.hpp"
 #include "utils/name_utils.hpp"
 
@@ -25,7 +26,6 @@
 #include <nlohmann/json.hpp>
 #include <sdbusplus/unpack_properties.hpp>
 
-#include <array>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -35,14 +35,21 @@
 
 namespace redfish
 {
-constexpr std::array<std::string_view, 1> fanInterface = {
-    "xyz.openbmc_project.Inventory.Item.Fan"};
-
 inline void updateFanList(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& chassisId,
+    const std::string& chassisId, const boost::system::error_code& ec,
     const dbus::utility::MapperGetSubTreePathsResponse& fanPaths)
 {
+    if (ec)
+    {
+        if (ec.value() != EBADR)
+        {
+            BMCWEB_LOG_ERROR("DBUS response error {}", ec.value());
+            messages::internalError(asyncResp->res);
+        }
+        return;
+    }
+
     nlohmann::json& fanList = asyncResp->res.jsonValue["Members"];
     for (const std::string& fanPath : fanPaths)
     {
@@ -61,37 +68,6 @@ inline void updateFanList(
         fanList.emplace_back(std::move(item));
     }
     asyncResp->res.jsonValue["Members@odata.count"] = fanList.size();
-}
-
-inline void getFanPaths(
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& validChassisPath,
-    const std::function<void(const dbus::utility::MapperGetSubTreePathsResponse&
-                                 fanPaths)>& callback)
-{
-    sdbusplus::message::object_path endpointPath{validChassisPath};
-    endpointPath /= "cooled_by";
-
-    dbus::utility::getAssociatedSubTreePaths(
-        endpointPath,
-        sdbusplus::message::object_path("/xyz/openbmc_project/inventory"), 0,
-        fanInterface,
-        [asyncResp, callback](
-            const boost::system::error_code& ec,
-            const dbus::utility::MapperGetSubTreePathsResponse& subtreePaths) {
-            if (ec)
-            {
-                if (ec.value() != EBADR)
-                {
-                    BMCWEB_LOG_ERROR(
-                        "DBUS response error for getAssociatedSubTreePaths {}",
-                        ec.value());
-                    messages::internalError(asyncResp->res);
-                }
-                return;
-            }
-            callback(subtreePaths);
-        });
 }
 
 inline void doFanCollection(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -116,8 +92,9 @@ inline void doFanCollection(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     asyncResp->res.jsonValue["Members"] = nlohmann::json::array();
     asyncResp->res.jsonValue["Members@odata.count"] = 0;
 
-    getFanPaths(asyncResp, *validChassisPath,
-                std::bind_front(updateFanList, asyncResp, chassisId));
+    fan_utils::getFanPaths(
+        *validChassisPath,
+        std::bind_front(updateFanList, asyncResp, chassisId));
 }
 
 inline void handleFanCollectionHead(
@@ -184,10 +161,21 @@ inline bool checkFanId(const std::string& fanPath, const std::string& fanId)
 inline void handleFanPath(
     const std::string& fanId,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec,
     const dbus::utility::MapperGetSubTreePathsResponse& fanPaths,
     const std::function<void(const std::string& fanPath,
                              const std::string& service)>& callback)
 {
+    if (ec)
+    {
+        if (ec.value() != EBADR)
+        {
+            BMCWEB_LOG_ERROR("DBUS response error {}", ec.value());
+            messages::internalError(asyncResp->res);
+        }
+        return;
+    }
+
     for (const auto& fanPath : fanPaths)
     {
         if (!checkFanId(fanPath, fanId))
@@ -197,12 +185,12 @@ inline void handleFanPath(
         dbus::utility::getDbusObject(
             fanPath, fanInterface,
             [fanPath, asyncResp,
-             callback](const boost::system::error_code& ec,
+             callback](const boost::system::error_code& ec1,
                        const dbus::utility::MapperGetObject& object) {
-                if (ec || object.empty())
+                if (ec1 || object.empty())
                 {
                     BMCWEB_LOG_ERROR("DBUS response error on getDbusObject {}",
-                                     ec.value());
+                                     ec1.value());
                     messages::internalError(asyncResp->res);
                     return;
                 }
@@ -221,11 +209,12 @@ inline void getValidFanPath(
     const std::function<void(const std::string& fanPath,
                              const std::string& service)>& callback)
 {
-    getFanPaths(
-        asyncResp, validChassisPath,
+    fan_utils::getFanPaths(
+        validChassisPath,
         [fanId, asyncResp, callback](
+            const boost::system::error_code& ec,
             const dbus::utility::MapperGetSubTreePathsResponse& fanPaths) {
-            handleFanPath(fanId, asyncResp, fanPaths, callback);
+            handleFanPath(fanId, asyncResp, ec, fanPaths, callback);
         });
 }
 

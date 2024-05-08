@@ -268,6 +268,9 @@ Fields common to all schemas
 
 #### EnvironmentMetrics
 
+- FanSpeedsPercent/DataSourceUri
+- FanSpeedsPercent/DeviceName
+- FanSpeedsPercent/SpeedRPM
 - PowerLimitWatts
 - PowerWatts/DataSourceUri
 - PowerWatts/Reading
