@@ -152,7 +152,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
     std::optional<boost::beast::ssl_stream<boost::asio::ip::tcp::socket&>>
         sslConn;
     boost::asio::ip::tcp::socket conn;
-
+    std::optional<boost::asio::ssl::context> sslCtx;
     boost::asio::steady_timer timer;
 
     friend class ConnectionPool;
@@ -213,8 +213,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         timer.cancel();
         if (ec)
         {
-            BMCWEB_LOG_ERROR << "Connect " << endpoint.address().to_string()
-                             << " : " << std::to_string(endpoint.port())
+            BMCWEB_LOG_ERROR << "Connect " << host << " : " << port
                              << ", id: " << std::to_string(connId)
                              << " failed: " << ec.message();
             state = ConnState::connectFailed;
@@ -468,7 +467,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
             }
             if (connPolicy->retryPolicyAction == "RetryForever")
             {
-                state = ConnState::idle;
+                state = ConnState::closed;
             }
 
             // We want to return a 502 to indicate there was an error with
@@ -519,7 +518,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         BMCWEB_LOG_DEBUG << host << ":" << std::to_string(port)
                          << ", id: " << std::to_string(connId)
                          << " restartConnection ";
-        initializeConnection(sslConn.has_value());
+        initializeConnection();
         doResolve();
     }
     void shutdownConn(bool retry)
@@ -626,10 +625,8 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
             return;
         }
     }
-
-    void initializeConnection(bool ssl)
+    void intializeContext(bool ssl)
     {
-        conn = boost::asio::ip::tcp::socket(ioc);
         if (ssl)
         {
             /* std::optional<boost::asio::ssl::context> sslCtx =
@@ -648,9 +645,16 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
                 waitAndRetry();
                 return;
             } */
-            boost::asio::ssl::context sslCtx{
-                boost::asio::ssl::context::tlsv13_client};
-            sslConn.emplace(conn, sslCtx);
+            sslCtx.emplace(boost::asio::ssl::context{
+                boost::asio::ssl::context::tlsv13_client});
+        }
+    }
+    void initializeConnection()
+    {
+        conn = boost::asio::ip::tcp::socket(ioc);
+        if (sslCtx.has_value())
+        {
+            sslConn.emplace(conn, *sslCtx);
             setCipherSuiteTLSext();
         }
     }
@@ -665,7 +669,8 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         connPolicy(connPolicyIn), host(destIPIn), port(destPortIn),
         connId(connIdIn), ioc(iocIn), conn(iocIn), timer(iocIn)
     {
-        initializeConnection(useSSL);
+        intializeContext(useSSL);
+        initializeConnection();
     }
 };
 
