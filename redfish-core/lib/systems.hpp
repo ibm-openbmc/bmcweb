@@ -28,6 +28,7 @@
 #include "utils/time_utils.hpp"
 
 #include <asm-generic/errno.h>
+#include <systemd/sd-bus.h>
 
 #include <boost/asio/error.hpp>
 #include <boost/beast/http/field.hpp>
@@ -37,9 +38,12 @@
 #include <boost/system/linux_error.hpp>
 #include <boost/url/format.hpp>
 #include <nlohmann/json.hpp>
+#include <sdbusplus/asio/property.hpp>
+#include <sdbusplus/message.hpp>
 #include <sdbusplus/message/native_types.hpp>
 #include <sdbusplus/unpack_properties.hpp>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstddef>
@@ -2809,6 +2813,84 @@ inline void handleSystemActionsOemExecutePanelFunctionPost(
         });
 }
 
+/*
+ * Get ChapData
+ */
+inline void getChapData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    BMCWEB_LOG_DEBUG("Get ChapData");
+    dbus::utility::getAllProperties(
+        *crow::connections::systemBus, "xyz.openbmc_project.PLDM",
+        "/xyz/openbmc_project/pldm", "com.ibm.PLDM.ChapData",
+        [asyncResp](const boost::system::error_code& ec,
+                    const dbus::utility::DBusPropertiesMap& propertiesList) {
+            if (ec)
+            {
+                // ChapData isn't that important. Ignore all errors.
+                BMCWEB_LOG_DEBUG("Get ChapData D-bus error: {}", ec.value());
+                return;
+            }
+
+            const std::string* chapName = nullptr;
+            const std::string* chapSecret = nullptr;
+            const bool success = sdbusplus::unpackPropertiesNoThrow(
+                dbus_utils::UnpackErrorPrinter(), propertiesList, "ChapName",
+                chapName, "ChapSecret", chapSecret);
+
+            if (!success)
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            nlohmann::json& oemIBM = asyncResp->res.jsonValue["Oem"]["IBM"];
+            oemIBM["@odata.type"] = "#IBMComputerSystem.v1_0_0.IBM";
+
+            nlohmann::json& chapData = oemIBM["ChapData"];
+            chapData["ChapName"] = *chapName;
+            chapData["ChapSecret"] = *chapSecret;
+        });
+}
+
+/*
+ * Set ChapData
+ */
+inline void setChapData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                        std::optional<std::string> chapName,
+                        std::optional<std::string> chapSecret)
+{
+    BMCWEB_LOG_DEBUG("Set ChapData");
+    if (chapName)
+    {
+        sdbusplus::asio::setProperty(
+            *crow::connections::systemBus, "xyz.openbmc_project.PLDM",
+            "/xyz/openbmc_project/pldm", "com.ibm.PLDM.ChapData", "ChapName",
+            *chapName, [asyncResp](const boost::system::error_code& ec) {
+                if (ec)
+                {
+                    BMCWEB_LOG_ERROR("DBUS response error: {}", ec.value());
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+            });
+    }
+
+    if (chapSecret)
+    {
+        sdbusplus::asio::setProperty(
+            *crow::connections::systemBus, "xyz.openbmc_project.PLDM",
+            "/xyz/openbmc_project/pldm", "com.ibm.PLDM.ChapData", "ChapSecret",
+            *chapSecret, [asyncResp](const boost::system::error_code& ec) {
+                if (ec)
+                {
+                    BMCWEB_LOG_ERROR("DBUS response error: {}", ec.value());
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+            });
+    }
+}
+
 /**
  * @brief Sets Idle Power Saver properties.
  *
@@ -3303,6 +3385,9 @@ inline void handleComputerSystemGet(
     nlohmann::json& actionOem = asyncResp->res.jsonValue["Actions"]["Oem"];
     actionOem["#IBMComputerSystem.v1_0_0.ExecutePanelFunction"]["target"] =
         "/redfish/v1/Systems/system/Actions/Oem/IBM/IBMComputerSystem.ExecutePanelFunction";
+
+    // ChapData
+    getChapData(asyncResp);
 }
 
 inline void handleComputerSystemPatch(
@@ -3351,6 +3436,8 @@ inline void handleComputerSystemPatch(
     std::optional<uint64_t> ipsEnterTime;
     std::optional<uint8_t> ipsExitUtil;
     std::optional<uint64_t> ipsExitTime;
+    std::optional<std::string> chapName;
+    std::optional<std::string> chapSecret;
 
     if (!json_util::readJsonPatch(                                         //
             req, asyncResp->res,                                           //
@@ -3372,7 +3459,9 @@ inline void handleComputerSystemPatch(
             "IndicatorLED", indicatorLed,                                  //
             "LocationIndicatorActive", locationIndicatorActive,            //
             "PowerMode", powerMode,                                        //
-            "PowerRestorePolicy", powerRestorePolicy                       //
+            "PowerRestorePolicy", powerRestorePolicy,                      //
+            "Oem/IBM/ChapData/ChapName", chapName,                         //
+            "Oem/IBM/ChapData/ChapSecret", chapSecret                      //
             ))
     {
         return;
@@ -3444,6 +3533,11 @@ inline void handleComputerSystemPatch(
     {
         setIdlePowerSaver(asyncResp, ipsEnable, ipsEnterUtil, ipsEnterTime,
                           ipsExitUtil, ipsExitTime);
+    }
+
+    if (chapName || chapSecret)
+    {
+        setChapData(asyncResp, chapName, chapSecret);
     }
 }
 
@@ -3654,9 +3748,9 @@ inline void requestRoutesSystems(App& app)
 }
 
 /**
- * SystemActionsOemExecutePanelFunction class supports handle POST method for
- * ExecutePanelFunction  action. The class retrieves and sends data directly to
- * D-Bus.
+ * SystemActionsOemExecutePanelFunction class supports handle POST method
+ * for ExecutePanelFunction  action. The class retrieves and sends data
+ * directly to D-Bus.
  */
 inline void requestRoutesSystemActionsOemExecutePanelFunction(App& app)
 {

@@ -37,6 +37,26 @@
           <Annotation Term="OData.Description" String="List of enabled panel functions."/>
           <Annotation Term="OData.LongDescription" String="This property shall contain the list of enabled panel functions."/>
         </Property>
+        <Property Name="ChapData" Type="IBMComputerSystem.v1_0_0.ChapData">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="ChapData details to Host."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain ChapData."/>
+        </Property>
+      </ComplexType>
+      <ComplexType Name="ChapData" BaseType="Resource.OemObject">
+        <Annotation Term="OData.AdditionalProperties" Bool="false"/>
+        <Annotation Term="OData.Description" String="ChapData details to Host."/>
+        <Annotation Term="OData.LongDescription" String="This type shall contain ChapData."/>
+        <Property Name="ChapName" Type="Edm.String">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="A user selected name associated with each of the chap secret password."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain ChapName that is a user selected name associated with each of the chap secret password."/>
+        </Property>
+        <Property Name="ChapSecret" Type="Edm.String">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="An encrypted secret password transferred to the Host for the respective ChapName."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain ChapSecret that is an encrypted secret password transferred to the Host for the respective ChapName."/>
+        </Property>
       </ComplexType>
       <Action Name="ExecutePanelFunction" IsBound="true">
         <Annotation Term="OData.Description" String="This action executes a panel function."/>
