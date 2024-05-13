@@ -154,11 +154,40 @@ inline void addLinkedPcieDevices(
         std::bind_front(afterAddLinkedPcieDevices, asyncResp, index));
 }
 
+inline void getLocationCode(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, const size_t index,
+    const std::string& connectionName, const std::string& pcieSlotPath)
+{
+    sdbusplus::asio::getProperty<std::string>(
+        *crow::connections::systemBus, connectionName, pcieSlotPath,
+        "xyz.openbmc_project.Inventory.Decorator.LocationCode", "LocationCode",
+        [asyncResp, index](const boost::system::error_code& ec1,
+                           const std::string& property) {
+            if (ec1)
+            {
+                if (ec1.value() == EBADR)
+                {
+                    // Don't always have PCIeSlot location codes
+                    BMCWEB_LOG_DEBUG("No slot location code found");
+                    return;
+                }
+
+                BMCWEB_LOG_ERROR(
+                    "Can't get location code property for PCIeSlot, Error:{}",
+                    ec1.value());
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            asyncResp->res.jsonValue["Slots"][index]["Location"]["PartLocation"]
+                                    ["ServiceLabel"] = property;
+        });
+}
+
 inline void onPcieSlotGetAllDone(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const boost::system::error_code& ec,
     const dbus::utility::DBusPropertiesMap& propertiesList,
-    const std::string& pcieSlotPath)
+    const std::string& connectionName, const std::string& pcieSlotPath)
 {
     if (ec)
     {
@@ -255,6 +284,9 @@ inline void onPcieSlotGetAllDone(
     size_t index = slots.size();
     slots.emplace_back(std::move(slot));
 
+    // Get and set the location code
+    getLocationCode(asyncResp, index, connectionName, pcieSlotPath);
+
     // Get FabricAdapter device link if exists
     addLinkedFabricAdapter(asyncResp, pcieSlotPath, index);
 
@@ -343,11 +375,11 @@ inline void doHandlePCIeSlotListForCollectionGet(
         sdbusplus::asio::getAllProperties(
             *crow::connections::systemBus, connectionName, pcieSlotPath,
             "xyz.openbmc_project.Inventory.Item.PCIeSlot",
-            [asyncResp, pcieSlotPath](
+            [asyncResp, connectionName, pcieSlotPath](
                 const boost::system::error_code& ec2,
                 const dbus::utility::DBusPropertiesMap& propertiesList) {
                 onPcieSlotGetAllDone(asyncResp, ec2, propertiesList,
-                                     pcieSlotPath);
+                                     connectionName, pcieSlotPath);
             });
     }
 }
