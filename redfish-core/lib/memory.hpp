@@ -26,6 +26,7 @@
 #include <utils/hex_utils.hpp>
 #include <utils/hw_isolation.hpp>
 #include <utils/json_utils.hpp>
+#include <utils/name_utils.hpp>
 
 namespace redfish
 {
@@ -391,7 +392,6 @@ inline void
                            const nlohmann::json::json_pointer& jsonPtr)
 {
     aResp->res.jsonValue[jsonPtr]["Id"] = dimmId;
-    aResp->res.jsonValue[jsonPtr]["Name"] = "DIMM Slot";
     aResp->res.jsonValue[jsonPtr]["Status"]["State"] = "Enabled";
     aResp->res.jsonValue[jsonPtr]["Status"]["Health"] = "OK";
 
@@ -610,8 +610,8 @@ inline void getDimmDataByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
     BMCWEB_LOG_DEBUG << "Get available system components.";
     sdbusplus::asio::getAllProperties(
         *crow::connections::systemBus, service, objPath, "",
-        [dimmId, aResp{std::move(aResp)},
-         objPath](const boost::system::error_code ec,
+        [dimmId, aResp{std::move(aResp)}, objPath,
+         service](const boost::system::error_code ec,
                   const dbus::utility::DBusPropertiesMap& properties) {
         if (ec)
         {
@@ -620,6 +620,8 @@ inline void getDimmDataByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
             return;
         }
         assembleDimmProperties(dimmId, aResp, properties, ""_json_pointer);
+
+        name_util::getPrettyName(aResp, objPath, service, "/Name"_json_pointer);
 
 #ifdef BMCWEB_ENABLE_HW_ISOLATION
         // Check for the hardware status event
