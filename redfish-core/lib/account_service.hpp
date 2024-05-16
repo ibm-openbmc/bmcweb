@@ -1514,7 +1514,8 @@ inline void updateUserProperties(
     std::shared_ptr<bmcweb::AsyncResp> asyncResp, const std::string& username,
     std::optional<std::string> password, std::optional<bool> enabled,
     std::optional<std::string> roleId, std::optional<bool> locked,
-    std::optional<std::vector<std::string>> accountType, bool isUserItself)
+    std::optional<std::vector<std::string>> accountType, bool isUserItself,
+    const std::shared_ptr<persistent_data::UserSession>& session)
 {
     sdbusplus::message::object_path tempObjPath(rootUserDbusPath);
     tempObjPath /= username;
@@ -1524,7 +1525,7 @@ inline void updateUserProperties(
         dbusObjectPath,
         [dbusObjectPath, username, password(std::move(password)),
          roleId(std::move(roleId)), enabled, locked,
-         accountType(std::move(accountType)), isUserItself,
+         accountType(std::move(accountType)), isUserItself, session,
          asyncResp{std::move(asyncResp)}](int rc) {
         if (rc <= 0)
         {
@@ -1556,6 +1557,9 @@ inline void updateUserProperties(
             }
             else
             {
+                // Remove existing sessions of the user when password changed
+                persistent_data::SessionStore::getInstance()
+                    .removeSessionsByUsernameExceptSession(username, session);
                 messages::success(asyncResp->res);
             }
         }
@@ -2645,13 +2649,13 @@ inline void
     if (!newUserName || (newUserName.value() == username))
     {
         updateUserProperties(asyncResp, username, password, enabled, roleId,
-                             locked, accountType, isUserItself);
+                             locked, accountType, isUserItself, req.session);
         return;
     }
     crow::connections::systemBus->async_method_call(
         [asyncResp, username, password(std::move(password)),
          roleId(std::move(roleId)), enabled, newUser{std::string(*newUserName)},
-         locked, isUserItself, accountType{std::move(accountType)}](
+         locked, isUserItself, req, accountType{std::move(accountType)}](
             const boost::system::error_code ec,
             sdbusplus::message::message& m) {
         if (ec)
@@ -2662,7 +2666,7 @@ inline void
         }
 
         updateUserProperties(asyncResp, newUser, password, enabled, roleId,
-                             locked, accountType, isUserItself);
+                             locked, accountType, isUserItself, req.session);
     },
         "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
         "xyz.openbmc_project.User.Manager", "RenameUser", username,
