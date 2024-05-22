@@ -20,11 +20,13 @@
 #include "utils/dbus_utils.hpp"
 #include "utils/hex_utils.hpp"
 #include "utils/json_utils.hpp"
+#include "utils/name_utils.hpp"
 
 #include <boost/beast/http/field.hpp>
 #include <boost/beast/http/verb.hpp>
 #include <boost/system/error_code.hpp>
 #include <boost/url/format.hpp>
+#include <nlohmann/json.hpp>
 #include <sdbusplus/message/native_types.hpp>
 #include <sdbusplus/unpack_properties.hpp>
 
@@ -292,7 +294,8 @@ inline void getCpuDataByService(
                 return;
             }
             asyncResp->res.jsonValue["Id"] = cpuId;
-            asyncResp->res.jsonValue["Name"] = "Processor";
+            name_util::getPrettyName(asyncResp, objPath, service,
+                                     "/Name"_json_pointer);
             asyncResp->res.jsonValue["ProcessorType"] =
                 processor::ProcessorType::CPU;
 

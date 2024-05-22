@@ -22,6 +22,7 @@
 #include "utils/collection.hpp"
 #include "utils/dbus_utils.hpp"
 #include "utils/json_utils.hpp"
+#include "utils/name_utils.hpp"
 
 #include <boost/beast/http/field.hpp>
 #include <boost/beast/http/verb.hpp>
@@ -478,7 +479,8 @@ inline void handleChassisGetSubTree(
         asyncResp->res.jsonValue["@odata.type"] = "#Chassis.v1_22_0.Chassis";
         asyncResp->res.jsonValue["@odata.id"] =
             boost::urls::format("/redfish/v1/Chassis/{}", chassisId);
-        asyncResp->res.jsonValue["Name"] = "Chassis Collection";
+        name_util::getPrettyName(asyncResp, path, connectionNames,
+                                 "/Name"_json_pointer);
         asyncResp->res.jsonValue["Actions"]["#Chassis.Reset"]["target"] =
             boost::urls::format("/redfish/v1/Chassis/{}/Actions/Chassis.Reset",
                                 chassisId);

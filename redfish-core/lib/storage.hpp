@@ -21,10 +21,12 @@
 #include "utils/chassis_utils.hpp"
 #include "utils/collection.hpp"
 #include "utils/dbus_utils.hpp"
+#include "utils/name_utils.hpp"
 
 #include <boost/beast/http/verb.hpp>
 #include <boost/system/error_code.hpp>
 #include <boost/url/format.hpp>
+#include <nlohmann/json.hpp>
 #include <sdbusplus/message/native_types.hpp>
 #include <sdbusplus/unpack_properties.hpp>
 
@@ -664,7 +666,8 @@ inline void afterGetSubtreeSystemsStorageDrive(
     asyncResp->res.jsonValue["@odata.id"] =
         boost::urls::format("/redfish/v1/Systems/{}/Storage/1/Drives/{}",
                             BMCWEB_REDFISH_SYSTEM_URI_NAME, driveId);
-    asyncResp->res.jsonValue["Name"] = driveId;
+    name_util::getPrettyName(asyncResp, path, connectionNames,
+                             "/Name"_json_pointer);
     asyncResp->res.jsonValue["Id"] = driveId;
 
     if (connectionNames.size() != 1)

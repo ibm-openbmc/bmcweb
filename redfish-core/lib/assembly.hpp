@@ -14,6 +14,7 @@
 #include "utils/chassis_utils.hpp"
 #include "utils/dbus_utils.hpp"
 #include "utils/json_utils.hpp"
+#include "utils/name_utils.hpp"
 
 #include <boost/beast/http/verb.hpp>
 #include <boost/system/error_code.hpp>
@@ -231,6 +232,10 @@ inline void getAssemblyProperties(
                     messages::internalError(asyncResp->res);
                     return;
                 }
+
+                nlohmann::json::json_pointer ptr(
+                    "/Assemblies/" + std::to_string(assemblyIndex) + "/Name");
+                name_util::getPrettyName(asyncResp, assembly, object, ptr);
 
                 for (const auto& [serviceName, interfaceList] : object)
                 {
