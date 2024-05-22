@@ -37,6 +37,7 @@
 #include "managers.hpp"
 #include "memory.hpp"
 #include "message_registries.hpp"
+#include "metric_definition.hpp"
 #include "metric_report.hpp"
 #include "metric_report_definition.hpp"
 #include "network_protocol.hpp"
@@ -273,6 +274,8 @@ class RedfishService
         requestRoutesMetricReportDefinition(app);
         requestRoutesMetricReportCollection(app);
         requestRoutesMetricReport(app);
+        requestRoutesMetricDefinitionCollection(app);
+        requestRoutesMetricDefinition(app);
         requestRoutesTriggerCollection(app);
         requestRoutesTrigger(app);
 
