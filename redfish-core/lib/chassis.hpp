@@ -22,8 +22,6 @@
 #include "utils/dbus_utils.hpp"
 #include "utils/json_utils.hpp"
 
-#include <asm-generic/errno.h>
-
 #include <boost/beast/http/field.hpp>
 #include <boost/beast/http/verb.hpp>
 #include <boost/system/error_code.hpp>
@@ -264,109 +262,6 @@ inline void handleChassisCollectionGet(
         "/xyz/openbmc_project/inventory");
 }
 
-inline void getChassisContainedBy(
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& chassisId, const boost::system::error_code& ec,
-    const dbus::utility::MapperGetSubTreePathsResponse& upstreamChassisPaths)
-{
-    if (ec)
-    {
-        if (ec.value() != EBADR)
-        {
-            BMCWEB_LOG_ERROR("DBUS response error {}", ec);
-            messages::internalError(asyncResp->res);
-        }
-        return;
-    }
-    if (upstreamChassisPaths.empty())
-    {
-        return;
-    }
-    if (upstreamChassisPaths.size() > 1)
-    {
-        BMCWEB_LOG_ERROR("{} is contained by multiple chassis", chassisId);
-        messages::internalError(asyncResp->res);
-        return;
-    }
-
-    sdbusplus::message::object_path upstreamChassisPath(
-        upstreamChassisPaths[0]);
-    std::string upstreamChassis = upstreamChassisPath.filename();
-    if (upstreamChassis.empty())
-    {
-        BMCWEB_LOG_WARNING("Malformed upstream Chassis path {} on {}",
-                           upstreamChassisPath.str, chassisId);
-        return;
-    }
-
-    asyncResp->res.jsonValue["Links"]["ContainedBy"]["@odata.id"] =
-        boost::urls::format("/redfish/v1/Chassis/{}", upstreamChassis);
-}
-
-inline void getChassisContains(
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& chassisId, const boost::system::error_code& ec,
-    const dbus::utility::MapperGetSubTreePathsResponse& downstreamChassisPaths)
-{
-    if (ec)
-    {
-        if (ec.value() != EBADR)
-        {
-            BMCWEB_LOG_ERROR("DBUS response error {}", ec);
-            messages::internalError(asyncResp->res);
-        }
-        return;
-    }
-    if (downstreamChassisPaths.empty())
-    {
-        return;
-    }
-    nlohmann::json& jValue = asyncResp->res.jsonValue["Links"]["Contains"];
-    if (!jValue.is_array())
-    {
-        // Create the array if it was empty
-        jValue = nlohmann::json::array();
-    }
-    for (const auto& p : downstreamChassisPaths)
-    {
-        sdbusplus::message::object_path downstreamChassisPath(p);
-        std::string downstreamChassis = downstreamChassisPath.filename();
-        if (downstreamChassis.empty())
-        {
-            BMCWEB_LOG_WARNING("Malformed downstream Chassis path {} on {}",
-                               downstreamChassisPath.str, chassisId);
-            continue;
-        }
-        nlohmann::json link;
-        link["@odata.id"] =
-            boost::urls::format("/redfish/v1/Chassis/{}", downstreamChassis);
-        jValue.push_back(std::move(link));
-    }
-    asyncResp->res.jsonValue["Links"]["Contains@odata.count"] = jValue.size();
-}
-
-inline void getChassisConnectivity(
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& chassisId, const std::string& chassisPath)
-{
-    BMCWEB_LOG_DEBUG("Get chassis connectivity");
-
-    constexpr std::array<std::string_view, 2> interfaces{
-        "xyz.openbmc_project.Inventory.Item.Board",
-        "xyz.openbmc_project.Inventory.Item.Chassis"};
-
-    dbus::utility::getAssociatedSubTreePaths(
-        chassisPath + "/contained_by",
-        sdbusplus::message::object_path("/xyz/openbmc_project/inventory"), 0,
-        interfaces,
-        std::bind_front(getChassisContainedBy, asyncResp, chassisId));
-
-    dbus::utility::getAssociatedSubTreePaths(
-        chassisPath + "/containing",
-        sdbusplus::message::object_path("/xyz/openbmc_project/inventory"), 0,
-        interfaces, std::bind_front(getChassisContains, asyncResp, chassisId));
-}
-
 /**
  * ChassisCollection derived class for delivering Chassis Collection Schema
  *  Functions triggers appropriate requests on DBus
@@ -571,8 +466,6 @@ inline void handleChassisGetSubTree(
         {
             continue;
         }
-
-        getChassisConnectivity(asyncResp, chassisId, path);
 
         if (connectionNames.empty())
         {
