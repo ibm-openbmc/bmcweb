@@ -1514,7 +1514,8 @@ inline void updateUserProperties(
     std::shared_ptr<bmcweb::AsyncResp> asyncResp, const std::string& username,
     std::optional<std::string> password, std::optional<bool> enabled,
     std::optional<std::string> roleId, std::optional<bool> locked,
-    std::optional<std::vector<std::string>> accountType, bool isUserItself)
+    std::optional<std::vector<std::string>> accountType, bool isUserItself,
+    const std::shared_ptr<persistent_data::UserSession>& session)
 {
     sdbusplus::message::object_path tempObjPath(rootUserDbusPath);
     tempObjPath /= username;
@@ -1524,7 +1525,7 @@ inline void updateUserProperties(
         dbusObjectPath,
         [dbusObjectPath, username, password(std::move(password)),
          roleId(std::move(roleId)), enabled, locked,
-         accountType(std::move(accountType)), isUserItself,
+         accountType(std::move(accountType)), isUserItself, session,
          asyncResp{std::move(asyncResp)}](int rc) {
         if (rc <= 0)
         {
@@ -1535,29 +1536,59 @@ inline void updateUserProperties(
 
         if (password)
         {
-            int retval = pamUpdatePassword(username, *password);
+            crow::connections::systemBus->async_method_call(
+                [asyncResp, password(std::move(password)), username,
+                 session](const boost::system::error_code ec,
+                          const std::variant<bool>& passwordExpired) {
+                if (ec)
+                {
+                    BMCWEB_LOG_ERROR << "D-Bus responses error: " << ec;
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                const bool* passwordExpiredPtr =
+                    std::get_if<bool>(&passwordExpired);
+                if (passwordExpiredPtr == nullptr)
+                {
+                    BMCWEB_LOG_ERROR << " passwordExpiredPtr value nullptr";
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                int retval = pamUpdatePassword(username, *password);
+                if (retval == PAM_USER_UNKNOWN)
+                {
+                    messages::resourceNotFound(asyncResp->res, "ManagerAccount",
+                                               username);
+                    return;
+                }
+                if (retval == PAM_AUTHTOK_ERR)
+                {
+                    // If password is invalid
+                    messages::propertyValueFormatError(asyncResp->res,
+                                                       *password, "Password");
+                    BMCWEB_LOG_ERROR << "pamUpdatePassword Failed";
+                    return;
+                }
+                if (retval != PAM_SUCCESS)
+                {
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
 
-            if (retval == PAM_USER_UNKNOWN)
-            {
-                messages::resourceNotFound(asyncResp->res, "ManagerAccount",
-                                           username);
-            }
-            else if (retval == PAM_AUTHTOK_ERR)
-            {
-                // If password is invalid
-                messages::propertyValueFormatError(asyncResp->res, *password,
-                                                   "Password");
-                BMCWEB_LOG_ERROR << "pamUpdatePassword Failed";
-            }
-            else if (retval != PAM_SUCCESS)
-            {
-                messages::internalError(asyncResp->res);
-                return;
-            }
-            else
-            {
+                if (*passwordExpiredPtr)
+                {
+                    // Remove existing sessions of the user when password
+                    // changed
+                    persistent_data::SessionStore::getInstance()
+                        .removeSessionsByUsernameExceptSession(username,
+                                                               session);
+                }
                 messages::success(asyncResp->res);
-            }
+                return;
+                },
+                "xyz.openbmc_project.User.Manager", dbusObjectPath,
+                "org.freedesktop.DBus.Properties", "Get",
+                "xyz.openbmc_project.User.Attributes", "UserPasswordExpired");
         }
 
         if (enabled)
@@ -2645,13 +2676,13 @@ inline void
     if (!newUserName || (newUserName.value() == username))
     {
         updateUserProperties(asyncResp, username, password, enabled, roleId,
-                             locked, accountType, isUserItself);
+                             locked, accountType, isUserItself, req.session);
         return;
     }
     crow::connections::systemBus->async_method_call(
         [asyncResp, username, password(std::move(password)),
          roleId(std::move(roleId)), enabled, newUser{std::string(*newUserName)},
-         locked, isUserItself, accountType{std::move(accountType)}](
+         locked, isUserItself, req, accountType{std::move(accountType)}](
             const boost::system::error_code ec,
             sdbusplus::message::message& m) {
         if (ec)
@@ -2662,7 +2693,7 @@ inline void
         }
 
         updateUserProperties(asyncResp, newUser, password, enabled, roleId,
-                             locked, accountType, isUserItself);
+                             locked, accountType, isUserItself, req.session);
         },
         "xyz.openbmc_project.User.Manager", "/xyz/openbmc_project/user",
         "xyz.openbmc_project.User.Manager", "RenameUser", username,
