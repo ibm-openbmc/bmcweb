@@ -8,16 +8,22 @@
 #include "http_request.hpp"
 #include "http_response.hpp"
 #include "logging.hpp"
+#include "ossl_random.hpp"
 #include "query.hpp"
 #include "redfish_aggregator.hpp"
 #include "registries/privilege_registry.hpp"
+#include "utility.hpp"
+#include "utils/json_utils.hpp"
 
 #include <boost/beast/http/field.hpp>
 #include <boost/beast/http/verb.hpp>
+#include <boost/system/result.hpp>
 #include <boost/url/format.hpp>
+#include <boost/url/parse.hpp>
 #include <boost/url/url.hpp>
 #include <nlohmann/json.hpp>
 
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <unordered_map>
