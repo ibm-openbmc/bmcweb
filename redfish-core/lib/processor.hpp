@@ -1922,6 +1922,10 @@ inline void requestRoutesProcessor(App& app)
             "#Processor.v1_18_0.Processor";
         asyncResp->res.jsonValue["@odata.id"] = crow::utility::urlFromPieces(
             "redfish", "v1", "Systems", "system", "Processors", processorId);
+        asyncResp->res.jsonValue["SubProcessors"]["@odata.id"] =
+            boost::urls::format(
+                "/redfish/v1/Systems/system/Processors/{}/SubProcessors",
+                processorId);
 
         getProcessorObject(
             asyncResp, processorId,
