@@ -1000,14 +1000,15 @@ inline void getProcessorPaths(
         });
 }
 
-inline void getOperationalStatusData(
+inline void getSubProcessorsCoreHealth(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& service, const std::string& objPath,
-    const std::string& interface)
+    const std::string& service, const std::string& objPath, bool available)
 {
     dbus::utility::getProperty<bool>(
-        service, objPath, interface, "Functional",
-        [asyncResp](const boost::system::error_code& ec, bool value) {
+        service, objPath,
+        "xyz.openbmc_project.State.Decorator.OperationalStatus", "Functional",
+        [asyncResp,
+         available](const boost::system::error_code& ec, bool functional) {
             if (ec)
             {
                 if (ec.value() != EBADR)
@@ -1018,7 +1019,7 @@ inline void getOperationalStatusData(
                 return;
             }
 
-            if (!value)
+            if (!functional || !available)
             {
                 asyncResp->res.jsonValue["Status"]["Health"] =
                     resource::Health::Critical;
@@ -1026,13 +1027,14 @@ inline void getOperationalStatusData(
         });
 }
 
-inline void getItemData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                        const std::string& service, const std::string& objPath,
-                        const std::string& interface)
+inline void getSubProcessorsCoreState(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& service, const std::string& objPath, bool available)
 {
     dbus::utility::getProperty<bool>(
-        service, objPath, interface, "Present",
-        [asyncResp](const boost::system::error_code& ec, bool value) {
+        service, objPath, "xyz.openbmc_project.Inventory.Item", "Present",
+        [asyncResp,
+         available](const boost::system::error_code& ec, bool present) {
             if (ec)
             {
                 if (ec.value() != EBADR)
@@ -1043,11 +1045,40 @@ inline void getItemData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 return;
             }
 
-            if (!value)
+            if (!present)
             {
                 asyncResp->res.jsonValue["Status"]["State"] =
                     resource::State::Absent;
             }
+            else if (!available)
+            {
+                asyncResp->res.jsonValue["Status"]["State"] =
+                    resource::State::UnavailableOffline;
+            }
+        });
+}
+
+inline void getSubProcessorsCoreStateAndHealth(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& service, const std::string& objPath)
+{
+    dbus::utility::getProperty<bool>(
+        service, objPath, "xyz.openbmc_project.State.Decorator.Availability",
+        "Available",
+        [asyncResp, service,
+         objPath](const boost::system::error_code& ec, bool available) {
+            if (ec)
+            {
+                if (ec.value() != EBADR)
+                {
+                    BMCWEB_LOG_ERROR("DBUS response error for Available {}",
+                                     ec.value());
+                    messages::internalError(asyncResp->res);
+                }
+                return;
+            }
+            getSubProcessorsCoreHealth(asyncResp, service, objPath, available);
+            getSubProcessorsCoreState(asyncResp, service, objPath, available);
         });
 }
 
@@ -1093,15 +1124,12 @@ inline void getSubProcessorsCoreData(
 
     for (const auto& [service, interfaces] : object)
     {
+        bool foundAvailability = false;
+
         for (const auto& intf : interfaces)
         {
-            if (intf == "xyz.openbmc_project.State.Decorator.OperationalStatus")
+            if (intf == "xyz.openbmc_project.Inventory.Item")
             {
-                getOperationalStatusData(asyncResp, service, corePath, intf);
-            }
-            else if (intf == "xyz.openbmc_project.Inventory.Item")
-            {
-                getItemData(asyncResp, service, corePath, intf);
                 name_util::getPrettyName(asyncResp, corePath, service,
                                          "/Name"_json_pointer);
             }
@@ -1109,12 +1137,21 @@ inline void getSubProcessorsCoreData(
             {
                 getEnabledStatus(asyncResp, service, corePath, intf);
             }
-
-            if constexpr (BMCWEB_HW_ISOLATION)
+            else if (intf == "xyz.openbmc_project.State.Decorator.Availability")
             {
-                // Check for the hardware status event
-                hw_isolation_utils::getHwIsolationStatus(asyncResp, corePath);
+                foundAvailability = true;
             }
+        }
+
+        if (foundAvailability)
+        {
+            getSubProcessorsCoreStateAndHealth(asyncResp, service, corePath);
+        }
+
+        if constexpr (BMCWEB_HW_ISOLATION)
+        {
+            // Check for the hardware status event
+            hw_isolation_utils::getHwIsolationStatus(asyncResp, corePath);
         }
     }
 }
