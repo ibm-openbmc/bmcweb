@@ -1097,6 +1097,8 @@ inline void requestRoutesSoftwareInventory(App& app)
                 getSoftwareVersion(asyncResp, obj.second[0].first, obj.first,
                                    *swId);
                 asyncResp->res.jsonValue["Name"] = "Software Inventory";
+                sw_util::getSwMinimumVersion(asyncResp, swId,
+                                             obj.second[0].first);
             }
             if (!found)
             {
