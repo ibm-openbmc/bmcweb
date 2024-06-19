@@ -2554,7 +2554,8 @@ inline void
 
     if (!json_util::readJsonPatch(
             req, asyncResp->res, "UserName", newUserName, "Password", password,
-            "RoleId", roleId, "Enabled", enabled, "Locked", locked, "Oem", oem))
+            "RoleId", roleId, "Enabled", enabled, "Locked", locked, "Oem", oem,
+            "AccountTypes", accountTypes))
     {
         return;
     }
