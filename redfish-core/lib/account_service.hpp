@@ -2552,10 +2552,10 @@ inline void
         return;
     }
 
-    if (!json_util::readJsonPatch(
-            req, asyncResp->res, "UserName", newUserName, "Password", password,
-            "RoleId", roleId, "Enabled", enabled, "Locked", locked, "Oem", oem,
-            "AccountTypes", accountTypes))
+    if (!json_util::readJsonPatch(req, asyncResp->res, "UserName", newUserName,
+                                  "Password", password, "RoleId", roleId,
+                                  "Enabled", enabled, "Locked", locked, "Oem",
+                                  oem, "AccountTypes", accountTypes))
     {
         return;
     }
