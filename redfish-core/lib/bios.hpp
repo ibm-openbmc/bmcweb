@@ -33,16 +33,16 @@ using BiosBaseTableType = std::vector<std::pair<
         std::string, bool, std::string, std::string, std::string,
         std::variant<int64_t, std::string>, std::variant<int64_t, std::string>,
         std::vector<
-            std::tuple<std::string, std::variant<int64_t, std::string>>>>>>;
+            std::tuple<std::string, std::variant<int64_t, std::string>, std::string>>>>>;
 using BiosBaseTableItemType = std::pair<
     std::string,
     std::tuple<
         std::string, bool, std::string, std::string, std::string,
         std::variant<int64_t, std::string>, std::variant<int64_t, std::string>,
         std::vector<
-            std::tuple<std::string, std::variant<int64_t, std::string>>>>>;
+            std::tuple<std::string, std::variant<int64_t, std::string>, std::string>>>>;
 using OptionsItemType =
-    std::tuple<std::string, std::variant<int64_t, std::string>>;
+    std::tuple<std::string, std::variant<int64_t, std::string>, std::string>;
 
 enum BiosBaseTableIndex
 {
