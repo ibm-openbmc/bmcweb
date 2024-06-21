@@ -1217,6 +1217,7 @@ inline void requestRoutesSoftwareInventory(App& app)
                 sw_util::getSwStatus(asyncResp, swId, obj.second[0].first);
                 getSoftwareVersion(asyncResp, obj.second[0].first, obj.first,
                                    *swId);
+                sw_util::getSwMinimumVersion(asyncResp, obj.second[0].first);
             }
             if (!found)
             {
