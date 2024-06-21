@@ -330,9 +330,15 @@ class Connection :
         }
 
         std::string url(req->target());
-        if (boost::algorithm::contains(url,
-                                       "/system/LogServices/Dump/Entries/") &&
-            boost::algorithm::ends_with(url, "/attachment"))
+        // Check if the offload URL has system/resource dump entry ID
+        // System dumps ID starts with 'A<>'
+        // Resource dumps ID starts with 'B<>'
+        if ((boost::algorithm::contains(url,
+                                        "/system/LogServices/Dump/Entries/A") &&
+             boost::algorithm::ends_with(url, "/attachment")) ||
+            (boost::algorithm::contains(url,
+                                        "/system/LogServices/Dump/Entries/B") &&
+             boost::algorithm::ends_with(url, "/attachment")))
         {
             asyncResp->res.setCompleteRequestHandler(
                 [self(shared_from_this())](crow::Response& thisRes) {

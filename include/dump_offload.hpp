@@ -341,76 +341,101 @@ inline void resetHandlers()
     }
 }
 
+inline void dumpOffloadStreamingOnOpenCallback(
+    crow::streaming_response::Connection& conn)
+{
+    if (!systemHandlers.empty())
+    {
+        BMCWEB_LOG_WARNING("Can't allow dump offload opertaion, one "
+                           "of the host dump is already offloading");
+        conn.sendStreamErrorStatus(
+            boost::beast::http::status::service_unavailable);
+        conn.close();
+        return;
+    }
+
+    std::string url(conn.req.target());
+    std::string startDelimiter = "Entries/";
+    std::size_t pos1 = url.rfind(startDelimiter);
+    std::size_t pos2 = url.rfind("/attachment");
+    if (pos1 == std::string::npos || pos2 == std::string::npos)
+    {
+        BMCWEB_LOG_WARNING("Unable to extract the dump id");
+        conn.sendStreamErrorStatus(boost::beast::http::status::not_found);
+        conn.close();
+        return;
+    }
+    std::string dumpId = url.substr(pos1 + startDelimiter.length(),
+                                    pos2 - pos1 - startDelimiter.length());
+    std::string dumpType = "system";
+
+    boost::asio::io_context* ioCon = conn.getIoContext();
+
+    // Generating random id to create unique socket file
+    // for each dump offload request
+    std::random_device rd;
+    std::default_random_engine gen(rd());
+    std::uniform_int_distribution<> dist{0, 1024};
+    std::string unixSocketPath = std::string(unixSocketPathDir) + dumpType +
+                                 "_dump_" + std::to_string(dist(gen));
+    systemHandlers[&conn] = std::make_shared<Handler>(*ioCon, dumpId, dumpType,
+                                                      unixSocketPath);
+    systemHandlers[&conn]->connection = &conn;
+
+    if (!crow::ibm_utils::createDirectory(unixSocketPathDir))
+    {
+        systemHandlers[&conn]->connection->sendStreamErrorStatus(
+            boost::beast::http::status::not_found);
+        systemHandlers[&conn]->connection->close();
+        return;
+    }
+    BMCWEB_LOG_CRITICAL("INFO: {}  dump id {} offload initiated by: ", dumpType,
+                        dumpId, conn.req.session->clientIp);
+    systemHandlers[&conn]->getDumpSize(dumpId, dumpType);
+}
+
+inline void dumpOffloadStreamingOnCloseCallback(
+    crow::streaming_response::Connection& conn, bool& status)
+{
+    auto handler = systemHandlers.find(&conn);
+    if (handler == systemHandlers.end())
+    {
+        BMCWEB_LOG_DEBUG("No handler to cleanup");
+        return;
+    }
+    handler->second->cleanupSocketFiles();
+    if (!status)
+    {
+        handler->second->resetOffloadURI();
+    }
+    handler->second->outputBuffer.clear();
+    systemHandlers.clear();
+}
+
 inline void requestRoutes(App& app)
 {
+    // System Dumps
     BMCWEB_ROUTE(
         app,
-        "/redfish/v1/Systems/system/LogServices/Dump/Entries/<str>/attachment/")
+        "/redfish/v1/Systems/system/LogServices/Dump/Entries/A<str>/attachment/")
         .privileges({{"ConfigureComponents", "ConfigureManager"}})
         .streamingResponse()
         .onopen([](crow::streaming_response::Connection& conn) {
-        if (!systemHandlers.empty())
-        {
-            BMCWEB_LOG_WARNING("Can't allow dump offload opertaion, one "
-                               "of the host dump is already offloading");
-            conn.sendStreamErrorStatus(
-                boost::beast::http::status::service_unavailable);
-            conn.close();
-            return;
-        }
-
-        std::string url(conn.req.target());
-        std::string startDelimiter = "Entries/";
-        std::size_t pos1 = url.rfind(startDelimiter);
-        std::size_t pos2 = url.rfind("/attachment");
-        if (pos1 == std::string::npos || pos2 == std::string::npos)
-        {
-            BMCWEB_LOG_WARNING("Unable to extract the dump id");
-            conn.sendStreamErrorStatus(boost::beast::http::status::not_found);
-            conn.close();
-            return;
-        }
-        std::string dumpId = url.substr(pos1 + startDelimiter.length(),
-                                        pos2 - pos1 - startDelimiter.length());
-        std::string dumpType = "system";
-
-        boost::asio::io_context* ioCon = conn.getIoContext();
-
-        // Generating random id to create unique socket file
-        // for each dump offload request
-        std::random_device rd;
-        std::default_random_engine gen(rd());
-        std::uniform_int_distribution<> dist{0, 1024};
-        std::string unixSocketPath = std::string(unixSocketPathDir) + dumpType +
-                                     "_dump_" + std::to_string(dist(gen));
-        systemHandlers[&conn] =
-            std::make_shared<Handler>(*ioCon, dumpId, dumpType, unixSocketPath);
-        systemHandlers[&conn]->connection = &conn;
-
-        if (!crow::ibm_utils::createDirectory(unixSocketPathDir))
-        {
-            systemHandlers[&conn]->connection->sendStreamErrorStatus(
-                boost::beast::http::status::not_found);
-            systemHandlers[&conn]->connection->close();
-            return;
-        }
-        BMCWEB_LOG_CRITICAL("INFO: {}  dump id {} offload initiated by: ",
-                            dumpType, dumpId, conn.req.session->clientIp);
-        systemHandlers[&conn]->getDumpSize(dumpId, dumpType);
+        dumpOffloadStreamingOnOpenCallback(conn);
     }).onclose([](crow::streaming_response::Connection& conn, bool& status) {
-        auto handler = systemHandlers.find(&conn);
-        if (handler == systemHandlers.end())
-        {
-            BMCWEB_LOG_DEBUG("No handler to cleanup");
-            return;
-        }
-        handler->second->cleanupSocketFiles();
-        if (!status)
-        {
-            handler->second->resetOffloadURI();
-        }
-        handler->second->outputBuffer.clear();
-        systemHandlers.clear();
+        dumpOffloadStreamingOnCloseCallback(conn, status);
+    });
+
+    // Resource Dumps
+    BMCWEB_ROUTE(
+        app,
+        "/redfish/v1/Systems/system/LogServices/Dump/Entries/B<str>/attachment/")
+        .privileges({{"ConfigureComponents", "ConfigureManager"}})
+        .streamingResponse()
+        .onopen([](crow::streaming_response::Connection& conn) {
+        dumpOffloadStreamingOnOpenCallback(conn);
+    }).onclose([](crow::streaming_response::Connection& conn, bool& status) {
+        dumpOffloadStreamingOnCloseCallback(conn, status);
     });
 }
 

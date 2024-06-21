@@ -883,18 +883,6 @@ inline void
         close(fd);
         return;
     }
-    if (downloadEntryType == "System")
-    {
-        if (!asyncResp->res.openFd(fd, bmcweb::EncodingType::Base64))
-        {
-            messages::internalError(asyncResp->res);
-            close(fd);
-            return;
-        }
-        asyncResp->res.addHeader(
-            boost::beast::http::field::content_transfer_encoding, "Base64");
-        return;
-    }
     if (!asyncResp->res.openFd(fd))
     {
         messages::internalError(asyncResp->res);
@@ -909,7 +897,7 @@ inline void
     downloadDumpEntry(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                       const std::string& entryID, const std::string& dumpType)
 {
-    if (dumpType != "BMC")
+    if (dumpType != "BMC" && dumpType != "System")
     {
         BMCWEB_LOG_WARNING("Can't find Dump Entry {}", entryID);
         messages::resourceNotFound(asyncResp->res, dumpType + " dump", entryID);
@@ -4082,6 +4070,24 @@ inline void handleLogServicesDumpEntryComputerSystemDelete(
     deleteDumpEntry(asyncResp, dumpEntryId, "System");
 }
 
+inline void handleLogServicesDumpEntryComputerSystemDownloadGet(
+    crow::App& app, const std::string& dumpType, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& /*dumpId*/)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+    auto urlItr = req.url().segments().end();
+    --urlItr; // The last string in the url: 'attachment'
+
+    // Dump Id will be present in the last but one position:
+    // <dumpId>/attachment
+    std::string dumpEntryId = *(--urlItr);
+    downloadDumpEntry(asyncResp, dumpEntryId, dumpType);
+}
+
 inline void handleLogServicesDumpEntryDownloadGet(
     crow::App& app, const std::string& dumpType, const crow::Request& req,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -4337,6 +4343,45 @@ inline void requestRoutesSystemDumpEntryCollection(App& app)
         .methods(boost::beast::http::verb::get)(std::bind_front(
             handleLogServicesDumpEntriesCollectionComputerSystemGet,
             std::ref(app)));
+}
+
+inline void requestRoutesSystemDumpEntryDownload(App& app)
+{
+    // Hardware dump
+    BMCWEB_ROUTE(
+        app,
+        "/redfish/v1/Systems/system/LogServices/Dump/Entries/0<str>/attachment/")
+        .privileges(redfish::privileges::getLogEntry)
+        .methods(boost::beast::http::verb::get)(
+            std::bind_front(handleLogServicesDumpEntryComputerSystemDownloadGet,
+                            std::ref(app), "System"));
+
+    // Hostboot dump
+    BMCWEB_ROUTE(
+        app,
+        "/redfish/v1/Systems/system/LogServices/Dump/Entries/2<str>/attachment/")
+        .privileges(redfish::privileges::getLogEntry)
+        .methods(boost::beast::http::verb::get)(
+            std::bind_front(handleLogServicesDumpEntryComputerSystemDownloadGet,
+                            std::ref(app), "System"));
+
+    // SBE dump
+    BMCWEB_ROUTE(
+        app,
+        "/redfish/v1/Systems/system/LogServices/Dump/Entries/3<str>/attachment/")
+        .privileges(redfish::privileges::getLogEntry)
+        .methods(boost::beast::http::verb::get)(
+            std::bind_front(handleLogServicesDumpEntryComputerSystemDownloadGet,
+                            std::ref(app), "System"));
+
+    // OCMB SBE dump
+    BMCWEB_ROUTE(
+        app,
+        "/redfish/v1/Systems/system/LogServices/Dump/Entries/4<str>/attachment/")
+        .privileges(redfish::privileges::getLogEntry)
+        .methods(boost::beast::http::verb::get)(
+            std::bind_front(handleLogServicesDumpEntryComputerSystemDownloadGet,
+                            std::ref(app), "System"));
 }
 
 inline void requestRoutesSystemDumpEntry(App& app)
