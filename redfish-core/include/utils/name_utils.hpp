@@ -22,35 +22,19 @@ namespace name_util
  *
  * @param[i,o] asyncResp  Async response object
  * @param[i]   path       D-bus object path to find the pretty name
- * @param[i]   services   List of services to exporting the D-bus object path
+ * @param[i]   service    Service for Inventory interface
  * @param[i]   namePath   Json pointer to the name field to update.
  *
  * @return void
  */
 inline void getPrettyName(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                          const std::string& path,
-                          const dbus::utility::MapperServiceMap& services,
+                          const std::string& path, const std::string& service,
                           const nlohmann::json::json_pointer& namePath)
 {
     BMCWEB_LOG_DEBUG("Get PrettyName for: {}", path);
 
-    // Ensure we only got one service back
-    if (services.size() != 1)
-    {
-        BMCWEB_LOG_ERROR("Invalid Service Size {}", services.size());
-        for (const auto& service : services)
-        {
-            BMCWEB_LOG_ERROR("Invalid Service Name: {}", service.first);
-        }
-        if (asyncResp)
-        {
-            messages::internalError(asyncResp->res);
-        }
-        return;
-    }
-
     sdbusplus::asio::getProperty<std::string>(
-        *crow::connections::systemBus, services[0].first, path,
+        *crow::connections::systemBus, service, path,
         "xyz.openbmc_project.Inventory.Item", "PrettyName",
 
         [asyncResp, path, namePath](const boost::system::error_code& ec,

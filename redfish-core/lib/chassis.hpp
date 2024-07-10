@@ -433,7 +433,7 @@ inline void handleChassisGetSubTree(
         asyncResp->res.jsonValue["@odata.type"] = "#Chassis.v1_22_0.Chassis";
         asyncResp->res.jsonValue["@odata.id"] =
             boost::urls::format("/redfish/v1/Chassis/{}", chassisId);
-        name_util::getPrettyName(asyncResp, path, connectionNames,
+        name_util::getPrettyName(asyncResp, path, connectionNames[0].first,
                                  "/Name"_json_pointer);
         asyncResp->res.jsonValue["ChassisType"] = "RackMount";
         asyncResp->res.jsonValue["Actions"]["#Chassis.Reset"]["target"] =
