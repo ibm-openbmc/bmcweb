@@ -48,7 +48,6 @@
 #include <memory>
 #include <queue>
 #include <string>
-
 namespace crow
 {
 
@@ -149,9 +148,10 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
     // Ascync callables
     std::function<void(bool, uint32_t, Response&)> callback;
     crow::async_resolve::Resolver resolver;
-    boost::asio::ip::tcp::socket conn;
+    boost::asio::io_context& ioc;
     std::optional<boost::beast::ssl_stream<boost::asio::ip::tcp::socket&>>
         sslConn;
+    boost::asio::ip::tcp::socket conn;
 
     boost::asio::steady_timer timer;
 
@@ -374,10 +374,24 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         }
         BMCWEB_LOG_DEBUG << "recvMessage() bytes transferred: "
                          << bytesTransferred;
+        if (!parser)
+        {
+            return;
+        }
         BMCWEB_LOG_DEBUG << "recvMessage() data: " << parser->get().body();
 
         unsigned int respCode = parser->get().result_int();
         BMCWEB_LOG_DEBUG << "recvMessage() Header Response Code: " << respCode;
+
+        // Handle the case of stream_truncated.  Some servers close the ssl
+        // connection uncleanly, so check to see if we got a full response
+        // before we handle this as an error.
+        if (!parser->is_done())
+        {
+            state = ConnState::recvFailed;
+            waitAndRetry();
+            return;
+        }
 
         // Make sure the received response code is valid as defined by
         // the associated retry policy
@@ -496,9 +510,17 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         }
 
         // Let's close the connection and restart from resolve.
-        doClose(true);
+        shutdownConn(true);
     }
 
+    void restartConnection()
+    {
+        BMCWEB_LOG_DEBUG << host << ":" << std::to_string(port)
+                         << ", id: " << std::to_string(connId)
+                         << " restartConnection ";
+        initializeConnection(sslConn.has_value());
+        doResolve();
+    }
     void shutdownConn(bool retry)
     {
         boost::beast::error_code ec;
@@ -523,7 +545,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         {
             // Now let's try to resend the data
             state = ConnState::retry;
-            doResolve();
+            restartConnection();
         }
         else
         {
@@ -604,17 +626,10 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         }
     }
 
-  public:
-    explicit ConnectionInfo(
-        boost::asio::io_context& iocIn, const std::string& idIn,
-        const std::shared_ptr<ConnectionPolicy>& connPolicyIn,
-        const std::string& destIPIn, uint16_t destPortIn, bool useSSL,
-        unsigned int connIdIn) :
-        subId(idIn),
-        connPolicy(connPolicyIn), host(destIPIn), port(destPortIn),
-        connId(connIdIn), conn(iocIn), timer(iocIn)
+    void initializeConnection(bool ssl)
     {
-        if (useSSL)
+        conn = boost::asio::ip::tcp::socket(ioc);
+        if (ssl)
         {
             /* std::optional<boost::asio::ssl::context> sslCtx =
                 ensuressl::getSSLClientContext();
@@ -637,6 +652,19 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
             sslConn.emplace(conn, sslCtx);
             setCipherSuiteTLSext();
         }
+    }
+
+  public:
+    explicit ConnectionInfo(
+        boost::asio::io_context& iocIn, const std::string& idIn,
+        const std::shared_ptr<ConnectionPolicy>& connPolicyIn,
+        const std::string& destIPIn, uint16_t destPortIn, bool useSSL,
+        unsigned int connIdIn) :
+        subId(idIn),
+        connPolicy(connPolicyIn), host(destIPIn), port(destPortIn),
+        connId(connIdIn), ioc(iocIn), conn(iocIn), timer(iocIn)
+    {
+        initializeConnection(useSSL);
     }
 };
 
@@ -762,9 +790,7 @@ class ConnectionPool : public std::enable_shared_from_this<ConnectionPool>
                 }
                 else
                 {
-                    BMCWEB_LOG_DEBUG << "Reusing existing connection "
-                                     << commonMsg;
-                    conn->doResolve();
+                    conn->restartConnection();
                 }
                 return;
             }
