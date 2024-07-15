@@ -6323,6 +6323,67 @@ inline std::string
 }
 
 /**
+ * @brief Finds an ancestor interface in a data structure representing Redfish
+ * information.
+ *
+ * @param[in] ancestors - A reference to a vector containing pairs of Redfish
+ * resource interface information and their corresponding size.
+ * @param[in] ancestorIface - A pair of string and the size representing the
+ * interface to search for.
+ * @param[in,out] redfishUri - A reference to a string representing the Redfish
+ * URI. This string may be modified if the ancestor interface is found.
+ * @param[in] isChassisAssemblyUri - A boolean flag indicating if searching for
+ * a chassis assembly.
+ * @param[out] assemblyParent - A reference to a tuple that will store
+ * information about the assembly parent if found. The tuple contains three
+ * elements:
+ *                               - The service name of the ancestor interface.
+ *                               - The DBus object path of the ancestor object.
+ *                               - The interface name of the ancestor interface.
+ * @return bool - Indicates success (true) or failure (false).
+ *                - True if the specified ancestor interface is found in the
+ * `ancestors` vector. The `redfishUri` and `assemblyParent` (if applicable)
+ * will be populated.
+ *                - False if the ancestor interface is not found.
+ */
+static bool findAncestor(
+    const dbus::utility::MapperGetSubTreeResponse& ancestors,
+    const std::pair<RedfishResourceDBusInterfaces, size_t>& ancestorIface,
+    std::string& redfishUri, bool isChassisAssemblyUri,
+    std::tuple<std::string, sdbusplus::message::object_path, std::string>&
+        assemblyParent,
+    const std::string& uriIdPattern)
+{
+    for (const auto& obj : ancestors)
+    {
+        for (const auto& service : obj.second)
+        {
+            auto interfaceIter = std::ranges::find(service.second,
+                                                   ancestorIface.first);
+            if (interfaceIter != service.second.end())
+            {
+                redfishUri.replace(
+                    ancestorIface.second, uriIdPattern.length(),
+                    getIsolatedHwItemId(
+                        sdbusplus::message::object_path(obj.first)));
+
+                if (isChassisAssemblyUri &&
+                    ancestorIface.first ==
+                        "xyz.openbmc_project.Inventory.Item.Chassis")
+                {
+                    assemblyParent = std::make_tuple(
+                        service.first,
+                        sdbusplus::message::object_path(obj.first),
+                        ancestorIface.first);
+                }
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/**
  * @brief API used to get redfish uri of the given dbus object and fill into
  *        "OriginOfCondition" property of LogEntry schema.
  *
@@ -6488,39 +6549,9 @@ inline void getRedfishUriByDbusObjPath(
 
             for (const auto& ancestorIface : ancestorsIfaces)
             {
-                bool foundAncestor = false;
-                for (const auto& obj : ancestors)
-                {
-                    for (const auto& service : obj.second)
-                    {
-                        auto interfaceIter = std::ranges::find(
-                            service.second, ancestorIface.first);
-                        if (interfaceIter != service.second.end())
-                        {
-                            foundAncestor = true;
-                            redfishUri.replace(
-                                ancestorIface.second, uriIdPattern.length(),
-                                getIsolatedHwItemId(
-                                    sdbusplus::message::object_path(
-                                        obj.first)));
-
-                            if (isChassisAssemblyUri &&
-                                ancestorIface.first ==
-                                    "xyz.openbmc_project.Inventory.Item.Chassis")
-                            {
-                                assemblyParent = std::make_tuple(
-                                    service.first,
-                                    sdbusplus::message::object_path(obj.first),
-                                    ancestorIface.first);
-                            }
-                            break;
-                        }
-                    }
-                    if (foundAncestor)
-                    {
-                        break;
-                    }
-                }
+                bool foundAncestor = findAncestor(
+                    ancestors, ancestorIface, redfishUri, isChassisAssemblyUri,
+                    assemblyParent, uriIdPattern);
 
                 if (!foundAncestor)
                 {
