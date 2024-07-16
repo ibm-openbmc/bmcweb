@@ -15,6 +15,48 @@ namespace redfish
 namespace hw_isolation_utils
 {
 
+// New method to handle GetAncestors response
+void handleGetAncestorsResponse(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& resourceObjPath, const boost::system::error_code& ec,
+    const dbus::utility::MapperGetAncestorsResponse& ancestors)
+{
+    if (ec)
+    {
+        BMCWEB_LOG_ERROR(
+            "DBUS response error [{} : {}] when tried to get parent Chassis id for the given resource object [{}]",
+            ec.value(), ec.message(), resourceObjPath);
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    if (ancestors.empty())
+    {
+        BMCWEB_LOG_ERROR(
+            "The given resource object [{}] is not the child of the Chassis so failed return ChassisPowerStateOffRequiredError in the response",
+            resourceObjPath);
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    if (ancestors.size() > 1)
+    {
+        // Should not happen since GetAncestors returs parent object
+        // from the given child object path and we are just looking
+        // for parent chassis object id alone, so we should get one
+        // element.
+        BMCWEB_LOG_ERROR(
+            "The given resource object [{}] is contains more than one Chassis as parent so failed return ChassisPowerStateOffRequiredError in the response",
+            resourceObjPath);
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    messages::chassisPowerStateOffRequired(
+        asyncResp->res,
+        sdbusplus::message::object_path(ancestors.begin()->first).filename());
+}
+
 /**
  * @brief API used to return ChassisPowerStateOffRequiredError with
  *        the Chassis id that will get by using the given resource
@@ -33,40 +75,8 @@ inline void retChassisPowerStateOffRequiredError(
         [asyncResp, resourceObjPath](
             const boost::system::error_code& ec,
             const dbus::utility::MapperGetAncestorsResponse& ancestors) {
-        if (ec)
-        {
-            BMCWEB_LOG_ERROR(
-                "DBUS response error [{} : {}] when tried to get parent Chassis id for the given resource object [{}]",
-                ec.value(), ec.message(), resourceObjPath.str);
-            messages::internalError(asyncResp->res);
-            return;
-        }
-
-        if (ancestors.empty())
-        {
-            BMCWEB_LOG_ERROR(
-                "The given resource object [{}] is not the child of the Chassis so failed return ChassisPowerStateOffRequiredError in the response",
-                resourceObjPath.str);
-            messages::internalError(asyncResp->res);
-            return;
-        }
-
-        if (ancestors.size() > 1)
-        {
-            // Should not happen since GetAncestors returs parent object
-            // from the given child object path and we are just looking
-            // for parent chassis object id alone, so we should get one
-            // element.
-            BMCWEB_LOG_ERROR(
-                "The given resource object [{}] is contains more than one Chassis as parent so failed return ChassisPowerStateOffRequiredError in the response",
-                resourceObjPath.str);
-            messages::internalError(asyncResp->res);
-            return;
-        }
-        messages::chassisPowerStateOffRequired(
-            asyncResp->res,
-            sdbusplus::message::object_path(ancestors.begin()->first)
-                .filename());
+        handleGetAncestorsResponse(asyncResp, resourceObjPath.str, ec,
+                                   ancestors);
     },
         "xyz.openbmc_project.ObjectMapper",
         "/xyz/openbmc_project/object_mapper",
@@ -75,12 +85,73 @@ inline void retChassisPowerStateOffRequiredError(
             "xyz.openbmc_project.Inventory.Item.Chassis"});
 }
 
+void processHardwareIsolateResponse(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& resourceName, const std::string& resourceObjPath,
+    const boost::system::error_code& ec, const sdbusplus::message::message& msg)
+{
+    if (!ec)
+    {
+        messages::success(asyncResp->res);
+        return;
+    }
+
+    BMCWEB_LOG_ERROR(
+        "DBUS response error [{} : {}] when tried to isolate the given resource: {}",
+        ec.value(), ec.message(), resourceObjPath);
+
+    const sd_bus_error* dbusError = msg.get_error();
+    if (dbusError == nullptr)
+    {
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    BMCWEB_LOG_ERROR("DBus ErrorName: {} ErrorMsg: {}", dbusError->name,
+                     dbusError->message);
+
+    // The Enabled property value will be "false" to isolate.
+    constexpr bool enabledPropVal = false;
+
+    if (std::string_view("xyz.openbmc_project.Common.Error.InvalidArgument") ==
+        dbusError->name)
+    {
+        messages::propertyValueExternalConflict(
+            asyncResp->res, "Enabled",
+            std::to_string(static_cast<int>(enabledPropVal)));
+    }
+    else if (std::string_view("xyz.openbmc_project.Common.Error.NotAllowed") ==
+             dbusError->name)
+    {
+        retChassisPowerStateOffRequiredError(asyncResp, resourceObjPath);
+    }
+    else if (
+        std::string_view(
+            "xyz.openbmc_project.HardwareIsolation.Error.IsolatedAlready") ==
+        dbusError->name)
+    {
+        messages::resourceAlreadyExists(
+            asyncResp->res, resourceName, "Enabled",
+            std::to_string(static_cast<int>(enabledPropVal)));
+    }
+    else if (std::string_view(
+                 "xyz.openbmc_project.Common.Error.TooManyResources") ==
+             dbusError->name)
+    {
+        messages::createLimitReachedForResource(asyncResp->res);
+    }
+    else
+    {
+        BMCWEB_LOG_ERROR(
+            "DBus Error is unsupported so returning as Internal Error");
+        messages::internalError(asyncResp->res);
+    }
+}
 /**
  * @brief API used to isolate the given resource
  *
  * @param[in] asyncResp - The redfish response to return to the caller.
  * @param[in] resourceName - The redfish resource name which trying to isolate.
- * @param[in] resourceId - The redfish resource id which trying to isolate.
  * @param[in] resourceObjPath - The redfish resource dbus object path.
  * @param[in] hwIsolationDbusName - The HardwareIsolation dbus name which is
  *                                  hosting isolation dbus interfaces.
@@ -93,73 +164,15 @@ inline void retChassisPowerStateOffRequiredError(
 inline void
     isolateResource(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                     const std::string& resourceName,
-                    const std::string& resourceId,
                     const sdbusplus::message::object_path& resourceObjPath,
                     const std::string& hwIsolationDbusName)
 {
     crow::connections::systemBus->async_method_call(
-        [asyncResp, resourceName, resourceId,
+        [asyncResp, resourceName,
          resourceObjPath](const boost::system::error_code& ec,
                           const sdbusplus::message::message& msg) {
-        if (!ec)
-        {
-            messages::success(asyncResp->res);
-            return;
-        }
-
-        BMCWEB_LOG_ERROR(
-            "DBUS response error [{} : {}] when tried to isolate the given resource: {}",
-            ec.value(), ec.message(), resourceObjPath.str);
-
-        const sd_bus_error* dbusError = msg.get_error();
-        if (dbusError == nullptr)
-        {
-            messages::internalError(asyncResp->res);
-            return;
-        }
-
-        BMCWEB_LOG_ERROR("DBus ErrorName: {} ErrorMsg: {}", dbusError->name,
-                         dbusError->message);
-
-        // The Enabled property value will be "false" to isolate.
-        constexpr bool enabledPropVal = false;
-
-        if (std::string_view(
-                "xyz.openbmc_project.Common.Error.InvalidArgument") ==
-            dbusError->name)
-        {
-            messages::propertyValueExternalConflict(
-                asyncResp->res, "Enabled",
-                std::to_string(static_cast<int>(enabledPropVal)));
-        }
-        else if (std::string_view(
-                     "xyz.openbmc_project.Common.Error.NotAllowed") ==
-                 dbusError->name)
-        {
-            retChassisPowerStateOffRequiredError(asyncResp, resourceObjPath);
-        }
-        else if (
-            std::string_view(
-                "xyz.openbmc_project.HardwareIsolation.Error.IsolatedAlready") ==
-            dbusError->name)
-        {
-            messages::resourceAlreadyExists(
-                asyncResp->res, resourceName, "Enabled",
-                std::to_string(static_cast<int>(enabledPropVal)));
-        }
-        else if (std::string_view(
-                     "xyz.openbmc_project.Common.Error.TooManyResources") ==
-                 dbusError->name)
-        {
-            messages::createLimitReachedForResource(asyncResp->res);
-        }
-        else
-        {
-            BMCWEB_LOG_ERROR(
-                "DBus Error is unsupported so returning as Internal Error");
-            messages::internalError(asyncResp->res);
-        }
-        return;
+        processHardwareIsolateResponse(asyncResp, resourceName, resourceObjPath,
+                                       ec, msg);
     },
         hwIsolationDbusName, "/xyz/openbmc_project/hardware_isolation",
         "xyz.openbmc_project.HardwareIsolation.Create", "Create",
@@ -373,8 +386,8 @@ inline void processHardwareIsolationReq(
             // the given resource
             if (!enabled)
             {
-                isolateResource(asyncResp, resourceName, resourceId,
-                                resourceObjPath, objType[0].first);
+                isolateResource(asyncResp, resourceName, resourceObjPath,
+                                objType[0].first);
             }
             else
             {
