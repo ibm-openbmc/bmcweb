@@ -631,7 +631,7 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         conn = boost::asio::ip::tcp::socket(ioc);
         if (ssl)
         {
-            /* std::optional<boost::asio::ssl::context> sslCtx =
+            std::optional<boost::asio::ssl::context> sslCtx =
                 ensuressl::getSSLClientContext();
 
             if (!sslCtx)
@@ -646,10 +646,8 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
                 state = ConnState::sslInitFailed;
                 waitAndRetry();
                 return;
-            } */
-            boost::asio::ssl::context sslCtx{
-                boost::asio::ssl::context::tlsv13_client};
-            sslConn.emplace(conn, sslCtx);
+            }
+            sslConn.emplace(conn, *sslCtx);
             setCipherSuiteTLSext();
         }
     }
