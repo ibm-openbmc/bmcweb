@@ -7,6 +7,7 @@
 #include <utils/dbus_utils.hpp>
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -274,6 +275,39 @@ inline std::string getRedfishSwHealth(const std::string& swState)
     }
     BMCWEB_LOG_DEBUG << "Sw state " << swState << " to Warning";
     return "Warning";
+}
+
+/**
+ * @brief Put LowestSupportedVersion of input swId into json response
+ *
+ * This function will put the MinimumVersion from D-Bus of the input
+ * software id to ["LowestSupportedVersion"].
+ *
+ * @param[i,o] asyncResp    Async response object
+ * @param[i]   swId The software ID to get Minimum Version for
+ * @param[i]   dbusSvc  The dbus service implementing the software object
+ *
+ * @return void
+ */
+inline void
+    getSwMinimumVersion(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                        const std::shared_ptr<std::string>& swId,
+                        const std::string& dbusSvc)
+{
+    sdbusplus::asio::getProperty<std::string>(
+        *crow::connections::systemBus, dbusSvc,
+        "/xyz/openbmc_project/software/" + *swId,
+        "xyz.openbmc_project.Software.MinimumVersion", "MinimumVersion",
+        [asyncResp](const boost::system::error_code& ec,
+                    const std::string& swMinimumVersion) {
+        if (ec)
+        {
+            // not all software has this interface and it is not critical
+            return;
+        }
+
+        asyncResp->res.jsonValue["LowestSupportedVersion"] = swMinimumVersion;
+        });
 }
 
 /**
