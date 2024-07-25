@@ -216,11 +216,11 @@ inline void getPowerWatts(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 asyncResp->res.jsonValue["PowerWatts"]["@odata.id"] =
                     crow::utility::urlFromPieces("redfish", "v1", "Chassis",
                                                  chassisId, "Sensors",
-                                                 "total_power");
+                                                 "power_total_power");
                 asyncResp->res.jsonValue["PowerWatts"]["DataSourceUri"] =
                     crow::utility::urlFromPieces("redfish", "v1", "Chassis",
                                                  chassisId, "Sensors",
-                                                 "total_power");
+                                                 "power_total_power");
                 asyncResp->res.jsonValue["PowerWatts"]["Reading"] = value;
             });
         });
