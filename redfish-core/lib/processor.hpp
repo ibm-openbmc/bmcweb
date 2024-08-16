@@ -1093,6 +1093,7 @@ inline void afterGetCpuCoreDataByService(
                             return;
                         }
                         functional = *value;
+                        break;
                     }
                 }
             }
@@ -1136,6 +1137,7 @@ inline void afterGetCpuCoreDataByService(
                             return;
                         }
                         asyncResp->res.jsonValue["Enabled"] = *enabled;
+                        break;
                     }
                 }
             }
@@ -1153,6 +1155,7 @@ inline void afterGetCpuCoreDataByService(
                             return;
                         }
                         available = *value;
+                        break;
                     }
                 }
             }
