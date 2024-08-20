@@ -13,6 +13,7 @@
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 #include "utils/chassis_utils.hpp"
+#include "utils/dbus_utils.hpp"
 #include "utils/fan_utils.hpp"
 #include "utils/json_utils.hpp"
 #include "utils/name_utils.hpp"
@@ -203,7 +204,7 @@ inline void handleFanPath(
     messages::resourceNotFound(asyncResp->res, "Fan", fanId);
 }
 
-inline void getValidFanPath(
+inline void getValidFanObject(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& validChassisPath, const std::string& fanId,
     const std::function<void(const std::string& fanPath,
@@ -365,7 +366,7 @@ inline void getFanLocation(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         });
 }
 
-inline void afterGetValidFanPath(
+inline void afterGetValidFanObject(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& chassisId, const std::string& fanId,
     const std::string& fanPath, const std::string& service)
@@ -389,9 +390,9 @@ inline void doFanGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         return;
     }
 
-    getValidFanPath(
+    getValidFanObject(
         asyncResp, *validChassisPath, fanId,
-        std::bind_front(afterGetValidFanPath, asyncResp, chassisId, fanId));
+        std::bind_front(afterGetValidFanObject, asyncResp, chassisId, fanId));
 }
 
 inline void handleFanHead(App& app, const crow::Request& req,
@@ -414,7 +415,7 @@ inline void handleFanHead(App& app, const crow::Request& req,
                                            chassisId);
                 return;
             }
-            getValidFanPath(
+            getValidFanObject(
                 asyncResp, *validChassisPath, fanId,
                 [asyncResp](const std::string&, const std::string&) {
                     asyncResp->res.addHeader(
@@ -438,32 +439,37 @@ inline void handleFanGet(App& app, const crow::Request& req,
         std::bind_front(doFanGet, asyncResp, chassisId, fanId));
 }
 
-inline void doPatchFan(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                       const bool locationIndicatorActive,
-                       const std::string& fanPath,
-                       const std::string& /* service */)
-{
-    setLocationIndicatorActive(asyncResp, fanPath, locationIndicatorActive);
-}
-
-inline void fanPatchAfterValidateChassis(
+inline void handleSetFanPathById(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& chassisId, const std::string& fanId,
-    const bool locationIndicatorActive,
-    const std::optional<std::string>& validChassisPath)
+    bool locationIndicatorActive, const boost::system::error_code& ec,
+    const dbus::utility::MapperGetSubTreePathsResponse& fanPaths)
 {
-    if (!validChassisPath)
+    if (ec)
     {
-        BMCWEB_LOG_WARNING("Not a valid chassis ID: {}", chassisId);
-        messages::resourceNotFound(asyncResp->res, "Chassis", chassisId);
+        if (ec.value() == boost::system::errc::io_error)
+        {
+            BMCWEB_LOG_WARNING("Chassis {} not found", chassisId);
+            messages::resourceNotFound(asyncResp->res, "Chassis", chassisId);
+            return;
+        }
+
+        BMCWEB_LOG_ERROR("DBUS response error {}", ec.value());
+        messages::internalError(asyncResp->res);
         return;
     }
 
-    // Verify that the fan has the correct chassis and whether fan has a
-    // chassis association
-    getValidFanPath(
-        asyncResp, *validChassisPath, fanId,
-        std::bind_front(doPatchFan, asyncResp, locationIndicatorActive));
+    for (const auto& fanPath : fanPaths)
+    {
+        if (checkFanId(fanPath, fanId))
+        {
+            setLocationIndicatorActive(asyncResp, fanPath,
+                                       locationIndicatorActive);
+            return;
+        }
+    }
+    BMCWEB_LOG_WARNING("Fan {} not found", fanId);
+    messages::resourceNotFound(asyncResp->res, "Fan", fanId);
 }
 
 inline void handleFanPatch(App& app, const crow::Request& req,
@@ -486,10 +492,17 @@ inline void handleFanPatch(App& app, const crow::Request& req,
 
     if (locationIndicatorActive)
     {
-        redfish::chassis_utils::getValidChassisPath(
-            asyncResp, chassisId,
-            std::bind_front(fanPatchAfterValidateChassis, asyncResp, chassisId,
-                            fanId, *locationIndicatorActive));
+        dbus::utility::getAssociatedSubTreePathsById(
+            chassisId, "/xyz/openbmc_project/inventory", chassisInterfaces,
+            "cooled_by", fanInterface,
+            [asyncResp, chassisId, fanId, locationIndicatorActive](
+                const boost::system::error_code& ec,
+                const dbus::utility::MapperGetSubTreePathsResponse&
+                    subtreePaths) {
+                handleSetFanPathById(asyncResp, chassisId, fanId,
+                                     *locationIndicatorActive, ec,
+                                     subtreePaths);
+            });
     }
 }
 
