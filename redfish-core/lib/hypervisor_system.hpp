@@ -352,7 +352,7 @@ inline bool extractHypervisorInterfaceData(
                             }
                             else
                             {
-                                ipv6Address.origin = "DHCP";
+                                ipv6Address.origin = "DHCPv6";
                             }
                         }
                         else if (property.first == "DefaultGateway6")
