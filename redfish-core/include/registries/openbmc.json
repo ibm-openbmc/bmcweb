@@ -459,6 +459,15 @@
             "Resolution": "None.",
             "Severity": "OK"
         },
+        "GardRecord": {
+            "Description": "Indicates this resource is isolated.",
+            "Message": "%1 Gard Record %2",
+            "MessageSeverity": "OK",
+            "NumberOfArgs": 2,
+            "ParamTypes": ["string", "string"],
+            "Resolution": "None.",
+            "Severity": "OK"
+        },
         "GeneralFirmwareSecurityViolation": {
             "Description": "Indicates a general firmware security violation has occurred.",
             "Message": "Firmware security violation: %1.",
