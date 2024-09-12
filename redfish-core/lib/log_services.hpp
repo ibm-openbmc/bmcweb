@@ -6892,6 +6892,12 @@ inline void fillSystemHardwareIsolationLogEntry(
                     {
                         entryJson["Severity"] = "OK";
                     }
+                    else if (
+                        *severity ==
+                        "xyz.openbmc_project.HardwareIsolation.Entry.Type.Spare")
+                    {
+                        entryJson["Severity"] = "Spare";
+                    }
                     else
                     {
                         BMCWEB_LOG_ERROR(
