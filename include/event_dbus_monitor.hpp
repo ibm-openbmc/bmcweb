@@ -141,8 +141,8 @@ inline void hostStatePropertyChange(sdbusplus::message::message& msg)
 
             // reset the postCodeCounter
             postCodeCounter = 0;
-            BMCWEB_LOG_CRITICAL
-                << "INFO: Host is powered off. Reset the postcode counter to "
+            BMCWEB_LOG_INFO
+                << "Host is powered off. Reset the postcode counter to "
                 << postCodeCounter;
         }
         // Push an event

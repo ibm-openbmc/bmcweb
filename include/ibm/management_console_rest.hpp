@@ -424,8 +424,8 @@ inline void
                                 "config files directory. ec : "
                              << ec;
         }
-        BMCWEB_LOG_CRITICAL
-            << "INFO:config files directory delete successful. PATH: " << loc;
+        BMCWEB_LOG_INFO << "config files directory delete successful. PATH: "
+                        << loc;
         std::string origin = "/ibm/v1/Host/ConfigFiles";
         redfish::EventServiceManager::getInstance().sendEvent(
             redfish::messages::resourceRemoved(), origin, "IBMConfigFile");
@@ -492,8 +492,7 @@ inline void
     {
         if (remove(filePath.c_str()) == 0)
         {
-            BMCWEB_LOG_CRITICAL << "INFO:configFile removed, FilePath: "
-                                << filePath;
+            BMCWEB_LOG_INFO << "configFile removed, FilePath: " << filePath;
             asyncResp->res.jsonValue["Description"] = "File Deleted";
             std::string origin = "/ibm/v1/Host/ConfigFiles/" + fileID;
             redfish::EventServiceManager::getInstance().sendEvent(
@@ -911,7 +910,7 @@ inline void
             return;
         }
 
-        BMCWEB_LOG_CRITICAL << "INFO:Successfully got VMI client certificate";
+        BMCWEB_LOG_INFO << "Successfully got VMI client certificate";
         asyncResp->res.jsonValue["Certificate"] = *cert;
     },
         "xyz.openbmc_project.Certs.ca.authority.Manager",
@@ -946,8 +945,8 @@ inline void getCSREntryAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             return;
         }
 
-        BMCWEB_LOG_CRITICAL << "INFO:VMI Cert Entry " << entryId
-                            << " new status property value " << *status;
+        BMCWEB_LOG_INFO << "VMI Cert Entry " << entryId
+                        << " new status property value " << *status;
         if (*status == "xyz.openbmc_project.Certs.Entry.State.Pending")
         {
             asyncResp->res.addHeader("Retry-After", "60");
@@ -971,7 +970,7 @@ inline void getCSREntryAck(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         auto entry = ackMatches.find(entryId);
         if (entry != ackMatches.end())
         {
-            BMCWEB_LOG_CRITICAL << "INFO:Erasing match of entryId: " << entryId;
+            BMCWEB_LOG_INFO << "Erasing match of entryId: " << entryId;
             ackMatches.erase(entryId);
         }
     },
@@ -1044,8 +1043,8 @@ static void
                 auto findStatus = values.find("Status");
                 if (findStatus != values.end())
                 {
-                    BMCWEB_LOG_CRITICAL
-                        << "INFO:Found status prop change of VMI cert object with entryId:"
+                    BMCWEB_LOG_INFO
+                        << "Found status prop change of VMI cert object with entryId:"
                         << entryId;
                     getCSREntryAck(asyncResp, entryId);
                     timeout->cancel();

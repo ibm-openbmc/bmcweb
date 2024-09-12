@@ -1075,8 +1075,8 @@ inline void createDumpTaskCallback(
             }
             taskData->payload->httpHeaders.emplace_back(std::move(headerLoc));
 
-            BMCWEB_LOG_CRITICAL << "INFO: " << createdObjPath.str
-                                << ": Dump creation task completed";
+            BMCWEB_LOG_INFO << "Dump: " << createdObjPath.str
+                            << ": Dump creation task completed";
             taskData->state = "Completed";
             return task::completed;
         },

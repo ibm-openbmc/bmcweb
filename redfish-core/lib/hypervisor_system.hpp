@@ -981,10 +981,10 @@ inline void handleHypervisorIPv4StaticPatch(
             return;
         }
 
-        BMCWEB_LOG_ERROR
-            << "INFO: Static ip configuration request from client: " << clientIp
-            << " - ip: " << *address << "; gateway: " << *gateway
-            << "; prefix length: " << static_cast<int64_t>(prefixLength);
+        BMCWEB_LOG_INFO << "Static ip configuration request from client: "
+                        << clientIp << " - ip: " << *address
+                        << "; gateway: " << *gateway << "; prefix length: "
+                        << static_cast<int64_t>(prefixLength);
         // Set the DHCPEnabled to false since the Static IPv4 is set
         setDHCPEnabled(ifaceId, ethData, false, asyncResp);
         createHypervisorIP(ifaceId, prefixLength, *gateway, *address,
