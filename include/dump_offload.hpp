@@ -188,8 +188,8 @@ class Handler : public std::enable_shared_from_this<Handler>
                 }
                 return;
             }
-            BMCWEB_LOG_CRITICAL << "INFO: Reset OffloadUri of " << dumpType
-                                << " dump id " << entryID;
+            BMCWEB_LOG_INFO << "Reset OffloadUri of " << dumpType << " dump id "
+                            << entryID;
         },
             "xyz.openbmc_project.Dump.Manager",
             "/xyz/openbmc_project/dump/" + dumpType + "/entry/" + entryID,
@@ -293,7 +293,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                     this->connection->close();
                     return;
                 }
-                BMCWEB_LOG_CRITICAL << "INFO: Hit Dump end of file";
+                BMCWEB_LOG_INFO << "Hit Dump end of file";
                 this->connection->completionStatus = true;
                 this->connection->close();
                 return;
@@ -341,8 +341,8 @@ inline void resetHandlers()
             (handler->second->dumpType == "resource"))
         {
             handler->first->close();
-            BMCWEB_LOG_CRITICAL << "INFO: " << handler->second->dumpType
-                                << " dump resetHandlers cleanup";
+            BMCWEB_LOG_INFO << "Dump: " << handler->second->dumpType
+                            << " dump resetHandlers cleanup";
         }
     }
 }
@@ -402,9 +402,9 @@ inline void requestRoutes(App& app)
             bmcHandlers[&conn]->connection->close();
             return;
         }
-        BMCWEB_LOG_CRITICAL
-            << "INFO: " << dumpType << " Dump id " << dumpId
-            << " offload initiated by: " << conn.req.session->clientIp;
+        BMCWEB_LOG_INFO << "Dump: " << dumpType << " Dump id " << dumpId
+                        << " offload initiated by: "
+                        << conn.req.session->clientIp;
         bmcHandlers[&conn]->getDumpSize(dumpId, dumpType);
     }).onclose([](crow::streaming_response::Connection& conn, bool& status) {
         auto handler = bmcHandlers.find(&conn);
@@ -439,8 +439,8 @@ inline void requestRoutes(App& app)
         }
 
         std::string url(conn.req.target());
-        BMCWEB_LOG_CRITICAL << "INFO:Request open for system dump offload with"
-                            << "url: " << url;
+        BMCWEB_LOG_INFO << "Request open for system dump offload with"
+                        << "url: " << url;
         std::string startDelimiter = "Entries/";
         std::size_t pos1 = url.rfind(startDelimiter);
         std::size_t pos2 = url.rfind("/attachment");
@@ -493,9 +493,9 @@ inline void requestRoutes(App& app)
             systemHandlers[&conn]->connection->close();
             return;
         }
-        BMCWEB_LOG_CRITICAL
-            << "INFO: " << dumpType << " dump id " << dumpId
-            << " offload initiated by: " << conn.req.session->clientIp;
+        BMCWEB_LOG_INFO << "Dump: " << dumpType << " dump id " << dumpId
+                        << " offload initiated by: "
+                        << conn.req.session->clientIp;
         systemHandlers[&conn]->getDumpSize(dumpId, dumpType);
     }).onclose([](crow::streaming_response::Connection& conn, bool& status) {
         auto handler = systemHandlers.find(&conn);
@@ -511,9 +511,8 @@ inline void requestRoutes(App& app)
         }
         handler->second->outputBuffer.clear();
         systemHandlers.clear();
-        BMCWEB_LOG_CRITICAL
-            << "INFO:Request closed for system dump offload with"
-            << "url: " << conn.req.target();
+        BMCWEB_LOG_INFO << "Request closed for system dump offload with"
+                        << "url: " << conn.req.target();
     });
 }
 
