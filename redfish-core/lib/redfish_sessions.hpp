@@ -243,16 +243,14 @@ inline void processAfterSessionCreation(
 }
 
 inline void checkGoogleAuthenticatorSecretKeyRequired(
-    const std::string& username,
     std::function<void(const boost::system::error_code& ec, bool)> callback)
 {
     sdbusplus::message::object_path userPath("/xyz/openbmc_project/user");
-    userPath /= username;
     crow::connections::systemBus->async_method_call(
         [callback = std::move(callback)](const boost::system::error_code& ec,
                                          bool val) { callback(ec, val); },
         "xyz.openbmc_project.User.Manager", userPath,
-        "xyz.openbmc_project.User.TOTPAuthenticator",
+        "xyz.openbmc_project.User.TOTPAuthenticatorManager",
         "IsGenerateSecretKeyRequired");
 }
 
@@ -320,8 +318,8 @@ inline void handleSessionCollectionPost(
     }
     // check if secret key generation is required for the user
     checkGoogleAuthenticatorSecretKeyRequired(
-        username, [username, asyncResp, req, clientId = std::move(clientId)](
-                      const boost::system::error_code& ec, bool required) {
+        [username, asyncResp, req, clientId = std::move(clientId)](
+            const boost::system::error_code& ec, bool required) {
             if (ec)
             {
                 BMCWEB_LOG_ERROR("secretKeyRequired check failed = {}",
