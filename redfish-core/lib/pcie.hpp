@@ -524,6 +524,33 @@ inline void getPCIeDeviceAsset(
         });
 }
 
+inline void getPCIeDeviceLocation(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& pcieDevicePath, const std::string& service)
+{
+    dbus::utility::getProperty<std::string>(
+        service, pcieDevicePath,
+        "xyz.openbmc_project.Inventory.Decorator.LocationCode", "LocationCode",
+        [asyncResp](const boost::system::error_code& ec,
+                    const std::string& property) {
+            if (ec)
+            {
+                if (ec.value() != EBADR)
+                {
+                    BMCWEB_LOG_ERROR(
+                        "DBUS response error for Location. Error code: {}",
+                        ec.value());
+                    messages::internalError(asyncResp->res);
+                }
+                return;
+            }
+
+            asyncResp->res
+                .jsonValue["Slot"]["Location"]["PartLocation"]["ServiceLabel"] =
+                property;
+        });
+}
+
 inline void addPCIeDeviceProperties(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& pcieDeviceId,
@@ -679,6 +706,7 @@ inline void afterGetValidPcieDevicePath(
         std::bind_front(afterGetPCIeDeviceSlotPath, asyncResp));
     name_util::getPrettyName(asyncResp, pcieDevicePath, service,
                              nlohmann::json::json_pointer{"/Name"});
+    getPCIeDeviceLocation(asyncResp, pcieDevicePath, service);
 }
 
 inline void handlePCIeDeviceGet(
