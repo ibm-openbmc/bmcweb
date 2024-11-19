@@ -1,12 +1,23 @@
 #pragma once
 
 #include "async_resp.hpp"
+#include "generated/enums/metric_definition.hpp"
 #include "sensors.hpp"
 #include "utils/get_chassis_names.hpp"
 #include "utils/sensor_utils.hpp"
 #include "utils/telemetry_utils.hpp"
 
+#include <boost/container/flat_map.hpp>
+#include <boost/system/error_code.hpp>
 #include <registries/privilege_registry.hpp>
+
+#include <algorithm>
+#include <cmath>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <variant>
 
 namespace redfish
 {
@@ -64,7 +75,8 @@ inline void
                            const std::string& serviceName,
                            const std::string& sensorPath)
 {
-    asyncResp->res.jsonValue["MetricType"] = "Numeric";
+    asyncResp->res.jsonValue["MetricType"] =
+        metric_definition::MetricType::Numeric;
 
     telemetry::getReadingRange(
         serviceName, sensorPath, "MinValue",
@@ -72,12 +84,15 @@ inline void
         if (ec)
         {
             messages::internalError(asyncResp->res);
+            BMCWEB_LOG_ERROR("fillMinMaxReadingRange: getReadingRange error {}",
+                             ec);
             return;
         }
 
         if (std::isfinite(readingRange))
         {
-            asyncResp->res.jsonValue["MetricType"] = "Gauge";
+            asyncResp->res.jsonValue["MetricType"] =
+                metric_definition::MetricType::Gauge;
 
             asyncResp->res.jsonValue["MinReadingRange"] = readingRange;
         }
@@ -89,12 +104,15 @@ inline void
         if (ec)
         {
             messages::internalError(asyncResp->res);
+            BMCWEB_LOG_ERROR("fillMinMaxReadingRange: getReadingRange error {}",
+                             ec);
             return;
         }
 
         if (std::isfinite(readingRange))
         {
-            asyncResp->res.jsonValue["MetricType"] = "Gauge";
+            asyncResp->res.jsonValue["MetricType"] =
+                metric_definition::MetricType::Gauge;
 
             asyncResp->res.jsonValue["MaxReadingRange"] = readingRange;
         }
@@ -262,8 +280,8 @@ inline void requestRoutesMetricDefinitionCollection(App& app)
                 asyncResp->res.jsonValue["Members"].size();
         });
 
-        asyncResp->res.jsonValue["@odata.type"] = "#MetricDefinitionCollection."
-                                                  "MetricDefinitionCollection";
+        asyncResp->res.jsonValue["@odata.type"] =
+            "#MetricDefinitionCollection.MetricDefinitionCollection";
         asyncResp->res.jsonValue["@odata.id"] =
             "/redfish/v1/TelemetryService/MetricDefinitions";
         asyncResp->res.jsonValue["Name"] = "Metric Definition Collection";
@@ -331,7 +349,8 @@ inline void requestRoutesMetricDefinition(App& app)
                 asyncResp->res.jsonValue["@odata.id"] = odataId;
                 asyncResp->res.jsonValue["@odata.type"] =
                     "#MetricDefinition.v1_0_3.MetricDefinition";
-                asyncResp->res.jsonValue["MetricDataType"] = "Decimal";
+                asyncResp->res.jsonValue["MetricDataType"] =
+                    metric_definition::MetricDataType::Decimal;
                 asyncResp->res.jsonValue["IsLinear"] = true;
                 asyncResp->res.jsonValue["Units"] =
                     sensor_utils::sensors::toReadingUnits(

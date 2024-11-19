@@ -1,6 +1,6 @@
 #pragma once
 
-#include <include/dbus_singleton.hpp>
+#include <dbus_singleton.hpp>
 
 #include <array>
 #include <string>
