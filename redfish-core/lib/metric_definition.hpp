@@ -175,12 +175,12 @@ static std::string mapSensorToMetricDefinition(const std::string& sensorPath)
         return item.first == sensorObjectPath.parent_path().filename();
     });
 
-    const char* metricDefinitionPath =
+    std::string metricDefinitionPath =
         "/redfish/v1/TelemetryService/MetricDefinitions/";
 
     if (it != metricDefinitionMapping.end())
     {
-        return std::string{metricDefinitionPath} + it->second;
+        return metricDefinitionPath + it->second;
     }
 
     return metricDefinitionPath + sensorObjectPath.filename();
