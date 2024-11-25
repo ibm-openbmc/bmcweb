@@ -2446,6 +2446,10 @@ inline void checkAndAddSecretKeyActionsCallback(
         boost::urls::format(
             "/redfish/v1/AccountService/Accounts/{}/Actions/ManagerAccount.VerifyTimeBasedOneTimePassword",
             accountName);
+
+    actions["#ManagerAccount.ClearSecretKey"]["target"] = boost::urls::format(
+        "/redfish/v1/AccountService/Accounts/{}/Actions/ManagerAccount.ClearSecretKey",
+        accountName);
 }
 
 inline void checkAndAddSecretKeyActions(
@@ -2823,7 +2827,6 @@ inline void handleAccountPatch(
             messages::insufficientPrivilege(asyncResp->res);
             return;
         }
-
 
         // Read only users should not be allowed to bypass self
         if (mfaBypass)
