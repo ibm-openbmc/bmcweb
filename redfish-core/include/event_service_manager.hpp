@@ -172,65 +172,71 @@ class EventServiceManager
 
         const nlohmann::json::object_t* obj =
             jsonData.get_ptr<const nlohmann::json::object_t*>();
-        for (const auto& item : *obj)
+        if (obj != nullptr)
         {
-            if (item.first == "Configuration")
+            for (const auto& item : *obj)
             {
-                persistent_data::EventServiceStore::getInstance()
-                    .getEventServiceConfig()
-                    .fromJson(item.second);
-            }
-            else if (item.first == "Subscriptions")
-            {
-                for (const auto& elem : item.second)
+                if (item.first == "Configuration")
                 {
-                    std::optional<persistent_data::UserSubscription>
-                        newSubscription =
-                            persistent_data::UserSubscription::fromJson(elem,
-                                                                        true);
-                    if (!newSubscription)
+                    persistent_data::EventServiceStore::getInstance()
+                        .getEventServiceConfig()
+                        .fromJson(item.second);
+                }
+                else if (item.first == "Subscriptions")
+                {
+                    for (const auto& elem : item.second)
                     {
-                        BMCWEB_LOG_ERROR("Problem reading subscription "
-                                         "from old persistent store");
-                        continue;
-                    }
-                    persistent_data::UserSubscription& newSub =
-                        *newSubscription;
-
-                    std::uniform_int_distribution<uint32_t> dist(0);
-                    bmcweb::OpenSSLGenerator gen;
-
-                    std::string id;
-
-                    int retry = 3;
-                    while (retry != 0)
-                    {
-                        id = std::to_string(dist(gen));
-                        if (gen.error())
+                        std::optional<persistent_data::UserSubscription>
+                            newSubscription =
+                                persistent_data::UserSubscription::fromJson(
+                                    elem, true);
+                        if (!newSubscription)
                         {
-                            retry = 0;
-                            break;
+                            BMCWEB_LOG_ERROR("Problem reading subscription "
+                                             "from old persistent store");
+                            continue;
                         }
-                        newSub.id = id;
-                        auto inserted =
-                            persistent_data::EventServiceStore::getInstance()
-                                .subscriptionsConfigMap.insert(std::pair(
-                                    id, std::make_shared<
-                                            persistent_data::UserSubscription>(
-                                            newSub)));
-                        if (inserted.second)
-                        {
-                            break;
-                        }
-                        --retry;
-                    }
+                        persistent_data::UserSubscription& newSub =
+                            *newSubscription;
 
-                    if (retry <= 0)
-                    {
-                        BMCWEB_LOG_ERROR(
-                            "Failed to generate random number from old "
-                            "persistent store");
-                        continue;
+                        std::uniform_int_distribution<uint32_t> dist(0);
+                        bmcweb::OpenSSLGenerator gen;
+
+                        std::string id;
+
+                        int retry = 3;
+                        while (retry != 0)
+                        {
+                            id = std::to_string(dist(gen));
+                            if (gen.error())
+                            {
+                                retry = 0;
+                                break;
+                            }
+                            newSub.id = id;
+                            auto inserted =
+                                persistent_data::EventServiceStore::
+                                    getInstance()
+                                        .subscriptionsConfigMap.insert(
+                                            std::pair(id,
+                                                      std::make_shared<
+                                                          persistent_data::
+                                                              UserSubscription>(
+                                                          newSub)));
+                            if (inserted.second)
+                            {
+                                break;
+                            }
+                            --retry;
+                        }
+
+                        if (retry <= 0)
+                        {
+                            BMCWEB_LOG_ERROR(
+                                "Failed to generate random number from old "
+                                "persistent store");
+                            continue;
+                        }
                     }
                 }
             }
