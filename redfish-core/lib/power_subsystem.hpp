@@ -20,7 +20,6 @@
 #include <boost/beast/http/field.hpp>
 #include <boost/beast/http/verb.hpp>
 #include <boost/url/format.hpp>
-#include <sdbusplus/asio/property.hpp>
 #include <sdbusplus/unpack_properties.hpp>
 
 #include <cstdint>
@@ -36,12 +35,12 @@ namespace redfish
 inline void getPowerSubsystemAllocation(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    sdbusplus::asio::getAllProperties(
-        *crow::connections::systemBus, "xyz.openbmc_project.Settings",
-        "/xyz/openbmc_project/control/host0/power_cap",
-        "xyz.openbmc_project.Control.Power.Cap",
-        [asyncResp](const boost::system::error_code& ec,
-                    const dbus::utility::DBusPropertiesMap& propertiesList) {
+    // Get max from CapLimit
+    dbus::utility::getProperty<uint32_t>(
+        *crow::connections::systemBus, "org.open_power.OCC.Control",
+        "/xyz/openbmc_project/control/host0/power_cap_limits",
+        "xyz.openbmc_project.Control.Power.CapLimits", "MaxPowerCapValue",
+        [asyncResp](const boost::system::error_code& ec, uint32_t maxCap) {
             if (ec)
             {
                 if (ec.value() != EBADR)
@@ -51,37 +50,50 @@ inline void getPowerSubsystemAllocation(
                 }
                 return;
             }
+            asyncResp->res.jsonValue["Allocation"]["AllocatedWatts"] = maxCap;
+            asyncResp->res.jsonValue["Allocation"]["RequestedWatts"] = maxCap;
 
-            uint32_t powerCap{0};
-            bool powerCapEnable{false};
-            uint32_t maxPowerCapValue{0};
-            const bool success = sdbusplus::unpackPropertiesNoThrow(
-                dbus_utils::UnpackErrorPrinter(), propertiesList, "PowerCap",
-                powerCap, "PowerCapEnable", powerCapEnable, "MaxPowerCapValue",
-                maxPowerCapValue);
+            // Get power cap enable status and the cap (if set)
+            dbus::utility::getAllProperties(
+                *crow::connections::systemBus, "xyz.openbmc_project.Settings",
+                "/xyz/openbmc_project/control/host0/power_cap",
+                "xyz.openbmc_project.Control.Power.Cap",
+                [asyncResp](
+                    const boost::system::error_code& ec2,
+                    const dbus::utility::DBusPropertiesMap& propertiesList) {
+                    if (ec2)
+                    {
+                        if (ec2.value() != EBADR)
+                        {
+                            BMCWEB_LOG_ERROR("DBUS response error: {}",
+                                             ec2.value());
+                            messages::internalError(asyncResp->res);
+                        }
+                        return;
+                    }
 
-            if (!success)
-            {
-                messages::internalError(asyncResp->res);
-                return;
-            }
+                    const uint32_t* powerCap = nullptr;
+                    const bool* powerCapEnable = nullptr;
+                    const bool success = sdbusplus::unpackPropertiesNoThrow(
+                        dbus_utils::UnpackErrorPrinter(), propertiesList,
+                        "PowerCap", powerCap, "PowerCapEnable", powerCapEnable);
 
-            // If MaxPowerCapValue valid, store Allocation properties in JSON
-            if ((maxPowerCapValue > 0) && (maxPowerCapValue < UINT32_MAX))
-            {
-                if (powerCapEnable)
-                {
-                    asyncResp->res.jsonValue["Allocation"]["AllocatedWatts"] =
-                        powerCap;
-                }
-                else
-                {
-                    asyncResp->res.jsonValue["Allocation"]["AllocatedWatts"] =
-                        maxPowerCapValue;
-                }
-                asyncResp->res.jsonValue["Allocation"]["RequestedWatts"] =
-                    maxPowerCapValue;
-            }
+                    if (!success)
+                    {
+                        messages::internalError(asyncResp->res);
+                        return;
+                    }
+
+                    if ((powerCap != nullptr) && (powerCapEnable != nullptr))
+                    {
+                        if (*powerCapEnable)
+                        {
+                            asyncResp->res
+                                .jsonValue["Allocation"]["AllocatedWatts"] =
+                                *powerCap;
+                        }
+                    }
+                });
         });
 }
 
