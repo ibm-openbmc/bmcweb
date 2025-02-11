@@ -1353,7 +1353,9 @@ inline void processAccountUpdate(
     if (mfaBypass && userSession && userSession->isConfigureSelfOnly)
     {
         BMCWEB_LOG_ERROR("Bypassing MFA for self is not allowed");
-        messages::operationNotAllowed(asyncResp->res);
+        boost::urls::url accountUri = boost::urls::format(
+            "/redfish/v1/AccountService/Accounts/{}", username);
+        messages::generateSecretKeyRequired(asyncResp->res, accountUri);
         return;
     }
 
