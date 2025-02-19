@@ -38,6 +38,10 @@ inline std::string getRoleFromPrivileges(std::string_view priv)
     {
         return "Operator";
     }
+    if (priv == "priv-oemibmserviceagent")
+    {
+        return "OemIBMServiceAgent";
+    }
     return "";
 }
 
@@ -45,7 +49,7 @@ inline std::optional<nlohmann::json::array_t> getAssignedPrivFromRole(
     std::string_view role)
 {
     nlohmann::json::array_t privArray;
-    if (role == "Administrator")
+    if ((role == "Administrator") || (role == "OemIBMServiceAgent"))
     {
         privArray.emplace_back("Login");
         privArray.emplace_back("ConfigureManager");
@@ -71,6 +75,29 @@ inline std::optional<nlohmann::json::array_t> getAssignedPrivFromRole(
     return privArray;
 }
 
+inline bool getOemPrivFromRole(std::string_view role, nlohmann::json& privArray)
+{
+    if ((role == "Administrator") || (role == "Operator") ||
+        (role == "ReadOnly") || (role == "NoAccess"))
+    {
+        privArray = nlohmann::json::array();
+    }
+    else if (role == "OemIBMServiceAgent")
+    {
+        privArray = {"OemIBMPerformService"};
+    }
+    else
+    {
+        return false;
+    }
+    return true;
+}
+
+inline bool isRestrictedRole(const std::string& role)
+{
+    return role == "OemIBMServiceAgent";
+}
+
 inline void requestRoutesRoles(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/AccountService/Roles/<str>/")
@@ -89,15 +116,20 @@ inline void requestRoutesRoles(App& app)
                 if (!privArray)
                 {
                     messages::resourceNotFound(asyncResp->res, "Role", roleId);
+                    return;
+                }
 
+                nlohmann::json oemPrivArray = nlohmann::json::array();
+                if (!getOemPrivFromRole(roleId, oemPrivArray))
+                {
+                    messages::resourceNotFound(asyncResp->res, "Role", roleId);
                     return;
                 }
 
                 asyncResp->res.jsonValue["@odata.type"] = "#Role.v1_2_2.Role";
                 asyncResp->res.jsonValue["Name"] = "User Role";
-                asyncResp->res.jsonValue["Description"] = roleId + " User Role";
                 asyncResp->res.jsonValue["OemPrivileges"] =
-                    nlohmann::json::array();
+                    std::move(oemPrivArray);
                 asyncResp->res.jsonValue["IsPredefined"] = true;
                 asyncResp->res.jsonValue["Id"] = roleId;
                 asyncResp->res.jsonValue["RoleId"] = roleId;
@@ -105,6 +137,17 @@ inline void requestRoutesRoles(App& app)
                     "/redfish/v1/AccountService/Roles/{}", roleId);
                 asyncResp->res.jsonValue["AssignedPrivileges"] =
                     std::move(*privArray);
+                asyncResp->res.jsonValue["Restricted"] =
+                    isRestrictedRole(roleId);
+                if (roleId == "OemIBMServiceAgent")
+                {
+                    asyncResp->res.jsonValue["Description"] = "ServiceAgent";
+                }
+                else
+                {
+                    asyncResp->res.jsonValue["Description"] =
+                        roleId + " User Role";
+                }
             });
 }
 

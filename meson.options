@@ -493,6 +493,14 @@ option(
                     Should be set to false for production systems.''',
 )
 
+# BMCWEB_IBM_OEM_MANAGER_ACCOUNT
+option(
+    'ibm-oem-manager-account',
+    type: 'feature',
+    value: 'enabled',
+    description: '''Enable the IBM OEM Manager account for IBM systems.''',
+)
+
 # BMCWEB_INSECURE_IGNORE_CONTENT_TYPE
 option(
     'insecure-ignore-content-type',
