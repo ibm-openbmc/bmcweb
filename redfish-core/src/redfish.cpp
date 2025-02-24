@@ -30,6 +30,7 @@
 #include "network_protocol.hpp"
 #include "odata.hpp"
 #include "pcie.hpp"
+#include "pcie_slots.hpp"
 #include "power.hpp"
 #include "power_subsystem.hpp"
 #include "power_supply.hpp"
@@ -198,6 +199,7 @@ RedfishService::RedfishService(App& app)
     requestRoutesLDAPCertificate(app);
     requestRoutesTrustStoreCertificate(app);
 
+    requestRoutesPCIeSlots(app);
     requestRoutesSystemPCIeFunctionCollection(app);
     requestRoutesSystemPCIeFunction(app);
     requestRoutesSystemPCIeDeviceCollection(app);
