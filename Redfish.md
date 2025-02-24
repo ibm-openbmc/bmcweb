@@ -940,6 +940,7 @@ other.
 - DataWidthBits
 - ErrorCorrection
 - FirmwareRevision
+- LocationIndicatorActive
 - Manufacturer
 - Model
 - OperatingSpeedMhz
