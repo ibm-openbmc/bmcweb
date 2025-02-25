@@ -386,6 +386,7 @@ Fields common to all schemas
 #### Fan
 
 - Location
+- LocationIndicatorActive
 - Manufacturer
 - Model
 - PartNumber
