@@ -276,24 +276,25 @@ void getAssemblyPresence(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 return;
             }
 
+            nlohmann::json& array = asyncResp->res.jsonValue["Assemblies"];
+            nlohmann::json& data = array.at(assemblyIndex);
+            std::string fru =
+                sdbusplus::message::object_path(assembly).filename();
+
             if (!value)
             {
-                nlohmann::json& array = asyncResp->res.jsonValue["Assemblies"];
-                nlohmann::json& data = array.at(assemblyIndex);
                 data["Status"]["State"] = "Absent";
+            }
 
-                std::string fru =
-                    sdbusplus::message::object_path(assembly).filename();
-                // Special handling for LCD and base panel CM.
-                if (fru == "panel0" || fru == "panel1")
-                {
-                    data["Oem"]["OpenBMC"]["@odata.type"] =
-                        "#OpenBMCAssembly.v1_0_0.Assembly";
+            // Special handling for LCD and base panel CM.
+            if (fru == "panel0" || fru == "panel1")
+            {
+                data["Oem"]["OpenBMC"]["@odata.type"] =
+                    "#OpenBMCAssembly.v1_0_0.Assembly";
 
-                    // if panel is not present, implies it is already removed or
-                    // can be placed.
-                    data["Oem"]["OpenBMC"]["ReadyToRemove"] = !value;
-                }
+                // if panel is not present, implies it is already removed or
+                // can be placed.
+                data["Oem"]["OpenBMC"]["ReadyToRemove"] = !value;
             }
         });
 }
