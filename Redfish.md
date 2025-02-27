@@ -268,6 +268,9 @@ Fields common to all schemas
 
 #### EnvironmentMetrics
 
+- PowerWatts/DataSourceUri
+- PowerWatts/Reading
+
 ### /redfish/v1/Chassis/{ChassisId}/Power/
 
 #### Power
