@@ -3,7 +3,6 @@ schemas = {
     'insecure-disable-auth': 'OpenBMCAccountService',
     'redfish-oem-manager-fan-data': 'OpenBMCManager',
     'redfish-provisioning-feature': 'OpenBMCComputerSystem',
-    'ibm-oem-manager-account': 'OemManagerAccount',
     #'vm-nbdproxy': 'OpenBMCVirtualMedia',
 }
 
