@@ -216,7 +216,7 @@ class ConfigFile
             std::filesystem::perms::owner_read |
             std::filesystem::perms::owner_write |
             std::filesystem::perms::group_read;
-        std::filesystem::permissions(filename, permission);
+        std::filesystem::permissions(dumpFilename, permission);
         const auto& eventServiceConfig =
             EventServiceStore::getInstance().getEventServiceConfig();
         nlohmann::json data{
