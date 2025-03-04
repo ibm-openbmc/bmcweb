@@ -515,7 +515,7 @@ inline void
 static void monitorForSoftwareAvailable(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const crow::Request& req, const std::string& url,
-    int timeoutTimeSeconds = 25)
+    int timeoutTimeSeconds = 50)
 {
     // Only allow one FW update at a time
     if (fwUpdateInProgress)
