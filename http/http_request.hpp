@@ -71,6 +71,11 @@ struct Request
         userRole = "";
     }
 
+    void bodyClear()
+    {
+        req.body().clear();
+    }
+
     boost::beast::http::verb method() const
     {
         return req.method();

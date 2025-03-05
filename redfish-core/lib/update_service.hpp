@@ -847,7 +847,7 @@ inline void updateMultipartContext(
 }
 
 inline void handleUpdateServicePost(
-    App& app, const crow::Request& req,
+    App& app, crow::Request req,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, const std::string& url)
 {
     if (!redfish::setUpRedfishRoute(app, req, asyncResp))
@@ -866,6 +866,11 @@ inline void handleUpdateServicePost(
         monitorForSoftwareAvailable(asyncResp, req, url);
 
         uploadImageFile(asyncResp->res, req.body());
+        // The request is going to be open for potentially another ~20 seconds
+        // while the code update app untars the image and creates a interface.
+        // In this time, we can experience high memory usage so clear the body
+        // as soon as we have wrote the image to /tmp/images.
+        req.bodyClear();
     }
     else if (contentType.starts_with("multipart/form-data"))
     {
