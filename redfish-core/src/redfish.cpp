@@ -26,7 +26,6 @@
 #include "memory.hpp"
 #include "message_registries.hpp"
 #include "metadata.hpp"
-#include "metric_definition.hpp"
 #include "metric_report.hpp"
 #include "metric_report_definition.hpp"
 #include "network_protocol.hpp"
@@ -272,8 +271,6 @@ RedfishService::RedfishService(App& app)
     requestRoutesMetricReportDefinition(app);
     requestRoutesMetricReportCollection(app);
     requestRoutesMetricReport(app);
-    requestRoutesMetricDefinitionCollection(app);
-    requestRoutesMetricDefinition(app);
     requestRoutesTriggerCollection(app);
     requestRoutesTrigger(app);
 
