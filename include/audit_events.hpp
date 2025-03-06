@@ -215,7 +215,8 @@ inline void auditEvent(const crow::Request& req, const std::string& userName,
     std::string detail;
     if (wantDetail(req))
     {
-        detail = req.body() + " ";
+        detail = req.body().substr(0, maxBuf);
+        detail += " ";
     }
 
     if (!detail.empty())
