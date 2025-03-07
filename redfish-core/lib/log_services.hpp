@@ -43,6 +43,7 @@
 #include <boost/system/linux_error.hpp>
 #include <boost/url/format.hpp>
 #include <boost/url/url.hpp>
+#include <boost/url/url_view.hpp>
 #include <sdbusplus/message.hpp>
 #include <sdbusplus/message/native_types.hpp>
 #include <sdbusplus/unpack_properties.hpp>
@@ -768,7 +769,8 @@ inline DumpCreationProgress mapDbusStatusToDumpProgress(
 }
 
 inline DumpCreationProgress getDumpCompletionStatus(
-    const dbus::utility::DBusPropertiesMap& values)
+    const dbus::utility::DBusPropertiesMap& values,
+    const std::shared_ptr<task::TaskData>& taskData)
 {
     for (const auto& [key, val] : values)
     {
@@ -781,6 +783,66 @@ inline DumpCreationProgress getDumpCompletionStatus(
                 return DumpCreationProgress::DUMP_CREATE_FAILED;
             }
             return mapDbusStatusToDumpProgress(*value);
+        }
+        // Only resource dumps will implement the interface with this
+        // property. Hence the below if statement will be hit for
+        // all the resource dumps only
+        if (key == "DumpRequestStatus")
+        {
+            const std::string* value = std::get_if<std::string>(&val);
+            if (value == nullptr)
+            {
+                BMCWEB_LOG_ERROR("DumpRequestStatus property value is null");
+                taskData->messages.emplace_back(messages::internalError());
+                return DumpCreationProgress::DUMP_CREATE_FAILED;
+            }
+            if ((*value).ends_with("PermissionDenied"))
+            {
+                BMCWEB_LOG_WARNING("DumpRequestStatus: Permission denied");
+                taskData->messages.emplace_back(
+                    messages::insufficientPrivilege());
+                return DumpCreationProgress::DUMP_CREATE_FAILED;
+            }
+            if ((*value).ends_with("ACLFileInvalid") ||
+                (*value).ends_with("UserChallengeInvalid"))
+            {
+                BMCWEB_LOG_WARNING(
+                    "DumpRequestStatus: ACFFile Invalid/Password Invalid");
+                const auto& payload = taskData->payload;
+                if (payload.has_value())
+                {
+                    taskData->messages.emplace_back(
+                        messages::resourceAtUriUnauthorized(
+                            boost::urls::url_view(payload->targetUri),
+                            "Invalid User challenge/ACF File Invalid"));
+                }
+                else
+                {
+                    taskData->messages.emplace_back(messages::internalError());
+                }
+                return DumpCreationProgress::DUMP_CREATE_FAILED;
+            }
+            if ((*value).ends_with("ResourceSelectorInvalid"))
+            {
+                BMCWEB_LOG_WARNING(
+                    "DumpRequestStatus: Resource selector Invalid");
+                taskData->messages.emplace_back(
+                    messages::actionParameterUnknown("CollectDiagnosticData",
+                                                     "Resource selector"));
+                return DumpCreationProgress::DUMP_CREATE_FAILED;
+            }
+            if ((*value).ends_with("Unknown"))
+            {
+                BMCWEB_LOG_WARNING("DumpRequestStatus: Unknown");
+                taskData->messages.emplace_back(messages::internalError());
+                return DumpCreationProgress::DUMP_CREATE_FAILED;
+            }
+            if ((*value).ends_with("Success"))
+            {
+                taskData->state = "Running";
+                return DumpCreationProgress::DUMP_CREATE_INPROGRESS;
+            }
+            return DumpCreationProgress::DUMP_CREATE_INPROGRESS;
         }
     }
     return DumpCreationProgress::DUMP_CREATE_INPROGRESS;
@@ -890,7 +952,7 @@ inline void createDumpTaskCallback(
                         msg.read(prop, values);
 
                         DumpCreationProgress dumpStatus =
-                            getDumpCompletionStatus(values);
+                            getDumpCompletionStatus(values, taskData);
                         if (dumpStatus ==
                             DumpCreationProgress::DUMP_CREATE_FAILED)
                         {
@@ -913,9 +975,21 @@ inline void createDumpTaskCallback(
                     nlohmann::json retMessage = messages::success();
                     taskData->messages.emplace_back(retMessage);
 
-                    boost::urls::url url = boost::urls::format(
-                        "/redfish/v1/Managers/{}/LogServices/Dump/Entries/{}",
-                        BMCWEB_REDFISH_MANAGER_URI_NAME, dumpId);
+                    boost::urls::url url;
+                    if ((createdObjPath.str).find("/system/") !=
+                        std::string::npos)
+                    {
+                        url = boost::urls::format(
+                            "/redfish/v1/Systems/{}/LogServices/Dump/Entries/{}",
+                            BMCWEB_REDFISH_SYSTEM_URI_NAME, dumpId);
+                    }
+                    else if ((createdObjPath.str).find("/bmc/") !=
+                             std::string::npos)
+                    {
+                        url = boost::urls::format(
+                            "/redfish/v1/Managers/{}/LogServices/Dump/Entries/{}",
+                            BMCWEB_REDFISH_MANAGER_URI_NAME, dumpId);
+                    }
 
                     std::string headerLoc = "Location: ";
                     headerLoc += url.buffer();
@@ -932,9 +1006,21 @@ inline void createDumpTaskCallback(
                 "member='PropertiesChanged',path='" +
                     createdObjPath.str + "'");
 
+            // Take the task state to "Running" for all dumps except
+            // Resource dumps as there is no validation on the user input
+            // for dump creation, meaning only in resource dump creation,
+            // validation will be done on the user input.
+
+            const std::string resourceDumpIdPrefix =
+                "/xyz/openbmc_project/dump/system/entry/B";
+            if (!(createdObjPath.str).starts_with(resourceDumpIdPrefix))
+            {
+                task->state = "Running";
+            }
+
             // The task timer is set to max time limit within which the
             // requested dump will be collected.
-            task->startTimer(std::chrono::minutes(6));
+            task->startTimer(std::chrono::minutes(20));
             task->populateResp(asyncResp->res);
             task->payload.emplace(payload);
         },
@@ -955,7 +1041,7 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     std::optional<std::string> diagnosticDataType;
     std::optional<std::string> oemDiagnosticDataType;
 
-    if (!redfish::json_util::readJsonAction(               //
+    if (!redfish::json_util::readJsonAction(
             req, asyncResp->res,                           //
             "DiagnosticDataType", diagnosticDataType,      //
             "OEMDiagnosticDataType", oemDiagnosticDataType //
@@ -963,6 +1049,10 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     {
         return;
     }
+
+    std::vector<std::pair<std::string, std::variant<std::string, uint64_t>>>
+        createDumpParams;
+    std::string createDumpType;
 
     if (dumpType == "System")
     {
@@ -975,18 +1065,88 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 "DiagnosticDataType & OEMDiagnosticDataType");
             return;
         }
-        if ((*oemDiagnosticDataType != "System") ||
+
+        if ((*oemDiagnosticDataType != "System") &&
             (*diagnosticDataType != "OEM"))
         {
-            BMCWEB_LOG_ERROR("Wrong parameter values passed");
-            messages::internalError(asyncResp->res);
+            BMCWEB_LOG_WARNING("Wrong parameter values passed");
+            messages::invalidObject(
+                asyncResp->res,
+                boost::urls::format(
+                    "/redfish/v1/Systems/system/LogServices/Dump/Actions/LogService.CollectDiagnosticData"));
             return;
         }
-        dumpPath = std::format("/redfish/v1/Systems/{}/LogServices/Dump/",
-                               BMCWEB_REDFISH_SYSTEM_URI_NAME);
+        if ((*oemDiagnosticDataType).starts_with("Resource"))
+        {
+            std::string resourceDumpType = *oemDiagnosticDataType;
+            std::vector<std::variant<std::string, uint64_t>> resourceDumpParams;
+
+            size_t pos = 0;
+            while ((pos = resourceDumpType.find('_')) != std::string::npos)
+            {
+                resourceDumpParams.emplace_back(
+                    resourceDumpType.substr(0, pos));
+                if (resourceDumpParams.size() > 3)
+                {
+                    BMCWEB_LOG_WARNING(
+                        "Invalid value for OEMDiagnosticDataType");
+                    messages::invalidObject(
+                        asyncResp->res,
+                        boost::urls::format(
+                            "/redfish/v1/Systems/system/LogServices/Dump/Actions/LogService.CollectDiagnosticData"));
+                    return;
+                }
+                resourceDumpType.erase(0, pos + 1);
+            }
+            resourceDumpParams.emplace_back(resourceDumpType);
+
+            if (resourceDumpParams.size() >= 2)
+            {
+                createDumpParams.emplace_back(
+                    "com.ibm.Dump.Create.CreateParameters.VSPString",
+                    resourceDumpParams[1]);
+            }
+            if (resourceDumpParams.size() == 3)
+            {
+                createDumpParams.emplace_back(
+                    "com.ibm.Dump.Create.CreateParameters.Password",
+                    resourceDumpParams[2]);
+            }
+
+            if (resourceDumpParams.size() > 3)
+            {
+                BMCWEB_LOG_WARNING("Invalid value for OEMDiagnosticDataType");
+                messages::invalidObject(
+                    asyncResp->res,
+                    boost::urls::format(
+                        "/redfish/v1/Systems/system/LogServices/Dump/Actions/LogService.CollectDiagnosticData"));
+                return;
+            }
+            createDumpParams.emplace_back(
+                "com.ibm.Dump.Create.CreateParameters.DumpType",
+                "com.ibm.Dump.Create.DumpType.Resource");
+        }
+        else
+        {
+            if (*oemDiagnosticDataType != "System")
+            {
+                BMCWEB_LOG_WARNING("Invalid parameter values passed");
+                messages::invalidObject(
+                    asyncResp->res,
+                    boost::urls::format(
+                        "/redfish/v1/Systems/system/LogServices/Dump/Actions/LogService.CollectDiagnosticData"));
+                return;
+            }
+            createDumpParams.emplace_back(
+                "com.ibm.Dump.Create.CreateParameters.DumpType",
+                "com.ibm.Dump.Create.DumpType.System");
+        }
+        createDumpType = "System";
+        dumpPath = "/redfish/v1/Systems/system/LogServices/Dump/";
     }
     else if (dumpType == "BMC")
     {
+        createDumpType = "BMC";
         if (!diagnosticDataType)
         {
             BMCWEB_LOG_ERROR(
@@ -1002,8 +1162,26 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             messages::internalError(asyncResp->res);
             return;
         }
-        dumpPath = std::format("/redfish/v1/Managers/{}/LogServices/Dump/",
-                               BMCWEB_REDFISH_MANAGER_URI_NAME);
+        if (oemDiagnosticDataType)
+        {
+            if (*oemDiagnosticDataType == "FaultData")
+            {
+                // Fault data dump
+                createDumpParams.emplace_back(
+                    "xyz.openbmc_project.Dump.Create.CreateParameters.DumpType",
+                    "xyz.openbmc_project.Dump.Create.DumpType.FaultData");
+            }
+            else
+            {
+                BMCWEB_LOG_WARNING("Invalid value for OEMDiagnosticDataType");
+                messages::invalidObject(
+                    asyncResp->res,
+                    boost::urls::format(
+                        "/redfish/v1/Managers/bmc/LogServices/Dump/Actions/LogService.CollectDiagnosticData"));
+                return;
+            }
+        }
+        dumpPath = "/redfish/v1/Managers/bmc/LogServices/Dump/";
     }
     else
     {
@@ -1012,8 +1190,12 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         return;
     }
 
+    /*createDumpParams.emplace_back(
+        "xyz.openbmc_project.Dump.Create.CreateParameters.OriginatorId",
+        req.session->clientIp);*/
+
     std::vector<std::pair<std::string, std::variant<std::string, uint64_t>>>
-        createDumpParamVec;
+        createDumpParamVec(createDumpParams);
 
     if (req.session != nullptr)
     {
@@ -1063,6 +1245,15 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                     messages::resourceInUse(asyncResp->res);
                     return;
                 }
+                if (std::string_view("org.freedesktop.DBus.Error.NoReply") ==
+                    dbusError->name)
+                {
+                    // This will be returned as a result of createDump call
+                    // made when the dump manager is not responding.
+                    messages::serviceTemporarilyUnavailable(asyncResp->res,
+                                                            "60");
+                    return;
+                }
                 // Other Dbus errors such as:
                 // xyz.openbmc_project.Common.Error.InvalidArgument &
                 // org.freedesktop.DBus.Error.InvalidArgs are all related to
@@ -1076,7 +1267,7 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             BMCWEB_LOG_DEBUG("Dump Created. Path: {}", objPath.str);
             createDumpTaskCallback(std::move(payload), asyncResp, objPath);
         },
-        "xyz.openbmc_project.Dump.Manager", getDumpPath(dumpType),
+        "xyz.openbmc_project.Dump.Manager", getDumpPath(createDumpType),
         "xyz.openbmc_project.Dump.Create", "CreateDump", createDumpParamVec);
 }
 
