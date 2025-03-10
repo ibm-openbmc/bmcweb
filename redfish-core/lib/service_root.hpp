@@ -7,32 +7,33 @@
 
 #include "app.hpp"
 #include "async_resp.hpp"
+#include "dbus_singleton.hpp"
 #include "dbus_utility.hpp"
+#include "error_messages.hpp"
 #include "http_request.hpp"
+#include "logging.hpp"
 #include "persistent_data.hpp"
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 #include "utils/dbus_utils.hpp"
-#include "utils/systemd_utils.hpp"
 
 #include <boost/beast/http/field.hpp>
 #include <boost/beast/http/verb.hpp>
 #include <boost/url/format.hpp>
 #include <nlohmann/json.hpp>
-#include <persistent_data.hpp>
-#include <query.hpp>
-#include <registries/privilege_registry.hpp>
 #include <sdbusplus/asio/property.hpp>
 #include <sdbusplus/unpack_properties.hpp>
-#include <utils/systemd_utils.hpp>
 #include <utils/time_utils.hpp>
 
+#include <algorithm>
 #include <array>
 #include <functional>
 #include <memory>
 #include <ranges>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 namespace redfish
 {

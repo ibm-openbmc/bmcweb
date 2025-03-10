@@ -8,6 +8,7 @@
 
 #include "app.hpp"
 #include "async_resp.hpp"
+#include "dbus_singleton.hpp"
 #include "dbus_utility.hpp"
 #include "error_messages.hpp"
 #include "generated/enums/pcie_device.hpp"
@@ -18,6 +19,7 @@
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 #include "utils/dbus_utils.hpp"
+#include "utils/json_utils.hpp"
 #include "utils/pcie_util.hpp"
 
 #include <asm-generic/errno.h>
@@ -25,8 +27,10 @@
 #include <boost/beast/http/field.hpp>
 #include <boost/beast/http/verb.hpp>
 #include <boost/url/format.hpp>
+#include <sdbusplus/asio/property.hpp>
 #include <sdbusplus/unpack_properties.hpp>
 
+#include <algorithm>
 #include <array>
 #include <charconv>
 #include <cstddef>
@@ -42,7 +46,6 @@
 #include <system_error>
 #include <utility>
 #include <variant>
-#include <vector>
 
 namespace redfish
 {

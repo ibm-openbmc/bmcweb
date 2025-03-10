@@ -23,11 +23,13 @@
 #include "registries/privilege_registry.hpp"
 #include "roles.hpp"
 #include "sessions.hpp"
+#include "utility.hpp"
 #include "utils/collection.hpp"
 #include "utils/dbus_utils.hpp"
 #include "utils/json_utils.hpp"
 
 #include <security/_pam_types.h>
+#include <sys/types.h>
 #include <systemd/sd-bus.h>
 
 #include <boost/beast/http/field.hpp>
@@ -43,10 +45,13 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <exception>
 #include <format>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -2477,9 +2482,16 @@ inline void handleAccountPatch(
                         messages::propertyMissing(asyncResp->res, "ACFFile");
                         return;
                     }
+                    if (!acfFile.has_value())
+                    {
+                        BMCWEB_LOG_WARNING("Illegal Property ");
+                        messages::propertyMissing(asyncResp->res, "ACFFile");
+                        return;
+                    }
 
                     std::string sDecodedAcf;
-                    if (!crow::utility::base64Decode(*acfFile, sDecodedAcf))
+                    if (!crow::utility::base64Decode(std::string_view{*acfFile},
+                                                     sDecodedAcf))
                     {
                         BMCWEB_LOG_ERROR("base64 decode failure ");
                         messages::internalError(asyncResp->res);

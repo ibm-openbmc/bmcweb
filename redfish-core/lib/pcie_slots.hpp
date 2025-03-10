@@ -17,6 +17,7 @@
 #include "registries/privilege_registry.hpp"
 #include "utils/chassis_utils.hpp"
 #include "utils/dbus_utils.hpp"
+#include "utils/json_utils.hpp"
 #include "utils/pcie_util.hpp"
 
 #include <asm-generic/errno.h>
@@ -32,6 +33,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -345,9 +347,9 @@ inline void afterGetValidPCIeSlotList(
 inline void getValidPCIeSlotList(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& chassisID, const std::string& chassisPath,
-    std::function<void(
+    const std::function<void(
         const boost::system::error_code&,
-        const std::vector<std::pair<std::string, std::string>>&)>&& callback)
+        const std::vector<std::pair<std::string, std::string>>&)>& callback)
 {
     BMCWEB_LOG_DEBUG("Get properties for PCIeSlots associated to chassis = {}",
                      chassisID);

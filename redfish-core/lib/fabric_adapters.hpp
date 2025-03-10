@@ -24,6 +24,7 @@
 #include <boost/beast/http/verb.hpp>
 #include <boost/system/error_code.hpp>
 #include <boost/url/format.hpp>
+#include <sdbusplus/message/native_types.hpp>
 #include <sdbusplus/unpack_properties.hpp>
 
 #include <array>
