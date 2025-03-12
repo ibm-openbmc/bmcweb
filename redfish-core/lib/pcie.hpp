@@ -165,6 +165,52 @@ inline void requestRoutesSystemPCIeDeviceCollection(App& app)
             std::bind_front(handlePCIeDeviceCollectionGet, std::ref(app)));
 }
 
+inline void afterAddLinkToPCIeSlot(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& pcieDeviceSlot, const boost::system::error_code& ec,
+    const dbus::utility::MapperEndPoints& chassisPaths)
+{
+    if (ec)
+    {
+        if (ec.value() == EBADR)
+        {
+            // This PCIeSlot has no chassis association.
+            return;
+        }
+        BMCWEB_LOG_ERROR("DBUS response ec={} for slot path={}", ec.value(),
+                         pcieDeviceSlot);
+        messages::internalError(asyncResp->res);
+        return;
+    }
+    if (chassisPaths.size() != 1)
+    {
+        BMCWEB_LOG_ERROR("PCIe Slot association error! ");
+        messages::internalError(asyncResp->res);
+        return;
+    }
+    sdbusplus::message::object_path path(chassisPaths[0]);
+    std::string chassisName = path.filename();
+
+    asyncResp->res.jsonValue["Links"]["Oem"]["IBM"]["@odata.type"] =
+        "#IBMPCIeDevice.v1_0_0.PCIeLinks";
+    asyncResp->res.jsonValue["Links"]["Oem"]["IBM"]["PCIeSlot"]["@odata.id"] =
+        boost::urls::format("/redfish/v1/Chassis/{}/PCIeSlots", chassisName);
+}
+
+inline void addLinkToPCIeSlot(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& pcieDeviceSlot)
+{
+    constexpr std::array<std::string_view, 1> chassisInterfaces = {
+        "xyz.openbmc_project.Inventory.Item.Chassis"};
+
+    dbus::utility::getAssociatedSubTreePaths(
+        pcieDeviceSlot + "/contained_by",
+        sdbusplus::message::object_path("/xyz/openbmc_project/inventory"), 0,
+        chassisInterfaces,
+        std::bind_front(afterAddLinkToPCIeSlot, asyncResp, pcieDeviceSlot));
+}
+
 inline void addPCIeSlotProperties(
     crow::Response& res, const boost::system::error_code& ec,
     const dbus::utility::DBusPropertiesMap& pcieSlotProperties)
@@ -316,8 +362,11 @@ inline void afterGetDbusObject(
         messages::internalError(asyncResp->res);
         return;
     }
-    dbus::utility::getAllProperties(
-        object.begin()->first, pcieDeviceSlot,
+
+    addLinkToPCIeSlot(asyncResp, pcieDeviceSlot);
+
+    sdbusplus::asio::getAllProperties(
+        *crow::connections::systemBus, object.begin()->first, pcieDeviceSlot,
         "xyz.openbmc_project.Inventory.Item.PCIeSlot",
         [asyncResp](
             const boost::system::error_code& ec2,
