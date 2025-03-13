@@ -1283,7 +1283,7 @@ inline void handleHypervisorEthernetInterfacePatch(
 
     const std::string& clientIp = req.session->clientIp;
     getHypervisorIfaceData(
-        ifaceId,
+        ifaceId, //
         [req, clientIp, asyncResp, ifaceId, hostName = std::move(hostName),
          ipv4StaticAddresses = std::move(ipv4StaticAddresses),
          ipv6StaticAddresses = std::move(ipv6StaticAddresses), ipv4DHCPEnabled,
@@ -1319,7 +1319,6 @@ inline void handleHypervisorEthernetInterfacePatch(
                         asyncResp->res, ipv4Static, "IPv4StaticAddresses");
                     return;
                 }
-
                 const nlohmann::json& ipv4Json = ipv4Static[0];
                 // Check if the param is 'null'. If its null, it means
                 // that user wants to delete the IP address. Deleting
@@ -1349,7 +1348,6 @@ inline void handleHypervisorEthernetInterfacePatch(
                                                      "IPv6StaticAddresses");
                     return;
                 }
-
                 // One and only one hypervisor instance supported
                 if (ipv6Static.size() != 1)
                 {
@@ -1382,7 +1380,6 @@ inline void handleHypervisorEthernetInterfacePatch(
             {
                 handleHypervisorHostnamePatch(*hostName, asyncResp);
             }
-
             if (dhcpv4)
             {
                 setDHCPEnabled(ifaceId, ethData, *ipv4DHCPEnabled, asyncResp);
@@ -1405,9 +1402,11 @@ inline void handleHypervisorEthernetInterfacePatch(
                 if (ipv6StaticDefaultGateways->empty())
                 {
                     BMCWEB_LOG_ERROR("IPv6 Default Gateway property is empty");
-                    messages::invalidObject(asyncResp->res,
+                    messages::invalidObject(
+                        asyncResp->res,
                         boost::urls::format(
-                        "/redfish/v1/Systems/hypervisor/EthernetInterfaces/{}", ifaceId));
+                            "/redfish/v1/Systems/hypervisor/EthernetInterfaces/{}",
+                            ifaceId));
                     return;
                 }
                 if (ipv6StaticDefaultGateways->size() > 1)
@@ -1418,8 +1417,8 @@ inline void handleHypervisorEthernetInterfacePatch(
                 }
                 if (ipv6StaticDefaultGateways->front().is_null())
                 {
-                    handleHypervisorV6DefaultGatewayPatch(
-                        ifaceId, "::", asyncResp);
+                    handleHypervisorV6DefaultGatewayPatch(ifaceId,
+                                                          "::", asyncResp);
                 }
                 else
                 {
