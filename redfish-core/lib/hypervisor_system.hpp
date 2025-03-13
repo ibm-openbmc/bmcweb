@@ -1427,11 +1427,6 @@ inline void handleHypervisorEthernetInterfacePatch(
                         ifaceId, ipv6StaticDefaultGateways->front(), asyncResp);
                 }
             }
-
-            // Set this interface to disabled/inactive. This will be set
-            // to enabled/active by the pldm once the hypervisor
-            // consumes the updated settings from the user.
-            setIPv4InterfaceEnabled(ifaceId, false, asyncResp);
         });
     asyncResp->res.result(boost::beast::http::status::accepted);
 }
