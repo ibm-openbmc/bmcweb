@@ -1235,7 +1235,7 @@ inline void handleHypervisorEthernetInterfacePatch(
     std::optional<std::string> ipv6OperatingMode;
     std::optional<nlohmann::json> statelessAddressAutoConfig;
     std::optional<bool> ipv6AutoConfigEnabled;
-    std::optional<std::vector<std::string>> ipv6StaticDefaultGateways;
+    std::optional<nlohmann::json::array_t> ipv6StaticDefaultGateways;
 
     if (!json_util::readJsonPatch(
             req, asyncResp->res, "HostName", hostName, "IPv4StaticAddresses",
@@ -1283,7 +1283,7 @@ inline void handleHypervisorEthernetInterfacePatch(
 
     const std::string& clientIp = req.session->clientIp;
     getHypervisorIfaceData(
-        ifaceId,
+        ifaceId, //
         [req, clientIp, asyncResp, ifaceId, hostName = std::move(hostName),
          ipv4StaticAddresses = std::move(ipv4StaticAddresses),
          ipv6StaticAddresses = std::move(ipv6StaticAddresses), ipv4DHCPEnabled,
@@ -1319,7 +1319,6 @@ inline void handleHypervisorEthernetInterfacePatch(
                         asyncResp->res, ipv4Static, "IPv4StaticAddresses");
                     return;
                 }
-
                 const nlohmann::json& ipv4Json = ipv4Static[0];
                 // Check if the param is 'null'. If its null, it means
                 // that user wants to delete the IP address. Deleting
@@ -1349,7 +1348,6 @@ inline void handleHypervisorEthernetInterfacePatch(
                                                      "IPv6StaticAddresses");
                     return;
                 }
-
                 // One and only one hypervisor instance supported
                 if (ipv6Static.size() != 1)
                 {
@@ -1382,7 +1380,6 @@ inline void handleHypervisorEthernetInterfacePatch(
             {
                 handleHypervisorHostnamePatch(*hostName, asyncResp);
             }
-
             if (dhcpv4)
             {
                 setDHCPEnabled(ifaceId, ethData, *ipv4DHCPEnabled, asyncResp);
@@ -1402,22 +1399,33 @@ inline void handleHypervisorEthernetInterfacePatch(
 
             if (ipv6StaticDefaultGateways)
             {
-                const std::vector<std::string>& ipv6StaticDefaultGw =
-                    *ipv6StaticDefaultGateways;
-                if ((ipv6StaticDefaultGw).size() > 1)
+                if (ipv6StaticDefaultGateways->empty())
+                {
+                    BMCWEB_LOG_ERROR("IPv6 Default Gateway property is empty");
+                    messages::invalidObject(
+                        asyncResp->res,
+                        boost::urls::format(
+                            "/redfish/v1/Systems/hypervisor/EthernetInterfaces/{}",
+                            ifaceId));
+                    return;
+                }
+                if (ipv6StaticDefaultGateways->size() > 1)
                 {
                     messages::propertyValueModified(
                         asyncResp->res, "IPv6StaticDefaultGateways",
-                        ipv6StaticDefaultGw.front());
+                        ipv6StaticDefaultGateways->front());
                 }
-                handleHypervisorV6DefaultGatewayPatch(
-                    ifaceId, ipv6StaticDefaultGw.front(), asyncResp);
+                if (ipv6StaticDefaultGateways->front().is_null())
+                {
+                    handleHypervisorV6DefaultGatewayPatch(ifaceId,
+                                                          "::", asyncResp);
+                }
+                else
+                {
+                    handleHypervisorV6DefaultGatewayPatch(
+                        ifaceId, ipv6StaticDefaultGateways->front(), asyncResp);
+                }
             }
-
-            // Set this interface to disabled/inactive. This will be set
-            // to enabled/active by the pldm once the hypervisor
-            // consumes the updated settings from the user.
-            setIPv4InterfaceEnabled(ifaceId, false, asyncResp);
         });
     asyncResp->res.result(boost::beast::http::status::accepted);
 }
