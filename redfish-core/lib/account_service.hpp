@@ -2574,7 +2574,8 @@ inline void
         redfish::getUserPrivileges(*req.session);
     Privileges configureUsers = {"ConfigureUsers"};
     bool userHasConfigureUsers =
-        effectiveUserPrivileges.isSupersetOf(configureUsers);
+        effectiveUserPrivileges.isSupersetOf(configureUsers) &&
+        !req.session->isConfigureSelfOnly;
     if (!userHasConfigureUsers)
     {
         // Irrespective of role can patch ACF if function
