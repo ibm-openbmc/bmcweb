@@ -1078,7 +1078,7 @@ inline void processUpdateRequest(
 
 inline void updateMultipartContext(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const crow::Request& req, MultipartParser&& parser)
+    const crow::Request& req, MultipartParser&& parser, const std::string& url)
 {
     std::optional<MultiPartUpdateParameters> multipart =
         extractMultipartUpdateParameters(asyncResp, std::move(parser));
@@ -1110,15 +1110,14 @@ inline void updateMultipartContext(
         setApplyTime(asyncResp, *multipart->applyTime);
 
         // Setup callback for when new software detected
-        monitorForSoftwareAvailable(asyncResp, req,
-                                    "/redfish/v1/UpdateService");
+        monitorForSoftwareAvailable(asyncResp, req, url);
 
         uploadImageFile(asyncResp->res, multipart->uploadData);
     }
 }
 
 inline void doHTTPUpdate(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                         const crow::Request& req)
+                         const crow::Request& req, const std::string& url)
 {
     if constexpr (BMCWEB_REDFISH_UPDATESERVICE_USE_DBUS)
     {
@@ -1137,8 +1136,8 @@ inline void doHTTPUpdate(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     else
     {
         // Setup callback for when new software detected
-        monitorForSoftwareAvailable(asyncResp, req,
-                                    "/redfish/v1/UpdateService");
+        // Setup callback for when new software detected
+        monitorForSoftwareAvailable(asyncResp, req, url);
 
         uploadImageFile(asyncResp->res, req.body());
     }
@@ -1146,7 +1145,7 @@ inline void doHTTPUpdate(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
 inline void handleUpdateServicePost(
     App& app, const crow::Request& req,
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, const std::string& url)
 {
     if (!redfish::setUpRedfishRoute(app, req, asyncResp))
     {
@@ -1160,7 +1159,7 @@ inline void handleUpdateServicePost(
     // multipart/form-data
     if (bmcweb::asciiIEquals(contentType, "application/octet-stream"))
     {
-        doHTTPUpdate(asyncResp, req);
+        doHTTPUpdate(asyncResp, req, url);
     }
     else if (contentType.starts_with("multipart/form-data"))
     {
@@ -1176,13 +1175,33 @@ inline void handleUpdateServicePost(
             return;
         }
 
-        updateMultipartContext(asyncResp, req, std::move(parser));
+        updateMultipartContext(asyncResp, req, std::move(parser), url);
     }
     else
     {
         BMCWEB_LOG_DEBUG("Bad content type specified:{}", contentType);
         asyncResp->res.result(boost::beast::http::status::bad_request);
     }
+}
+
+/**
+ * UpdateServiceActionsOemConcurrentUpdate class supports handle POST method for
+ * concurrent update action.
+ */
+inline void requestRoutesUpdateServiceActionsOemConcurrentUpdate(App& app)
+{
+    BMCWEB_ROUTE(
+        app,
+        "/redfish/v1/UpdateService/Actions/Oem/OemUpdateService.ConcurrentUpdate/")
+        .privileges(redfish::privileges::postUpdateService)
+        .methods(boost::beast::http::verb::post)(std::bind_front(
+            [&app](App&, const crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+                handleUpdateServicePost(
+                    app, req, asyncResp,
+                    "/redfish/v1/UpdateService/Actions/Oem/OemUpdateService.ConcurrentUpdate");
+            },
+            std::ref(app)));
 }
 
 inline void handleUpdateServiceGet(
@@ -1212,6 +1231,11 @@ inline void handleUpdateServiceGet(
     // Get the MaxImageSizeBytes
     asyncResp->res.jsonValue["MaxImageSizeBytes"] =
         BMCWEB_HTTP_BODY_LIMIT * 1024 * 1024;
+    nlohmann::json& updateSvcConUpdate =
+        asyncResp->res.jsonValue["Actions"]["Oem"]
+                                ["#OemUpdateService.v1_0_0.ConcurrentUpdate"];
+    updateSvcConUpdate["target"] =
+        "/redfish/v1/UpdateService/Actions/Oem/OemUpdateService.ConcurrentUpdate";
 
     if constexpr (BMCWEB_REDFISH_ALLOW_SIMPLE_UPDATE)
     {
@@ -1449,8 +1473,13 @@ inline void requestRoutesUpdateService(App& app)
 
     BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/update/")
         .privileges(redfish::privileges::postUpdateService)
-        .methods(boost::beast::http::verb::post)(
-            std::bind_front(handleUpdateServicePost, std::ref(app)));
+        .methods(boost::beast::http::verb::post)(std::bind_front(
+            [&app](App&, const crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+                handleUpdateServicePost(app, req, asyncResp,
+                                        "/redfish/v1/UpdateService");
+            },
+            std::ref(app)));
 
     BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/FirmwareInventory/")
         .privileges(redfish::privileges::getSoftwareInventoryCollection)

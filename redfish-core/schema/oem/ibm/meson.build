@@ -5,6 +5,7 @@ schemas = [
     'IBMPCIeDevice',
     'IBMPCIeSlots',
     'IBMServiceRoot',
+    'OemUpdateService',
 ]
 
 foreach schema : schemas
