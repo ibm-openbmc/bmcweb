@@ -127,8 +127,7 @@ inline std::shared_ptr<persistent_data::UserSession>
     {
         std::string_view cookieValue = it->value();
         BMCWEB_LOG_DEBUG("Checking cookie {}", cookieValue);
-        // TODO (Gunnar): Flipping to rfind is a hack, fix this
-        auto startIndex = cookieValue.rfind("SESSION=");
+        auto startIndex = cookieValue.find("BMCWEB-SESSION=");
         if (startIndex == std::string::npos)
         {
             BMCWEB_LOG_DEBUG(
@@ -136,7 +135,7 @@ inline std::shared_ptr<persistent_data::UserSession>
                 cookieValue);
             continue;
         }
-        startIndex += sizeof("SESSION=") - 1;
+        startIndex += sizeof("BMCWEB-SESSION=") - 1;
         auto endIndex = cookieValue.find(';', startIndex);
         if (endIndex == std::string::npos)
         {
