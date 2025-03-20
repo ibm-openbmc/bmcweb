@@ -37,6 +37,7 @@
         <Annotation Term="OData.Description" String="Oem properties for IBM."/>
         <Annotation Term="OData.AutoExpand"/>
         <Property Name="PCIeSlot" Type="IBMPCIeSlots.v1_0_0.PCIeSlot"/>
+        <Property Name="PCIeLinks" Type="IBMPCIeSlots.v1_0_0.PCIeLinks"/>
       </ComplexType>
       <ComplexType Name="PCIeSlot" BaseType="Resource.OemObject">
         <Property Name="LinkId" Type="Edm.Int64">
@@ -44,18 +45,20 @@
           <Annotation Term="OData.Description" String="Number of PCIe lanes in use."/>
         </Property>
       </ComplexType>
-
       <ComplexType Name="PCIeLinks" BaseType="Resource.OemObject">
-        <Annotation Term="OData.AdditionalProperties" Bool="true" />
-        <Annotation Term="OData.Description" String="Oem properties for IBM." />
+        <Annotation Term="OData.AdditionalProperties" Bool="true"/>
+        <Annotation Term="OData.Description" String="Oem properties for IBM."/>
         <Annotation Term="OData.AutoExpand"/>
+        <Property Name="AssociatedAssembly" Type="Resource.Resource">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="Represent association slot with assembly."/>
+        </Property>
         <Property Name="UpstreamFabricAdapters" Type="Collection(FabricAdapter.FabricAdapter)">
           <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
           <Annotation Term="OData.Description" String="The upstream fabric adapters."/>
           <Annotation Term="OData.LongDescription" String="This property shall contain an array of links to the upstream fabric adapters."/>
         </Property>
       </ComplexType>
-
     </Schema>
   </edmx:DataServices>
 </edmx:Edmx>
