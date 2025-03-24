@@ -18,6 +18,7 @@
 #include "logging.hpp"
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
+#include "utils/chassis_utils.hpp"
 #include "utils/dbus_utils.hpp"
 #include "utils/json_utils.hpp"
 #include "utils/pcie_util.hpp"
@@ -201,9 +202,6 @@ inline void addLinkToPCIeSlot(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& pcieDeviceSlot)
 {
-    constexpr std::array<std::string_view, 1> chassisInterfaces = {
-        "xyz.openbmc_project.Inventory.Item.Chassis"};
-
     dbus::utility::getAssociatedSubTreePaths(
         pcieDeviceSlot + "/contained_by",
         sdbusplus::message::object_path("/xyz/openbmc_project/inventory"), 0,
