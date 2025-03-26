@@ -68,6 +68,7 @@ enum class LogDiagnosticDataTypes{
     PreOS,
     OS,
     OEM,
+    Device,
 };
 
 enum class LogPurpose{
@@ -164,6 +165,7 @@ NLOHMANN_JSON_SERIALIZE_ENUM(LogDiagnosticDataTypes, {
     {LogDiagnosticDataTypes::PreOS, "PreOS"},
     {LogDiagnosticDataTypes::OS, "OS"},
     {LogDiagnosticDataTypes::OEM, "OEM"},
+    {LogDiagnosticDataTypes::Device, "Device"},
 });
 
 NLOHMANN_JSON_SERIALIZE_ENUM(LogPurpose, {
