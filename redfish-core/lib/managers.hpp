@@ -2020,6 +2020,56 @@ inline void checkForQuiesced(
         });
 }
 
+inline void getBMCState(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
+{
+    aResp->res.jsonValue["PowerState"] = "On";
+    sdbusplus::asio::getProperty<std::string>(
+        *crow::connections::systemBus, "xyz.openbmc_project.State.BMC",
+        "/xyz/openbmc_project/state/bmc0", "xyz.openbmc_project.State.BMC",
+        "CurrentBMCState",
+        [aResp](const boost::system::error_code ec,
+                const std::string& bmcState) {
+            if (ec)
+            {
+                BMCWEB_LOG_DEBUG("DBUS response error reading CurrentBmcState");
+                aResp->res.jsonValue["Status"]["State"] = "Enabled";
+                aResp->res.jsonValue["Status"]["Health"] = "OK";
+                return;
+            }
+
+            if (bmcState == "xyz.openbmc_project.State.BMC.BMCState.Ready")
+            {
+                aResp->res.jsonValue["Status"]["State"] = "Enabled";
+                aResp->res.jsonValue["Status"]["Health"] = "OK";
+            }
+            else if (bmcState == "xyz.openbmc_project.State.BMC.BMCState."
+                                 "Quiesced")
+            {
+                aResp->res.jsonValue["Status"]["State"] = "Quiesced";
+                aResp->res.jsonValue["Status"]["Health"] = "Critical";
+            }
+            else if (bmcState == "xyz.openbmc_project.State.BMC.BMCState."
+                                 "NotReady")
+            {
+                aResp->res.jsonValue["Status"]["State"] = "Starting";
+                aResp->res.jsonValue["Status"]["Health"] = "OK";
+            }
+            else if (bmcState == "xyz.openbmc_project.State.BMC.BMCState."
+                                 "UpdateInProgress")
+            {
+                aResp->res.jsonValue["Status"]["State"] = "Updating";
+                aResp->res.jsonValue["Status"]["Health"] = "OK";
+            }
+            else
+            {
+                BMCWEB_LOG_DEBUG("Unsupported D-Bus CurrentBMCState: {}",
+                                 bmcState);
+                aResp->res.jsonValue["Status"]["State"] = "Enabled";
+                aResp->res.jsonValue["Status"]["Health"] = "OK";
+            }
+        });
+}
+
 inline void requestRoutesManager(App& app)
 {
     std::string uuid = persistent_data::getConfig().systemUuid;
@@ -2052,7 +2102,7 @@ inline void requestRoutesManager(App& app)
             asyncResp->res.jsonValue["Name"] = "OpenBmc Manager";
             asyncResp->res.jsonValue["Description"] =
                 "Baseboard Management Controller";
-            asyncResp->res.jsonValue["PowerState"] = resource::PowerState::On;
+            getBMCState(asyncResp);
 
             asyncResp->res.jsonValue["ManagerType"] = manager::ManagerType::BMC;
             asyncResp->res.jsonValue["UUID"] = systemd_utils::getUuid();
@@ -2184,27 +2234,6 @@ inline void requestRoutesManager(App& app)
                 aRsp->res.jsonValue["Links"]["ManagerInChassis"]["@odata.id"] =
                     chassiUrl;
             });
-
-            dbus::utility::getProperty<double>(
-                "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-                "org.freedesktop.systemd1.Manager", "Progress",
-                [asyncResp](const boost::system::error_code& ec, double val) {
-                    if (ec)
-                    {
-                        BMCWEB_LOG_ERROR("Error while getting progress");
-                        messages::internalError(asyncResp->res);
-                        return;
-                    }
-                    if (val < 1.0)
-                    {
-                        asyncResp->res.jsonValue["Status"]["Health"] =
-                            resource::Health::OK;
-                        asyncResp->res.jsonValue["Status"]["State"] =
-                            resource::State::Starting;
-                        return;
-                    }
-                    checkForQuiesced(asyncResp);
-                });
 
             constexpr std::array<std::string_view, 1> interfaces = {
                 "xyz.openbmc_project.Inventory.Item.Bmc"};
