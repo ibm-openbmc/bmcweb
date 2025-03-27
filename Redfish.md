@@ -862,8 +862,23 @@ other.
 - LocationIndicatorActive
 - Model
 - PartNumber
+- Ports
 - SerialNumber
 - SparePartNumber
+- Status
+
+### /redfish/v1/Systems/system/FabricAdapters/{FabricAdapterId}/Ports/
+
+#### PortCollection
+
+- Members
+- `Members@odata.count`
+
+### /redfish/v1/Systems/system/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/
+
+#### Port
+
+- Location
 - Status
 
 ### /redfish/v1/Systems/system/LogServices/
