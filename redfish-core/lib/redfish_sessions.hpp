@@ -3,9 +3,12 @@
 // SPDX-FileCopyrightText: Copyright 2018 Intel Corporation
 #pragma once
 
+#include "bmcweb_config.h"
+
 #include "account_service.hpp"
 #include "app.hpp"
 #include "async_resp.hpp"
+#include "audit_events.hpp"
 #include "cookies.hpp"
 #include "dbus_privileges.hpp"
 #include "error_messages.hpp"
@@ -225,6 +228,12 @@ inline void processAfterSessionCreation(
     asyncResp->res.addHeader(
         "Location", "/redfish/v1/SessionService/Sessions/" + session->uniqueId);
     asyncResp->res.result(boost::beast::http::status::created);
+
+    if constexpr (BMCWEB_AUDIT_EVENTS)
+    {
+        audit::auditEvent(req, session->username, true);
+    }
+
     if (session->isConfigureSelfOnly)
     {
         messages::passwordChangeRequired(
@@ -282,6 +291,10 @@ inline void handleSessionCollectionPost(
     {
         messages::resourceAtUriUnauthorized(asyncResp->res, req.url(),
                                             "Invalid username or password");
+        if constexpr (BMCWEB_AUDIT_EVENTS)
+        {
+            audit::auditEvent(req, std::string(username), false);
+        }
         return;
     }
 
