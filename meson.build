@@ -428,6 +428,12 @@ srcfiles_bmcweb = files(
     'src/webserver_run.cpp',
 )
 
+if (get_option('audit-events').allowed())
+    audit_dep = dependency('audit')
+    bmcweb_dependencies += audit_dep
+    srcfiles_bmcweb += files('src/audit_events.cpp')
+endif
+
 bmcweblib = static_library(
     'bmcweblib',
     srcfiles_bmcweb,
