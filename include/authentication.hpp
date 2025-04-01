@@ -238,6 +238,16 @@ inline bool isOnAllowlist(std::string_view url, boost::beast::http::verb method)
         }
     }
 
+    // This patch is allowed for service user, without authorization to upload
+    // unauthenticated ACF.
+    if (boost::beast::http::verb::patch == method)
+    {
+        if (url == "/redfish/v1/AccountService/Accounts/service")
+        {
+            return true;
+        }
+    }
+
     // it's allowed to POST on session collection & login without
     // authentication
     if (boost::beast::http::verb::post == method)
