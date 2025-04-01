@@ -1420,6 +1420,98 @@ inline void updateUserProperties(
         std::bind_front(afterVerifyUserExists, asyncResp, std::move(params)));
 }
 
+inline void uploadACF(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                      const std::vector<uint8_t>& decodedAcf)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code& ec,
+                    const std::tuple<std::vector<uint8_t>, bool, std::string>&
+                        messageFDbus) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR("DBUS response error: {}", ec.value());
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            getAcfProperties(asyncResp, messageFDbus);
+        },
+        "xyz.openbmc_project.Certs.ACF."
+        "Manager",
+        "/xyz/openbmc_project/certs/ACF", "xyz.openbmc_project.Certs.ACF",
+        "InstallACF", decodedAcf);
+}
+
+inline void triggerUnauthenticatedACFUpload(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    nlohmann::json::object_t& oem)
+{
+    std::optional<nlohmann::json::object_t> ibm;
+    if (!redfish::json_util::readJsonObject(oem, asyncResp->res, "IBM", ibm))
+    {
+        BMCWEB_LOG_ERROR("Illegal Property ");
+        messages::propertyMissing(asyncResp->res, "IBM");
+        return;
+    }
+
+    std::optional<nlohmann::json::object_t> acf;
+    std::optional<std::string> acfFile{};
+    if (ibm)
+    {
+        if (!redfish::json_util::readJsonObject(oem, asyncResp->res, "IBM/ACF",
+                                                acf, "IBM/ACFFile", acfFile))
+        {
+            BMCWEB_LOG_WARNING("Illegal Property ");
+            messages::propertyMissing(asyncResp->res, "ACF");
+        }
+    }
+
+    if (acf && acfFile)
+    {
+        std::vector<uint8_t> decodedAcf;
+        std::string sDecodedAcf;
+        if (!acfFile.has_value() ||
+            !crow::utility::base64Decode(*acfFile, sDecodedAcf))
+        {
+            BMCWEB_LOG_ERROR("base64 decode failure ");
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        try
+        {
+            std::copy(sDecodedAcf.begin(), sDecodedAcf.end(),
+                      std::back_inserter(decodedAcf));
+        }
+        catch (const std::exception& e)
+        {
+            BMCWEB_LOG_ERROR("Exception thrown: {}", e.what());
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        dbus::utility::getProperty<bool>(
+            "com.ibm.PanelApp", "/com/ibm/panel_app", "com.ibm.panel",
+            "ACFWindowActive",
+            [asyncResp, decodedAcf](const boost::system::error_code& ec,
+                                    const bool isACFWindowActive) {
+                if (ec)
+                {
+                    BMCWEB_LOG_ERROR("Failed to read ACFWindowActive property");
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                if (!isACFWindowActive)
+                {
+                    BMCWEB_LOG_WARNING(
+                        "ACF window not set to active from panel");
+                    messages::insufficientPrivilege(asyncResp->res);
+                    return;
+                }
+
+                uploadACF(asyncResp, decodedAcf);
+            });
+    }
+}
+
 inline void handleAccountServiceHead(
     App& app, const crow::Request& req,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
@@ -2511,14 +2603,33 @@ inline void handleAccountPatch(
     std::optional<std::variant<std::string, std::nullptr_t>> passwordExpiration;
     std::optional<nlohmann::json::object_t> oem;
 
+    if (!json_util::readJsonPatch(
+            req, asyncResp->res, "UserName", newUserName, "Password", password,
+            "RoleId", roleId, "Enabled", enabled, "Locked", locked, "Oem", oem,
+            "AccountTypes", accountTypes))
+    {
+        return;
+    }
+
+    // Unauthenticated user
     if (req.session == nullptr)
     {
-        messages::internalError(asyncResp->res);
+        // If user is service
+        if (username == "service")
+        {
+            if (oem)
+            {
+                // allow unauthenticated ACF upload based on panel
+                // function 74 state.
+                triggerUnauthenticatedACFUpload(asyncResp, *oem);
+                return;
+            }
+        }
+        messages::insufficientPrivilege(asyncResp->res);
         return;
     }
 
     bool userSelf = (username == req.session->username);
-
     Privileges effectiveUserPrivileges =
         redfish::getUserPrivileges(*req.session);
     Privileges configureUsers = {"ConfigureUsers"};
@@ -2545,6 +2656,16 @@ inline void handleAccountPatch(
     }
     else
     {
+        // Irrespective of role can patch ACF if function
+        // 74 is active from panel.
+        if (oem && (username == "service"))
+        {
+            // allow unauthenticated ACF upload based on panel
+            // function 74 state.
+            triggerUnauthenticatedACFUpload(asyncResp, *oem);
+            return;
+        }
+
         // ConfigureSelf accounts can only modify their own account
         if (!userSelf)
         {
@@ -2639,21 +2760,7 @@ inline void handleAccountPatch(
                     }
                 }
 
-                crow::connections::systemBus->async_method_call(
-                    [asyncResp](const boost::system::error_code ec,
-                                const std::tuple<std::vector<uint8_t>, bool,
-                                                 std::string>& messageFDbus) {
-                        if (ec)
-                        {
-                            BMCWEB_LOG_ERROR("DBUS response error:{}", ec);
-                            messages::internalError(asyncResp->res);
-                            return;
-                        }
-                        getAcfProperties(asyncResp, messageFDbus);
-                    },
-                    "xyz.openbmc_project.Certs.ACF.Manager",
-                    "/xyz/openbmc_project/certs/ACF",
-                    "xyz.openbmc_project.Certs.ACF", "InstallACF", decodedAcf);
+                uploadACF(asyncResp, decodedAcf);
             }
             else if (acf && (username != "service"))
             {
