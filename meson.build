@@ -66,10 +66,6 @@ incdir = include_directories(
 )
 incdir_cli = include_directories('http', 'include')
 
-if (get_option('tests').allowed())
-    summary('unittest', 'NA', section: 'Features')
-endif
-
 # Add compiler arguments
 boost_flags = ['-Wno-unused-parameter']
 nghttp2_flags = []
@@ -367,6 +363,7 @@ fs = import('fs')
 
 srcfiles_bmcweb = files(
     'http/mutual_tls.cpp',
+    'http/routing/sserule.cpp',
     'http/routing/websocketrule.cpp',
     'redfish-core/src/dbus_log_watcher.cpp',
     'redfish-core/src/error_message_utils.cpp',
@@ -455,6 +452,7 @@ srcfiles_unittest = files(
     'test/include/multipart_test.cpp',
     'test/include/openbmc_dbus_rest_test.cpp',
     'test/include/ossl_random.cpp',
+    'test/include/sessions_test.cpp',
     'test/include/ssl_key_handler_test.cpp',
     'test/include/str_utility_test.cpp',
     'test/redfish-core/include/dbus_log_watcher_test.cpp',

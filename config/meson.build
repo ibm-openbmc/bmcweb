@@ -7,8 +7,8 @@ feature_options = [
     'basic-auth',
     'cookie-auth',
     'experimental-http2',
-    'experimental-redfish-multi-computer-system',
     'experimental-redfish-dbus-log-subscription',
+    'experimental-redfish-multi-computer-system',
     'google-api',
     'host-serial-socket',
     'hypervisor-computer-system',
@@ -22,10 +22,10 @@ feature_options = [
     'kvm',
     'meta-tls-common-name-parsing',
     'mutual-tls-auth',
+    'redfish',
     'redfish-aggregation',
     'redfish-allow-deprecated-power-thermal',
     'redfish-allow-simple-update',
-    'redfish-use-3-digit-messageid',
     'redfish-bmc-journal',
     'redfish-cpu-log',
     'redfish-dbus-log',
@@ -35,7 +35,7 @@ feature_options = [
     'redfish-oem-manager-fan-data',
     'redfish-provisioning-feature',
     'redfish-updateservice-use-dbus',
-    'redfish',
+    'redfish-use-3-digit-messageid',
     'rest',
     'session-auth',
     'static-hosting',
@@ -51,28 +51,46 @@ string_options = [
     'redfish-system-uri-name',
 ]
 
-int_options = ['http-body-limit']
+int_options = ['http-body-limit', 'watchdog-timeout-seconds']
 
-feature_options_string = '\n//Feature options\n'
+feature_options_string = '\n// Feature options\n'
 string_options_string = '\n// String options\n'
 int_options_string = '\n// Integer options\n'
 
-foreach option_key : feature_options + string_options + int_options
-    option_key_config = 'BMCWEB_' + option_key.to_upper()
-    option_key_config = option_key_config.replace('-', '_')
 
-    message(option_key_config)
+foreach feature_type, feature_list : {
+    'Feature': feature_options,
+    'Numeric': int_options,
+    'String': string_options,
+}
+    summary_dict = {}
+    foreach option_key : feature_list
+        option_key_config = 'BMCWEB_' + option_key.to_upper()
+        option_key_config = option_key_config.replace('-', '_')
 
-    opt = get_option(option_key)
-    if string_options.contains(option_key)
-        string_options_string += 'constexpr std::string_view  ' + option_key_config + ' = "' + opt + '";\n'
-    elif int_options.contains(option_key)
-        int_options_string += 'constexpr const int         ' + option_key_config + ' = ' + opt.to_string() + ';\n'
-    else
-        feature_options_string += 'constexpr const bool        ' + option_key_config + ' = ' + opt.allowed().to_string() + ';\n'
-        opt = opt.allowed().to_string()
-    endif
-    summary(option_key, opt, section: 'Features')
+        opt = get_option(option_key)
+        if feature_type == 'Feature'
+            opt = opt.allowed()
+            feature_options_string += 'constexpr const bool @0@=@1@;\n'.format(
+                option_key_config,
+                opt.to_string(),
+            )
+        endif
+        if feature_type == 'Numeric'
+            int_options_string += 'constexpr const int @0@=@1@;\n'.format(
+                option_key_config,
+                opt.to_string(),
+            )
+        endif
+        if feature_type == 'String'
+            string_options_string += 'constexpr std::string_view @0@="@1@";\n'.format(
+                option_key_config,
+                opt,
+            )
+        endif
+        summary_dict += {option_key: opt}
+    endforeach
+    summary(summary_dict, section: feature_type + ' Options', bool_yn: true)
 endforeach
 
 # Logging level
@@ -85,7 +103,7 @@ loglvlopt = loglvlopt.to_upper()
 string_options_string += 'constexpr std::string_view  BMCWEB_LOGGING_LEVEL' + ' = "' + loglvlopt + '";\n'
 
 # NBD proxy is disabled due to lack of maintenance.  See meson_options.txt
-feature_options_string += 'constexpr const bool        BMCWEB_VM_NBDPROXY = false;\n'
+feature_options_string += 'constexpr const bool BMCWEB_VM_NBDPROXY = false;\n'
 
 conf_data.set(
     'BMCWEB_OPTIONS',
@@ -158,7 +176,10 @@ configure_file(
     install_dir: systemd_system_unit_dir,
     install: true,
     configuration: configuration_data(
-        {'MESON_INSTALL_PREFIX': get_option('prefix')},
+        {
+            'MESON_INSTALL_PREFIX': get_option('prefix'),
+            'WATCHDOG_TIMEOUT_SECONDS': get_option('watchdog-timeout-seconds'),
+        },
     ),
 )
 

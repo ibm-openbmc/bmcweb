@@ -440,7 +440,7 @@ class Connection :
             req->getHeaderValue(boost::beast::http::field::if_none_match);
         if (!expected.empty())
         {
-            res.setExpectedHash(expected);
+            asyncResp->res.setExpectedHash(expected);
         }
         handler->handle(req, asyncResp);
     }
