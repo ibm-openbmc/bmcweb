@@ -2112,6 +2112,16 @@ inline void processAfterGetAllGroups(
             }
             continue;
         }
+
+        // Remove the ipmi group.  Also Remove "ssh" if the new
+        // user is not an Administrator.
+        if ((grp == "ipmi") || ((grp == "ssh") && (roleId != "priv-admin")))
+
+        {
+            BMCWEB_LOG_DEBUG("group skipped {}", grp);
+            continue;
+        }
+
         userGroups.emplace_back(grp);
     }
 
