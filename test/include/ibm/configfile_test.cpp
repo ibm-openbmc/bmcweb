@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: Copyright OpenBMC Authors
+#include "async_resp.hpp"
 #include "http_response.hpp"
 #include "ibm/management_console_rest.hpp"
 
+#include <memory>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -14,40 +14,44 @@ namespace ibm_mc
 
 TEST(IsValidConfigFileName, FileNameValidCharReturnsTrue)
 {
-    crow::Response res;
-
-    EXPECT_TRUE(isValidConfigFileName("GoodConfigFile", res));
+    auto asyncResp = std::make_shared<bmcweb::AsyncResp>();
+    EXPECT_TRUE(
+        isValidConfigFileName("GoodConfigFile", asyncResp->res.jsonValue));
 }
 TEST(IsValidConfigFileName, FileNameInvalidCharReturnsFalse)
 {
-    crow::Response res;
+    auto asyncResp = std::make_shared<bmcweb::AsyncResp>();
 
-    EXPECT_FALSE(isValidConfigFileName("Bad@file", res));
+    EXPECT_FALSE(isValidConfigFileName("Bad@file", asyncResp->res.jsonValue));
 }
 TEST(IsValidConfigFileName, FileNameInvalidPathReturnsFalse)
 {
-    crow::Response res;
+    auto asyncResp = std::make_shared<bmcweb::AsyncResp>();
 
-    EXPECT_FALSE(isValidConfigFileName("/../../../../../etc/badpath", res));
-    EXPECT_FALSE(isValidConfigFileName("/../../etc/badpath", res));
-    EXPECT_FALSE(isValidConfigFileName("/mydir/configFile", res));
+    EXPECT_FALSE(isValidConfigFileName("/../../../../../etc/badpath",
+                                       asyncResp->res.jsonValue));
+    EXPECT_FALSE(
+        isValidConfigFileName("/../../etc/badpath", asyncResp->res.jsonValue));
+    EXPECT_FALSE(
+        isValidConfigFileName("/mydir/configFile", asyncResp->res.jsonValue));
 }
 
 TEST(IsValidConfigFileName, EmptyFileNameReturnsFalse)
 {
-    crow::Response res;
-    EXPECT_FALSE(isValidConfigFileName("", res));
+    auto asyncResp = std::make_shared<bmcweb::AsyncResp>();
+    EXPECT_FALSE(isValidConfigFileName("", asyncResp->res.jsonValue));
 }
 
 TEST(IsValidConfigFileName, SlashFileNameReturnsFalse)
 {
-    crow::Response res;
-    EXPECT_FALSE(isValidConfigFileName("/", res));
+    auto asyncResp = std::make_shared<bmcweb::AsyncResp>();
+    EXPECT_FALSE(isValidConfigFileName("/", asyncResp->res.jsonValue));
 }
 TEST(IsValidConfigFileName, FileNameMoreThan20CharReturnsFalse)
 {
-    crow::Response res;
-    EXPECT_FALSE(isValidConfigFileName("BadfileBadfileBadfile", res));
+    auto asyncResp = std::make_shared<bmcweb::AsyncResp>();
+    EXPECT_FALSE(isValidConfigFileName("BadfileBadfileBadfile",
+                                       asyncResp->res.jsonValue));
 }
 
 } // namespace ibm_mc
