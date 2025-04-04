@@ -3,7 +3,8 @@
 #include "http_request.hpp"
 #include "logging.hpp"
 
-#include <libaudit.h>
+#include <audit-records.h>
+#include <audit_logging.h>
 
 #include <boost/asio/ip/host_name.hpp>
 #include <boost/beast/http/verb.hpp>
