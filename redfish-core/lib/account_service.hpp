@@ -1507,6 +1507,60 @@ inline void uploadACF(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         "InstallACF", decodedAcf);
 }
 
+// Allow ACF upload when D-Bus property allow_unauth_upload is true (aka Redfish
+// property AllowUnauthACFUpload).
+inline void doUnauthenticatedACFUpload(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::vector<uint8_t>& decodedAcf)
+{
+    sdbusplus::asio::getProperty<bool>(
+        *crow::connections::systemBus, "xyz.openbmc_project.Settings",
+        "/xyz/openbmc_project/ibmacf/allow_unauth_upload",
+        "xyz.openbmc_project.Object.Enable", "Enabled",
+        [asyncResp, decodedAcf](const boost::system::error_code& ec,
+                                const bool allowUnauthACFUpload) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR(
+                    "D-Bus response error reading allow_unauth_upload: {}",
+                    ec.value());
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            if (allowUnauthACFUpload)
+            {
+                uploadACF(asyncResp, decodedAcf);
+                return;
+            }
+
+            // Allow ACF upload when D-Bus property ACFWindowActive is true
+            // (aka OpPanel function 74).
+            sdbusplus::asio::getProperty<bool>(
+                *crow::connections::systemBus, "com.ibm.PanelApp",
+                "/com/ibm/panel_app", "com.ibm.panel", "ACFWindowActive",
+                [asyncResp, decodedAcf](const boost::system::error_code& ec1,
+                                        const bool isACFWindowActive) {
+                    if (ec1)
+                    {
+                        BMCWEB_LOG_ERROR(
+                            "Failed to read ACFWindowActive property");
+                        // The Panel app doesn't run on simulated systems.
+                    }
+
+                    if (!isACFWindowActive)
+                    {
+                        BMCWEB_LOG_ERROR("ACF upload not allowed");
+                        messages::insufficientPrivilege(asyncResp->res);
+                        return;
+                    }
+
+                    uploadACF(asyncResp, decodedAcf);
+                    return;
+                });
+        });
+}
+
 // This is called when someone either is not authenticated or is not
 // authorized to upload an ACF, and they are trying to upload an ACF;
 // in this condition, uploading an ACF is allowed when
@@ -1564,56 +1618,8 @@ inline void triggerUnauthenticatedACFUpload(
             messages::internalError(asyncResp->res);
             return;
         }
+        doUnauthenticatedACFUpload(asyncResp, decodedAcf);
     }
-
-    // Allow ACF upload when D-Bus property allow_unauth_upload is true (aka
-    // Redfish property AllowUnauthACFUpload).
-    sdbusplus::asio::getProperty<bool>(
-        *crow::connections::systemBus, "xyz.openbmc_project.Settings",
-        "/xyz/openbmc_project/ibmacf/allow_unauth_upload",
-        "xyz.openbmc_project.Object.Enable", "Enabled",
-        [asyncResp, decodedAcf](const boost::system::error_code& ec,
-                                const bool allowUnauthACFUpload) {
-            if (ec)
-            {
-                BMCWEB_LOG_ERROR(
-                    "D-Bus response error reading allow_unauth_upload: {}",
-                    ec.value());
-                messages::internalError(asyncResp->res);
-                return;
-            }
-
-            if (allowUnauthACFUpload)
-            {
-                uploadACF(asyncResp, decodedAcf);
-                return;
-            }
-
-            // Allow ACF upload when D-Bus property ACFWindowActive is true
-            // (aka OpPanel function 74).
-            sdbusplus::asio::getProperty<bool>(
-                *crow::connections::systemBus, "com.ibm.PanelApp",
-                "/com/ibm/panel_app", "com.ibm.panel", "ACFWindowActive",
-                [asyncResp, decodedAcf](const boost::system::error_code& ec1,
-                                        const bool isACFWindowActive) {
-                    if (ec1)
-                    {
-                        BMCWEB_LOG_ERROR(
-                            "Failed to read ACFWindowActive property");
-                        // The Panel app doesn't run on simulated systems.
-                    }
-
-                    if (!isACFWindowActive)
-                    {
-                        BMCWEB_LOG_ERROR("ACF upload not allowed");
-                        messages::insufficientPrivilege(asyncResp->res);
-                        return;
-                    }
-
-                    uploadACF(asyncResp, decodedAcf);
-                    return;
-                });
-        });
 }
 
 inline void handleAccountServiceHead(
