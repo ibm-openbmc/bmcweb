@@ -5,6 +5,7 @@
 #include "dbus_singleton.hpp"
 #include "dbus_utility.hpp"
 #include "error_messages.hpp"
+#include "generated/enums/resource.hpp"
 #include "http_request.hpp"
 #include "http_response.hpp"
 #include "led.hpp"
@@ -175,6 +176,36 @@ inline void getReadyToRemoveOfTodBattery(
                         assemblyIndex));
 }
 
+void getAssemblyPresence(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                         const auto& serviceName, const auto& assembly,
+                         const auto& assemblyIndex)
+{
+    nlohmann::json& assemblyArray = asyncResp->res.jsonValue["Assemblies"];
+    nlohmann::json& assemblyData = assemblyArray.at(assemblyIndex);
+
+    assemblyData["Status"]["State"] = resource::State::Enabled;
+
+    sdbusplus::asio::getProperty<bool>(
+        *crow::connections::systemBus, serviceName, assembly,
+        "xyz.openbmc_project.Inventory.Item", "Present",
+        [asyncResp,
+         assemblyIndex](const boost::system::error_code& ec, const bool value) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR("DBUS response error: {}", ec.value());
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            if (!value)
+            {
+                nlohmann::json& array = asyncResp->res.jsonValue["Assemblies"];
+                nlohmann::json& data = array.at(assemblyIndex);
+                data["Status"]["State"] = resource::State::Absent;
+            }
+        });
+}
+
 /**
  * @brief Get properties for the assemblies associated to given chassis
  * @param[in] asyncResp - Shared pointer for asynchronous calls.
@@ -248,6 +279,12 @@ inline void getAssemblyProperties(
                         {
                             getAssemblyLocationCode(asyncResp, serviceName,
                                                     assembly, assemblyIndex);
+                        }
+                        else if (interface ==
+                                 "xyz.openbmc_project.Inventory.Item")
+                        {
+                            getAssemblyPresence(asyncResp, serviceName,
+                                                assembly, assemblyIndex);
                         }
                     }
                 }
