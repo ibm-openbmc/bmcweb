@@ -2118,13 +2118,6 @@ inline void handleNetworkPortGet(
         return;
     }
     std::string path = std::format("/xyz/openbmc_project/network/{}", portId);
-    asyncResp->res.jsonValue["@odata.id"] =
-        boost::urls::format("/redfish/v1/Managers/{}/DedicatedNetworkPorts/{}",
-                            BMCWEB_REDFISH_MANAGER_URI_NAME, portId);
-    asyncResp->res.jsonValue["@odata.type"] = "#Port.v1_14_0.Port";
-    asyncResp->res.jsonValue["Id"] = portId;
-    asyncResp->res.jsonValue["Name"] = "Manager Dedicated Network Port";
-
     sdbusplus::asio::getProperty<bool>(
         *crow::connections::systemBus, "xyz.openbmc_project.Network", path,
         "xyz.openbmc_project.Network.EthernetInterface", "EmitLLDP",
@@ -2142,6 +2135,12 @@ inline void handleNetworkPortGet(
                 return;
             }
 
+            asyncResp->res.jsonValue["@odata.id"] = boost::urls::format(
+                "/redfish/v1/Managers/{}/DedicatedNetworkPorts/{}",
+                BMCWEB_REDFISH_MANAGER_URI_NAME, portId);
+            asyncResp->res.jsonValue["@odata.type"] = "#Port.v1_14_0.Port";
+            asyncResp->res.jsonValue["Id"] = portId;
+            asyncResp->res.jsonValue["Name"] = "Manager Dedicated Network Port";
             asyncResp->res.jsonValue["Ethernet"]["LLDPEnabled"] = enabled;
             nlohmann::json ifaceArray = nlohmann::json::array();
 
