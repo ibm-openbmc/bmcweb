@@ -5,6 +5,7 @@ conf_data = configuration_data()
 feature_options = [
     'audit-events',
     'basic-auth',
+    'bmc-shell-socket',
     'cookie-auth',
     'experimental-bmcweb-user',
     'experimental-redfish-dbus-log-subscription',
