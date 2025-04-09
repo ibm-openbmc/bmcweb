@@ -17,6 +17,7 @@
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 #include "utils/json_utils.hpp"
+#include "utils/name_utils.hpp"
 
 #include <asm-generic/errno.h>
 
@@ -156,7 +157,10 @@ inline void getFabricPortProperties(
         boost::urls::format("/redfish/v1/Systems/{}/FabricAdapters/{}/Ports/{}",
                             systemName, adapterId, portId);
     asyncResp->res.jsonValue["Id"] = portId;
-    asyncResp->res.jsonValue["Name"] = "Fabric Port";
+
+    nlohmann::json::json_pointer ptr("/Name");
+    name_util::getPrettyName(asyncResp, portPath, serviceName, ptr);
+
     asyncResp->res.jsonValue["Status"]["State"] = resource::State::Enabled;
     asyncResp->res.jsonValue["Status"]["Health"] = resource::Health::OK;
 
