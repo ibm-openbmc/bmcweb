@@ -14,6 +14,7 @@ feature_options = [
     'google-api',
     'host-serial-socket',
     'hypervisor-computer-system',
+    'hypervisor-serial-socket',
     'ibm-management-console',
     'insecure-disable-auth',
     'insecure-disable-csrf',
