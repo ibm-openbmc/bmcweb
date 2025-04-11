@@ -71,6 +71,11 @@ struct Request : std::enable_shared_from_this<Request>
         userRole = "";
     }
 
+    void clearBody()
+    {
+        req.clear();
+    }
+
     boost::beast::http::verb method() const
     {
         return req.method();
