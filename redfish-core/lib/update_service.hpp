@@ -1140,6 +1140,12 @@ inline void doHTTPUpdate(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         monitorForSoftwareAvailable(asyncResp, req, url);
 
         uploadImageFile(asyncResp->res, req.body());
+        // Not good code, goes against the bmcweb architecture but we have to
+        // clear this body for memory reasons. This body can be 200+ MB.. and
+        // untaring it can take up another 100MB.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+        auto thisReq = const_cast<crow::Request*>(&req)->shared_from_this();
+        thisReq->clearBody();
     }
 }
 
@@ -1176,6 +1182,12 @@ inline void handleUpdateServicePost(
         }
 
         updateMultipartContext(asyncResp, req, std::move(parser), url);
+        // Not good code, goes against the bmcweb architecture but we have to
+        // clear this body for memory reasons. This body can be 200+ MB.. and
+        // untaring it can take up another 100MB.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+        auto thisReq = const_cast<crow::Request*>(&req)->shared_from_this();
+        thisReq->clearBody();
     }
     else
     {
