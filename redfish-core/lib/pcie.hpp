@@ -21,6 +21,7 @@
 #include "utils/chassis_utils.hpp"
 #include "utils/dbus_utils.hpp"
 #include "utils/json_utils.hpp"
+#include "utils/name_utils.hpp"
 #include "utils/pcie_util.hpp"
 
 #include <asm-generic/errno.h>
@@ -676,6 +677,8 @@ inline void afterGetValidPcieDevicePath(
     getPCIeDeviceSlotPath(
         pcieDevicePath, asyncResp,
         std::bind_front(afterGetPCIeDeviceSlotPath, asyncResp));
+    name_util::getPrettyName(asyncResp, pcieDevicePath, service,
+                             nlohmann::json::json_pointer{"/Name"});
 }
 
 inline void handlePCIeDeviceGet(
