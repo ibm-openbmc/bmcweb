@@ -87,6 +87,31 @@
             "Resolution": "None.",
             "Severity": "Critical"
         },
+        "AuditLogEntry": {
+            "Description": "General audit log entry, use for non-parsed fields",
+            "Message": "%1",
+            "MessageSeverity": "OK",
+            "NumberOfArgs": 1,
+            "ParamTypes": ["string"],
+            "Resolution": "None."
+        },
+        "AuditLogUsysConfig": {
+            "Description": "Audit log entry with parsed fields",
+            "Message": "type=%1 op=%2 acct=%3 exe=%4 hostname=%5 addr=%6 terminal=%7 res=%8",
+            "MessageSeverity": "OK",
+            "NumberOfArgs": 8,
+            "ParamTypes": [
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+                "string",
+                "string"
+            ],
+            "Resolution": "None."
+        },
         "BIOSAttributesChanged": {
             "Description": "Indicates that a set of BIOS Attributes has changed.",
             "Message": "Set of BIOS Attributes changed.",

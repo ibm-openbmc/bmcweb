@@ -54,6 +54,7 @@
 #include "storage_controller.hpp"
 #include "switch_port.hpp"
 #include "systems.hpp"
+#include "systems_logservices_audit.hpp"
 #include "systems_logservices_dbus_eventlog.hpp"
 #include "systems_logservices_dump.hpp"
 #include "systems_logservices_hostlogger.hpp"
@@ -164,6 +165,11 @@ RedfishService::RedfishService(App& app)
     if constexpr (BMCWEB_REDFISH_BMC_JOURNAL)
     {
         requestRoutesBMCJournalLogService(app);
+    }
+
+    if constexpr (BMCWEB_AUDIT_EVENTS)
+    {
+        requestRoutesLogServicesAudit(app);
     }
 
     if constexpr (BMCWEB_REDFISH_CPU_LOG)

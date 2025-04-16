@@ -1,6 +1,7 @@
 # IBM schemas that should be installed
 schemas = [
     'IBMComputerSystem',
+    'IBMLogEntryAttachment',
     'IBMManager',
     'IBMManagerAccount',
 ]
