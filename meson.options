@@ -485,7 +485,7 @@ option(
     description: 'Enable audit events support for bmcweb',
 )
 
-# BMCWEB_WATCHDOG_TIMEOUT
+# BMCWEB_WATCHDOG_TIMEOUT_SECONDS
 option(
     'watchdog-timeout-seconds',
     type: 'integer',
