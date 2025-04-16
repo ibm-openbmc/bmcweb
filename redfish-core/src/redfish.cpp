@@ -44,6 +44,7 @@
 #include "service_root.hpp"
 #include "storage.hpp"
 #include "systems.hpp"
+#include "systems_logservices_audit.hpp"
 #include "systems_logservices_hostlogger.hpp"
 #include "systems_logservices_postcodes.hpp"
 #include "task.hpp"
@@ -146,6 +147,11 @@ RedfishService::RedfishService(App& app)
     if constexpr (BMCWEB_REDFISH_BMC_JOURNAL)
     {
         requestRoutesBMCJournalLogService(app);
+    }
+
+    if constexpr (BMCWEB_AUDIT_EVENTS)
+    {
+        requestRoutesLogServicesAudit(app);
     }
 
     if constexpr (BMCWEB_REDFISH_CPU_LOG)
