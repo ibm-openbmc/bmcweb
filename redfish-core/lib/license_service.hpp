@@ -515,163 +515,173 @@ inline void
 
             for (const auto& objectPath : resp)
             {
-                if (objectPath.first.str != licenseEntryPath)
+                if (objectPath.first.str == licenseEntryPath)
                 {
-                    continue;
-                }
+                    uint64_t expirationTime = 0;
+                    const uint32_t* deviceNumPtr = nullptr;
+                    const std::string* serialNumPtr = nullptr;
+                    const std::string* licenseNamePtr = nullptr;
+                    const std::string* licenseTypePtr = nullptr;
+                    const std::string* authorizationTypePtr = nullptr;
+                    bool available = false;
+                    bool state = false;
 
-                uint64_t expirationTime = 0;
-                const uint32_t* deviceNumPtr = nullptr;
-                const std::string* serialNumPtr = nullptr;
-                const std::string* licenseNamePtr = nullptr;
-                const std::string* licenseTypePtr = nullptr;
-                const std::string* authorizationTypePtr = nullptr;
-                bool available = false;
-                bool state = false;
-
-                for (const auto& interfaceMap : objectPath.second)
-                {
-                    if (interfaceMap.first ==
-                        "com.ibm.License.Entry.LicenseEntry")
+                    for (const auto& interfaceMap : objectPath.second)
                     {
-                        for (const auto& propertyMap : interfaceMap.second)
+                        if (interfaceMap.first ==
+                            "com.ibm.License.Entry.LicenseEntry")
                         {
-                            if (propertyMap.first == "Name")
+                            for (const auto& propertyMap : interfaceMap.second)
                             {
-                                licenseNamePtr = std::get_if<std::string>(
-                                    &propertyMap.second);
-                                if (licenseNamePtr == nullptr)
+                                if (propertyMap.first == "Name")
                                 {
-                                    messages::internalError(asyncResp->res);
-                                    break;
+                                    licenseNamePtr = std::get_if<std::string>(
+                                        &propertyMap.second);
+                                    if (licenseNamePtr == nullptr)
+                                    {
+                                        messages::internalError(asyncResp->res);
+                                        break;
+                                    }
+                                }
+                                else if (propertyMap.first == "Type")
+                                {
+                                    licenseTypePtr = std::get_if<std::string>(
+                                        &propertyMap.second);
+                                    if (licenseTypePtr == nullptr)
+                                    {
+                                        messages::internalError(asyncResp->res);
+                                        break;
+                                    }
+                                }
+                                else if (propertyMap.first ==
+                                         "AuthorizationType")
+                                {
+                                    authorizationTypePtr =
+                                        std::get_if<std::string>(
+                                            &propertyMap.second);
+                                    if (authorizationTypePtr == nullptr)
+                                    {
+                                        messages::internalError(asyncResp->res);
+                                        break;
+                                    }
+                                }
+                                else if (propertyMap.first ==
+                                         "AuthDeviceNumber")
+                                {
+                                    deviceNumPtr = std::get_if<uint32_t>(
+                                        &propertyMap.second);
+                                    if (deviceNumPtr == nullptr)
+                                    {
+                                        messages::internalError(asyncResp->res);
+                                        break;
+                                    }
+                                }
+                                else if (propertyMap.first == "ExpirationTime")
+                                {
+                                    const uint64_t* timePtr =
+                                        std::get_if<uint64_t>(
+                                            &propertyMap.second);
+                                    if (timePtr == nullptr)
+                                    {
+                                        messages::internalError(asyncResp->res);
+                                        break;
+                                    }
+                                    expirationTime = *timePtr;
+                                }
+                                else if (propertyMap.first == "SerialNumber")
+                                {
+                                    serialNumPtr = std::get_if<std::string>(
+                                        &propertyMap.second);
+                                    if (serialNumPtr == nullptr)
+                                    {
+                                        messages::internalError(asyncResp->res);
+                                        break;
+                                    }
                                 }
                             }
-                            else if (propertyMap.first == "Type")
+                        }
+                        else if (
+                            interfaceMap.first ==
+                            "xyz.openbmc_project.State.Decorator.Availability")
+                        {
+                            for (const auto& propertyMap : interfaceMap.second)
                             {
-                                licenseTypePtr = std::get_if<std::string>(
-                                    &propertyMap.second);
-                                if (licenseTypePtr == nullptr)
+                                if (propertyMap.first == "Available")
                                 {
-                                    messages::internalError(asyncResp->res);
-                                    break;
+                                    const bool* availablePtr =
+                                        std::get_if<bool>(&propertyMap.second);
+                                    if (availablePtr == nullptr)
+                                    {
+                                        messages::internalError(asyncResp->res);
+                                        break;
+                                    }
+                                    available = *availablePtr;
                                 }
                             }
-                            else if (propertyMap.first == "AuthorizationType")
+                        }
+                        if (interfaceMap.first ==
+                            "xyz.openbmc_project.State.Decorator."
+                            "OperationalStatus")
+                        {
+                            for (const auto& propertyMap : interfaceMap.second)
                             {
-                                authorizationTypePtr = std::get_if<std::string>(
-                                    &propertyMap.second);
-                                if (authorizationTypePtr == nullptr)
+                                if (propertyMap.first == "Functional")
                                 {
-                                    messages::internalError(asyncResp->res);
-                                    break;
-                                }
-                            }
-                            else if (propertyMap.first == "AuthDeviceNumber")
-                            {
-                                deviceNumPtr =
-                                    std::get_if<uint32_t>(&propertyMap.second);
-                                if (deviceNumPtr == nullptr)
-                                {
-                                    messages::internalError(asyncResp->res);
-                                    break;
-                                }
-                            }
-                            else if (propertyMap.first == "ExpirationTime")
-                            {
-                                const uint64_t* timePtr =
-                                    std::get_if<uint64_t>(&propertyMap.second);
-                                if (timePtr == nullptr)
-                                {
-                                    messages::internalError(asyncResp->res);
-                                    break;
-                                }
-                                expirationTime = *timePtr;
-                            }
-                            else if (propertyMap.first == "SerialNumber")
-                            {
-                                serialNumPtr = std::get_if<std::string>(
-                                    &propertyMap.second);
-                                if (serialNumPtr == nullptr)
-                                {
-                                    messages::internalError(asyncResp->res);
-                                    break;
+                                    const bool* functionalPtr =
+                                        std::get_if<bool>(&propertyMap.second);
+                                    if (functionalPtr == nullptr)
+                                    {
+                                        messages::internalError(asyncResp->res);
+                                        break;
+                                    }
+                                    state = *functionalPtr;
                                 }
                             }
                         }
                     }
-                    else if (interfaceMap.first ==
-                             "xyz.openbmc_project.State.Decorator.Availability")
-                    {
-                        for (const auto& propertyMap : interfaceMap.second)
-                        {
-                            if (propertyMap.first == "Available")
-                            {
-                                const bool* availablePtr =
-                                    std::get_if<bool>(&propertyMap.second);
-                                if (availablePtr == nullptr)
-                                {
-                                    messages::internalError(asyncResp->res);
-                                    break;
-                                }
-                                available = *availablePtr;
-                            }
-                        }
-                    }
-                    if (interfaceMap.first ==
-                        "xyz.openbmc_project.State.Decorator."
-                        "OperationalStatus")
-                    {
-                        for (const auto& propertyMap : interfaceMap.second)
-                        {
-                            if (propertyMap.first == "Functional")
-                            {
-                                const bool* functionalPtr =
-                                    std::get_if<bool>(&propertyMap.second);
-                                if (functionalPtr == nullptr)
-                                {
-                                    messages::internalError(asyncResp->res);
-                                    break;
-                                }
-                                state = *functionalPtr;
-                            }
-                        }
-                    }
-                }
-                asyncResp->res.jsonValue["@odata.type"] =
-                    "#License.v1_0_0.License";
-                asyncResp->res.jsonValue["@odata.id"] =
-                    "/redfish/v1/LicenseService/Licenses/" + licenseEntryID;
-                asyncResp->res.jsonValue["Id"] = licenseEntryID;
-                asyncResp->res.jsonValue["SerialNumber"] = *serialNumPtr;
-                asyncResp->res.jsonValue["Name"] = *licenseNamePtr;
-                asyncResp->res.jsonValue["ExpirationDate"] =
-                    redfish::time_utils::getDateTimeUint(expirationTime);
-                translateLicenseTypeDbusToRedfish(asyncResp, *licenseTypePtr);
-                translateAuthorizationTypeDbusToRedfish(asyncResp,
-                                                        *authorizationTypePtr);
-                asyncResp->res.jsonValue["MaxAuthorizedDevices"] =
-                    *deviceNumPtr;
+                    asyncResp->res.jsonValue["@odata.type"] =
+                        "#License.v1_0_0.License";
+                    asyncResp->res.jsonValue["@odata.id"] =
+                        "/redfish/v1/LicenseService/Licenses/" + licenseEntryID;
+                    asyncResp->res.jsonValue["Id"] = licenseEntryID;
+                    asyncResp->res.jsonValue["SerialNumber"] = *serialNumPtr;
+                    asyncResp->res.jsonValue["Name"] = *licenseNamePtr;
+                    asyncResp->res.jsonValue["ExpirationDate"] =
+                        redfish::time_utils::getDateTimeUint(expirationTime);
+                    translateLicenseTypeDbusToRedfish(asyncResp,
+                                                      *licenseTypePtr);
+                    translateAuthorizationTypeDbusToRedfish(
+                        asyncResp, *authorizationTypePtr);
+                    asyncResp->res.jsonValue["MaxAuthorizedDevices"] =
+                        *deviceNumPtr;
 
-                if (available)
-                {
-                    asyncResp->res.jsonValue["Status"]["Health"] = "OK";
-                    if (state)
+                    if (available)
                     {
-                        asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
+                        asyncResp->res.jsonValue["Status"]["Health"] = "OK";
+                        if (state)
+                        {
+                            asyncResp->res.jsonValue["Status"]["State"] =
+                                "Enabled";
+                        }
+                        else
+                        {
+                            asyncResp->res.jsonValue["Status"]["State"] =
+                                "Disabled";
+                        }
                     }
                     else
                     {
+                        asyncResp->res.jsonValue["Status"]["Health"] =
+                            "Critical";
                         asyncResp->res.jsonValue["Status"]["State"] =
-                            "Disabled";
+                            "UnavailableOffline";
                     }
-                }
-                else
-                {
-                    asyncResp->res.jsonValue["Status"]["Health"] = "Critical";
-                    asyncResp->res.jsonValue["Status"]["State"] =
-                        "UnavailableOffline";
+                    return;
                 }
             }
+            BMCWEB_LOG_WARNING("LicenseEntry not found");
+            messages::resourceNotFound(asyncResp->res, "LicenseEntry",
+                                       licenseEntryID);
         });
 }
 
