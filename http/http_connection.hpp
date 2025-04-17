@@ -685,6 +685,7 @@ class Connection :
             handle();
             return;
         }
+        handler->prepareRequestBody(parser->get());
 
         doRead();
     }
@@ -923,7 +924,7 @@ class Connection :
             return;
         }
 
-        std::chrono::seconds timeout(15);
+        std::chrono::seconds timeout(15 * 60);
 
         std::weak_ptr<Connection<Adaptor, Handler>> weakSelf = weak_from_this();
         timer.expires_after(timeout);

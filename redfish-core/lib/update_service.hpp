@@ -724,6 +724,36 @@ inline void handleUpdateServiceSimpleUpdateAction(
 
     BMCWEB_LOG_DEBUG("Exit UpdateService.SimpleUpdate doPost");
 }
+inline void uploadImageFileFromDowloaded(crow::Response& res)
+{
+    std::filesystem::path sourceDir("/tmp/images_downloaded");
+    std::filesystem::path destDir("/tmp/images");
+
+    try
+    {
+        for (const auto& entry : std::filesystem::directory_iterator(sourceDir))
+        {
+            if (entry.is_regular_file())
+            {
+                std::filesystem::path sourceFile = entry.path();
+                std::filesystem::path destFile =
+                    destDir / sourceFile.filename();
+
+                std::filesystem::rename(sourceFile, destFile);
+                BMCWEB_LOG_DEBUG("Moved file from {} to {}",
+                                 sourceFile.string(), destFile.string());
+                return; // Move only the first file
+            }
+        }
+        BMCWEB_LOG_ERROR("No files found in {}", sourceDir.string());
+        messages::internalError(res);
+    }
+    catch (const std::filesystem::filesystem_error& e)
+    {
+        BMCWEB_LOG_ERROR("Failed to move file: {}", e.what());
+        messages::internalError(res);
+    }
+}
 
 inline void uploadImageFile(crow::Response& res, std::string_view body)
 {
@@ -1136,10 +1166,8 @@ inline void doHTTPUpdate(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     else
     {
         // Setup callback for when new software detected
-        // Setup callback for when new software detected
         monitorForSoftwareAvailable(asyncResp, req, url);
-
-        uploadImageFile(asyncResp->res, req.body());
+        uploadImageFileFromDowloaded(asyncResp->res);
     }
 }
 
@@ -1465,6 +1493,17 @@ inline void requestRoutesUpdateService(App& app)
             app,
             "/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate/")
             .privileges(redfish::privileges::postUpdateService)
+            .onPrepareRequestBody([](auto& req) {
+                std::string filename("/tmp/images_downloaded/");
+                filename.append(bmcweb::getRandomUUID());
+                boost::system::error_code ec1;
+                req.body().open(filename.data(), boost::beast::file_mode::write,
+                                ec1);
+                if (ec1)
+                {
+                    BMCWEB_LOG_ERROR("Failed to open file: {}", ec1.message());
+                }
+            })
             .methods(boost::beast::http::verb::post)(std::bind_front(
                 handleUpdateServiceSimpleUpdateAction, std::ref(app)));
     }
@@ -1480,6 +1519,18 @@ inline void requestRoutesUpdateService(App& app)
 
     BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/update/")
         .privileges(redfish::privileges::postUpdateService)
+        .onPrepareRequestBody(
+            [](boost::beast::http::request<bmcweb::HttpBody>& req) {
+                std::string filename("/tmp/images_downloaded/");
+                filename.append(bmcweb::getRandomUUID());
+                boost::system::error_code ec1;
+                req.body().open(filename.data(), boost::beast::file_mode::write,
+                                ec1);
+                if (ec1)
+                {
+                    BMCWEB_LOG_ERROR("Failed to open file: {}", ec1.message());
+                }
+            })
         .methods(boost::beast::http::verb::post)(std::bind_front(
             [&app](App&, const crow::Request& req,
                    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
