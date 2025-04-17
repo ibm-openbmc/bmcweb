@@ -866,6 +866,12 @@ inline void handleUpdateServicePost(
         monitorForSoftwareAvailable(asyncResp, req, url);
 
         uploadImageFile(asyncResp->res, req.body());
+        // Not good code, goes against the bmcweb architecture but we have to
+        // clear this body for memory reasons. This body can be 200+ MB.. and
+        // untaring it can take up another 100MB.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+        auto thisReq = const_cast<crow::Request*>(&req)->shared_from_this();
+        thisReq->clearBody();
     }
     else if (contentType.starts_with("multipart/form-data"))
     {
@@ -882,6 +888,12 @@ inline void handleUpdateServicePost(
         }
 
         updateMultipartContext(asyncResp, req, parser);
+        // Not good code, goes against the bmcweb architecture but we have to
+        // clear this body for memory reasons. This body can be 200+ MB.. and
+        // untaring it can take up another 100MB.
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+        auto thisReq = const_cast<crow::Request*>(&req)->shared_from_this();
+        thisReq->clearBody();
     }
     else
     {

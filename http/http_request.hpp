@@ -16,7 +16,7 @@
 namespace crow
 {
 
-struct Request
+struct Request : std::enable_shared_from_this<Request>
 {
     using Body = boost::beast::http::request<bmcweb::HttpBody>;
     Body req;
@@ -69,6 +69,11 @@ struct Request
         ipAddress = boost::asio::ip::address();
         session = nullptr;
         userRole = "";
+    }
+
+    void clearBody()
+    {
+        req.clear();
     }
 
     boost::beast::http::verb method() const
