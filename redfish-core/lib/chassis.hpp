@@ -578,7 +578,7 @@ inline void handleChassisGetSubTree(
             if (std::ranges::find(interfaces2, interface) != interfaces2.end())
             {
                 getIndicatorLedState(asyncResp);
-                getSystemLocationIndicatorActive(asyncResp);
+                getLocationIndicatorActive(asyncResp, objPath);
                 break;
             }
         }
@@ -740,8 +740,8 @@ inline void handleChassisPatch(
                 {
                     if (indicatorChassis)
                     {
-                        setSystemLocationIndicatorActive(
-                            asyncResp, *locationIndicatorActive);
+                        setLocationIndicatorActive(asyncResp, path,
+                                                   *locationIndicatorActive);
                     }
                     else
                     {
