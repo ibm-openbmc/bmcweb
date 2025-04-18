@@ -18,7 +18,9 @@
 #include "hypervisor_system.hpp"
 #include "led.hpp"
 #include "logging.hpp"
+#include "oem/ibm/lamp_test.hpp"
 #include "oem/ibm/pcie_topology_refresh.hpp"
+#include "oem/ibm/system_attention_indicator.hpp"
 #include "query.hpp"
 #include "redfish_util.hpp"
 #include "registries/privilege_registry.hpp"
@@ -2832,6 +2834,12 @@ inline void handleComputerSystemGet(
     getStopBootOnFault(asyncResp);
     getAutomaticRetryPolicy(asyncResp);
     getLastResetTime(asyncResp);
+    if constexpr (BMCWEB_IBM_LED_EXTENSIONS)
+    {
+        getLampTestState(asyncResp);
+        getSAI(asyncResp, "PartitionSystemAttentionIndicator");
+        getSAI(asyncResp, "PlatformSystemAttentionIndicator");
+    }
     if constexpr (BMCWEB_REDFISH_PROVISIONING_FEATURE)
     {
         getProvisioningStatus(asyncResp);
@@ -2898,32 +2906,72 @@ inline void handleComputerSystemPatch(
     std::optional<std::string> chapSecret;
     std::optional<bool> pcieTopologyRefresh;
     std::optional<bool> savePCIeTopologyInfo;
+    std::optional<bool> lampTest;
+    std::optional<bool> partitionSAI;
+    std::optional<bool> platformSAI;
 
-    if (!json_util::readJsonPatch(                                         //
-            req, asyncResp->res,                                           //
-            "AssetTag", assetTag,                                          //
-            "Boot/AutomaticRetryAttempts", bootAutomaticRetryAttempts,     //
-            "Boot/AutomaticRetryConfig", bootAutomaticRetry,               //
-            "Boot/StopBootOnFault", stopBootOnFault,                       //
-            "Boot/TrustedModuleRequiredToBoot", bootTrustedModuleRequired, //
-            "HostWatchdogTimer/FunctionEnabled", wdtEnable,                //
-            "HostWatchdogTimer/TimeoutAction", wdtTimeOutAction,           //
-            "IdlePowerSaver/Enabled", ipsEnable,                           //
-            "IdlePowerSaver/EnterDwellTimeSeconds", ipsEnterTime,          //
-            "IdlePowerSaver/EnterUtilizationPercent", ipsEnterUtil,        //
-            "IdlePowerSaver/ExitDwellTimeSeconds", ipsExitTime,            //
-            "IdlePowerSaver/ExitUtilizationPercent", ipsExitUtil,          //
-            "IndicatorLED", indicatorLed,                                  //
-            "LocationIndicatorActive", locationIndicatorActive,            //
-            "PowerMode", powerMode,                                        //
-            "PowerRestorePolicy", powerRestorePolicy,                      //
-            "Oem/IBM/ChapData/ChapName", chapName,                         //
-            "Oem/IBM/ChapData/ChapSecret", chapSecret,                     //
-            "Oem/IBM/PCIeTopologyRefresh", pcieTopologyRefresh,            //
-            "Oem/IBM/SavePCIeTopologyInfo", savePCIeTopologyInfo           //
-            ))
+    if constexpr (BMCWEB_IBM_LED_EXTENSIONS)
     {
-        return;
+        if (!json_util::readJsonPatch(                                     //
+                req, asyncResp->res,                                       //
+                "AssetTag", assetTag,                                      //
+                "Boot/AutomaticRetryAttempts", bootAutomaticRetryAttempts, //
+                "Boot/AutomaticRetryConfig", bootAutomaticRetry,           //
+                "Boot/StopBootOnFault", stopBootOnFault,                   //
+                "Boot/TrustedModuleRequiredToBoot",
+                bootTrustedModuleRequired,                                 //
+                "HostWatchdogTimer/FunctionEnabled", wdtEnable,            //
+                "HostWatchdogTimer/TimeoutAction", wdtTimeOutAction,       //
+                "IdlePowerSaver/Enabled", ipsEnable,                       //
+                "IdlePowerSaver/EnterDwellTimeSeconds", ipsEnterTime,      //
+                "IdlePowerSaver/EnterUtilizationPercent", ipsEnterUtil,    //
+                "IdlePowerSaver/ExitDwellTimeSeconds", ipsExitTime,        //
+                "IdlePowerSaver/ExitUtilizationPercent", ipsExitUtil,      //
+                "IndicatorLED", indicatorLed,                              //
+                "LocationIndicatorActive", locationIndicatorActive,        //
+                "PowerMode", powerMode,                                    //
+                "PowerRestorePolicy", powerRestorePolicy,                  //
+                "Oem/IBM/ChapData/ChapName", chapName,                     //
+                "Oem/IBM/ChapData/ChapSecret", chapSecret,                 //
+                "Oem/IBM/PCIeTopologyRefresh", pcieTopologyRefresh,        //
+                "Oem/IBM/SavePCIeTopologyInfo", savePCIeTopologyInfo,      //
+                "Oem/IBM/LampTest", lampTest,                              //
+                "Oem/IBM/PartitionSystemAttentionIndicator", partitionSAI, //
+                "Oem/IBM/PlatformSystemAttentionIndicator", platformSAI    //
+                ))
+        {
+            return;
+        }
+    }
+    else
+    {
+        if (!json_util::readJsonPatch(                                     //
+                req, asyncResp->res,                                       //
+                "AssetTag", assetTag,                                      //
+                "Boot/AutomaticRetryAttempts", bootAutomaticRetryAttempts, //
+                "Boot/AutomaticRetryConfig", bootAutomaticRetry,           //
+                "Boot/StopBootOnFault", stopBootOnFault,                   //
+                "Boot/TrustedModuleRequiredToBoot",
+                bootTrustedModuleRequired,                                 //
+                "HostWatchdogTimer/FunctionEnabled", wdtEnable,            //
+                "HostWatchdogTimer/TimeoutAction", wdtTimeOutAction,       //
+                "IdlePowerSaver/Enabled", ipsEnable,                       //
+                "IdlePowerSaver/EnterDwellTimeSeconds", ipsEnterTime,      //
+                "IdlePowerSaver/EnterUtilizationPercent", ipsEnterUtil,    //
+                "IdlePowerSaver/ExitDwellTimeSeconds", ipsExitTime,        //
+                "IdlePowerSaver/ExitUtilizationPercent", ipsExitUtil,      //
+                "IndicatorLED", indicatorLed,                              //
+                "LocationIndicatorActive", locationIndicatorActive,        //
+                "PowerMode", powerMode,                                    //
+                "PowerRestorePolicy", powerRestorePolicy,                  //
+                "Oem/IBM/ChapData/ChapName", chapName,                     //
+                "Oem/IBM/ChapData/ChapSecret", chapSecret,                 //
+                "Oem/IBM/PCIeTopologyRefresh", pcieTopologyRefresh,        //
+                "Oem/IBM/SavePCIeTopologyInfo", savePCIeTopologyInfo       //
+                ))
+        {
+            return;
+        }
     }
 
     asyncResp->res.result(boost::beast::http::status::no_content);
@@ -2995,6 +3043,23 @@ inline void handleComputerSystemPatch(
     if (powerMode)
     {
         setPowerMode(asyncResp, *powerMode);
+    }
+
+    if constexpr (BMCWEB_IBM_LED_EXTENSIONS)
+    {
+        if (lampTest)
+        {
+            setLampTestState(asyncResp, *lampTest);
+        }
+        if (partitionSAI)
+        {
+            setSAI(asyncResp, "PartitionSystemAttentionIndicator",
+                   *partitionSAI);
+        }
+        if (platformSAI)
+        {
+            setSAI(asyncResp, "PlatformSystemAttentionIndicator", *platformSAI);
+        }
     }
 
     if (ipsEnable || ipsEnterUtil || ipsEnterTime || ipsExitUtil || ipsExitTime)

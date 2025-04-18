@@ -52,6 +52,24 @@
                 }
             },
             "properties": {
+                "LampTest": {
+                    "description": "An indicator allowing an operator to run LED lamp test.",
+                    "longDescription": "This property shall contain the state of lamp state function for this resource.",
+                    "readonly": false,
+                    "type": ["boolean", "null"]
+                },
+                "PartitionSystemAttentionIndicator": {
+                    "description": "An indicator allowing an operator to operate partition system attention.",
+                    "longDescription": "This property shall contain the state of the partition system attention of this resource.",
+                    "readonly": false,
+                    "type": ["boolean", "null"]
+                },
+                "PlatformSystemAttentionIndicator": {
+                    "description": "An indicator allowing an operator to operate platform system attention.",
+                    "longDescription": "This property shall contain the state of the platform system attention of this resource.",
+                    "readonly": false,
+                    "type": ["boolean", "null"]
+                },
                 "PCIeTopologyRefresh": {
                     "description": "An indication of topology information is ready.",
                     "longDescription": "This property when set to 'true' refreshes the topology information. The application which uses this should set it to 'false' when a refresh occurs.",
