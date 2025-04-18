@@ -18,6 +18,8 @@
 #include "hypervisor_system.hpp"
 #include "led.hpp"
 #include "logging.hpp"
+#include "oem/ibm/lamp_test.hpp"
+#include "oem/ibm/system_attention_indicator.hpp"
 #include "query.hpp"
 #include "redfish_util.hpp"
 #include "registries/privilege_registry.hpp"
@@ -3452,6 +3454,12 @@ inline void processComputerSystemGet(
     getStopBootOnFault(asyncResp);
     getAutomaticRetryPolicy(asyncResp, computerSystemIndex);
     getLastResetTime(asyncResp, computerSystemIndex);
+    if constexpr (BMCWEB_IBM_LED_EXTENSIONS)
+    {
+        getLampTestState(asyncResp);
+        getSAI(asyncResp, "PartitionSystemAttentionIndicator");
+        getSAI(asyncResp, "PlatformSystemAttentionIndicator");
+    }
     if constexpr (BMCWEB_REDFISH_PROVISIONING_FEATURE)
     {
         getProvisioningStatus(asyncResp);
@@ -3528,6 +3536,9 @@ struct PatchParams
     std::optional<uint64_t> ipsExitTime;
     std::optional<std::string> chapName;
     std::optional<std::string> chapSecret;
+    std::optional<bool> lampTest;
+    std::optional<bool> partitionSAI;
+    std::optional<bool> platformSAI;
 };
 
 /**
@@ -3628,6 +3639,24 @@ inline void processComputerSystemPatch(
         setPowerMode(asyncResp, *patchParams.powerMode);
     }
 
+    if constexpr (BMCWEB_IBM_LED_EXTENSIONS)
+    {
+        if (patchParams.lampTest)
+        {
+            setLampTestState(asyncResp, *patchParams.lampTest);
+        }
+        if (patchParams.partitionSAI)
+        {
+            setSAI(asyncResp, "PartitionSystemAttentionIndicator",
+                   *patchParams.partitionSAI);
+        }
+        if (patchParams.platformSAI)
+        {
+            setSAI(asyncResp, "PlatformSystemAttentionIndicator",
+                   *patchParams.platformSAI);
+        }
+    }
+
     if (patchParams.ipsEnable || patchParams.ipsEnterUtil ||
         patchParams.ipsEnterTime || patchParams.ipsExitUtil ||
         patchParams.ipsExitTime)
@@ -3694,7 +3723,12 @@ inline void handleComputerSystemPatch(
             "PowerMode", patchParams.powerMode,                               //
             "PowerRestorePolicy", patchParams.powerRestorePolicy,             //
             "Oem/IBM/ChapData/ChapName", patchParams.chapName,                //
-            "Oem/IBM/ChapData/ChapSecret", patchParams.chapSecret))
+            "Oem/IBM/ChapData/ChapSecret", patchParams.chapSecret,            //
+            "Oem/IBM/LampTest", patchParams.lampTest,                         //
+            "Oem/IBM/PartitionSystemAttentionIndicator",
+            patchParams.partitionSAI,                                         //
+            "Oem/IBM/PlatformSystemAttentionIndicator",
+            patchParams.platformSAI))
     {
         return;
     }
