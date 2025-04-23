@@ -5,6 +5,7 @@
 
 #include "bmcweb_config.h"
 
+#include "account_service.hpp"
 #include "app.hpp"
 #include "async_resp.hpp"
 #include "dbus_singleton.hpp"
@@ -1111,6 +1112,22 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             }
             if (resourceDumpParams.size() == 3)
             {
+                // Check if admin user is initiating resource dump with
+                // non-empty pwd
+                std::string roleId =
+                    getRoleIdFromPrivilege(req.session->userRole);
+                if (roleId == "Administrator")
+                {
+                    if (std::holds_alternative<std::string>(
+                            resourceDumpParams[2]) &&
+                        !std::get<std::string>(resourceDumpParams[2]).empty())
+                    {
+                        BMCWEB_LOG_WARNING(
+                            "Request to create resource dump failed. User has insufficient privilege.");
+                        messages::insufficientPrivilege(asyncResp->res);
+                        return;
+                    }
+                }
                 createDumpParams.emplace_back(
                     "com.ibm.Dump.Create.CreateParameters.Password",
                     resourceDumpParams[2]);
@@ -1125,6 +1142,7 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                         "/redfish/v1/Systems/system/LogServices/Dump/Actions/LogService.CollectDiagnosticData"));
                 return;
             }
+
             createDumpParams.emplace_back(
                 "com.ibm.Dump.Create.CreateParameters.DumpType",
                 "com.ibm.Dump.Create.DumpType.Resource");
