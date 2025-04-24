@@ -7,11 +7,14 @@
 #include "dbus_singleton.hpp"
 #include "dbus_utility.hpp"
 #include "error_messages.hpp"
+#include "generated/enums/control.hpp"
 #include "http_request.hpp"
 #include "logging.hpp"
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 #include "utils/chassis_utils.hpp"
+#include "utils/dbus_utils.hpp"
+#include "utils/json_utils.hpp"
 #include "utils/sensor_utils.hpp"
 
 #include <asm-generic/errno.h>
@@ -21,8 +24,10 @@
 #include <boost/url/format.hpp>
 #include <nlohmann/json.hpp>
 #include <sdbusplus/asio/property.hpp>
+#include <sdbusplus/unpack_properties.hpp>
 
 #include <array>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -164,6 +169,142 @@ inline void handleEnvironmentMetricsHead(
                                                 std::move(respHandler));
 }
 
+inline void setPowerSetPoint(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, uint32_t powerCap)
+{
+    BMCWEB_LOG_DEBUG("Set Power Limit Watts Set Point");
+
+    std::string path = "/xyz/openbmc_project/control/host0/power_cap";
+    setDbusProperty(asyncResp, "SetPoint", "xyz.openbmc_project.Settings", path,
+                    "xyz.openbmc_project.Control.Power.Cap", "PowerCap",
+                    powerCap);
+}
+
+inline void setPowerControlMode(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& controlMode)
+{
+    BMCWEB_LOG_DEBUG("Set Power Limit Watts Control Mode");
+    bool powerCapEnable = false;
+    if (controlMode == "Disabled")
+    {
+        powerCapEnable = false;
+    }
+    else if (controlMode == "Automatic")
+    {
+        powerCapEnable = true;
+    }
+    else
+    {
+        BMCWEB_LOG_WARNING("Power Control Mode  does not support this mode: {}",
+                           controlMode);
+        messages::propertyValueNotInList(asyncResp->res, controlMode,
+                                         "ControlMode");
+        return;
+    }
+
+    std::string path = "/xyz/openbmc_project/control/host0/power_cap";
+    setDbusProperty(asyncResp, "ControlMode", "xyz.openbmc_project.Settings",
+                    path, "xyz.openbmc_project.Control.Power.Cap",
+                    "PowerCapEnable", powerCapEnable);
+}
+
+inline void handlePowerLimitWattsControl(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec,
+    const dbus::utility::DBusPropertiesMap& propertiesList)
+{
+    if (ec)
+    {
+        if (ec.value() != EBADR)
+        {
+            BMCWEB_LOG_ERROR("DBUS response error: {}", ec.value());
+            messages::internalError(asyncResp->res);
+        }
+        return;
+    }
+
+    const uint32_t* minCap = nullptr;
+    const uint32_t* maxCap = nullptr;
+    const bool success = sdbusplus::unpackPropertiesNoThrow(
+        dbus_utils::UnpackErrorPrinter(), propertiesList, "MinPowerCapValue",
+        minCap, "MaxPowerCapValue", maxCap);
+    if (!success)
+    {
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    if (minCap != nullptr)
+    {
+        asyncResp->res.jsonValue["PowerLimitWatts"]["AllowableMin"] = *minCap;
+    }
+    if (maxCap != nullptr)
+    {
+        asyncResp->res.jsonValue["PowerLimitWatts"]["AllowableMax"] = *maxCap;
+    }
+}
+
+inline void handlePowerCap(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec,
+    const dbus::utility::DBusPropertiesMap& propertiesList)
+{
+    if (ec)
+    {
+        if (ec.value() != EBADR)
+        {
+            BMCWEB_LOG_ERROR("DBUS response error: {}", ec.value());
+            messages::internalError(asyncResp->res);
+        }
+        return;
+    }
+
+    asyncResp->res.jsonValue["PowerLimitWatts"]["SetPoint"] = 0;
+    asyncResp->res.jsonValue["PowerLimitWatts"]["ControlMode"] =
+        control::ControlMode::Automatic;
+
+    const uint32_t* powerCap = nullptr;
+    const bool* powerCapEnable = nullptr;
+
+    const bool success = sdbusplus::unpackPropertiesNoThrow(
+        dbus_utils::UnpackErrorPrinter(), propertiesList, "PowerCap", powerCap,
+        "PowerCapEnable", powerCapEnable);
+
+    if (!success)
+    {
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    if (powerCap != nullptr)
+    {
+        asyncResp->res.jsonValue["PowerLimitWatts"]["SetPoint"] = *powerCap;
+    }
+
+    if (powerCapEnable != nullptr && !*powerCapEnable)
+    {
+        asyncResp->res.jsonValue["PowerLimitWatts"]["ControlMode"] =
+            control::ControlMode::Disabled;
+    }
+}
+
+inline void getPowerLimitWatts(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    dbus::utility::getAllProperties(
+        *crow::connections::systemBus, "org.open_power.OCC.Control",
+        "/xyz/openbmc_project/control/host0/power_cap_limits",
+        "xyz.openbmc_project.Control.Power.CapLimits",
+        std::bind_front(handlePowerLimitWattsControl, asyncResp));
+
+    dbus::utility::getAllProperties(
+        *crow::connections::systemBus, "xyz.openbmc_project.Settings",
+        "/xyz/openbmc_project/control/host0/power_cap",
+        "xyz.openbmc_project.Control.Power.Cap",
+        std::bind_front(handlePowerCap, asyncResp));
+}
+
 inline void doEnvironmentMetricsGet(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& chassisId,
@@ -186,6 +327,7 @@ inline void doEnvironmentMetricsGet(
         "/redfish/v1/Chassis/{}/EnvironmentMetrics", chassisId);
 
     getPowerWatts(asyncResp, *validChassisPath, chassisId);
+    getPowerLimitWatts(asyncResp);
 }
 
 inline void handleEnvironmentMetricsGet(
@@ -203,6 +345,49 @@ inline void handleEnvironmentMetricsGet(
         std::bind_front(doEnvironmentMetricsGet, asyncResp, chassisId));
 }
 
+inline void handleEnvironmentMetricsPatch(
+    App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& chassisId)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+
+    std::optional<uint32_t> setPoint;
+    std::optional<std::string> controlMode;
+    if (!json_util::readJsonPatch(req, asyncResp->res,
+                                  "PowerLimitWatts/SetPoint", setPoint,
+                                  "PowerLimitWatts/ControlMode", controlMode))
+    {
+        return;
+    }
+
+    redfish::chassis_utils::getValidChassisPath(
+        asyncResp, chassisId,
+        [asyncResp, chassisId, setPoint,
+         controlMode](const std::optional<std::string>& validChassisPath) {
+            if (!validChassisPath)
+            {
+                BMCWEB_LOG_WARNING("Chassis {} not found", chassisId);
+                messages::resourceNotFound(asyncResp->res, "Chassis",
+                                           chassisId);
+                return;
+            }
+
+            if (setPoint)
+            {
+                setPowerSetPoint(asyncResp, *setPoint);
+            }
+
+            if (controlMode)
+            {
+                setPowerControlMode(asyncResp, *controlMode);
+            }
+        });
+}
+
 inline void requestRoutesEnvironmentMetrics(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/EnvironmentMetrics/")
@@ -214,6 +399,11 @@ inline void requestRoutesEnvironmentMetrics(App& app)
         .privileges(redfish::privileges::getEnvironmentMetrics)
         .methods(boost::beast::http::verb::get)(
             std::bind_front(handleEnvironmentMetricsGet, std::ref(app)));
+
+    BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/EnvironmentMetrics/")
+        .privileges(redfish::privileges::patchEnvironmentMetrics)
+        .methods(boost::beast::http::verb::patch)(
+            std::bind_front(handleEnvironmentMetricsPatch, std::ref(app)));
 }
 
 } // namespace redfish
