@@ -1447,21 +1447,9 @@ static LogParseError fillEventLogEntryJson(
     return LogParseError::success;
 }
 
-inline void fillEventLogLogEntryFromPropertyMap(
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const dbus::utility::DBusPropertiesMap& resp,
-    nlohmann::json& objectToFillOut)
+inline void fillEventLogLogEntryFromDbusLogEntry(
+    const DbusEventLogEntry& entry, nlohmann::json& objectToFillOut)
 {
-    std::optional<DbusEventLogEntry> optEntry =
-        fillDbusEventLogEntryFromPropertyMap(resp);
-
-    if (!optEntry.has_value())
-    {
-        messages::internalError(asyncResp->res);
-        return;
-    }
-    DbusEventLogEntry entry = optEntry.value();
-
     objectToFillOut["@odata.type"] = "#LogEntry.v1_9_0.LogEntry";
     objectToFillOut["@odata.id"] = boost::urls::format(
         "/redfish/v1/Systems/{}/LogServices/EventLog/Entries/{}",
@@ -1520,6 +1508,7 @@ inline void afterLogEntriesGetManagedObjects(
         {
             continue;
         }
+
         for (const auto& interfaceMap : objectPath.second)
         {
             for (const auto& propertyMap : interfaceMap.second)
@@ -1528,14 +1517,20 @@ inline void afterLogEntriesGetManagedObjects(
                                             propertyMap.second);
             }
         }
-        fillEventLogLogEntryFromPropertyMap(asyncResp, propsFlattened,
-                                            entriesArray.emplace_back());
+        std::optional<DbusEventLogEntry> optEntry =
+            fillDbusEventLogEntryFromPropertyMap(propsFlattened);
+
+        if (!optEntry.has_value())
+        {
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        const DbusEventLogEntry& entry = optEntry.value();
+        fillEventLogLogEntryFromDbusLogEntry(entry,
+                                             entriesArray.emplace_back());
     }
 
-    std::ranges::sort(entriesArray, [](const nlohmann::json& left,
-                                       const nlohmann::json& right) {
-        return (left["Id"] <= right["Id"]);
-    });
+    redfish::json_util::sortJsonArrayByKey(entriesArray, "Id");
     asyncResp->res.jsonValue["Members@odata.count"] = entriesArray.size();
     asyncResp->res.jsonValue["Members"] = std::move(entriesArray);
 }
@@ -1816,8 +1811,18 @@ inline void dBusEventLogEntryGet(
                 return;
             }
 
-            fillEventLogLogEntryFromPropertyMap(asyncResp, resp,
-                                                asyncResp->res.jsonValue);
+            std::optional<DbusEventLogEntry> optEntry =
+                fillDbusEventLogEntryFromPropertyMap(resp);
+
+            if (!optEntry.has_value())
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            const DbusEventLogEntry& entry = optEntry.value();
+            fillEventLogLogEntryFromDbusLogEntry(entry,
+                                                 asyncResp->res.jsonValue);
         });
 }
 
