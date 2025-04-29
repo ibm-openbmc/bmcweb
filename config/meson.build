@@ -13,7 +13,6 @@ feature_options = [
     'experimental-redfish-multi-computer-system',
     'google-api',
     'host-serial-socket',
-    'hw-isolation',
     'hypervisor-computer-system',
     'hypervisor-serial-socket',
     'ibm-led-extensions',

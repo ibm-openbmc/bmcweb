@@ -1244,18 +1244,6 @@ inline void requestRoutesSystemLogServiceCollection(App& app)
                     "/redfish/v1/Systems/system/LogServices/AuditLog";
                 logServiceArray.push_back(std::move(auditLog));
             }
-            if constexpr (BMCWEB_HW_ISOLATION)
-            {
-                nlohmann::json& logServiceArrayLocal =
-                    asyncResp->res.jsonValue["Members"];
-                nlohmann::json::object_t member;
-                member["@odata.id"] = boost::urls::format(
-                    "redfish/v1/Systems/{}/LogServices/HardwareIsolation",
-                    BMCWEB_REDFISH_SYSTEM_URI_NAME);
-                logServiceArrayLocal.emplace_back(std::move(member));
-                asyncResp->res.jsonValue["Members@odata.count"] =
-                    logServiceArrayLocal.size();
-            }
         });
 }
 

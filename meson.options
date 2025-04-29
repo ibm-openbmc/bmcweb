@@ -578,12 +578,3 @@ option(
     description: '''Enable hypervisor serial console WebSocket. Path is
                       \'/console1\'.''',
 )
-
-# BMCWEB_HW_ISOLATION
-option(
-    'hw-isolation',
-    type: 'feature',
-    value: 'enabled',
-    description: 'Enable the Hardware Isolation feature',
-)
-
