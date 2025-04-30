@@ -14,29 +14,29 @@
     <edmx:Include Namespace="Resource.v1_0_0"/>
   </edmx:Reference>
   <edmx:DataServices>
-    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="IBMLogEntryAttachment">
-      <Annotation Term="Redfish.OwningEntity" String="IBM"/>
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OpenBMCLogEntry">
+      <Annotation Term="Redfish.OwningEntity" String="OpenBMC"/>
     </Schema>
-    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="IBMLogEntryAttachment.v1_0_0">
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OpenBMCLogEntry.v1_0_0">
       <Annotation Term="Redfish.OwningEntity" String="OpenBMC"/>
       <Annotation Term="Redfish.Release" String="1.0"/>
       <ComplexType Name="Oem" BaseType="Resource.OemObject">
         <Annotation Term="OData.AdditionalProperties" Bool="true"/>
-        <Annotation Term="OData.Description" String="IBMLogEntryAttachment Oem properties."/>
+        <Annotation Term="OData.Description" String="OpenBMCLogEntry Oem properties."/>
         <Annotation Term="OData.AutoExpand"/>
-        <Property Name="IBM" Type="IBMLogEntryAttachment.v1_0_0.IBM"/>
+        <Property Name="OpenBMC" Type="OpenBMCLogEntry.v1_0_0.OpenBMC"/>
       </ComplexType>
-      <ComplexType Name="IBM" BaseType="Resource.OemObject">
-        <Annotation Term="OData.AdditionalProperties" Bool="false"/>
-        <Annotation Term="OData.Description" String="Oem properties for IBM."/>
+      <ComplexType Name="OpenBMC">
+        <Annotation Term="OData.AdditionalProperties" Bool="true"/>
+        <Annotation Term="OData.Description" String="Oem properties for OpenBMC."/>
         <Annotation Term="OData.AutoExpand"/>
-        <Property Name="PelJson" Type="Edm.String">
-          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
-          <Annotation Term="OData.Description" String="PEL in Json format."/>
+        <Property Name="ManagementSystemAck" Type="Edm.Boolean">
+          <Annotation Term="OData.Description" String="Flag to keep track of external interface acknowledgment."/>
+          <Annotation Term="OData.LongDescription" String="A true value says external interface acked error log, false says otherwise."/>
         </Property>
-        <Property Name="AdditionalDataFullAuditLogURI" Type="Edm.String">
-          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
-          <Annotation Term="OData.Description" String="Audit Log in Json format."/>
+        <Property Name="GeneratorId" Type="Edm.String">
+          <Annotation Term="OData.Description" String="Id of the user who created the LogEntry."/>
+          <Annotation Term="OData.LongDescription" String="Unique id of the user who has caused the creation of the LogEntry. Eg: ip address, session id, client id."/>
         </Property>
       </ComplexType>
     </Schema>

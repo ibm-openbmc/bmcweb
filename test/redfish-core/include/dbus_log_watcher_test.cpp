@@ -30,6 +30,11 @@ TEST(DBusLogWatcher, EventLogObjectFromDBusSuccess)
         {"Severity", DbusVariantType("")},
         {"Timestamp", DbusVariantType(static_cast<uint64_t>(1638312095123))},
         {"UpdateTimestamp", DbusVariantType(static_cast<uint64_t>(3899))},
+
+        // Additional elements for PEL
+        {"Hidden", DbusVariantType(false)},
+        {"ManagementSystemAck", DbusVariantType(false)},
+        {"Subsystem", DbusVariantType("Platform Firmware")},
     };
 
     EventLogObjectsType event;
@@ -63,6 +68,11 @@ TEST(DBusLogWatcher, EventLogObjectFromDBusFailMissingProperty)
         {"Severity", DbusVariantType("")},
         {"Timestamp", DbusVariantType(static_cast<uint64_t>(3832))},
         {"UpdateTimestamp", DbusVariantType(static_cast<uint64_t>(3899))},
+
+        // Additional elements for PEL
+        {"Hidden", DbusVariantType(false)},
+        {"ManagementSystemAck", DbusVariantType(false)},
+        {"Subsystem", DbusVariantType("Platform Firmware")},
     };
 
     EventLogObjectsType event;

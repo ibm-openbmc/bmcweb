@@ -1,7 +1,7 @@
 {
     "$id": "https://github.com/openbmc/bmcweb/tree/master/redfish-core/schema/oem/openbmc/json-schema/IBMLogEntryAttachment.v1_0_0.json",
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
-    "copyright": "Copyright 2024 OpenBMC.",
+    "copyright": "Copyright 2025 OpenBMC.",
     "definitions": {
         "IBM": {
             "additionalProperties": false,
@@ -21,6 +21,11 @@
                 }
             },
             "properties": {
+                "PelJson": {
+                    "description": "PEL in Json format.",
+                    "readonly": true,
+                    "type": ["string", "null"]
+                },
                 "AdditionalDataFullAuditLogURI": {
                     "description": "Audit Log in Json format.",
                     "readonly": true,
@@ -61,7 +66,7 @@
             "type": "object"
         }
     },
-    "owningEntity": "OpenBMC",
+    "owningEntity": "IBM",
     "release": "1.0",
     "title": "#IBMLogEntryAttachment.v1_0_0"
 }

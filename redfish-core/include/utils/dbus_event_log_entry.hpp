@@ -25,6 +25,11 @@ struct DbusEventLogEntry
     std::string Severity;
     uint64_t Timestamp = 0;
     uint64_t UpdateTimestamp = 0;
+    // Additional elements from upstream
+    std::string EventId;
+    bool Hidden = false;
+    bool ManagementSystemAck = false;
+    std::string Subsystem;
 };
 
 inline std::optional<DbusEventLogEntry> fillDbusEventLogEntryFromPropertyMap(
@@ -32,20 +37,22 @@ inline std::optional<DbusEventLogEntry> fillDbusEventLogEntryFromPropertyMap(
 {
     DbusEventLogEntry entry;
 
-    // clang-format off
     bool success = sdbusplus::unpackPropertiesNoThrow(
-        dbus_utils::UnpackErrorPrinter(), resp,
-        "Id", entry.Id,
-        "Message", entry.Message,
-        "Path", entry.Path,
-        "Resolution", entry.Resolution,
-        "Resolved", entry.Resolved,
-        "ServiceProviderNotify", entry.ServiceProviderNotify,
-        "Severity", entry.Severity,
-        "Timestamp", entry.Timestamp,
-        "UpdateTimestamp", entry.UpdateTimestamp
+        dbus_utils::UnpackErrorPrinter(), resp,               //
+        "Id", entry.Id,                                       //
+        "EventId", entry.EventId,                             //
+        "Message", entry.Message,                             //
+        "Path", entry.Path,                                   //
+        "Resolution", entry.Resolution,                       //
+        "Resolved", entry.Resolved,                           //
+        "ServiceProviderNotify", entry.ServiceProviderNotify, //
+        "Severity", entry.Severity,                           //
+        "Timestamp", entry.Timestamp,                         //
+        "UpdateTimestamp", entry.UpdateTimestamp,             //
+        "Hidden", entry.Hidden,                               //
+        "ManagementSystemAck", entry.ManagementSystemAck,     //
+        "Subsystem", entry.Subsystem                          //
     );
-    // clang-format on
     if (!success)
     {
         return std::nullopt;

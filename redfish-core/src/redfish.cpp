@@ -45,6 +45,7 @@
 #include "storage.hpp"
 #include "systems.hpp"
 #include "systems_logservices_audit.hpp"
+#include "systems_logservices_celog.hpp"
 #include "systems_logservices_hostlogger.hpp"
 #include "systems_logservices_postcodes.hpp"
 #include "task.hpp"
@@ -184,10 +185,17 @@ RedfishService::RedfishService(App& app)
 
     if constexpr (BMCWEB_REDFISH_DBUS_LOG)
     {
+        requestRoutesCELogService(app);
         requestRoutesDBusLogServiceActionsClear(app);
+        requestRoutesDBusCELogServiceActionsClear(app);
         requestRoutesDBusEventLogEntryCollection(app);
+        requestRoutesDBusCELogEntryCollection(app);
         requestRoutesDBusEventLogEntry(app);
+        requestRoutesDBusCELogEntry(app);
         requestRoutesDBusEventLogEntryDownload(app);
+        requestRoutesDBusCELogEntryDownload(app);
+        requestRoutesDBusEventLogEntryDownloadPelJson(app);
+        requestRoutesDBusCELogEntryDownloadPelJson(app);
     }
     else
     {
