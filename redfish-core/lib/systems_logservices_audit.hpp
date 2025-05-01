@@ -695,7 +695,7 @@ inline void requestRoutesLogServicesAudit(App& app)
 
     BMCWEB_ROUTE(
         app,
-        "/redfish/v1/Systems/<str>/LogServices/AuditLog/Entries/<str>/attachment")
+        "/redfish/v1/Systems/<str>/LogServices/AuditLog/Entries/<str>/attachment/")
         .privileges(redfish::privileges::getLogEntry)
         .methods(boost::beast::http::verb::get)(
             std::bind_front(handleFullAuditLogAttachment, std::ref(app)));
