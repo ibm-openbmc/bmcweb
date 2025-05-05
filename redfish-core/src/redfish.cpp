@@ -171,6 +171,7 @@ RedfishService::RedfishService(App& app)
     requestRoutesOperatingConfig(app);
     requestRoutesMemoryCollection(app);
     requestRoutesMemory(app);
+    requestRoutesSubProcessors(app);
 
     requestRoutesSystems(app);
     requestRoutesSystemActionsOemExecutePanelFunction(app);
