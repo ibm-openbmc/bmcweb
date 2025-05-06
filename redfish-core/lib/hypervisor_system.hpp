@@ -457,13 +457,14 @@ inline bool extractHypervisorInterfaceData(
  */
 template <typename CallbackFunc>
 void getHypervisorIfaceData(const std::string& ethIfaceId,
+                            const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                             CallbackFunc&& callback)
 {
     sdbusplus::message::object_path path(
         "/xyz/openbmc_project/network/hypervisor");
     dbus::utility::getManagedObjects(
         "xyz.openbmc_project.Network.Hypervisor", path,
-        [ethIfaceId{std::string{ethIfaceId}},
+        [ethIfaceId{std::string{ethIfaceId}}, asyncResp,
          callback = std::forward<CallbackFunc>(callback)](
             const boost::system::error_code& ec,
             const dbus::utility::ManagedObjectType& resp) {
@@ -481,6 +482,8 @@ void getHypervisorIfaceData(const std::string& ethIfaceId,
             if (!found)
             {
                 BMCWEB_LOG_INFO("Hypervisor Interface not found");
+                messages::resourceNotFound(asyncResp->res, "System",
+                                           "hypervisor");
                 return;
             }
             callback(found, ethData, ipv4Data, ipv6Data);
@@ -1109,12 +1112,6 @@ inline void handleHypervisorEthernetInterfaceCollectionGet(
         [asyncResp](
             const boost::system::error_code& ec,
             const dbus::utility::MapperGetSubTreePathsResponse& ifaceList) {
-            if (ec)
-            {
-                messages::resourceNotFound(asyncResp->res, "System",
-                                           "hypervisor");
-                return;
-            }
             asyncResp->res.jsonValue["@odata.type"] =
                 "#EthernetInterfaceCollection."
                 "EthernetInterfaceCollection";
@@ -1128,19 +1125,22 @@ inline void handleHypervisorEthernetInterfaceCollectionGet(
 
             nlohmann::json& ifaceArray = asyncResp->res.jsonValue["Members"];
             ifaceArray = nlohmann::json::array();
-            for (const std::string& iface : ifaceList)
+            if (!ec)
             {
-                sdbusplus::message::object_path path(iface);
-                std::string name = path.filename();
-                if (name.empty())
+                for (const std::string& iface : ifaceList)
                 {
-                    continue;
+                    sdbusplus::message::object_path path(iface);
+                    std::string name = path.filename();
+                    if (name.empty())
+                    {
+                        continue;
+                    }
+                    nlohmann::json::object_t ethIface;
+                    ethIface["@odata.id"] = boost::urls::format(
+                        "/redfish/v1/Systems/hypervisor/EthernetInterfaces/{}",
+                        name);
+                    ifaceArray.emplace_back(std::move(ethIface));
                 }
-                nlohmann::json::object_t ethIface;
-                ethIface["@odata.id"] = boost::urls::format(
-                    "/redfish/v1/Systems/hypervisor/EthernetInterfaces/{}",
-                    name);
-                ifaceArray.emplace_back(std::move(ethIface));
             }
             asyncResp->res.jsonValue["Members@odata.count"] = ifaceArray.size();
         });
@@ -1155,10 +1155,11 @@ inline void handleHypervisorEthernetInterfaceGet(
         return;
     }
     getHypervisorIfaceData(
-        id, [asyncResp, ifaceId{std::string(id)}](
-                bool success, const EthernetInterfaceData& ethData,
-                const std::vector<IPv4AddressData>& ipv4Data,
-                const std::vector<IPv6AddressData>& ipv6Data) {
+        id, asyncResp,
+        [asyncResp, ifaceId{std::string(id)}](
+            bool success, const EthernetInterfaceData& ethData,
+            const std::vector<IPv4AddressData>& ipv4Data,
+            const std::vector<IPv6AddressData>& ipv6Data) {
             if (!success)
             {
                 messages::resourceNotFound(asyncResp->res, "EthernetInterface",
@@ -1283,7 +1284,7 @@ inline void handleHypervisorEthernetInterfacePatch(
 
     const std::string& clientIp = req.session->clientIp;
     getHypervisorIfaceData(
-        ifaceId, //
+        ifaceId, asyncResp, //
         [req, clientIp, asyncResp, ifaceId, hostName = std::move(hostName),
          ipv4StaticAddresses = std::move(ipv4StaticAddresses),
          ipv6StaticAddresses = std::move(ipv6StaticAddresses), ipv4DHCPEnabled,
