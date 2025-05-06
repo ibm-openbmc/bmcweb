@@ -13,6 +13,7 @@
 #include "generated/enums/action_info.hpp"
 #include "generated/enums/chassis.hpp"
 #include "generated/enums/resource.hpp"
+#include "health.hpp"
 #include "http_request.hpp"
 #include "led.hpp"
 #include "logging.hpp"
@@ -586,6 +587,18 @@ inline void handleChassisProperties(
     }
 }
 
+inline void afterGetChassisSensorsEndpoints(
+    const std::shared_ptr<HealthPopulate>& health,
+    const boost::system::error_code& ec,
+    const dbus::utility::MapperEndPoints& resp)
+{
+    if (ec)
+    {
+        return; // no sensors = no failures
+    }
+    health->inventory = resp;
+}
+
 inline void handleChassisGetSubTree(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& chassisId, const boost::system::error_code& ec,
@@ -620,6 +633,15 @@ inline void handleChassisGetSubTree(
         if constexpr (!BMCWEB_EXPERIMENTAL_REDFISH_MULTI_COMPUTER_SYSTEM)
         {
             getChassisProcessorLinks(asyncResp, objPath);
+        }
+        auto health = std::make_shared<HealthPopulate>(asyncResp);
+
+        if constexpr (BMCWEB_REDFISH_HEALTH_POPULATE)
+        {
+            dbus::utility::getAssociationEndPoints(
+                path + "/all_sensors",
+                std::bind_front(afterGetChassisSensorsEndpoints, health));
+            health->populate();
         }
 
         if (connectionNames.empty())
