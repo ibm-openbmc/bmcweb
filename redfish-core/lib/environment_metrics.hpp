@@ -14,6 +14,7 @@
 #include "registries/privilege_registry.hpp"
 #include "utils/chassis_utils.hpp"
 #include "utils/dbus_utils.hpp"
+#include "utils/fan_utils.hpp"
 #include "utils/json_utils.hpp"
 #include "utils/sensor_utils.hpp"
 
@@ -24,6 +25,7 @@
 #include <boost/url/format.hpp>
 #include <nlohmann/json.hpp>
 #include <sdbusplus/asio/property.hpp>
+#include <sdbusplus/message/native_types.hpp>
 #include <sdbusplus/unpack_properties.hpp>
 
 #include <array>
@@ -38,6 +40,114 @@
 
 namespace redfish
 {
+inline void updateFanSensorList(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec, const std::string& chassisId,
+    const std::string& fanSensorPath, double value)
+{
+    if (ec)
+    {
+        if (ec.value() != EBADR)
+        {
+            BMCWEB_LOG_ERROR("DBUS response error {}", ec.value());
+            messages::internalError(asyncResp->res);
+        }
+        return;
+    }
+
+    sdbusplus::message::object_path sensorPath(fanSensorPath);
+    std::string fanSensorName = sensorPath.filename();
+    std::string fanSensorType = sensorPath.parent_path().filename();
+    if (fanSensorName.empty() || fanSensorType.empty())
+    {
+        BMCWEB_LOG_ERROR("Fan Sensor name is empty and invalid");
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    std::string fanSensorId =
+        sensor_utils::getSensorId(fanSensorName, fanSensorType);
+
+    nlohmann::json::object_t item;
+    item["DataSourceUri"] = boost::urls::format(
+        "/redfish/v1/Chassis/{}/Sensors/{}", chassisId, fanSensorId);
+    item["DeviceName"] = "Chassis #" + fanSensorName;
+    item["SpeedRPM"] = value;
+
+    nlohmann::json& fanSensorList =
+        asyncResp->res.jsonValue["FanSpeedsPercent"];
+    fanSensorList.emplace_back(std::move(item));
+    asyncResp->res.jsonValue["FanSpeedsPercent@odata.count"] =
+        fanSensorList.size();
+
+    nlohmann::json::array_t* fanSensorArray =
+        fanSensorList.get_ptr<nlohmann::json::array_t*>();
+    if (fanSensorArray == nullptr)
+    {
+        BMCWEB_LOG_ERROR("Missing FanSpeedsPercent Json array");
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    json_util::sortJsonArrayByKey(*fanSensorArray, "DataSourceUri");
+}
+
+inline void getFanSensorsValue(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& chassisId, const boost::system::error_code& ec,
+    std::vector<std::pair<std::string, std::string>>& sensorsPathAndService)
+{
+    if (ec)
+    {
+        if (ec.value() != EBADR)
+        {
+            BMCWEB_LOG_ERROR("DBUS response error {}", ec.value());
+            messages::internalError(asyncResp->res);
+        }
+        return;
+    }
+
+    for (const auto& [service, sensorPath] : sensorsPathAndService)
+    {
+        dbus::utility::getProperty<double>(
+            service, sensorPath, "xyz.openbmc_project.Sensor.Value", "Value",
+            [asyncResp, chassisId, sensorPath](
+                const boost::system::error_code& ec1, const double value) {
+                updateFanSensorList(asyncResp, ec1, chassisId, sensorPath,
+                                    value);
+            });
+    }
+}
+
+inline void afterGetFanSpeedsPercent(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& chassisId, const boost::system::error_code& ec,
+    const dbus::utility::MapperGetSubTreePathsResponse& fanPaths)
+{
+    if (ec)
+    {
+        if (ec.value() != EBADR)
+        {
+            BMCWEB_LOG_ERROR("DBUS response error {}", ec.value());
+            messages::internalError(asyncResp->res);
+        }
+        return;
+    }
+    for (const std::string& fanPath : fanPaths)
+    {
+        fan_utils::getFanSensorObjects(
+            fanPath, std::bind_front(getFanSensorsValue, asyncResp, chassisId));
+    }
+}
+
+inline void getFanSpeedsPercent(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& validChassisPath, const std::string& chassisId)
+{
+    fan_utils::getFanPaths(
+        validChassisPath,
+        std::bind_front(afterGetFanSpeedsPercent, asyncResp, chassisId));
+}
 
 inline void afterGetPowerWatts(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -328,6 +438,7 @@ inline void doEnvironmentMetricsGet(
 
     getPowerWatts(asyncResp, *validChassisPath, chassisId);
     getPowerLimitWatts(asyncResp);
+    getFanSpeedsPercent(asyncResp, *validChassisPath, chassisId);
 }
 
 inline void handleEnvironmentMetricsGet(
