@@ -311,7 +311,9 @@ inline void requestRoutesDBusCELogEntry(App& app)
 
     BMCWEB_ROUTE(app,
                  "/redfish/v1/Systems/<str>/LogServices/CELog/Entries/<str>/")
-        .privileges(redfish::privileges::patchLogEntry)
+        .privileges(
+            redfish::privileges::
+                patchLogEntrySubOverComputerSystemLogServiceCollectionLogServiceLogEntryCollection)
         .methods(boost::beast::http::verb::patch)(
             [&app](const crow::Request& req,
                    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -339,7 +341,9 @@ inline void requestRoutesDBusCELogEntry(App& app)
 
     BMCWEB_ROUTE(app,
                  "/redfish/v1/Systems/<str>/LogServices/CELog/Entries/<str>/")
-        .privileges(redfish::privileges::deleteLogEntry)
+        .privileges(
+            redfish::privileges::
+                deleteLogEntrySubOverComputerSystemLogServiceCollectionLogServiceLogEntryCollection)
         .methods(boost::beast::http::verb::delete_)(
             [&app](const crow::Request& req,
                    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -439,7 +443,8 @@ inline void requestRoutesDBusCELogServiceActionsClear(App& app)
     BMCWEB_ROUTE(
         app,
         "/redfish/v1/Systems/<str>/LogServices/CELog/Actions/LogService.ClearLog/")
-        .privileges(redfish::privileges::postLogService)
+        .privileges(redfish::privileges::
+                        postLogServiceSubOverComputerSystemLogServiceCollection)
         .methods(boost::beast::http::verb::post)(
             [&app](const crow::Request& req,
                    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
