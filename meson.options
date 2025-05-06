@@ -358,6 +358,15 @@ option(
                     recommends using MultiPartUpdate.''',
 )
 
+option(
+    'redfish-health-populate',
+    type: 'feature',
+    value: 'enabled',
+    description: '''Enables HealthPopulate and generate the Status property for
+                    the resource. Upstream this is removed. Downstream this is
+                    only the chassis resource. Will do something different for
+                    next gen.''',
+)
 
 option(
     'https_port',
