@@ -733,11 +733,39 @@ inline void requestRoutesBiosSettings(App& app)
                         "/xyz/openbmc_project/bios_config/manager",
                         "xyz.openbmc_project.BIOSConfig.Manager",
                         "PendingAttributes", pendingAttributes,
-                        [asyncResp](const boost::system::error_code& ec1) {
+                        [asyncResp, pendingAttributes](
+                            const boost::system::error_code& ec1,
+                            const sdbusplus::message_t& msg) {
                             if (ec1)
                             {
-                                BMCWEB_LOG_ERROR(
-                                    "doPatch resp_handler got error: {}", ec1);
+                                const sd_bus_error* dbusError = msg.get_error();
+                                if (dbusError != nullptr)
+                                {
+                                    std::string_view errorName(dbusError->name);
+
+                                    if (errorName ==
+                                        "xyz.openbmc_project.Common.Error.InvalidArgument")
+                                    {
+                                        BMCWEB_LOG_WARNING(
+                                            "DBUS response error: {}", ec1);
+                                        nlohmann::json pendingAttributesJson;
+                                        for (const auto& attr :
+                                             pendingAttributes)
+                                        {
+                                            nlohmann::json attrJson;
+                                            attrJson["Name"] = attr.first;
+                                            attrJson["Type"] =
+                                                std::get<0>(attr.second);
+
+                                            pendingAttributesJson.push_back(
+                                                attrJson);
+                                        }
+                                        messages::propertyValueIncorrect(
+                                            asyncResp->res, "Attributes",
+                                            pendingAttributesJson);
+                                        return;
+                                    }
+                                }
                                 messages::internalError(asyncResp->res);
                                 return;
                             }
