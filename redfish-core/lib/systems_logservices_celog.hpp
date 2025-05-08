@@ -6,7 +6,6 @@
 
 #include "app.hpp"
 #include "async_resp.hpp"
-#include "dbus_singleton.hpp"
 #include "dbus_utility.hpp"
 #include "error_messages.hpp"
 #include "http_request.hpp"
@@ -18,15 +17,10 @@
 #include "utils/json_utils.hpp"
 #include "utils/time_utils.hpp"
 
-#include <asm-generic/errno.h>
-#include <systemd/sd-bus.h>
-
-#include <boost/beast/http/status.hpp>
 #include <boost/beast/http/verb.hpp>
 #include <boost/url/format.hpp>
 #include <boost/url/url.hpp>
 #include <nlohmann/json.hpp>
-#include <sdbusplus/message.hpp>
 #include <sdbusplus/message/native_types.hpp>
 
 #include <format>
@@ -149,55 +143,6 @@ inline void updateManagementSystemAckProperty(
     }
 }
 
-inline void deleteEventLogEntry(
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& entryId)
-{
-    // Process response from Logging service.
-    auto respHandler = [asyncResp,
-                        entryId](const boost::system::error_code& ec,
-                                 const sdbusplus::message::message& msg) {
-        BMCWEB_LOG_DEBUG("EventLogEntry (DBus) doDelete callback: Done");
-        if (ec)
-        {
-            if (ec.value() == EBADR)
-            {
-                messages::resourceNotFound(asyncResp->res, "LogEntry", entryId);
-                return;
-            }
-
-            const sd_bus_error* dbusError = msg.get_error();
-            if (dbusError == nullptr)
-            {
-                messages::internalError(asyncResp->res);
-                return;
-            }
-            if (std::string_view(
-                    "xyz.openbmc_project.Common.Error.Unavailable") ==
-                dbusError->name)
-            {
-                messages::propertyValueExternalConflict(asyncResp->res,
-                                                        "LogEntry", "Delete");
-                return;
-            }
-
-            BMCWEB_LOG_ERROR("EventLogEntry (DBus) doDelete "
-                             "respHandler got error {}",
-                             ec);
-
-            messages::internalError(asyncResp->res);
-            return;
-        }
-        asyncResp->res.result(boost::beast::http::status::ok);
-    };
-
-    // Make call to Logging service to request Delete Log
-    crow::connections::systemBus->async_method_call(
-        respHandler, "xyz.openbmc_project.Logging",
-        "/xyz/openbmc_project/logging/entry/" + entryId,
-        "xyz.openbmc_project.Object.Delete", "Delete");
-}
-
 inline void requestRoutesDBusCELogEntryCollection(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/LogServices/CELog/Entries/")
@@ -270,7 +215,7 @@ inline void dBusCELogEntryDelete(
                 messages::resourceNotFound(asyncResp->res, "LogEntry", entryID);
                 return;
             }
-            deleteEventLogEntry(asyncResp, entryID);
+            dBusEventLogEntryDelete(asyncResp, entryID);
         });
 }
 
