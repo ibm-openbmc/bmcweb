@@ -724,8 +724,8 @@ inline void handleHypervisorSystemGet(
                                                BMCWEB_REDFISH_MANAGER_URI_NAME);
     managedBy.emplace_back(std::move(manager));
     asyncResp->res.jsonValue["Links"]["ManagedBy"] = std::move(managedBy);
-    asyncResp->res.jsonValue["EthernetInterfaces"]["@odata.id"] =
-        "/redfish/v1/Systems/hypervisor/EthernetInterfaces";
+    // asyncResp->res.jsonValue["EthernetInterfaces"]["@odata.id"] =
+    //     "/redfish/v1/Systems/hypervisor/EthernetInterfaces";
     getHypervisorState(asyncResp);
     getHypervisorActions(asyncResp);
     // TODO: Add "SystemType" : "hypervisor"
