@@ -459,6 +459,24 @@
             "Resolution": "None.",
             "Severity": "Critical"
         },
+        "GuardRecord": {
+            "Description": "Indicates this resource is isolated.",
+            "Message": "%1 Guard Record %2",
+            "MessageSeverity": "OK",
+            "NumberOfArgs": 2,
+            "ParamTypes": ["string", "string"],
+            "Resolution": "None.",
+            "Severity": "OK"
+        },
+        "HardwareIsolationReason": {
+            "Description": "Indicates the condition that affects the health of this resource.",
+            "Message": "The reason for the resource isolation: %1",
+            "MessageSeverity": "OK",
+            "NumberOfArgs": 1,
+            "ParamTypes": ["string"],
+            "Resolution": "None.",
+            "Severity": "Critical"
+        },
         "IPMIWatchdog": {
             "Description": "Indicates that there is a host watchdog event.",
             "Message": "Host Watchdog Event: %1",
