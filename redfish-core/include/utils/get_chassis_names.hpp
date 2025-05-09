@@ -1,9 +1,14 @@
 #pragma once
 
-#include <dbus_singleton.hpp>
+#include "dbus_singleton.hpp"
+
+#include <boost/system/errc.hpp>
+#include <boost/system/error_code.hpp>
+#include <sdbusplus/message/native_types.hpp>
 
 #include <array>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace redfish
