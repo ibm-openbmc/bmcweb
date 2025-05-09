@@ -14,6 +14,7 @@
 #include "generated/enums/manager.hpp"
 #include "generated/enums/resource.hpp"
 #include "http_request.hpp"
+#include "led.hpp"
 #include "logging.hpp"
 #include "openbmc/openbmc_managers.hpp"
 #include "persistent_data.hpp"
@@ -55,6 +56,53 @@
 
 namespace redfish
 {
+
+/**
+ * Set the locationIndicatorActive.
+ *
+ * @param[in,out]   asyncResp                   Async HTTP response.
+ * @param[in]       locationIndicatorActive     Value of the property
+ */
+inline void setLocationIndicatorActiveState(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    bool locationIndicatorActive, const std::string& managerId)
+{
+    BMCWEB_LOG_DEBUG("Get available manager resources.");
+
+    // GetSubTree on all interfaces which provide info about a Manager
+    constexpr std::array<std::string_view, 1> interfaces = {
+        "xyz.openbmc_project.Inventory.Item.Bmc"};
+    dbus::utility::getSubTreePaths(
+        "/xyz/openbmc_project/inventory", 0, interfaces,
+        [asyncResp, locationIndicatorActive, managerId](
+            const boost::system::error_code& ec,
+            const dbus::utility::MapperGetSubTreePathsResponse& subtreePaths) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR("DBUS response error {}", ec);
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            if (subtreePaths.empty())
+            {
+                BMCWEB_LOG_WARNING("DBus object not found");
+                messages::resourceNotFound(asyncResp->res, "Manager",
+                                           managerId);
+                return;
+            }
+            // Assume only 1 bmc D-Bus object
+            // Throw an error if there is more than 1
+            if (subtreePaths.size() != 1)
+            {
+                BMCWEB_LOG_ERROR("DBus object count is not 1");
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            setLocationIndicatorActive(asyncResp, subtreePaths[0],
+                                       locationIndicatorActive);
+        });
+}
 
 inline std::string getBMCUpdateServiceName()
 {
@@ -905,6 +953,11 @@ inline void requestRoutesManager(App& app)
                         {
                             getLocation(asyncResp, connectionName, path);
                         }
+                        else if (interfaceName ==
+                                 "xyz.openbmc_project.Association.Definitions")
+                        {
+                            getLocationIndicatorActive(asyncResp, path);
+                        }
                     }
                 });
         });
@@ -929,6 +982,7 @@ inline void requestRoutesManager(App& app)
 
                 std::optional<std::string> activeSoftwareImageOdataId;
                 std::optional<std::string> datetime;
+                std::optional<bool> locationIndicatorActive;
                 std::optional<nlohmann::json::object_t> pidControllers;
                 std::optional<nlohmann::json::object_t> fanControllers;
                 std::optional<nlohmann::json::object_t> fanZones;
@@ -938,6 +992,8 @@ inline void requestRoutesManager(App& app)
                 if (!json_util::readJsonPatch(                            //
                         req, asyncResp->res,                              //
                         "DateTime", datetime,                             //
+                        "LocationIndicatorActive",
+                        locationIndicatorActive,                          //
                         "Links/ActiveSoftwareImage/@odata.id",
                         activeSoftwareImageOdataId,                       //
                         "Oem/OpenBmc/Fan/FanControllers", fanControllers, //
@@ -1001,6 +1057,11 @@ inline void requestRoutesManager(App& app)
                 if (datetime)
                 {
                     setDateTime(asyncResp, *datetime);
+                }
+                if (locationIndicatorActive)
+                {
+                    setLocationIndicatorActiveState(
+                        asyncResp, *locationIndicatorActive, managerId);
                 }
             });
 }
