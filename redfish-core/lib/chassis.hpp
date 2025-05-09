@@ -587,6 +587,20 @@ inline void handleChassisProperties(
     }
 }
 
+inline void afterGetHealthInventorySubTreePaths(
+    const std::shared_ptr<HealthPopulate>& health,
+    const boost::system::error_code& ec,
+    const dbus::utility::MapperGetSubTreePathsResponse& resp)
+{
+    if (ec)
+    {
+        // no inventory
+        return;
+    }
+
+    health->inventory.insert(health->inventory.end(), resp.begin(), resp.end());
+}
+
 inline void afterGetChassisSensorsEndpoints(
     const std::shared_ptr<HealthPopulate>& health,
     const boost::system::error_code& ec,
@@ -597,6 +611,24 @@ inline void afterGetChassisSensorsEndpoints(
         return; // no sensors = no failures
     }
     health->inventory = resp;
+
+    constexpr std::array<std::string_view, 13> interfaces = {
+        "xyz.openbmc_project.Inventory.Item.Dimm",
+        "xyz.openbmc_project.Inventory.Item.Cpu",
+        "xyz.openbmc_project.Inventory.Item.PowerSupply",
+        "xyz.openbmc_project.Inventory.Item.Fan",
+        "xyz.openbmc_project.Inventory.Item.PCIeSlot",
+        "xyz.openbmc_project.Inventory.Item.Vrm",
+        "xyz.openbmc_project.Inventory.Item.Tpm",
+        "xyz.openbmc_project.Inventory.Item.Panel",
+        "xyz.openbmc_project.Inventory.Item.Battery",
+        "xyz.openbmc_project.Inventory.Item.DiskBackplane",
+        "xyz.openbmc_project.Inventory.Item.Board",
+        "xyz.openbmc_project.Inventory.Item.Board.Motherboard",
+        "xyz.openbmc_project.Inventory.Item.Connector"};
+    dbus::utility::getSubTreePaths(
+        "/", 0, interfaces,
+        std::bind_front(afterGetHealthInventorySubTreePaths, health));
 }
 
 inline void handleChassisGetSubTree(
