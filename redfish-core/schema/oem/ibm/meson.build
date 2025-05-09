@@ -3,6 +3,7 @@ schemas = [
     'IBMComputerSystem',
     'IBMFabricAdapter',
     'IBMLogEntryAttachment',
+    'IBMManager',
     'IBMManagerAccount',
     'IBMPCIeDevice',
     'IBMPCIeSlots',
