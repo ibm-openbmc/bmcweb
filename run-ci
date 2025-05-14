@@ -4,6 +4,8 @@ set -e
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-"$SCRIPT_DIR/scripts/parse_registries.py"
-"$SCRIPT_DIR/scripts/update_schemas.py"
+# These go out to https://redfish.dmtf.org/ which is currently blocked.
+# Temporary comment these out
+# "$SCRIPT_DIR/scripts/parse_registries.py"
+# "$SCRIPT_DIR/scripts/update_schemas.py"
 git --no-pager -C "$SCRIPT_DIR" diff --exit-code
