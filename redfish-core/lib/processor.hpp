@@ -7,6 +7,7 @@
 
 #include "app.hpp"
 #include "async_resp.hpp"
+#include "dbus_singleton.hpp"
 #include "dbus_utility.hpp"
 #include "error_messages.hpp"
 #include "generated/enums/processor.hpp"
@@ -19,6 +20,7 @@
 #include "utils/collection.hpp"
 #include "utils/dbus_utils.hpp"
 #include "utils/hex_utils.hpp"
+#include "utils/hw_isolation.hpp"
 #include "utils/json_utils.hpp"
 #include "utils/name_utils.hpp"
 
@@ -699,8 +701,7 @@ inline void getCpuConfigData(
                 // config.
                 dbus::utility::getProperty<BaseSpeedPrioritySettingsProperty>(
                     service, dbusPath,
-                    "xyz.openbmc_project.Inventory.Item.Cpu."
-                    "OperatingConfig",
+                    "xyz.openbmc_project.Inventory.Item.Cpu.OperatingConfig",
                     "BaseSpeedPrioritySettings",
                     [asyncResp](const boost::system::error_code& ec2,
                                 const BaseSpeedPrioritySettingsProperty&
@@ -999,6 +1000,122 @@ inline void getProcessorPaths(
         });
 }
 
+inline void getCpuCoreDataByService(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& service, const std::string& objPath)
+{
+    BMCWEB_LOG_DEBUG("Get available system cpu core resources by service.");
+
+    asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
+    asyncResp->res.jsonValue["Status"]["Health"] = "OK";
+
+    crow::connections::systemBus->async_method_call(
+        [objPath, asyncResp](const boost::system::error_code& ec,
+                             const dbus::utility::ManagedObjectType& dbusData) {
+            if (ec)
+            {
+                BMCWEB_LOG_DEBUG("DBUS response error, ec: {}", ec.value());
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            for (const auto& [path, interfaces] : dbusData)
+            {
+                if (path != objPath)
+                {
+                    continue;
+                }
+
+                bool present = true;
+                bool functional = true;
+
+                for (const auto& [interface, properties] : interfaces)
+                {
+                    if (interface ==
+                        "xyz.openbmc_project.State.Decorator.OperationalStatus")
+                    {
+                        for (const auto& [propName, propValue] : properties)
+                        {
+                            if (propName == "Functional")
+                            {
+                                const bool* value =
+                                    std::get_if<bool>(&propValue);
+                                if (value == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                                functional = *value;
+                                break;
+                            }
+                        }
+                    }
+                    else if (interface == "xyz.openbmc_project.Inventory.Item")
+                    {
+                        for (const auto& [propName, propValue] : properties)
+                        {
+                            if (propName == "Present")
+                            {
+                                const bool* value =
+                                    std::get_if<bool>(&propValue);
+                                if (value == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                                present = *value;
+                            }
+                            else if (propName == "PrettyName")
+                            {
+                                const std::string* prettyName =
+                                    std::get_if<std::string>(&propValue);
+                                if (prettyName == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                                asyncResp->res.jsonValue["Name"] = *prettyName;
+                            }
+                        }
+                    }
+                    else if (interface == "xyz.openbmc_project.Object.Enable")
+                    {
+                        for (const auto& [propName, propValue] : properties)
+                        {
+                            if (propName == "Enabled")
+                            {
+                                const bool* enabled =
+                                    std::get_if<bool>(&propValue);
+                                if (enabled == nullptr)
+                                {
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                                asyncResp->res.jsonValue["Enabled"] = *enabled;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (!present)
+                {
+                    asyncResp->res.jsonValue["Status"]["State"] = "Absent";
+                }
+                else
+                {
+                    if (!functional)
+                    {
+                        asyncResp->res.jsonValue["Status"]["Health"] =
+                            "Critical";
+                    }
+                }
+            }
+        },
+        service, "/xyz/openbmc_project/inventory",
+        "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
+}
+
 inline void getOperationalStatusData(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& service, const std::string& objPath,
@@ -1083,6 +1200,11 @@ inline void getSubProcessorsCoreData(
                                          "/Name"_json_pointer);
             }
         }
+        if constexpr (BMCWEB_HW_ISOLATION)
+        {
+            // Check for the hardware status event
+            hw_isolation_utils::getHwIsolationStatus(asyncResp, corePath);
+        }
     }
 }
 
@@ -1140,6 +1262,76 @@ inline void getSubProcessorsCoreObject(
             handleSubProcessorsSubtree(asyncResp, processorId, coreId, callback,
                                        ec, objects);
         });
+}
+
+inline void getSubProcessorData(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& processorId, const std::string& coreId)
+{
+    BMCWEB_LOG_DEBUG("Get available system sub processor resources.");
+
+    auto callback = [asyncResp, processorId,
+                     coreId](const std::string& cpuPath) {
+        crow::connections::systemBus->async_method_call(
+            [asyncResp, processorId,
+             coreId](const boost::system::error_code& ec,
+                     const dbus::utility::MapperGetSubTreeResponse& subtree) {
+                if (ec)
+                {
+                    BMCWEB_LOG_DEBUG("DBUS response error, ec: {}", ec.value());
+                    // No processor objects found by mapper
+                    if (ec.value() == boost::system::errc::io_error)
+                    {
+                        messages::resourceNotFound(
+                            asyncResp->res, "#Processor.v1_18_0.Processor",
+                            processorId);
+                        return;
+                    }
+
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+
+                for (const auto& object : subtree)
+                {
+                    if (sdbusplus::message::object_path(object.first)
+                            .filename() != coreId)
+                    {
+                        continue;
+                    }
+
+                    asyncResp->res.jsonValue["@odata.type"] =
+                        "#Processor.v1_18_0.Processor";
+                    asyncResp->res.jsonValue["@odata.id"] = boost::urls::format(
+                        "/redfish/v1/Systems/system/Processors/{}/SubProcessors/{}",
+                        processorId, coreId);
+                    asyncResp->res.jsonValue["Name"] = "SubProcessor";
+                    asyncResp->res.jsonValue["Id"] = coreId;
+
+                    for (const auto& service : object.second)
+                    {
+                        getCpuCoreDataByService(asyncResp, service.first,
+                                                object.first);
+                        break;
+                    }
+                    return;
+                }
+
+                if (!subtree.empty())
+                {
+                    // Object not found
+                    messages::resourceNotFound(
+                        asyncResp->res, "#Processor.v1_18_0.Processor", coreId);
+                    return;
+                }
+            },
+            "xyz.openbmc_project.ObjectMapper",
+            "/xyz/openbmc_project/object_mapper",
+            "xyz.openbmc_project.ObjectMapper", "GetSubTree", cpuPath, 0,
+            procCoreInterfaces);
+    };
+
+    getProcessorPaths(asyncResp, processorId, std::move(callback));
 }
 
 inline void getSubProcessorMembers(
@@ -1293,9 +1485,10 @@ inline void patchAppliedOperatingConfig(
     const std::string* controlService = nullptr;
     for (const auto& [serviceName, interfaceList] : serviceMap)
     {
-        if (std::ranges::find(interfaceList,
-                              "xyz.openbmc_project.Control.Processor."
-                              "CurrentOperatingConfig") != interfaceList.end())
+        if (std::ranges::find(
+                interfaceList,
+                "xyz.openbmc_project.Control.Processor.CurrentOperatingConfig") !=
+            interfaceList.end())
         {
             controlService = &serviceName;
             break;
@@ -1767,6 +1960,89 @@ inline void requestRoutesProcessor(App& app)
         .privileges(redfish::privileges::patchProcessor)
         .methods(boost::beast::http::verb::patch)(
             std::bind_front(handleProcessorPatch, std::ref(app)));
+}
+/**
+ * @brief API used to process the Processor Core "Enabled" member which is
+ *        patched to do appropriate action.
+ *
+ * @param[in] asyncResp - The redfish response to return.
+ * @param[in] coreId - The patched Processor Core resource id.
+ * @param[in] enabled - The patched "Enabled" member value.
+ *
+ * @return The redfish response in the given buffer.
+ *
+ * @note - The "Enabled" member of the Processor Core is used to enable
+ *         (aka isolate) or disable (aka deisolate) the resource from the
+ *         system boot so this function will call "processHardwareIsolationReq"
+ *         function which is used to handle the resource isolation request.
+ *       - The "Enabled" member of the Processor Core is mapped with
+ *         "xyz.openbmc_project.Object.Enable::Enabled" dbus property.
+ */
+inline void patchCpuCoreMemberEnabled(
+    const std::shared_ptr<bmcweb::AsyncResp>& resp,
+    const std::string& procObjPath, const std::string& coreId,
+    const bool enabled)
+{
+    redfish::hw_isolation_utils::processHardwareIsolationReq(
+        resp, "Core", coreId, enabled,
+        std::vector<std::string_view>(procCoreInterfaces.begin(),
+                                      procCoreInterfaces.end()),
+        procObjPath);
+}
+
+/**
+ * @brief API used to process the Processor Core members which are tried to
+ *        patch.
+ *
+ * @param[in] req - The redfish patched request to identify the patched members
+ * @param[in] asyncResp - The redfish response to return.
+ * @param[in] processorId - The patched Core Processor resource id (unused now)
+ * @param[in] coreId - The patched Processor Core resource id.
+ *
+ * @return The redfish response in the given buffer.
+ *
+ * @note This function will call the appropriate function to handle the patched
+ *       members of the Processor Core.
+ */
+inline void patchCpuCoreMembers(
+    const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& processorId, const std::string& coreId)
+{
+    std::optional<bool> enabled;
+
+    if (!json_util::readJsonPatch(req, asyncResp->res, "Enabled", enabled))
+    {
+        return;
+    }
+
+    auto callback = [asyncResp, coreId, enabled](const std::string& cpuPath) {
+        // Handle patched Enabled Redfish property
+        if (enabled.has_value())
+        {
+            patchCpuCoreMemberEnabled(asyncResp, cpuPath, coreId, *enabled);
+        }
+    };
+
+    getProcessorPaths(asyncResp, processorId, std::move(callback));
+}
+
+inline void requestRoutesSubProcessorsCore(App& app)
+{
+    BMCWEB_ROUTE(
+        app, "/redfish/v1/Systems/system/Processors/<str>/SubProcessors/<str>")
+        .privileges(redfish::privileges::getProcessor)
+        .methods(boost::beast::http::verb::get)(
+            [](const crow::Request&,
+               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+               const std::string& processorId, const std::string& coreId) {
+                getSubProcessorData(asyncResp, processorId, coreId);
+            });
+
+    BMCWEB_ROUTE(
+        app, "/redfish/v1/Systems/system/Processors/<str>/SubProcessors/<str>")
+        .privileges(redfish::privileges::patchProcessor)
+        .methods(boost::beast::http::verb::patch)(patchCpuCoreMembers);
 }
 
 inline void handleSubProcessorGet(
