@@ -17,6 +17,7 @@ feature_options = [
     'hypervisor-serial-socket',
     'ibm-led-extensions',
     'ibm-management-console',
+    'ibm-usb-code-update',
     'insecure-disable-auth',
     'insecure-disable-csrf',
     'insecure-disable-ssl',

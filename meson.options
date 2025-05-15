@@ -110,7 +110,7 @@ option(
 option(
     'redfish-dump-log',
     type: 'feature',
-    value: 'disabled',
+    value: 'enabled',
     description: '''Enable Dump log service transactions through Redfish. Paths
                    are under /redfish/v1/Systems/system/LogServices/Dump
                    and /redfish/v1/Managers/bmc/LogServices/Dump''',
@@ -275,11 +275,18 @@ option(
     description: 'Enable the IBM LED extensions such as lamp test and system attention indicators.',
 )
 
+option(
+    'ibm-usb-code-update',
+    type: 'feature',
+    value: 'enabled',
+    description: 'Enable the USB code update functionality',
+)
+
 # BMCWEB_IBM_MANAGEMENT_CONSOLE
 option(
     'ibm-management-console',
     type: 'feature',
-    value: 'disabled',
+    value: 'enabled',
     description: '''Enable the IBM management console specific functionality.
                     Paths are under /ibm/v1/''',
 )

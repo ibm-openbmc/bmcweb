@@ -16,6 +16,7 @@
 #include "http_request.hpp"
 #include "led.hpp"
 #include "logging.hpp"
+#include "oem/ibm/usb_code_update.hpp"
 #include "openbmc/openbmc_managers.hpp"
 #include "persistent_data.hpp"
 #include "query.hpp"
@@ -801,6 +802,11 @@ inline void requestRoutesManager(App& app)
 
             managerGetLastResetTime(asyncResp);
 
+            if constexpr (BMCWEB_IBM_USB_CODE_UPDATE)
+            {
+                getUSBCodeUpdateState(asyncResp);
+            }
+
             // ManagerDiagnosticData is added for all BMCs.
             nlohmann::json& managerDiagnosticData =
                 asyncResp->res.jsonValue["ManagerDiagnosticData"];
@@ -988,6 +994,7 @@ inline void requestRoutesManager(App& app)
                 std::optional<nlohmann::json::object_t> fanZones;
                 std::optional<nlohmann::json::object_t> stepwiseControllers;
                 std::optional<std::string> profile;
+                std::optional<bool> usbCodeUpdateEnabled;
 
                 if (!json_util::readJsonPatch(                            //
                         req, asyncResp->res,                              //
@@ -1001,7 +1008,9 @@ inline void requestRoutesManager(App& app)
                         "Oem/OpenBmc/Fan/PidControllers", pidControllers, //
                         "Oem/OpenBmc/Fan/Profile", profile,               //
                         "Oem/OpenBmc/Fan/StepwiseControllers",
-                        stepwiseControllers                               //
+                        stepwiseControllers,                              //
+                        "Oem/IBM/USBCodeUpdateEnabled",
+                        usbCodeUpdateEnabled                              //
                         ))
                 {
                     return;
@@ -1040,6 +1049,19 @@ inline void requestRoutesManager(App& app)
                         auto pid = std::make_shared<SetPIDValues>(
                             asyncResp, std::move(configuration), profile);
                         pid->run();
+                    }
+                    else
+                    {
+                        messages::propertyUnknown(asyncResp->res, "Oem");
+                        return;
+                    }
+                }
+
+                if (usbCodeUpdateEnabled)
+                {
+                    if constexpr (BMCWEB_IBM_USB_CODE_UPDATE)
+                    {
+                        setUSBCodeUpdateState(asyncResp, *usbCodeUpdateEnabled);
                     }
                     else
                     {
