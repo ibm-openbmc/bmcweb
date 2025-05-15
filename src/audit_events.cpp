@@ -107,6 +107,7 @@ void auditSetState(bool enable)
  * @brief Checks if request should include additional data
  *
  * - Accounts requests data may contain passwords
+ * - UpdateService requests data may contain huge binary data.
  * - IBM Management console events data is not useful. It can be binary data or
  *   contents of file.
  * - User login and session data may contain passwords
@@ -116,6 +117,7 @@ void auditSetState(bool enable)
 inline bool checkSkipDetail(const crow::Request& req)
 {
     return req.target().starts_with("/redfish/v1/AccountService/Accounts") ||
+           req.target().starts_with("/redfish/v1/UpdateService") ||
            req.target().starts_with("/ibm/v1") ||
            ((req.method() == boost::beast::http::verb::post) &&
             checkPostUser(req));
