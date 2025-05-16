@@ -20,6 +20,7 @@
 #include "obmc_hypervisor.hpp"
 #include "obmc_shell.hpp"
 #include "openbmc_dbus_rest.hpp"
+#include "persistent_data.hpp"
 #include "redfish.hpp"
 #include "redfish_aggregator.hpp"
 #include "user_monitor.hpp"
@@ -67,6 +68,9 @@ int run()
     iface->register_method("SetLogLevel", setLogLevel);
 
     iface->initialize();
+
+    // Load the peristent data
+    persistent_data::getConfig();
 
     // Static assets need to be initialized before Authorization, because auth
     // needs to build the whitelist from the static routes
