@@ -729,6 +729,13 @@ def main() -> None:
             "heartbeat_event",
             "heartbeat",
         )
+    if "license" in registries_map:
+        create_error_registry(
+            registries_map["license"],
+            "License",
+            "license_event",
+            "license",
+        )
     if "resource_event" in registries_map:
         create_error_registry(
             registries_map["resource_event"],
