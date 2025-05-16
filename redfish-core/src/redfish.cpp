@@ -20,6 +20,7 @@
 #include "fabric_ports.hpp"
 #include "fan.hpp"
 #include "hypervisor_system.hpp"
+#include "license_service.hpp"
 #include "log_services.hpp"
 #include "manager_diagnostic_data.hpp"
 #include "manager_logservices_journal.hpp"
@@ -203,6 +204,13 @@ RedfishService::RedfishService(App& app)
         requestRoutesJournalEventLogEntryCollection(app);
         requestRoutesJournalEventLogEntry(app);
         requestRoutesJournalEventLogClear(app);
+    }
+
+    if constexpr (BMCWEB_REDFISH_LICENSE)
+    {
+        requestRoutesLicenseService(app);
+        requestRoutesLicenseEntryCollection(app);
+        requestRoutesLicenseEntry(app);
     }
 
     if constexpr (BMCWEB_REDFISH_HOST_LOGGER)

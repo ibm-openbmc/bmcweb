@@ -25,6 +25,11 @@
             "kind": "Singleton",
             "name": "RootOfTrustCollection",
             "url": "/google/v1/RootOfTrustCollection"
+	},
+        {
+             "kind": "Singleton",
+             "name": "LicenseService",
+             "url": "/redfish/v1/LicenseService"
         }
     ]
 }
