@@ -1263,9 +1263,61 @@ inline void handleUpdateServiceGet(
             std::move(allowed);
     }
 
-    asyncResp->res
-        .jsonValue["HttpPushUriOptions"]["HttpPushUriApplyTime"]["ApplyTime"] =
-        update_service::ApplyTime::Immediate;
+    // Get the current ApplyTime value
+    dbus::utility::getProperty<std::string>(
+        *crow::connections::systemBus, "xyz.openbmc_project.Settings",
+        "/xyz/openbmc_project/software/apply_time",
+        "xyz.openbmc_project.Software.ApplyTime", "RequestedApplyTime",
+        [asyncResp](const boost::system::error_code& ec,
+                    const std::string& applyTime) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR("DBUS response error {}", ec);
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            // Store the ApplyTime Value
+            if (applyTime ==
+                "xyz.openbmc_project.Software.ApplyTime.RequestedApplyTimes.Immediate")
+            {
+                asyncResp->res.jsonValue["HttpPushUriOptions"]
+                                        ["HttpPushUriApplyTime"]["ApplyTime"] =
+                    update_service::ApplyTime::Immediate;
+            }
+            else if (
+                applyTime ==
+                "xyz.openbmc_project.Software.ApplyTime.RequestedApplyTimes.OnReset")
+            {
+                asyncResp->res.jsonValue["HttpPushUriOptions"]
+                                        ["HttpPushUriApplyTime"]["ApplyTime"] =
+                    update_service::ApplyTime::OnReset;
+            }
+        });
+}
+
+inline void handleUpdateServicePatch(
+    App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+    BMCWEB_LOG_DEBUG("doPatch...");
+
+    std::optional<std::string> applyTime;
+    if (!json_util::readJsonPatch(
+            req, asyncResp->res,
+            "HttpPushUriOptions/HttpPushUriApplyTime/ApplyTime", applyTime))
+    {
+        return;
+    }
+
+    if (applyTime)
+    {
+        setApplyTime(asyncResp, *applyTime);
+    }
 }
 
 inline void handleUpdateServiceFirmwareInventoryCollectionGet(
@@ -1491,6 +1543,11 @@ inline void requestRoutesUpdateService(App& app)
         .privileges(redfish::privileges::getUpdateService)
         .methods(boost::beast::http::verb::get)(
             std::bind_front(handleUpdateServiceGet, std::ref(app)));
+
+    BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/")
+        .privileges(redfish::privileges::patchUpdateService)
+        .methods(boost::beast::http::verb::patch)(
+            std::bind_front(handleUpdateServicePatch, std::ref(app)));
 
     BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/update/")
         .privileges(redfish::privileges::postUpdateService)
