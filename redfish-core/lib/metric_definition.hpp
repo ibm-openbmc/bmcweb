@@ -30,6 +30,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -201,6 +202,13 @@ static std::string mapSensorToMetricDefinition(const std::string& sensorPath)
     return metricDefinitionPath + sensorObjectPath.filename();
 }
 
+static std::string& stringViewToStringRef(const std::string_view& sv)
+{
+    static std::string s;
+    s = std::string(sv);
+    return s;
+}
+
 template <class Callback>
 inline void mapRedfishUriToDbusPath(Callback&& callback)
 {
@@ -249,7 +257,8 @@ inline void mapRedfishUriToDbusPath(Callback&& callback)
         for (const std::string& chassisName : chassisNames)
         {
             ++counter->second;
-            retrieveUriToDbusMap(chassisName, sensors::sensorsNodeStr.data(),
+            retrieveUriToDbusMap(chassisName,
+                                 stringViewToStringRef(sensors::sensorsNodeStr),
                                  handleRetrieveUriToDbusMap);
         }
     });
