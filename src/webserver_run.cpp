@@ -37,6 +37,9 @@ int run()
     sdbusplus::asio::connection systemBus(*io);
     crow::connections::systemBus = &systemBus;
 
+    // Load the peristent data
+    persistent_data::getConfig();
+
     // Static assets need to be initialized before Authorization, because auth
     // needs to build the whitelist from the static routes
 
