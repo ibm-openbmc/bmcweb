@@ -10,12 +10,16 @@
 #include "logging.hpp"
 #include "ssl_key_handler.hpp"
 
+// NOLINTNEXTLINE(modernize-deprecated-headers)
+#include <signal.h>
+
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/signal_set.hpp>
 #include <boost/asio/ssl/context.hpp>
 #include <boost/asio/ssl/stream.hpp>
 #include <boost/asio/steady_timer.hpp>
+#include <persistent_data.hpp>
 
 #include <chrono>
 #include <csignal>
@@ -47,7 +51,12 @@ class Server
 
         // NOLINTNEXTLINE(misc-include-cleaner)
         signals(getIoContext(), SIGINT, SIGTERM, SIGHUP), handler(handlerIn)
-    {}
+    {
+        if constexpr (BMCWEB_IBM_MANAGEMENT_CONSOLE)
+        {
+            signals.add(SIGUSR1);
+        }
+    }
 
     void updateDateStr()
     {
@@ -101,26 +110,36 @@ class Server
 
     void startAsyncWaitForSignal()
     {
-        signals.async_wait(
-            [this](const boost::system::error_code& ec, int signalNo) {
-                if (ec)
+        signals.async_wait([this](const boost::system::error_code& ec,
+                                  int signalNo) {
+            if (ec)
+            {
+                BMCWEB_LOG_INFO("Error in signal handler{}", ec.message());
+            }
+            else
+            {
+                if (signalNo == SIGHUP)
                 {
-                    BMCWEB_LOG_INFO("Error in signal handler{}", ec.message());
+                    BMCWEB_LOG_INFO("Receivied reload signal");
+                    loadCertificate();
+                    startAsyncWaitForSignal();
+                }
+                if constexpr (BMCWEB_IBM_MANAGEMENT_CONSOLE)
+                {
+                    if (signalNo == SIGUSR1)
+                    {
+                        BMCWEB_LOG_INFO(
+                            "INFO: Receivied USR1 signal to dump latest session  data for bmc dump");
+                        persistent_data::getConfig().writeCurrentSessionData();
+                        this->startAsyncWaitForSignal();
+                    }
                 }
                 else
                 {
-                    if (signalNo == SIGHUP)
-                    {
-                        BMCWEB_LOG_INFO("Receivied reload signal");
-                        loadCertificate();
-                        startAsyncWaitForSignal();
-                    }
-                    else
-                    {
-                        getIoContext().stop();
-                    }
+                    getIoContext().stop();
                 }
-            });
+            }
+        });
     }
 
     using SocketPtr = std::unique_ptr<Adaptor>;
