@@ -93,6 +93,7 @@ struct IPv6AddressData
     std::string address;
     std::string origin;
     uint8_t prefixLength = 0;
+    bool isActive{};
 };
 
 /**
