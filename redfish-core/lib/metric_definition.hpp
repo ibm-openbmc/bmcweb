@@ -316,89 +316,99 @@ inline void requestRoutesMetricDefinitionCollection(App& app)
             });
 }
 
+inline void handleMetricDefinitionsGet(
+    App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& name)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+
+    telemetry::mapRedfishUriToDbusPath(
+        [asyncResp, name](
+            boost::system::error_code ec2,
+            const boost::container::flat_map<std::string, std::string>&
+                uriToDbus) {
+            if (ec2)
+            {
+                messages::internalError(asyncResp->res);
+                BMCWEB_LOG_ERROR("mapRedfishUriToDbusPath error: {}",
+                                 ec2.value());
+                return;
+            }
+
+            std::string odataId = telemetry::metricDefinitionUri + name;
+            boost::container::flat_map<std::string, std::string>
+                matchingUris;
+
+            for (const auto& [uri, dbusPath] : uriToDbus)
+            {
+                if (telemetry::mapSensorToMetricDefinition(dbusPath) ==
+                    odataId)
+                {
+                    matchingUris.emplace(uri, dbusPath);
+                }
+            }
+
+            if (matchingUris.empty())
+            {
+                messages::resourceNotFound(asyncResp->res,
+                                           "MetricDefinition", name);
+                return;
+            }
+
+            std::string sensorPath = matchingUris.begin()->second;
+
+            telemetry::getSensorService(
+                sensorPath,
+                [asyncResp, name, odataId = std::move(odataId),
+                 sensorPath, matchingUris = std::move(matchingUris)](
+                    boost::system::error_code ec3,
+                    const std::string& serviceName) {
+                    if (ec3)
+                    {
+                        messages::internalError(asyncResp->res);
+                        BMCWEB_LOG_ERROR("getServiceSensorFailed: {}",
+                                         ec3.value());
+                        return;
+                    }
+
+                    asyncResp->res.jsonValue["Id"] = name;
+                    asyncResp->res.jsonValue["Name"] = name;
+                    asyncResp->res.jsonValue["@odata.id"] = odataId;
+                    asyncResp->res.jsonValue["@odata.type"] =
+                        "#MetricDefinition.v1_0_3.MetricDefinition";
+                    asyncResp->res.jsonValue["MetricDataType"] =
+                        metric_definition::MetricDataType::Decimal;
+                    asyncResp->res.jsonValue["IsLinear"] = true;
+                    asyncResp->res.jsonValue["Units"] =
+                        sensor_utils::sensors::toReadingUnits(
+                            sdbusplus::message::object_path{sensorPath}
+                                .parent_path()
+                                .filename());
+
+                    for (const auto& [uri, dbusPath] : matchingUris)
+                    {
+                        asyncResp->res.jsonValue["MetricProperties"]
+                            .push_back(uri);
+                    }
+
+                    telemetry::fillMinMaxReadingRange(
+                        asyncResp, serviceName, sensorPath);
+                });
+        });
+
+}
+
 inline void requestRoutesMetricDefinition(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/TelemetryService/MetricDefinitions/<str>/")
         .privileges(privileges::getMetricDefinition)
-        .methods(
-            boost::beast::http::verb::get)([](const crow::Request&,
-                                              const std::shared_ptr<
-                                                  bmcweb::AsyncResp>& asyncResp,
-                                              const std::string& name) {
-            telemetry::mapRedfishUriToDbusPath(
-                [asyncResp, name](
-                    boost::system::error_code ec2,
-                    const boost::container::flat_map<std::string, std::string>&
-                        uriToDbus) {
-                    if (ec2)
-                    {
-                        messages::internalError(asyncResp->res);
-                        BMCWEB_LOG_ERROR("mapRedfishUriToDbusPath error: {}",
-                                         ec2.value());
-                        return;
-                    }
+        .methods(boost::beast::http::verb::get)(
+            std::bind_front(handleMetricDefinitionsGet, std::ref(app)));
 
-                    std::string odataId = telemetry::metricDefinitionUri + name;
-                    boost::container::flat_map<std::string, std::string>
-                        matchingUris;
-
-                    for (const auto& [uri, dbusPath] : uriToDbus)
-                    {
-                        if (telemetry::mapSensorToMetricDefinition(dbusPath) ==
-                            odataId)
-                        {
-                            matchingUris.emplace(uri, dbusPath);
-                        }
-                    }
-
-                    if (matchingUris.empty())
-                    {
-                        messages::resourceNotFound(asyncResp->res,
-                                                   "MetricDefinition", name);
-                        return;
-                    }
-
-                    std::string sensorPath = matchingUris.begin()->second;
-
-                    telemetry::getSensorService(
-                        sensorPath,
-                        [asyncResp, name, odataId = std::move(odataId),
-                         sensorPath, matchingUris = std::move(matchingUris)](
-                            boost::system::error_code ec3,
-                            const std::string& serviceName) {
-                            if (ec3)
-                            {
-                                messages::internalError(asyncResp->res);
-                                BMCWEB_LOG_ERROR("getServiceSensorFailed: {}",
-                                                 ec3.value());
-                                return;
-                            }
-
-                            asyncResp->res.jsonValue["Id"] = name;
-                            asyncResp->res.jsonValue["Name"] = name;
-                            asyncResp->res.jsonValue["@odata.id"] = odataId;
-                            asyncResp->res.jsonValue["@odata.type"] =
-                                "#MetricDefinition.v1_0_3.MetricDefinition";
-                            asyncResp->res.jsonValue["MetricDataType"] =
-                                metric_definition::MetricDataType::Decimal;
-                            asyncResp->res.jsonValue["IsLinear"] = true;
-                            asyncResp->res.jsonValue["Units"] =
-                                sensor_utils::sensors::toReadingUnits(
-                                    sdbusplus::message::object_path{sensorPath}
-                                        .parent_path()
-                                        .filename());
-
-                            for (const auto& [uri, dbusPath] : matchingUris)
-                            {
-                                asyncResp->res.jsonValue["MetricProperties"]
-                                    .push_back(uri);
-                            }
-
-                            telemetry::fillMinMaxReadingRange(
-                                asyncResp, serviceName, sensorPath);
-                        });
-                });
-        });
 }
 
 } // namespace redfish
