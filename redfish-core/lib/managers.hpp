@@ -17,6 +17,7 @@
 #include "led.hpp"
 #include "logging.hpp"
 #include "manager_redundancy.hpp"
+#include "oem/ibm/usb_code_update.hpp"
 #include "persistent_data.hpp"
 #include "query.hpp"
 #include "redfish.hpp"
@@ -843,6 +844,11 @@ inline void handleManagerGet(
 
     managerGetLastResetTime(asyncResp);
 
+    if constexpr (BMCWEB_IBM_USB_CODE_UPDATE)
+    {
+        getUSBCodeUpdateState(asyncResp);
+    }
+
     // ManagerDiagnosticData is added for all BMCs.
     nlohmann::json& managerDiagnosticData =
         asyncResp->res.jsonValue["ManagerDiagnosticData"];
@@ -892,25 +898,40 @@ inline void handleManagerPatch(
     std::optional<nlohmann::json::object_t> stepwiseControllers;
     std::optional<std::string> profile;
     std::optional<std::string> serviceIdentification;
+    std::optional<bool> usbCodeUpdateEnabled;
 
-    if (!json_util::readJsonPatch(                            //
-            req, asyncResp->res,                              //
-            "DateTime", datetime,                             //
+    if (!json_util::readJsonPatch(                                //
+            req, asyncResp->res,                                  //
+            "DateTime", datetime,                                 //
             "Links/ActiveSoftwareImage/@odata.id",
-            activeSoftwareImageOdataId,                       //
+            activeSoftwareImageOdataId,                           //
             "LocationIndicatorActive",
-            locationIndicatorActive,                          //
-            "Oem/OpenBmc/Fan/FanControllers", fanControllers, //
-            "Oem/OpenBmc/Fan/FanZones", fanZones,             //
-            "Oem/OpenBmc/Fan/PidControllers", pidControllers, //
-            "Oem/OpenBmc/Fan/Profile", profile,               //
+            locationIndicatorActive,                              //
+            "Oem/IBM/USBCodeUpdateEnabled", usbCodeUpdateEnabled, //
+            "Oem/OpenBmc/Fan/FanControllers", fanControllers,     //
+            "Oem/OpenBmc/Fan/FanZones", fanZones,                 //
+            "Oem/OpenBmc/Fan/PidControllers", pidControllers,     //
+            "Oem/OpenBmc/Fan/Profile", profile,                   //
             "Oem/OpenBmc/Fan/StepwiseControllers",
-            stepwiseControllers,                              //
-            "ServiceIdentification", serviceIdentification,   //
-            "TimeZoneName", timeZoneName                      //
+            stepwiseControllers,                                  //
+            "ServiceIdentification", serviceIdentification,       //
+            "TimeZoneName", timeZoneName                          //
             ))
     {
         return;
+    }
+
+    if (usbCodeUpdateEnabled)
+    {
+        if constexpr (BMCWEB_IBM_USB_CODE_UPDATE)
+        {
+            setUSBCodeUpdateState(asyncResp, *usbCodeUpdateEnabled);
+        }
+        else
+        {
+            messages::propertyUnknown(asyncResp->res, "Oem");
+            return;
+        }
     }
 
     if (activeSoftwareImageOdataId)
