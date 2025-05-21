@@ -14,6 +14,7 @@ feature_options = [
     'http2',
     'hypervisor-computer-system',
     'ibm-management-console',
+    'ibm-usb-code-update',
     'insecure-disable-auth',
     'insecure-disable-csrf',
     'insecure-disable-ssl',
