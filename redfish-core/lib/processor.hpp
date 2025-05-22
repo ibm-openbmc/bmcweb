@@ -19,6 +19,7 @@
 #include "utils/collection.hpp"
 #include "utils/dbus_utils.hpp"
 #include "utils/hex_utils.hpp"
+#include "utils/hw_isolation.hpp"
 #include "utils/json_utils.hpp"
 #include "utils/name_utils.hpp"
 
@@ -1050,6 +1051,28 @@ inline void getItemData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         });
 }
 
+inline void getEnabledStatus(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& service, const std::string& objPath,
+    const std::string& interface)
+{
+    dbus::utility::getProperty<bool>(
+        service, objPath, interface, "Enabled",
+        [asyncResp](const boost::system::error_code& ec, bool enabled) {
+            if (ec)
+            {
+                if (ec.value() != EBADR)
+                {
+                    BMCWEB_LOG_ERROR("DBUS response error, ec: {}", ec.value());
+                    messages::internalError(asyncResp->res);
+                }
+                return;
+            }
+
+            asyncResp->res.jsonValue["Enabled"] = enabled;
+        });
+}
+
 inline void getSubProcessorsCoreData(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& processorId, const std::string& coreId,
@@ -1081,6 +1104,16 @@ inline void getSubProcessorsCoreData(
                 getItemData(asyncResp, service, corePath, intf);
                 name_util::getPrettyName(asyncResp, corePath, service,
                                          "/Name"_json_pointer);
+            }
+            else if (intf == "xyz.openbmc_project.Object.Enable")
+            {
+                getEnabledStatus(asyncResp, service, corePath, intf);
+            }
+
+            if constexpr (BMCWEB_HW_ISOLATION)
+            {
+                // Check for the hardware status event
+                hw_isolation_utils::getHwIsolationStatus(asyncResp, corePath);
             }
         }
     }
@@ -1841,6 +1874,97 @@ inline void handleSubProcessorCoreGet(
         });
 }
 
+/**
+ * @brief API used to process the Processor Core "Enabled" member which is
+ *        patched to do appropriate action.
+ *
+ * @param[in] asyncResp - The redfish response to return.
+ * @param[in] procObjPath - The parent processor object path.
+ * @param[in] coreId - The patched Processor Core resource id.
+ * @param[in] enabled - The patched "Enabled" member value.
+ *
+ * @return The redfish response in the given buffer.
+ *
+ * @note - The "Enabled" member of the Processor Core is used to enable
+ *         (aka isolate) or disable (aka deisolate) the resource from the
+ *         system boot so this function will call
+ * "processHardwareIsolationReq" function which is used to handle the
+ * resource isolation request.
+ *       - The "Enabled" member of the Processor Core is mapped with
+ *         "xyz.openbmc_project.Object.Enable::Enabled" dbus property.
+ */
+inline void patchCpuCoreMemberEnabled(
+    const std::shared_ptr<bmcweb::AsyncResp>& resp,
+    const std::string& procObjPath, const std::string& coreId,
+    const bool enabled)
+{
+    redfish::hw_isolation_utils::processHardwareIsolationReq(
+        resp, "Core", coreId, enabled,
+        std::vector<std::string_view>(procCoreInterfaces.begin(),
+                                      procCoreInterfaces.end()),
+        procObjPath);
+}
+
+/**
+ * @brief API used to process the Processor Core members which are tried to
+ *        patch.
+ *
+ * @param[in] req - The redfish patched request to identify the patched
+ * members
+ * @param[in] asyncResp - The redfish response to return.
+ * @param[in] processorId - The patched Core Processor resource id (unused
+ * now)
+ * @param[in] coreId - The patched Processor Core resource id.
+ *
+ * @return The redfish response in the given buffer.
+ *
+ * @note This function will call the appropriate function to handle the
+ * patched members of the Processor Core.
+ */
+inline void patchCpuCoreMembers(
+    App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& systemName, const std::string& processorId,
+    const std::string& coreId)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+
+    if constexpr (BMCWEB_EXPERIMENTAL_REDFISH_MULTI_COMPUTER_SYSTEM)
+    {
+        // Option currently returns no systems.  TBD
+        messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                   systemName);
+        return;
+    }
+
+    if (systemName != BMCWEB_REDFISH_SYSTEM_URI_NAME)
+    {
+        messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                   systemName);
+        return;
+    }
+
+    std::optional<bool> enabled;
+
+    if (!json_util::readJsonPatch(req, asyncResp->res, "Enabled", enabled))
+    {
+        return;
+    }
+
+    getProcessorPaths(
+        asyncResp, processorId,
+        [asyncResp, coreId, enabled](const std::string& cpuPath) {
+            // Handle patched Enabled Redfish property
+            if (enabled.has_value())
+            {
+                patchCpuCoreMemberEnabled(asyncResp, cpuPath, coreId, *enabled);
+            }
+        });
+}
+
 inline void requestRoutesSubProcessors(App& app)
 {
     BMCWEB_ROUTE(app,
@@ -1854,6 +1978,12 @@ inline void requestRoutesSubProcessors(App& app)
         .privileges(redfish::privileges::getProcessor)
         .methods(boost::beast::http::verb::get)(
             std::bind_front(handleSubProcessorCoreGet, std::ref(app)));
+
+    BMCWEB_ROUTE(
+        app, "/redfish/v1/Systems/<str>/Processors/<str>/SubProcessors/<str>")
+        .privileges(redfish::privileges::patchProcessor)
+        .methods(boost::beast::http::verb::patch)(
+            std::bind_front(patchCpuCoreMembers, std::ref(app)));
 }
 
 } // namespace redfish

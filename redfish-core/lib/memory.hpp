@@ -7,6 +7,7 @@
 
 #include "app.hpp"
 #include "async_resp.hpp"
+#include "dbus_singleton.hpp"
 #include "dbus_utility.hpp"
 #include "error_messages.hpp"
 #include "generated/enums/memory.hpp"
@@ -19,6 +20,7 @@
 #include "utils/collection.hpp"
 #include "utils/dbus_utils.hpp"
 #include "utils/hex_utils.hpp"
+#include "utils/hw_isolation.hpp"
 #include "utils/json_utils.hpp"
 #include "utils/name_utils.hpp"
 
@@ -44,6 +46,10 @@
 
 namespace redfish
 {
+
+// Interfaces which imply a D-Bus object represents a Memory
+constexpr std::array<std::string_view, 1> dimmInterfaces = {
+    "xyz.openbmc_project.Inventory.Item.Dimm"};
 
 inline std::string translateMemoryTypeToRedfish(const std::string& memoryType)
 {
@@ -727,6 +733,39 @@ inline void getDimmPartitionData(std::shared_ptr<bmcweb::AsyncResp> asyncResp,
     );
 }
 
+/**
+ * @brief API used to get the Object.Enable interface properties value
+ *        for Memory
+ *
+ * @param[in] asyncResp - The redfish response to return.
+ * @param[in] service - The dbus service name which is hosting the given path.
+ * @param[in] path - The given Memory resource inventory dbus object path.
+ *
+ * @return The redfish response in the given buffer.
+ *
+ * @note - The "Enabled" member of the Memory (aka DIMM) is mapped with
+ *         "xyz.openbmc_project.Object.Enable::Enabled" dbus property.
+ */
+inline void getObjectEnable(std::shared_ptr<bmcweb::AsyncResp> asyncResp,
+                            const std::string& service, const std::string& path)
+{
+    dbus::utility::getProperty<bool>(
+        *crow::connections::systemBus, service, path,
+        "xyz.openbmc_project.Object.Enable", "Enabled",
+        [asyncResp{std::move(asyncResp)}](const boost::system::error_code& ec,
+                                          const bool enabled) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR("DBUS response error [{} : {}]", ec.value(),
+                                 ec.message());
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            asyncResp->res.jsonValue["Enabled"] = enabled;
+        });
+}
+
 inline void afterGetDimmData(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& dimmId, const boost::system::error_code& ec,
@@ -749,6 +788,7 @@ inline void afterGetDimmData(
 
         bool dimmInterface = false;
         bool associationInterface = false;
+        bool objectEnable = false;
         /* Note: Multiple D-Bus objects can provide details for the Memory
          * object: 1) Dimm is the primary object 2) Additional partitions could
          * exist per Dimm. Only consider the object found if the Dimm is found.
@@ -788,12 +828,21 @@ inline void afterGetDimmData(
                     // /xyz/openbmc_project/Inventory/Item/Dimm1/Partition2
                     getDimmPartitionData(asyncResp, serviceName, objectPath);
                 }
+                else if (interface == "xyz.openbmc_project.Object.Enable")
+                {
+                    objectEnable = true;
+                }
             }
 
             /* If a Dimm has an Association check if it has a LED */
             if (associationInterface && dimmInterface)
             {
                 getLocationIndicatorActive(asyncResp, objectPath);
+            }
+
+            if (dimmInterface && objectEnable)
+            {
+                getObjectEnable(asyncResp, serviceName, objectPath);
             }
         }
     }
@@ -826,6 +875,34 @@ inline void getDimmData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                  const dbus::utility::MapperGetSubTreeResponse& subtree) {
             afterGetDimmData(asyncResp, dimmId, ec, subtree);
         });
+}
+
+/**
+ * @brief API used to process the Memory "Enabled" member which is
+ *        patched to do appropriate action.
+ *
+ * @param[in] asynResp - The redfish response to return.
+ * @param[in] dimmId - The patched Memory (aka DIMM) resource id.
+ * @param[in] enabled - The patched "Enabled" member value.
+ *
+ * @return The redfish response in the given buffer.
+ *
+ * @note - The "Enabled" member of the Memory (aka DIMM) is used to enable
+ *         (aka isolate) or disable (aka deisolate) the resource from the
+ *         system boot so this function will call "processHardwareIsolationReq"
+ *         function which is used to handle the resource isolation request.
+ *       - The "Enabled" member of the Memory is mapped with
+ *         "xyz.openbmc_project.Object.Enable::Enabled" dbus property.
+ */
+
+inline void patchMemberEnabled(
+    const std::shared_ptr<bmcweb::AsyncResp>& asynResp,
+    const std::string& dimmId, const bool enabled)
+{
+    redfish::hw_isolation_utils::processHardwareIsolationReq(
+        asynResp, "Memory", dimmId, enabled,
+        std::vector<std::string_view>(dimmInterfaces.begin(),
+                                      dimmInterfaces.end()));
 }
 
 inline void handleSetDimmData(
@@ -932,10 +1009,12 @@ inline void handleMemoryPatch(
     }
 
     std::optional<bool> locationIndicatorActive;
-    if (!json_util::readJsonPatch(                             //
-            req, asyncResp->res,                               //
-            "LocationIndicatorActive", locationIndicatorActive //
-            ))
+
+    std::optional<bool> enabled;
+    if (!json_util::readJsonPatch( //
+            req, asyncResp->res,   //
+            "Enabled", enabled,    //
+            "LocationIndicatorActive", locationIndicatorActive))
     {
         return;
     }
@@ -945,6 +1024,11 @@ inline void handleMemoryPatch(
         getValidDimmPath(asyncResp, dimmId,
                          std::bind_front(handleSetDimmData, asyncResp,
                                          *locationIndicatorActive));
+    }
+
+    if (enabled.has_value())
+    {
+        patchMemberEnabled(asyncResp, dimmId, *enabled);
     }
 }
 

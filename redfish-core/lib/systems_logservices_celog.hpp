@@ -14,6 +14,7 @@
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 #include "utils/dbus_utils.hpp"
+#include "utils/error_log_utils.hpp"
 #include "utils/json_utils.hpp"
 #include "utils/time_utils.hpp"
 
@@ -188,7 +189,7 @@ inline void dBusCELogEntryPatch(
         return;
     }
 
-    getHiddenPropertyValue(
+    error_log_utils::getHiddenPropertyValue(
         asyncResp, entryId,
         [resolved, managementSystemAck, asyncResp,
          entryId](bool hiddenPropVal) {
@@ -208,7 +209,7 @@ inline void dBusCELogEntryDelete(
     BMCWEB_LOG_DEBUG("Do delete single event entries.");
     dbus::utility::escapePathForDbus(entryID);
 
-    getHiddenPropertyValue(
+    error_log_utils::getHiddenPropertyValue(
         asyncResp, entryID, [asyncResp, entryID](bool hiddenPropVal) {
             if (!hiddenPropVal)
             {
@@ -348,7 +349,7 @@ inline void requestRoutesDBusCELogEntryDownloadPelJson(App& app)
                 std::string entryID = param;
                 dbus::utility::escapePathForDbus(entryID);
 
-                getHiddenPropertyValue(
+                error_log_utils::getHiddenPropertyValue(
                     asyncResp, entryID,
                     [asyncResp, entryID](bool hiddenPropVal) {
                         if (!hiddenPropVal)
