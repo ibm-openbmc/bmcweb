@@ -3,6 +3,7 @@
 #pragma once
 #include "registries.hpp"
 #include "registries/base_message_registry.hpp"
+#include "registries/bios_message_registry.hpp"
 #include "registries/heartbeat_event_message_registry.hpp"
 #include "registries/openbmc_message_registry.hpp"
 #include "registries/resource_event_message_registry.hpp"
@@ -27,6 +28,10 @@ inline std::optional<registries::HeaderAndUrl>
     if (base::header.registryPrefix == registryName)
     {
         return HeaderAndUrl{base::header, base::url};
+    }
+    if (bios::header.registryPrefix == registryName)
+    {
+        return HeaderAndUrl{bios::header, bios::url};
     }
     if (heartbeat_event::header.registryPrefix == registryName)
     {
