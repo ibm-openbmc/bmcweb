@@ -9,6 +9,7 @@
 #include "http_request.hpp"
 #include "query.hpp"
 #include "registries.hpp"
+#include "registries/bios_registry.hpp"
 #include "registries/privilege_registry.hpp"
 #include "registries_selector.hpp"
 
@@ -48,7 +49,7 @@ inline void handleMessageRegistryFileCollectionGet(
 
     static constexpr const auto registryFiles = std::to_array(
         {"Base", "TaskEvent", "ResourceEvent", "OpenBMC", "Telemetry",
-         "HeartbeatEvent"});
+         "HeartbeatEvent", "BiosAttributeRegistry"});
 
     for (const char* memberName : registryFiles)
     {
@@ -94,6 +95,10 @@ inline void handleMessageRoutesMessageRegistryFileGet(
     {
         dmtf.clear();
     }
+    else if (registry == "BiosAttributeRegistry")
+    {
+        dmtf.clear();
+    }
     const registries::Header& header = headerAndUrl->header;
     const char* url = headerAndUrl->url;
 
@@ -117,7 +122,7 @@ inline void handleMessageRoutesMessageRegistryFileGet(
     location["Language"] = header.language;
     location["Uri"] = "/redfish/v1/Registries/" + registry + "/" + registry;
 
-    if (url != nullptr)
+    if (url != nullptr && std::strlen(url) != 0)
     {
         location["PublicationUri"] = url;
     }
@@ -145,6 +150,11 @@ inline void handleMessageRegistryGet(
         return;
     }
 
+    if (registry == "BiosAttributeRegistry")
+    {
+        handleBiosAttributeRegistryGet(app, req, asyncResp);
+        return;	
+    }
     std::optional<registries::HeaderAndUrl> headerAndUrl =
         registries::getRegistryHeaderAndUrlFromPrefix(registry);
     if (!headerAndUrl)
