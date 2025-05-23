@@ -47,6 +47,7 @@
 #include "systems_logservices_audit.hpp"
 #include "systems_logservices_celog.hpp"
 #include "systems_logservices_hostlogger.hpp"
+#include "systems_logservices_hwisolation.hpp"
 #include "systems_logservices_postcodes.hpp"
 #include "task.hpp"
 #include "telemetry_service.hpp"
@@ -171,6 +172,7 @@ RedfishService::RedfishService(App& app)
     requestRoutesOperatingConfig(app);
     requestRoutesMemoryCollection(app);
     requestRoutesMemory(app);
+    requestRoutesSystemHardwareIsolationLogService(app);
     requestRoutesSubProcessors(app);
 
     requestRoutesSystems(app);

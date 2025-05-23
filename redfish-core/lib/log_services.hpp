@@ -27,6 +27,7 @@
 #include "task_messages.hpp"
 #include "utils/dbus_event_log_entry.hpp"
 #include "utils/dbus_utils.hpp"
+#include "utils/error_log_utils.hpp"
 #include "utils/json_utils.hpp"
 #include "utils/query_param.hpp"
 #include "utils/time_utils.hpp"
@@ -1263,6 +1264,18 @@ inline void requestRoutesSystemLogServiceCollection(App& app)
                     "/redfish/v1/Systems/system/LogServices/AuditLog";
                 logServiceArray.push_back(std::move(auditLog));
             }
+            if constexpr (BMCWEB_HW_ISOLATION)
+            {
+                nlohmann::json& logServiceArrayLocal =
+                    asyncResp->res.jsonValue["Members"];
+                nlohmann::json::object_t member;
+                member["@odata.id"] = boost::urls::format(
+                    "/redfish/v1/Systems/{}/LogServices/HardwareIsolation",
+                    BMCWEB_REDFISH_SYSTEM_URI_NAME);
+                logServiceArrayLocal.emplace_back(std::move(member));
+                asyncResp->res.jsonValue["Members@odata.count"] =
+                    logServiceArrayLocal.size();
+            }
         });
 }
 
@@ -1747,27 +1760,6 @@ inline void handleSystemsLogServiceEventLogEntriesGet(
     }
     // Requested ID was not found
     messages::resourceNotFound(asyncResp->res, "LogEntry", targetID);
-}
-
-inline void getHiddenPropertyValue(
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& entryId,
-    std::function<void(bool hiddenPropVal)>&& callback)
-{
-    dbus::utility::getProperty<bool>(
-        "xyz.openbmc_project.Logging",
-        "/xyz/openbmc_project/logging/entry/" + entryId,
-        "org.open_power.Logging.PEL.Entry", "Hidden",
-        [callback = std::move(callback),
-         asyncResp](const boost::system::error_code& ec, bool hidden) {
-            if (ec)
-            {
-                BMCWEB_LOG_ERROR("DBUS response error: {}", ec);
-                messages::internalError(asyncResp->res);
-                return;
-            }
-            callback(hidden);
-        });
 }
 
 inline void requestRoutesJournalEventLogEntry(App& app)
@@ -2419,7 +2411,7 @@ inline void handleDBusEventLogEntryDownloadGet(
         return;
     }
 
-    getHiddenPropertyValue(
+    redfish::error_log_utils::getHiddenPropertyValue(
         asyncResp, entryID,
         [asyncResp, entryID, systemName, dumpType, hidden](bool hiddenPropVal) {
             if (hiddenPropVal != hidden)
@@ -2594,7 +2586,7 @@ inline void requestRoutesDBusEventLogEntryDownloadPelJson(App& app)
                 std::string entryID = param;
                 dbus::utility::escapePathForDbus(entryID);
 
-                getHiddenPropertyValue(
+                redfish::error_log_utils::getHiddenPropertyValue(
                     asyncResp, entryID,
                     [asyncResp, entryID](bool hiddenPropVal) {
                         if (hiddenPropVal)
