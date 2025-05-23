@@ -48,7 +48,7 @@ inline void handleMessageRegistryFileCollectionGet(
 
     static constexpr const auto registryFiles = std::to_array(
         {"Base", "TaskEvent", "ResourceEvent", "OpenBMC", "Telemetry",
-         "HeartbeatEvent"});
+         "HeartbeatEvent", "License"});
 
     for (const char* memberName : registryFiles)
     {
