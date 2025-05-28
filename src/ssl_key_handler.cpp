@@ -575,7 +575,7 @@ std::shared_ptr<boost::asio::ssl::context> getSslServerContext()
 }
 
 std::optional<boost::asio::ssl::context> getSSLClientContext(
-    VerifyCertificate verifyCertificate)
+    VerifyCertificate /*verifyCertificate*/)
 {
     namespace fs = std::filesystem;
 
@@ -591,9 +591,16 @@ std::optional<boost::asio::ssl::context> getSSLClientContext(
         return std::nullopt;
     }
 
+    // Currently remote server's certificate verfication fails for
+    // HMC provided self-signed certificates,
+    // so skip remote server's certificate verfication.
+
+    // TODO: certificate verfication can be enabled after supporting
+    // HMC-BMC connection certificate flows on both HMC and BMC.
+
     // Add a directory containing certificate authority files to be used
     // for performing verification.
-    boost::system::error_code ec;
+    /* boost::system::error_code ec;
     sslCtx.set_default_verify_paths(ec);
     if (ec)
     {
@@ -613,7 +620,7 @@ std::optional<boost::asio::ssl::context> getSSLClientContext(
     {
         BMCWEB_LOG_ERROR("SSL context set_verify_mode failed");
         return std::nullopt;
-    }
+    } */
 
     if (SSL_CTX_set_cipher_list(sslCtx.native_handle(), mozillaIntermediate) !=
         1)
