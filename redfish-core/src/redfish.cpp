@@ -12,6 +12,7 @@
 #include "cable.hpp"
 #include "certificate_service.hpp"
 #include "chassis.hpp"
+#include "dump_offload.hpp"
 #include "environment_metrics.hpp"
 #include "ethernet.hpp"
 #include "event_service.hpp"
@@ -130,6 +131,7 @@ RedfishService::RedfishService(App& app)
         requestRoutesSystemDumpEntry(app);
         requestRoutesSystemDumpCreate(app);
         requestRoutesSystemDumpClear(app);
+        crow::obmc_dump::requestRoutesDumpOffload(app);
 
         requestRoutesBMCDumpService(app);
         requestRoutesBMCDumpEntryCollection(app);
