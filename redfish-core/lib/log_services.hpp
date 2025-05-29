@@ -855,7 +855,7 @@ inline std::string getDumpEntryPath(const std::string& dumpPath)
         return std::format("/redfish/v1/Managers/{}/LogServices/Dump/Entries/",
                            BMCWEB_REDFISH_MANAGER_URI_NAME);
     }
-    if (dumpPath == "/xyz/openbmc_project/dump/system/entry")
+    if (dumpPath == "/xyz/openbmc_project/dump/system/Entry")
     {
         return std::format("/redfish/v1/Systems/{}/LogServices/Dump/Entries/",
                            BMCWEB_REDFISH_SYSTEM_URI_NAME);
@@ -871,6 +871,7 @@ inline void createDumpTaskCallback(
     const std::string dumpPath = createdObjPath.parent_path().str;
     const std::string dumpId = createdObjPath.filename();
 
+    BMCWEB_LOG_ERROR("**** dumpPath: {}, dumpId: {}", dumpPath, dumpId);
     std::string dumpEntryPath = getDumpEntryPath(dumpPath);
 
     if (dumpEntryPath.empty())
@@ -1207,6 +1208,7 @@ inline void createDump(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
             "xyz.openbmc_project.Common.OriginatedBy.OriginatorTypes.Client");
     }
 
+    BMCWEB_LOG_ERROR("**** createDumpType: {}", getDumpPath(createDumpType));
     crow::connections::systemBus->async_method_call(
         [asyncResp, payload(task::Payload(req)),
          dumpPath](const boost::system::error_code& ec,
