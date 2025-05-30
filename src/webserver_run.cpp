@@ -10,6 +10,7 @@
 #include "event_service_manager.hpp"
 #include "google/google_service_root.hpp"
 #include "hostname_monitor.hpp"
+#include "ibm/locks.hpp"
 #include "ibm/management_console_rest.hpp"
 #include "image_upload.hpp"
 #include "io_context_singleton.hpp"
@@ -29,6 +30,7 @@
 #include "webassets.hpp"
 
 #include <boost/asio/io_context.hpp>
+#include <event_dbus_monitor.hpp>
 #include <sdbusplus/asio/connection.hpp>
 #include <sdbusplus/asio/object_server.hpp>
 
@@ -130,6 +132,22 @@ int run()
     if constexpr (BMCWEB_IBM_MANAGEMENT_CONSOLE)
     {
         crow::ibm_mc::requestRoutes(app);
+        crow::ibm_mc_lock::Lock::getInstance();
+        // Start BMC and Host state change dbus monitor
+        crow::dbus_monitor::registerStateChangeSignal();
+        // Start Dump created signal monitor for BMC and System Dump
+        crow::dbus_monitor::registerDumpUpdateSignal();
+        // Start BIOS Attr change dbus monitor
+        crow::dbus_monitor::registerBIOSAttrUpdateSignal();
+        // Start event log entry created monitor
+        crow::dbus_monitor::registerEventLogCreatedSignal();
+        // Start PostCode change signal
+        crow::dbus_monitor::registerPostCodeChangeSignal();
+        // Start hypervisor app dbus monitor for hypervisor
+        // network configurations
+        crow::dbus_monitor::registerVMIConfigChangeSignal();
+        // Start Platform and Partition SAI state change monitor
+        crow::dbus_monitor::registerSAIStateChangeSignal();
     }
 
     if constexpr (BMCWEB_GOOGLE_API)
