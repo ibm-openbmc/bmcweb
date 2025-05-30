@@ -59,9 +59,11 @@ inline void populateSoftwareInformation(
             BMCWEB_LOG_DEBUG("populateSoftwareInformation enter");
             if (ec)
             {
-                BMCWEB_LOG_ERROR("error_code = {}", ec);
-                BMCWEB_LOG_ERROR("error msg = {}", ec.message());
-                messages::internalError(asyncResp->res);
+                if (ec.value() != EBADR)
+                {
+                    BMCWEB_LOG_ERROR("error_code = {}", ec);
+                    messages::internalError(asyncResp->res);
+                }
                 return;
             }
 
@@ -92,7 +94,7 @@ inline void populateSoftwareInformation(
 
             constexpr std::array<std::string_view, 1> interfaces = {
                 "xyz.openbmc_project.Software.Version"};
-            dbus::utility::getSubTree(
+            dbus::utility::getSubTree( //
                 "/xyz/openbmc_project/software", 0, interfaces,
                 [asyncResp, swVersionPurpose, activeVersionPropName,
                  populateLinkToImages, functionalSwIds](
@@ -100,9 +102,11 @@ inline void populateSoftwareInformation(
                     const dbus::utility::MapperGetSubTreeResponse& subtree) {
                     if (ec2)
                     {
-                        BMCWEB_LOG_ERROR("error_code = {}", ec2);
-                        BMCWEB_LOG_ERROR("error msg = {}", ec2.message());
-                        messages::internalError(asyncResp->res);
+                        if (ec2.value() != EBADR)
+                        {
+                            BMCWEB_LOG_ERROR("error_code = {}", ec2);
+                            messages::internalError(asyncResp->res);
+                        }
                         return;
                     }
 
@@ -145,19 +149,17 @@ inline void populateSoftwareInformation(
                                     propertiesList) {
                                 if (ec3)
                                 {
-                                    BMCWEB_LOG_ERROR("error_code = {}", ec3);
-                                    BMCWEB_LOG_ERROR("error msg = {}",
-                                                     ec3.message());
                                     // Have seen the code update app delete the
                                     // D-Bus object, during code update, between
                                     // the call to mapper and here. Just leave
                                     // these properties off if resource not
                                     // found.
-                                    if (ec3.value() == EBADR)
+                                    if (ec3.value() != EBADR)
                                     {
-                                        return;
+                                        BMCWEB_LOG_ERROR("error_code = {}",
+                                                         ec3);
+                                        messages::internalError(asyncResp->res);
                                     }
-                                    messages::internalError(asyncResp->res);
                                     return;
                                 }
                                 // example propertiesList
