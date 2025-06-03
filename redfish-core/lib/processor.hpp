@@ -302,7 +302,9 @@ inline void getCpuDataByService(
                 return;
             }
             asyncResp->res.jsonValue["Id"] = cpuId;
-            asyncResp->res.jsonValue["Name"] = "Processor";
+            const dbus::utility::MapperServiceMap& serviceMap = {{service, {""}}};
+            name_util::getPrettyName(asyncResp, objPath, serviceMap,
+                                     "/Name"_json_pointer);
             asyncResp->res.jsonValue["ProcessorType"] =
                 processor::ProcessorType::CPU;
 
@@ -897,10 +899,6 @@ inline void getProcessorObject(const std::shared_ptr<bmcweb::AsyncResp>& resp,
                         // want to process must be on the same object path.
 
                         handler(objectPath, serviceMap);
-                        const dbus::utility::MapperServiceMap& serviceMatch = {
-                            serviceEntry};
-                        name_util::getPrettyName(resp, objectPath, serviceMatch,
-                                                 "/Name"_json_pointer);
                         return;
                     }
                 }
