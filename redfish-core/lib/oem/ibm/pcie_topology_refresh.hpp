@@ -105,7 +105,7 @@ inline void
 {
     BMCWEB_LOG_DEBUG << "Set PCIe Topology Refresh status.";
     crow::connections::systemBus->async_method_call(
-        [&req, aResp](const boost::system::error_code ec) {
+        [req, aResp](const boost::system::error_code ec) {
         if (ec)
         {
             BMCWEB_LOG_DEBUG << "PCIe Topology Refresh failed." << ec;
