@@ -117,6 +117,14 @@ void assertServiceRootGet(crow::Response& res)
         expectedSize++;
     }
 
+    if constexpr (BMCWEB_REDFISH_LICENSE)
+    {
+        EXPECT_EQ(json["LicenseService"]["@odata.id"],
+                  "/redfish/v1/LicenseService");
+        EXPECT_EQ(json["LicenseService"].size(), 1);
+        expectedSize++;
+    }
+
     EXPECT_EQ(json.size(), expectedSize);
 }
 

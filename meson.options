@@ -212,6 +212,15 @@ option(
     description: 'Enable basic authentication',
 )
 
+# BMCWEB_REDFISH_LICENSE
+option(
+    'redfish-license',
+    type: 'feature',
+    value: 'enabled',
+    description: '''Enable License transactions through Redfish. Paths are
+                       under /redfish/v1/LicenseService/Licenses/''',
+)
+
 # BMCWEB_SESSION_AUTH
 option(
     'session-auth',
