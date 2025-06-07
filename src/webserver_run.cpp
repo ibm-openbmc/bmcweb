@@ -4,6 +4,7 @@
 
 #include "bmcweb_config.h"
 
+#include "acf_service.hpp"
 #include "app.hpp"
 #include "dbus_monitor.hpp"
 #include "dbus_singleton.hpp"
@@ -38,7 +39,6 @@
 #include <memory>
 #include <string>
 #include <string_view>
-
 static void setLogLevel(const std::string& logLevel)
 {
     const std::basic_string_view<char>* iter =
@@ -154,7 +154,7 @@ int run()
     {
         crow::google_api::requestRoutes(app);
     }
-
+    redfish::requestRoutesAcfService(app);
     crow::login_routes::requestRoutes(app);
 
     if constexpr (!BMCWEB_INSECURE_DISABLE_SSL)
