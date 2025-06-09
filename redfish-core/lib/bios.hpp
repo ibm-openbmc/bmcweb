@@ -19,12 +19,14 @@
 #include "utils/sw_utils.hpp"
 
 #include <sys/types.h>
+#include <systemd/sd-bus.h>
 
 #include <boost/beast/http/verb.hpp>
 #include <boost/container/flat_map.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/url/format.hpp>
 #include <sdbusplus/asio/property.hpp>
+#include <sdbusplus/message.hpp>
 
 #include <cstdint>
 #include <format>
@@ -518,25 +520,71 @@ inline void handleBiosSettingsPatch(
                 return;
             }
 
-            boost::container::flat_map<std::string,
-                                       std::pair<bool, std::string>>
+            boost::container::flat_map<
+                std::string,
+                std::tuple<
+                    bool, std::string,
+                    boost::container::flat_map<
+                        std::string, std::variant<int64_t, std::string>>>>
                 biosAttrsType;
 
             for (const BiosBaseTableItemType& item : baseBiosTable)
             {
+                const std::vector<OptionsItemType>& optionsVector =
+                    std::get<biosBaseOptions>(item.second);
+
+                boost::container::flat_map<std::string,
+                                           std::variant<int64_t, std::string>>
+                    attrBaseOptions;
+
+                for (const OptionsItemType& optItem : optionsVector)
+                {
+                    const std::string& strOptItemType =
+                        std::get<optItemType>(optItem);
+
+                    const std::string& optItemTypeRedfish =
+                        mapBoundTypeToRedfish(strOptItemType);
+
+                    if (optItemTypeRedfish == "UNKNOWN")
+                    {
+                        BMCWEB_LOG_ERROR("optItemTypeRedfish == UNKNOWN");
+                        messages::internalError(asyncResp->res);
+                        return;
+                    }
+                    if (optItemTypeRedfish == "OneOf")
+                    {
+                        const std::string* currValue = std::get_if<std::string>(
+                            &std::get<optItemValue>(optItem));
+                        if (currValue != nullptr)
+                        {
+                            attrBaseOptions.try_emplace(optItemTypeRedfish,
+                                                        *currValue);
+                        }
+                    }
+                    else
+                    {
+                        const int64_t* currValue = std::get_if<int64_t>(
+                            &std::get<optItemValue>(optItem));
+                        if (currValue != nullptr)
+                        {
+                            attrBaseOptions.try_emplace(optItemTypeRedfish,
+                                                        *currValue);
+                        }
+                    }
+                }
                 biosAttrsType.try_emplace(
                     item.first,
-                    std::make_pair(
+                    std::make_tuple(
                         std::get<biosBaseReadonlyStatus>(item.second),
-                        std::get<biosBaseAttrType>(item.second)));
+                        std::get<biosBaseAttrType>(item.second),
+                        attrBaseOptions));
             }
 
             PendingAttributesType pendingAttributes;
             for (const auto& attrItr : attrsJson.items())
             {
-                std::string attrName = attrItr.key();
+                const std::string& attrName = attrItr.key();
 
-                BMCWEB_LOG_ERROR("attrName: {}", attrName);
                 if (attrName.empty())
                 {
                     messages::invalidObject(
@@ -552,7 +600,7 @@ inline void handleBiosSettingsPatch(
                     return;
                 }
 
-                bool biosAttrReadOnlyStatus = ((*it).second).first;
+                const bool& biosAttrReadOnlyStatus = std::get<0>((*it).second);
                 if (biosAttrReadOnlyStatus)
                 {
                     BMCWEB_LOG_WARNING(
@@ -561,7 +609,7 @@ inline void handleBiosSettingsPatch(
                     return;
                 }
 
-                std::string biosAttrType = ((*it).second).second;
+                const std::string& biosAttrType = std::get<1>((*it).second);
                 if (biosAttrType.empty())
                 {
                     BMCWEB_LOG_ERROR("Attribute type not found in BIOS Table");
@@ -569,7 +617,7 @@ inline void handleBiosSettingsPatch(
                     return;
                 }
 
-                std::string biosRedfishAttrType =
+                const std::string& biosRedfishAttrType =
                     mapAttrTypeToRedfish(biosAttrType);
                 if (biosRedfishAttrType == "Integer")
                 {
@@ -583,12 +631,91 @@ inline void handleBiosSettingsPatch(
                                                          attrName);
                         return;
                     }
-                    int64_t attrValue = attrItr.value();
+                    const int64_t& attrValue = attrItr.value();
+
+                    boost::container::flat_map<
+                        std::string, std::variant<int64_t, std::string>>
+                        attrBaseOptionsMap = std::get<2>((*it).second);
+
+                    int64_t lowerBoundVal = 0;
+                    int64_t upperBoundVal = 0;
+
+                    // Get Lower Bound value
+                    auto iter = attrBaseOptionsMap.find("LowerBound");
+                    if (iter != attrBaseOptionsMap.end())
+                    {
+                        lowerBoundVal = std::get<int64_t>((*iter).second);
+                    }
+
+                    // Get Upper Bound value
+                    iter = attrBaseOptionsMap.find("UpperBound");
+                    if (iter != attrBaseOptionsMap.end())
+                    {
+                        upperBoundVal = std::get<int64_t>((*iter).second);
+                    }
+
+                    if (attrValue < lowerBoundVal || attrValue > upperBoundVal)
+                    {
+                        BMCWEB_LOG_ERROR("Attribute value is out of range");
+                        std::string val =
+                            boost::lexical_cast<std::string>(attrItr.value());
+                        messages::propertyValueOutOfRange(asyncResp->res, val,
+                                                          attrName);
+                        return;
+                    }
+
                     pendingAttributes.emplace_back(std::make_pair(
                         attrName, std::make_tuple(biosAttrType, attrValue)));
                 }
-                else if (biosRedfishAttrType == "String" ||
-                         biosRedfishAttrType == "Enumeration" ||
+                else if (biosRedfishAttrType == "String")
+                {
+                    if (attrItr.value().type() !=
+                        nlohmann::json::value_t::string)
+                    {
+                        BMCWEB_LOG_ERROR("The value must be of type String");
+                        std::string val =
+                            boost::lexical_cast<std::string>(attrItr.value());
+                        messages::propertyValueTypeError(asyncResp->res, val,
+                                                         attrName);
+                        return;
+                    }
+                    boost::container::flat_map<
+                        std::string, std::variant<int64_t, std::string>>
+                        attrBaseOptionsMap = std::get<2>((*it).second);
+
+                    int64_t minStringLength = 0;
+                    int64_t maxStringLength = 0;
+
+                    // Get Minimum String Length
+                    auto iter = attrBaseOptionsMap.find("MinLength");
+                    if (iter != attrBaseOptionsMap.end())
+                    {
+                        minStringLength = std::get<int64_t>((*iter).second);
+                    }
+
+                    // Get Maximum String Length
+                    iter = attrBaseOptionsMap.find("MaxLength");
+                    if (iter != attrBaseOptionsMap.end())
+                    {
+                        maxStringLength = std::get<int64_t>((*iter).second);
+                    }
+                    const std::string& attrValue = attrItr.value();
+                    const int64_t attrValueLength =
+                        static_cast<int64_t>(attrValue.length());
+                    if (attrValueLength < minStringLength ||
+                        attrValueLength > maxStringLength)
+                    {
+                        BMCWEB_LOG_ERROR("Attribute value length is "
+                                         "incorrect for {}",
+                                         attrName);
+                        messages::propertyValueIncorrect(asyncResp->res,
+                                                         attrName, attrValue);
+                        return;
+                    }
+                    pendingAttributes.emplace_back(std::make_pair(
+                        attrName, std::make_tuple(biosAttrType, attrValue)));
+                }
+                else if (biosRedfishAttrType == "Enumeration" ||
                          biosRedfishAttrType == "Password")
                 {
                     if (attrItr.value().type() !=
@@ -635,11 +762,37 @@ inline void handleBiosSettingsPatch(
                 "/xyz/openbmc_project/bios_config/manager",
                 "xyz.openbmc_project.BIOSConfig.Manager", "PendingAttributes",
                 pendingAttributes,
-                [asyncResp](const boost::system::error_code& ec1) {
+                [asyncResp,
+                 pendingAttributes](const boost::system::error_code& ec1,
+                                    const sdbusplus::message_t& msg) {
                     if (ec1)
                     {
-                        BMCWEB_LOG_ERROR("doPatch resp_handler got error: {}",
-                                         ec1);
+                        const sd_bus_error* dbusError = msg.get_error();
+                        if (dbusError != nullptr)
+                        {
+                            std::string_view errorName(dbusError->name);
+
+                            if (errorName ==
+                                "xyz.openbmc_project.Common.Error.InvalidArgument")
+                            {
+                                BMCWEB_LOG_WARNING("DBUS response error: {}",
+                                                   ec1);
+                                nlohmann::json pendingAttributesJson;
+                                for (const auto& attr : pendingAttributes)
+                                {
+                                    nlohmann::json attrJson;
+                                    attrJson["Name"] = attr.first;
+                                    attrJson["Type"] = std::get<0>(attr.second);
+
+                                    pendingAttributesJson.push_back(attrJson);
+                                }
+                                messages::propertyValueIncorrect(
+                                    asyncResp->res, "Attributes",
+                                    pendingAttributesJson);
+                                return;
+                            }
+                        }
+                        BMCWEB_LOG_ERROR("BUS response error: {}", ec1);
                         messages::internalError(asyncResp->res);
                         return;
                     }
