@@ -5,6 +5,7 @@
 #include "registries/base_message_registry.hpp"
 #include "registries/bios_message_registry.hpp"
 #include "registries/heartbeat_event_message_registry.hpp"
+#include "registries/license_message_registry.hpp"
 #include "registries/openbmc_message_registry.hpp"
 #include "registries/resource_event_message_registry.hpp"
 #include "registries/task_event_message_registry.hpp"
@@ -37,6 +38,10 @@ inline std::optional<registries::HeaderAndUrl>
     {
         return HeaderAndUrl{heartbeat_event::header, heartbeat_event::url};
     }
+    if (license::header.registryPrefix == registryName)
+    {
+        return HeaderAndUrl{license::header, license::url};
+    }
     if (openbmc::header.registryPrefix == registryName)
     {
         return HeaderAndUrl{openbmc::header, openbmc::url};
@@ -66,6 +71,10 @@ inline std::span<const MessageEntry> getRegistryFromPrefix(
     if (heartbeat_event::header.registryPrefix == registryName)
     {
         return {heartbeat_event::registry};
+    }
+    if (license::header.registryPrefix == registryName)
+    {
+        return {license::registry};
     }
     if (openbmc::header.registryPrefix == registryName)
     {
