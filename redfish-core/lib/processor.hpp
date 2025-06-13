@@ -815,7 +815,7 @@ inline void handleProcessorSubtree(
             {
                 if (std::ranges::find_first_of(interfaceList,
                                                processorInterfaces) !=
-                    std::end(interfaceList))
+                    interfaceList.end())
                 {
                     // Process the first object which matches cpu name and
                     // required interfaces, and potentially ignore any other
@@ -1436,6 +1436,34 @@ inline void handleProcessorCollectionHead(
         "</redfish/v1/JsonSchemas/ProcessorCollection/ProcessorCollection.json>; rel=describedby");
 }
 
+inline void handleProcessorGet(
+    App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& systemName, const std::string& processorId)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+    if constexpr (BMCWEB_EXPERIMENTAL_REDFISH_MULTI_COMPUTER_SYSTEM)
+    {
+        // Option currently returns no systems.  TBD
+        messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                   systemName);
+        return;
+    }
+    if (systemName != BMCWEB_REDFISH_SYSTEM_URI_NAME)
+    {
+        messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                   systemName);
+        return;
+    }
+
+    getProcessorObject(
+        asyncResp, processorId,
+        std::bind_front(getProcessorData, asyncResp, processorId));
+}
+
 inline void doPatchProcessor(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& processorId,
@@ -1795,43 +1823,8 @@ inline void requestRoutesProcessor(App& app)
 
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/Processors/<str>/")
         .privileges(redfish::privileges::getProcessor)
-        .methods(
-            boost::beast::http::verb::
-                get)([&app](const crow::Request& req,
-                            const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                            const std::string& systemName,
-                            const std::string& processorId) {
-            if (!redfish::setUpRedfishRoute(app, req, asyncResp))
-            {
-                return;
-            }
-            if constexpr (BMCWEB_EXPERIMENTAL_REDFISH_MULTI_COMPUTER_SYSTEM)
-            {
-                // Option currently returns no systems.  TBD
-                messages::resourceNotFound(asyncResp->res, "ComputerSystem",
-                                           systemName);
-                return;
-            }
-            if (systemName != BMCWEB_REDFISH_SYSTEM_URI_NAME)
-            {
-                messages::resourceNotFound(asyncResp->res, "ComputerSystem",
-                                           systemName);
-                return;
-            }
-
-            asyncResp->res.addHeader(
-                boost::beast::http::field::link,
-                "</redfish/v1/JsonSchemas/Processor/Processor.json>; rel=describedby");
-            asyncResp->res.jsonValue["@odata.type"] =
-                "#Processor.v1_18_0.Processor";
-            asyncResp->res.jsonValue["@odata.id"] = boost::urls::format(
-                "/redfish/v1/Systems/{}/Processors/{}",
-                BMCWEB_REDFISH_SYSTEM_URI_NAME, processorId);
-
-            getProcessorObject(
-                asyncResp, processorId,
-                std::bind_front(getProcessorData, asyncResp, processorId));
-        });
+        .methods(boost::beast::http::verb::get)(
+            std::bind_front(handleProcessorGet, std::ref(app)));
 
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/Processors/<str>/")
         .privileges(redfish::privileges::patchProcessor)
