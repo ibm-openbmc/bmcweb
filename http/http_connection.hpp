@@ -437,7 +437,6 @@ class Connection :
                 self->completeRequest(thisRes);
             });
         std::string url(req->target());
-//	boost::urls::url_view urlView(req->target());
         if (boost::algorithm::contains(url,
                                        "/system/LogServices/Dump/Entries/") &&
             boost::algorithm::ends_with(url, "/attachment"))
@@ -458,7 +457,7 @@ class Connection :
             });
 
             redfish::dump_utils::getValidDumpEntryForAttachment(
-                asyncResp, boost::urls::url_view(req->target()),//urlView,
+                asyncResp, boost::urls::url_view(req->target()),
                 [asyncResp, this, self(shared_from_this())](
                     [[maybe_unused]] const std::string& objectPath,
                     [[maybe_unused]] const std::string& entryID,
@@ -474,7 +473,6 @@ class Connection :
         }
         if (doUpgrade(asyncResp))
         {
-            BMCWEB_LOG_ERROR("**** doUpgrade(asyncResp) return;");
             return;
         }
         std::string_view expected =

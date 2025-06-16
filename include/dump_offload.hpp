@@ -48,6 +48,12 @@ class Handler : public std::enable_shared_from_this<Handler>
         entryID(entryIDIn), dumpType(dumpTypeIn),
         unixSocketPath(unixSocketPathIn), unixSocket(ios), waitTimer(ios)
     {}
+    ~Handler() = default;
+
+    Handler(const Handler&) = delete;
+    Handler(Handler&&) = delete;
+    Handler& operator=(const Handler&) = delete;
+    Handler& operator=(Handler&&) = delete;
 
     /**
      * @brief Connects to unix socket to read dump data
@@ -97,7 +103,7 @@ class Handler : public std::enable_shared_from_this<Handler>
     void initiateOffload()
     {
         std::string dumpEntryPath = std::format(
-            "/xyz/openbmc_project/dump/{}/Entry/{}", dumpType, entryID);
+            "/xyz/openbmc_project/dump/{}/entry/{}", dumpType, entryID);
         crow::connections::systemBus->async_method_call(
             [this,
              self(shared_from_this())](const boost::system::error_code& ec) {
@@ -216,7 +222,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                      const std::string& dumpEntryType)
     {
         std::string dumpEntryPath =
-            std::format("/xyz/openbmc_project/dump/{}/Entry/{}", dumpEntryType,
+            std::format("/xyz/openbmc_project/dump/{}/entry/{}", dumpEntryType,
                         dumpEntryID);
         dbus::utility::getProperty<uint64_t>(
             "xyz.openbmc_project.Dump.Manager", dumpEntryPath,
@@ -332,12 +338,11 @@ inline void requestRoutesDumpOffload(App& app)
 {
     BMCWEB_ROUTE(
         app,
-        "/redfish/v1/Systems/system/LogServices/Dump/Entries/<str>/attachment/")
+        "/redfish/v1/Systems/system/LogServices/Dump/Entries/<str>/attachment")
         .privileges(redfish::privileges::getLogEntry)
         .methods(boost::beast::http::verb::get)
         .streamingResponse()
         .onopen([](crow::streaming_response::Connection& conn) {
-            BMCWEB_LOG_ERROR("**** Inside");
             if (!systemHandlers.empty())
             {
                 BMCWEB_LOG_WARNING(
@@ -365,8 +370,7 @@ inline void requestRoutesDumpOffload(App& app)
                            pos2 - pos1 - startDelimiter.length());
             std::string dumpType = "system";
 
-	    BMCWEB_LOG_ERROR("**** dumpId: {}", dumpId);
-            boost::asio::io_context* ioCon = conn.getIoContext();
+	    boost::asio::io_context* ioCon = &getIoContext();
 
             // Generating random id to create unique socket file
             // for each dump offload request
@@ -375,9 +379,25 @@ inline void requestRoutesDumpOffload(App& app)
             std::uniform_int_distribution<> dist{0, 1024};
             std::string unixSocketPath = std::format(
                 "{}{}_dump_{}", unixSocketPathDir, dumpType, dist(gen));
-	    BMCWEB_LOG_ERROR("**** unixSocketPath: {}", unixSocketPath);
-            systemHandlers[&conn] = std::make_shared<Handler>(
-                *ioCon, dumpId, dumpType, unixSocketPath);
+	    if (!ioCon)
+	    {
+	        BMCWEB_LOG_ERROR("iocontext is null!");
+                systemHandlers[&conn]->connection->sendStreamErrorStatus(
+                        boost::beast::http::status::internal_server_error);
+                conn.close();
+	    }
+	    try
+	    {
+	        systemHandlers[&conn] = std::make_shared<Handler>(*ioCon, dumpId, dumpType, unixSocketPath);
+	    }
+	    catch (const std::exception& e)
+	    {
+	        BMCWEB_LOG_ERROR("Exception while creating Handler: {}", e.what());
+                systemHandlers[&conn]->connection->sendStreamErrorStatus(
+                        boost::beast::http::status::internal_server_error);
+                conn.close();
+		return;
+	    }
             systemHandlers[&conn]->connection = &conn;
 
             if (!crow::ibm_utils::createDirectory(unixSocketPathDir))

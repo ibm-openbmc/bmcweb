@@ -54,8 +54,7 @@ class ConnectionImpl : public Connection
                    std::function<void(Connection&, bool&)> closeHandlerIn,
                    std::function<void(Connection&)> errorHandlerIn) :
 
-        Connection(reqIn), adaptor(std::move(adaptorIn)),
-        waitTimer(*reqIn.ioService), openHandler(std::move(openHandlerIn)),
+        Connection(reqIn), adaptor(std::move(adaptorIn)), openHandler(std::move(openHandlerIn)),
         messageHandler(std::move(messageHandlerIn)),
         closeHandler(std::move(closeHandlerIn)),
         errorHandler(std::move(errorHandlerIn))
@@ -63,7 +62,8 @@ class ConnectionImpl : public Connection
 
     boost::asio::io_context* getIoContext() override
     {
-        return req.ioService;
+        return static_cast<boost::asio::io_context*>(
+            &adaptor.get_executor().context());
     }
 
     void start()
@@ -156,7 +156,6 @@ class ConnectionImpl : public Connection
 
   private:
     Adaptor adaptor;
-    boost::asio::steady_timer waitTimer;
     bool doingWrite = false;
     std::function<void(Connection&)> openHandler;
     std::function<void(Connection&, const std::string&, bool)> messageHandler;

@@ -18,7 +18,11 @@ class StreamingResponseRule : public BaseRule
 
   public:
     explicit StreamingResponseRule(const std::string& ruleIn) : BaseRule(ruleIn)
-    {}
+    {
+        isUpgrade = true;
+        // Clear GET handler
+        methodsBitfield = 0;
+    }
 
     void validate() override {}
 
@@ -26,7 +30,10 @@ class StreamingResponseRule : public BaseRule
                 const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                 const std::vector<std::string>& /*params*/) override
     {
-        asyncResp->res.result(boost::beast::http::status::not_found);
+        BMCWEB_LOG_ERROR(
+            "Handle called on streaminResponse rule.  This should never happen");
+        asyncResp->res.result(
+            boost::beast::http::status::internal_server_error);
     }
 
     void handleUpgrade(const Request& req,
