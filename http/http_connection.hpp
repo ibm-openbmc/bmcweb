@@ -31,6 +31,7 @@
 #include <boost/beast/http/read.hpp>
 #include <boost/beast/http/write.hpp>
 #include <boost/beast/websocket.hpp>
+#include <boost/url/url_view.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -736,7 +737,13 @@ class Connection :
     void doWrite()
     {
         BMCWEB_LOG_DEBUG("{} doWrite", logPtr(this));
-        res.preparePayload();
+
+        boost::urls::url_view urlView;
+        if (req != nullptr)
+        {
+            urlView = req->url();
+        }
+        res.preparePayload(urlView);
 
         startDeadline();
         boost::beast::async_write(

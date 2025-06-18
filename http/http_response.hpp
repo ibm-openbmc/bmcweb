@@ -9,6 +9,7 @@
 #include <boost/beast/core/flat_static_buffer.hpp>
 #include <boost/beast/http/basic_dynamic_body.hpp>
 #include <boost/beast/http/message.hpp>
+#include <boost/url/url_view.hpp>
 #include <nlohmann/json.hpp>
 
 #include <optional>
@@ -178,10 +179,8 @@ struct Response
         return response.body().payloadSize();
     }
 
-    void preparePayload()
+    void preparePayload(const boost::urls::url_view& urlView)
     {
-        // This code is a throw-free equivalent to
-        // beast::http::message::prepare_payload
         std::optional<uint64_t> pSize = response.body().payloadSize();
 
         using http::status;
@@ -201,8 +200,8 @@ struct Response
         {
             BMCWEB_LOG_CRITICAL("{} Response content provided but code was "
                                 "no-content or not_modified, which aren't "
-                                "allowed to have a body",
-                                logPtr(this));
+                                "allowed to have a body for url : \"{}\"",
+                                logPtr(this), urlView.path());
             response.content_length(0);
             return;
         }

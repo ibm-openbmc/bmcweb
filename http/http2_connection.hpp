@@ -24,6 +24,7 @@
 #include <boost/beast/http/write.hpp>
 #include <boost/beast/websocket.hpp>
 #include <boost/system/error_code.hpp>
+#include <boost/url/url_view.hpp>
 
 #include <array>
 #include <atomic>
@@ -170,7 +171,12 @@ class HTTP2Connection :
 
         completeResponseFields(stream.accept, res);
         res.addHeader(boost::beast::http::field::date, getCachedDateStr());
-        res.preparePayload();
+        boost::urls::url_view urlView;
+        if (stream.req != nullptr)
+        {
+            urlView = stream.req->url();
+        }
+        res.preparePayload(urlView);
 
         boost::beast::http::fields& fields = res.fields();
         std::string code = std::to_string(res.resultInt());
