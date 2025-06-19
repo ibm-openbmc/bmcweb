@@ -853,7 +853,7 @@ class Connection :
     void doWrite()
     {
         BMCWEB_LOG_DEBUG("{} doWrite", logPtr(this));
-        res.preparePayload();
+        res.preparePayload(req->url().path());
 
         startDeadline();
         if (httpType == HttpType::HTTP)
