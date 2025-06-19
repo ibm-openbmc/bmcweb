@@ -7,12 +7,12 @@
 #include "audit_events.hpp"
 #include "authentication.hpp"
 #include "complete_response_fields.hpp"
+#include "dump_utils.hpp"
 #include "forward_unauthorized.hpp"
 #include "http2_connection.hpp"
 #include "http_body.hpp"
 #include "http_connect_types.hpp"
 #include "http_request.hpp"
-#include "dump_utils.hpp"
 #include "http_response.hpp"
 #include "http_utility.hpp"
 #include "logging.hpp"
@@ -44,6 +44,7 @@
 #include <boost/beast/http/verb.hpp>
 #include <boost/none.hpp>
 #include <boost/optional/optional.hpp>
+#include <boost/url/url_view.hpp>
 
 #include <bit>
 #include <chrono>
@@ -57,7 +58,6 @@
 #include <system_error>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 namespace crow
 {
@@ -443,18 +443,18 @@ class Connection :
         {
             asyncResp->res.setCompleteRequestHandler(
                 [self(shared_from_this())](crow::Response& thisRes) {
-                if (thisRes.result() != boost::beast::http::status::ok)
-                {
-                    // When any error occurs before handle upgradation,
-                    // the result in response will be set to respective
-                    // error. By default the Result will be OK (200),
-                    // which implies successful handle upgrade. Response
-                    // needs to be sent over this connection only on
-                    // failure.
-                    self->completeRequest(thisRes);
-                    return;
-                }
-            });
+                    if (thisRes.result() != boost::beast::http::status::ok)
+                    {
+                        // When any error occurs before handle upgradation,
+                        // the result in response will be set to respective
+                        // error. By default the Result will be OK (200),
+                        // which implies successful handle upgrade. Response
+                        // needs to be sent over this connection only on
+                        // failure.
+                        self->completeRequest(thisRes);
+                        return;
+                    }
+                });
 
             redfish::dump_utils::getValidDumpEntryForAttachment(
                 asyncResp, boost::urls::url_view(req->target()),
@@ -462,13 +462,13 @@ class Connection :
                     [[maybe_unused]] const std::string& objectPath,
                     [[maybe_unused]] const std::string& entryID,
                     [[maybe_unused]] const std::string& dumpType) {
-                BMCWEB_LOG_DEBUG("upgrade stream connection");
-                handler->handleUpgrade(req, asyncResp, std::move(adaptor));
+                    BMCWEB_LOG_DEBUG("upgrade stream connection");
+                    handler->handleUpgrade(req, asyncResp, std::move(adaptor));
 
-                // delete lambda with self shared_ptr
-                // to enable connection destruction
-                res.completeRequestHandler = nullptr;
-            });
+                    // delete lambda with self shared_ptr
+                    // to enable connection destruction
+                    res.completeRequestHandler = nullptr;
+                });
             return;
         }
         if (doUpgrade(asyncResp))

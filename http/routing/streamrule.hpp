@@ -1,12 +1,19 @@
 #pragma once
 
+#include "async_resp.hpp"
 #include "baserule.hpp"
+#include "http_request.hpp"
 #include "http_stream.hpp"
+#include "logging.hpp"
 
-#include <boost/beast/http/verb.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ssl/stream.hpp>
+#include <boost/beast/http/status.hpp>
 
+#include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace crow

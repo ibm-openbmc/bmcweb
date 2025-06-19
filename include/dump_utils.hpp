@@ -6,15 +6,19 @@
 #include "logging.hpp"
 #include "utility.hpp"
 
+#include <asm-generic/errno.h>
+
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/system/error_code.hpp>
-#include <boost/url/format.hpp>
-#include <dbus_singleton.hpp>
+#include <boost/url/url_view_base.hpp>
 #include <sdbusplus/message/native_types.hpp>
 
-#include <cstddef>
+#include <format>
+#include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace redfish
 {
@@ -23,7 +27,6 @@ namespace dump_utils
 
 inline void getValidDumpEntryForAttachment(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    //const std::string& url,
     const boost::urls::url_view_base& url,
     std::function<void(const std::string& objectPath,
                        const std::string& /*entryID*/,
@@ -77,7 +80,9 @@ inline void getValidDumpEntryForAttachment(
                 return;
             }
 
-            std::string dumpEntryIdPath = std::format("/xyz/openbmc_project/dump/{}/entry/{}", std::string(boost::algorithm::to_lower_copy(dumpType)), dumpId);
+            std::string dumpEntryIdPath = std::format(
+                "/xyz/openbmc_project/dump/{}/entry/{}",
+                std::string(boost::algorithm::to_lower_copy(dumpType)), dumpId);
 
             for (const auto& objectPath : resp)
             {

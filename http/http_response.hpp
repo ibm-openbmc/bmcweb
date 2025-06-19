@@ -9,10 +9,10 @@
 
 #include <boost/beast/core/error.hpp>
 #include <boost/beast/core/file_base.hpp>
+#include <boost/beast/core/flat_static_buffer.hpp>
 #include <boost/beast/http/basic_dynamic_body.hpp>
 #include <boost/beast/http/field.hpp>
 #include <boost/beast/http/fields.hpp>
-#include <boost/beast/core/flat_static_buffer.hpp>
 #include <boost/beast/http/message.hpp>
 #include <boost/beast/http/status.hpp>
 #include <nlohmann/json.hpp>
@@ -360,14 +360,20 @@ struct DynamicResponse
 
     std::optional<response_type> bufferResponse;
 
+    response_type& getBufferResponse()
+    {
+        assert(bufferResponse.has_value() && "bufferResponse is not set");
+        return *bufferResponse;
+    }
+
     void addHeader(const std::string_view key, const std::string_view value)
     {
-        bufferResponse->set(key, value);
+        getBufferResponse().set(key, value);
     }
 
     void addHeader(boost::beast::http::field key, std::string_view value)
     {
-        bufferResponse->set(key, value);
+        getBufferResponse().set(key, value);
     }
 
     DynamicResponse() : bufferResponse(response_type{}) {}
@@ -391,22 +397,22 @@ struct DynamicResponse
 
     void result(boost::beast::http::status v)
     {
-        bufferResponse->result(v);
+        getBufferResponse().result(v);
     }
 
     boost::beast::http::status result()
     {
-        return bufferResponse->result();
+        return getBufferResponse().result();
     }
 
     unsigned resultInt()
     {
-        return bufferResponse->result_int();
+        return getBufferResponse().result_int();
     }
 
     std::string_view reason()
     {
-        return bufferResponse->reason();
+        return getBufferResponse().reason();
     }
 
     bool isCompleted() const noexcept
@@ -416,17 +422,17 @@ struct DynamicResponse
 
     void keepAlive(bool k)
     {
-        bufferResponse->keep_alive(k);
+        getBufferResponse().keep_alive(k);
     }
 
     bool keepAlive()
     {
-        return bufferResponse->keep_alive();
+        return getBufferResponse().keep_alive();
     }
 
     void preparePayload()
     {
-        bufferResponse->prepare_payload();
+        getBufferResponse().prepare_payload();
     }
 
     void clear()

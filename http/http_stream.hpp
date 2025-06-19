@@ -1,17 +1,18 @@
 #pragma once
 #include "http/http_request.hpp"
 #include "http/http_response.hpp"
+#include "logging.hpp"
 
-#include <boost/algorithm/string/predicate.hpp>
+#include <boost/asio/buffer.hpp>
 #include <boost/asio/io_context.hpp>
-#include <boost/asio/steady_timer.hpp>
-#include <boost/beast/core/ostream.hpp>
-#include <boost/beast/http/basic_dynamic_body.hpp>
+#include <boost/beast/http/status.hpp>
 #include <boost/system/error_code.hpp>
 
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 
 namespace crow
 {
@@ -54,7 +55,8 @@ class ConnectionImpl : public Connection
                    std::function<void(Connection&, bool&)> closeHandlerIn,
                    std::function<void(Connection&)> errorHandlerIn) :
 
-        Connection(reqIn), adaptor(std::move(adaptorIn)), openHandler(std::move(openHandlerIn)),
+        Connection(reqIn), adaptor(std::move(adaptorIn)),
+        openHandler(std::move(openHandlerIn)),
         messageHandler(std::move(messageHandlerIn)),
         closeHandler(std::move(closeHandlerIn)),
         errorHandler(std::move(errorHandlerIn))
