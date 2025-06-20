@@ -163,6 +163,7 @@ inline void getFabricAdapterHealth(
 
 inline void afterDoCheckFabricAdapterChassis(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& fabricAdapterPath,
     const dbus::utility::MapperEndPoints& pcieSlotPaths,
     const std::function<void(const std::string&,
                              const dbus::utility::MapperEndPoints&)>& callback,
@@ -182,7 +183,13 @@ inline void afterDoCheckFabricAdapterChassis(
     }
     if (chassisPaths.size() != 1)
     {
-        BMCWEB_LOG_ERROR("PCIe Slot association error! ");
+        BMCWEB_LOG_ERROR(
+            "Association error for fabricAdapter:{} to chassis. Its association count:{} is not equal to 1.",
+            fabricAdapterPath, chassisPaths.size());
+        for (const auto& chassisPath : chassisPaths)
+        {
+            BMCWEB_LOG_ERROR("Invalid chassisPath: {}", chassisPath);
+        }
         messages::internalError(asyncResp->res);
         return;
     }
@@ -234,7 +241,7 @@ inline void doCheckFabricAdapterChassis(
         sdbusplus::message::object_path("/xyz/openbmc_project/inventory"), 0,
         chassisInterface,
         std::bind_front(afterDoCheckFabricAdapterChassis, asyncResp,
-                        pcieSlotPaths, std::move(callback)));
+                        fabricAdapterPath, pcieSlotPaths, std::move(callback)));
 }
 
 inline void afterGetFabricAdapterPCIeSlots(

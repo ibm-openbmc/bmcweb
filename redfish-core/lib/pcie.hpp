@@ -203,10 +203,10 @@ inline void fillPcieDeviceStatus(crow::Response& resp,
     }
 }
 
-inline void
-    afterAddLinkToPCIeSlot(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                           const boost::system::error_code& ec,
-                           const dbus::utility::MapperEndPoints& chassisPaths)
+inline void afterAddLinkToPCIeSlot(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& pcieDeviceSlot, const boost::system::error_code& ec,
+    const dbus::utility::MapperEndPoints& chassisPaths)
 {
     if (ec)
     {
@@ -215,13 +215,19 @@ inline void
             // This PCIeSlot has no chassis association.
             return;
         }
-        BMCWEB_LOG_ERROR("DBUS response error {}", ec.value());
+        BMCWEB_LOG_ERROR("DBUS response error {}", ec);
         messages::internalError(asyncResp->res);
         return;
     }
     if (chassisPaths.size() != 1)
     {
-        BMCWEB_LOG_ERROR("PCIe Slot association error! ");
+        BMCWEB_LOG_ERROR(
+            "Association error for PCIeSlot:{} to chassis error. Its association count:{} is not equal to 1.",
+            pcieDeviceSlot, chassisPaths.size());
+        for (const auto& chassisPath : chassisPaths)
+        {
+            BMCWEB_LOG_ERROR("Invalid chassisPath: {}", chassisPath);
+        }
         messages::internalError(asyncResp->res);
         return;
     }
@@ -244,7 +250,8 @@ inline void
     dbus::utility::getAssociatedSubTreePaths(
         pcieDeviceSlot + "/contained_by",
         sdbusplus::message::object_path("/xyz/openbmc_project/inventory"), 0,
-        chassisInterfaces, std::bind_front(afterAddLinkToPCIeSlot, asyncResp));
+        chassisInterfaces,
+        std::bind_front(afterAddLinkToPCIeSlot, asyncResp, pcieDeviceSlot));
 }
 
 inline void addPCIeSlotProperties(

@@ -1071,7 +1071,7 @@ inline void afterGetCpuCoreDataByService(
 {
     if (ec)
     {
-        BMCWEB_LOG_ERROR("DBUS response error, ec: {}", ec.value());
+        BMCWEB_LOG_ERROR("DBUS response error, ec: {}", ec);
         messages::internalError(asyncResp->res);
         return;
     }
