@@ -114,11 +114,10 @@ for csdl_file in csdl_filenames:
         content = content.replace(b"\r\n", b"\n")
         schema_out.write(content)
 
-    if csdl_file in csdl_installed_symlinks:
-        os.symlink(
-            os.path.join("..", "csdl", csdl_file),
-            os.path.join(schema_installed_path, csdl_file),
-        )
+    os.symlink(
+        os.path.join("..", "csdl", csdl_file),
+        os.path.join(schema_installed_path, csdl_file),
+    )
 
 # Get the currently-installed json symlinks
 json_base_symlinks = defaultdict(list)
@@ -140,11 +139,10 @@ for schema_filename, versions in json_schema_files.items():
         content = content.replace(b"\r\n", b"\n")
         schema_file.write(content)
 
-    if schema_filename in json_base_symlinks:
-        os.symlink(
-            os.path.join("..", "json-schema", versions[0]),
-            os.path.join(json_schema_installed_path, versions[0]),
-        )
+    os.symlink(
+        os.path.join("..", "json-schema", versions[0]),
+        os.path.join(json_schema_installed_path, versions[0]),
+    )
 
 zip_ref.close()
 
