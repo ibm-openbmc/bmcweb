@@ -9,6 +9,8 @@
 
 #include <boost/beast/core/error.hpp>
 #include <boost/beast/core/file_base.hpp>
+#include <boost/beast/core/flat_static_buffer.hpp>
+#include <boost/beast/http/basic_dynamic_body.hpp>
 #include <boost/beast/http/field.hpp>
 #include <boost/beast/http/fields.hpp>
 #include <boost/beast/http/message.hpp>
@@ -348,5 +350,121 @@ struct Response
     std::optional<std::string> expectedHash;
     bool completed = false;
     std::function<void(Response&)> completeRequestHandler;
+};
+
+struct DynamicResponse
+{
+    using response_type = boost::beast::http::response<
+        boost::beast::http::basic_dynamic_body<boost::beast::flat_static_buffer<
+            static_cast<std::size_t>(1024 * 1024)>>>;
+
+    std::optional<response_type> bufferResponse;
+
+    response_type& getBufferResponse()
+    {
+        assert(bufferResponse.has_value() && "bufferResponse is not set");
+        return *bufferResponse;
+    }
+
+    void addHeader(const std::string_view key, const std::string_view value)
+    {
+        getBufferResponse().set(key, value);
+    }
+
+    void addHeader(boost::beast::http::field key, std::string_view value)
+    {
+        getBufferResponse().set(key, value);
+    }
+
+    DynamicResponse() : bufferResponse(response_type{}) {}
+
+    ~DynamicResponse() = default;
+
+    DynamicResponse(const DynamicResponse&) = delete;
+
+    DynamicResponse(DynamicResponse&&) = delete;
+
+    DynamicResponse& operator=(const DynamicResponse& r) = delete;
+
+    DynamicResponse& operator=(DynamicResponse&& r) noexcept
+    {
+        BMCWEB_LOG_DEBUG("Moving response containers");
+        bufferResponse = std::move(r.bufferResponse);
+        r.bufferResponse.emplace(response_type{});
+        completed = r.completed;
+        return *this;
+    }
+
+    void result(boost::beast::http::status v)
+    {
+        getBufferResponse().result(v);
+    }
+
+    boost::beast::http::status result()
+    {
+        return getBufferResponse().result();
+    }
+
+    unsigned resultInt()
+    {
+        return getBufferResponse().result_int();
+    }
+
+    std::string_view reason()
+    {
+        return getBufferResponse().reason();
+    }
+
+    bool isCompleted() const noexcept
+    {
+        return completed;
+    }
+
+    void keepAlive(bool k)
+    {
+        getBufferResponse().keep_alive(k);
+    }
+
+    bool keepAlive()
+    {
+        return getBufferResponse().keep_alive();
+    }
+
+    void preparePayload()
+    {
+        getBufferResponse().prepare_payload();
+    }
+
+    void clear()
+    {
+        bufferResponse.emplace(response_type{});
+        completed = false;
+    }
+
+    void end()
+    {
+        if (completed)
+        {
+            BMCWEB_LOG_DEBUG("Dynamic response was ended twice");
+            return;
+        }
+        completed = true;
+        BMCWEB_LOG_DEBUG("calling completion handler");
+        if (completeRequestHandler)
+        {
+            BMCWEB_LOG_DEBUG("completion handler was valid");
+            completeRequestHandler();
+        }
+    }
+
+    bool isAlive()
+    {
+        return isAliveHelper && isAliveHelper();
+    }
+    std::function<void()> completeRequestHandler;
+
+  private:
+    bool completed{};
+    std::function<bool()> isAliveHelper;
 };
 } // namespace crow

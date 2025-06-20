@@ -7,6 +7,7 @@
 #include "audit_events.hpp"
 #include "authentication.hpp"
 #include "complete_response_fields.hpp"
+#include "dump_utils.hpp"
 #include "forward_unauthorized.hpp"
 #include "http2_connection.hpp"
 #include "http_body.hpp"
@@ -20,6 +21,7 @@
 #include "str_utility.hpp"
 #include "utility.hpp"
 
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/asio/error.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ssl/error.hpp>
@@ -42,6 +44,7 @@
 #include <boost/beast/http/verb.hpp>
 #include <boost/none.hpp>
 #include <boost/optional/optional.hpp>
+#include <boost/url/url_view.hpp>
 
 #include <bit>
 #include <chrono>
@@ -433,6 +436,41 @@ class Connection :
             [self(shared_from_this())](crow::Response& thisRes) {
                 self->completeRequest(thisRes);
             });
+        std::string url(req->target());
+        if (boost::algorithm::contains(url,
+                                       "/system/LogServices/Dump/Entries/") &&
+            boost::algorithm::ends_with(url, "/attachment"))
+        {
+            asyncResp->res.setCompleteRequestHandler(
+                [self(shared_from_this())](crow::Response& thisRes) {
+                    if (thisRes.result() != boost::beast::http::status::ok)
+                    {
+                        // When any error occurs before handle upgradation,
+                        // the result in response will be set to respective
+                        // error. By default the Result will be OK (200),
+                        // which implies successful handle upgrade. Response
+                        // needs to be sent over this connection only on
+                        // failure.
+                        self->completeRequest(thisRes);
+                        return;
+                    }
+                });
+
+            redfish::dump_utils::getValidDumpEntryForAttachment(
+                asyncResp, boost::urls::url_view(req->target()),
+                [asyncResp, this, self(shared_from_this())](
+                    [[maybe_unused]] const std::string& objectPath,
+                    [[maybe_unused]] const std::string& entryID,
+                    [[maybe_unused]] const std::string& dumpType) {
+                    BMCWEB_LOG_DEBUG("upgrade stream connection");
+                    handler->handleUpgrade(req, asyncResp, std::move(adaptor));
+
+                    // delete lambda with self shared_ptr
+                    // to enable connection destruction
+                    res.completeRequestHandler = nullptr;
+                });
+            return;
+        }
         if (doUpgrade(asyncResp))
         {
             return;

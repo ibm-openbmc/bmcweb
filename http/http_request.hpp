@@ -5,6 +5,7 @@
 #include "http_body.hpp"
 #include "sessions.hpp"
 
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/address.hpp>
 #include <boost/beast/http/field.hpp>
 #include <boost/beast/http/fields.hpp>
@@ -33,6 +34,7 @@ struct Request : std::enable_shared_from_this<Request>
     boost::urls::url urlBase;
 
   public:
+    boost::asio::io_context* ioService = nullptr;
     boost::asio::ip::address ipAddress;
 
     std::shared_ptr<persistent_data::UserSession> session;
@@ -72,6 +74,7 @@ struct Request : std::enable_shared_from_this<Request>
     {
         req.clear();
         urlBase.clear();
+        ioService = nullptr;
         ipAddress = boost::asio::ip::address();
         session = nullptr;
         userRole = "";
