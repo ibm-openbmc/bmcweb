@@ -39,10 +39,19 @@ inline void
     sdbusplus::asio::getProperty<bool>(
         *crow::connections::systemBus, "xyz.openbmc_project.Logging",
         errorLogObjPath.str, "org.open_power.Logging.PEL.Entry", "Hidden",
-        [aResp, errorLogObjPath, errorLogPropPath, isLink](
-            const boost::system::error_code ec, const bool hiddenProperty) {
+        [aResp, errorLogObjPath, errorLogPropPath,
+         isLink](const boost::system::error_code ec, bool hiddenProperty) {
         if (ec)
         {
+            if (ec.value() == EBADR)
+            {
+                // Skip log entry if Hidden dbus property is missing
+                // Put this log trace to journal by default.
+                BMCWEB_LOG_ERROR << "DBUS property 'Hidden' for entry :"
+                                 << errorLogObjPath.str << "  does not exist";
+                return;
+            }
+
             BMCWEB_LOG_ERROR
                 << "DBus response error [" << ec.value() << " : "
                 << ec.message() << "] when tried to get the Hidden property "
