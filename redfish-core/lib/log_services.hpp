@@ -2854,12 +2854,19 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                         messages::internalError(asyncResp->res);
                         return;
                     }
+                    if (hidden == nullptr)
+                    {
+                        // Skip log entry if Hidden dbus property is missing
+                        messages::resourceNotFound(asyncResp->res,
+                                                   "EventLogEntry",
+                                                   std::to_string(*id));
+                        return;
+                    }
 
                     if (id == nullptr || eventId == nullptr ||
                         severity == nullptr || timestamp == nullptr ||
                         updateTimestamp == nullptr || resolved == nullptr ||
-                        notify == nullptr || hidden == nullptr ||
-                        subsystem == nullptr ||
+                        notify == nullptr || subsystem == nullptr ||
                         (BMCWEB_IBM_MANAGEMENT_CONSOLE &&
                          managementSystemAck == nullptr))
                     {
@@ -2987,8 +2994,8 @@ inline void requestRoutesDBusEventLogEntry(App& app)
 
                 auto updatePropertyCallback =
                     [resolved, managementSystemAck, asyncResp,
-                     entryId](bool hiddenPropVal) {
-                        if (hiddenPropVal)
+                     entryId](const std::optional<bool>& hiddenPropVal) {
+                        if (hiddenPropVal.value_or(true))
                         {
                             messages::resourceNotFound(asyncResp->res,
                                                        "LogEntry", entryId);
@@ -3033,8 +3040,9 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                 dbus::utility::escapePathForDbus(entryID);
 
                 auto deleteEventLogCallback =
-                    [asyncResp, entryID](bool hiddenPropVal) {
-                        if (hiddenPropVal)
+                    [asyncResp,
+                     entryID](const std::optional<bool>& hiddenPropVal) {
+                        if (hiddenPropVal.value_or(true))
                         {
                             messages::resourceNotFound(asyncResp->res,
                                                        "LogEntry", entryID);
@@ -3121,11 +3129,18 @@ inline void requestRoutesDBusCELogEntry(App& app)
                         return;
                     }
 
+                    if (hidden == nullptr)
+                    {
+                        // Skip log entry if Hidden dbus property is missing
+                        messages::resourceNotFound(asyncResp->res, "LogEntry",
+                                                   std::to_string(*id));
+                        return;
+                    }
+
                     if (id == nullptr || eventId == nullptr ||
                         severity == nullptr || timestamp == nullptr ||
                         updateTimestamp == nullptr || resolved == nullptr ||
-                        hidden == nullptr || notify == nullptr ||
-                        subsystem == nullptr ||
+                        notify == nullptr || subsystem == nullptr ||
                         (BMCWEB_IBM_MANAGEMENT_CONSOLE &&
                          managementSystemAck == nullptr))
                     {
@@ -3243,8 +3258,8 @@ inline void requestRoutesDBusCELogEntry(App& app)
 
                 auto updatePropertyCallback =
                     [resolved, managementSystemAck, asyncResp,
-                     entryId](bool hiddenPropVal) {
-                        if (!hiddenPropVal)
+                     entryId](const std::optional<bool>& hiddenPropVal) {
+                        if (!hiddenPropVal.value_or(false))
                         {
                             messages::resourceNotFound(asyncResp->res,
                                                        "LogEntry", entryId);
@@ -3282,8 +3297,9 @@ inline void requestRoutesDBusCELogEntry(App& app)
                 dbus::utility::escapePathForDbus(entryID);
 
                 auto deleteCELogCallback =
-                    [asyncResp, entryID](bool hiddenPropVal) {
-                        if (!hiddenPropVal)
+                    [asyncResp,
+                     entryID](const std::optional<bool>& hiddenPropVal) {
+                        if (!hiddenPropVal.value_or(false))
                         {
                             messages::resourceNotFound(asyncResp->res,
                                                        "LogEntry", entryID);
@@ -3365,8 +3381,9 @@ inline void requestRoutesDBusEventLogEntryDownloadPelJson(App& app)
                 dbus::utility::escapePathForDbus(entryID);
 
                 auto eventLogAttachmentCallback =
-                    [asyncResp, entryID](bool hiddenPropVal) {
-                        if (hiddenPropVal)
+                    [asyncResp,
+                     entryID](const std::optional<bool>& hiddenPropVal) {
+                        if (hiddenPropVal.value_or(true))
                         {
                             messages::resourceNotFound(asyncResp->res,
                                                        "LogEntry", entryID);
@@ -3405,8 +3422,9 @@ inline void requestRoutesDBusCELogEntryDownloadPelJson(App& app)
                 dbus::utility::escapePathForDbus(entryID);
 
                 auto eventLogAttachmentCallback =
-                    [asyncResp, entryID](bool hiddenPropVal) {
-                        if (!hiddenPropVal)
+                    [asyncResp,
+                     entryID](const std::optional<bool>& hiddenPropVal) {
+                        if (hiddenPropVal.value_or(false))
                         {
                             messages::resourceNotFound(asyncResp->res,
                                                        "LogEntry", entryID);
@@ -4360,8 +4378,8 @@ inline void handleDBusEventLogEntryDownloadGet(
     }
 
     auto callback = [asyncResp, entryID, systemName, dumpType,
-                     hidden](bool hiddenPropVal) {
-        if (hiddenPropVal != hidden)
+                     hidden](const std::optional<bool>& hiddenPropVal) {
+        if (hiddenPropVal.value_or(!hidden) != hidden)
         {
             messages::resourceNotFound(asyncResp->res, "LogEntry", entryID);
             return;
@@ -7223,27 +7241,32 @@ inline void fillSystemHardwareIsolationLogEntry(
 
                             std::string entryID = errPath.filename();
 
-                            auto updateAdditionalDataURI = [asyncResp,
-                                                            entryJsonIdx,
-                                                            entryID](
-                                                               bool hidden) {
-                                nlohmann::json& entryJsonToupdateURI =
-                                    (entryJsonIdx > 0
-                                         ? asyncResp->res
-                                               .jsonValue["Members"]
-                                                         [entryJsonIdx - 1]
-                                         : asyncResp->res.jsonValue);
-                                std::string logPath = "EventLog";
+                            auto updateAdditionalDataURI = //
+                                [asyncResp, entryJsonIdx,
+                                 entryID](const std::optional<bool>& hidden) {
+                                    if (!hidden.has_value())
+                                    {
+                                        // Skip entry if Hidden  property does
+                                        // not exist
+                                        return;
+                                    }
+                                    nlohmann::json& entryJsonToupdateURI =
+                                        (entryJsonIdx > 0
+                                             ? asyncResp->res
+                                                   .jsonValue["Members"]
+                                                             [entryJsonIdx - 1]
+                                             : asyncResp->res.jsonValue);
 
-                                if (hidden)
-                                {
-                                    logPath = "CELog";
-                                }
-                                entryJsonToupdateURI["AdditionalDataURI"] =
-                                    boost::urls::format(
-                                        "/redfish/v1/Systems/system/LogServices/{}/Entries/{}/attachment",
-                                        logPath, entryID);
-                            };
+                                    std::string logPath = "EventLog";
+                                    if (*hidden)
+                                    {
+                                        logPath = "CELog";
+                                    }
+                                    entryJsonToupdateURI["AdditionalDataURI"] =
+                                        boost::urls::format(
+                                            "/redfish/v1/Systems/system/LogServices/{}/Entries/{}/attachment",
+                                            logPath, entryID);
+                                };
                             redfish::error_log_utils::getHiddenPropertyValue(
                                 asyncResp, entryID, updateAdditionalDataURI);
                         }
