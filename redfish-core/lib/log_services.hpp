@@ -1911,11 +1911,19 @@ template <typename Callback>
 void getHiddenPropertyValue(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                             const std::string& entryId, Callback&& callback)
 {
-    auto respHandler = [callback{std::forward<Callback>(callback)},
-                        asyncResp](const boost::system::error_code ec,
-                                   const bool& hiddenProperty) {
+    auto respHandler =
+        [callback{std::forward<Callback>(callback)}, asyncResp,
+         entryId](const boost::system::error_code ec, bool hiddenProperty) {
         if (ec)
         {
+            if (ec.value() == EBADR)
+            {
+                // Put this log trace to journal by default.
+                BMCWEB_LOG_ERROR << "DBUS property 'Hidden' for entry "
+                                 << entryId << " does not exist";
+                callback(std::nullopt);
+                return;
+            }
             BMCWEB_LOG_ERROR << "DBUS response error: " << ec;
             messages::internalError(asyncResp->res);
             return;
@@ -2599,11 +2607,19 @@ inline void requestRoutesDBusEventLogEntry(App& app)
                 messages::internalError(asyncResp->res);
                 return;
             }
+            if (hidden == nullptr)
+            {
+                // Skip log entry if Hidden dbus property is missing
+                BMCWEB_LOG_ERROR << "DBUS property 'Hidden' for entry "
+                                 << std::to_string(*id) << " does not exist";
+                messages::resourceNotFound(asyncResp->res, "EventLogEntry",
+                                           std::to_string(*id));
+                return;
+            }
 
             if (id == nullptr || eventId == nullptr || severity == nullptr ||
                 timestamp == nullptr || updateTimestamp == nullptr ||
-                resolved == nullptr || notify == nullptr || hidden == nullptr ||
-                subsystem == nullptr
+                resolved == nullptr || notify == nullptr || subsystem == nullptr
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
                 || managementSystemAck == nullptr
 #endif
@@ -2711,9 +2727,10 @@ inline void requestRoutesDBusEventLogEntry(App& app)
             }
         }
 
-        auto updatePropertyCallback = [resolved, managementSystemAck, asyncResp,
-                                       entryId](bool hiddenPropVal) {
-            if (hiddenPropVal)
+        auto updatePropertyCallback =
+            [resolved, managementSystemAck, asyncResp,
+             entryId](const std::optional<bool>& hiddenPropVal) {
+            if (hiddenPropVal.value_or(true))
             {
                 messages::resourceNotFound(asyncResp->res, "LogEntry", entryId);
                 return;
@@ -2748,8 +2765,9 @@ inline void requestRoutesDBusEventLogEntry(App& app)
 
         dbus::utility::escapePathForDbus(entryID);
 
-        auto deleteEventLogCallback = [asyncResp, entryID](bool hiddenPropVal) {
-            if (hiddenPropVal)
+        auto deleteEventLogCallback =
+            [asyncResp, entryID](const std::optional<bool>& hiddenPropVal) {
+            if (hiddenPropVal.value_or(true))
             {
                 messages::resourceNotFound(asyncResp->res, "LogEntry", entryID);
                 return;
@@ -2836,10 +2854,19 @@ inline void requestRoutesDBusCELogEntry(App& app)
                 return;
             }
 
+            if (hidden == nullptr)
+            {
+                // Skip log entry if Hidden dbus property is missing
+                BMCWEB_LOG_ERROR << "DBUS property 'Hidden' for entry "
+                                 << std::to_string(*id) << " does not exist";
+                messages::resourceNotFound(asyncResp->res, "LogEntry",
+                                           std::to_string(*id));
+                return;
+            }
+
             if (id == nullptr || eventId == nullptr || severity == nullptr ||
                 timestamp == nullptr || updateTimestamp == nullptr ||
-                hidden == nullptr || subsystem == nullptr ||
-                resolved == nullptr || notify == nullptr
+                subsystem == nullptr || resolved == nullptr || notify == nullptr
 #ifdef BMCWEB_ENABLE_IBM_MANAGEMENT_CONSOLE
                 || managementSystemAck == nullptr
 #endif
@@ -2947,9 +2974,10 @@ inline void requestRoutesDBusCELogEntry(App& app)
             }
         }
 
-        auto updatePropertyCallback = [resolved, managementSystemAck, asyncResp,
-                                       entryId](bool hiddenPropVal) {
-            if (!hiddenPropVal)
+        auto updatePropertyCallback =
+            [resolved, managementSystemAck, asyncResp,
+             entryId](const std::optional<bool>& hiddenPropVal) {
+            if (!hiddenPropVal.value_or(false))
             {
                 messages::resourceNotFound(asyncResp->res, "LogEntry", entryId);
                 return;
@@ -2984,8 +3012,9 @@ inline void requestRoutesDBusCELogEntry(App& app)
 
         dbus::utility::escapePathForDbus(entryID);
 
-        auto deleteCELogCallback = [asyncResp, entryID](bool hiddenPropVal) {
-            if (!hiddenPropVal)
+        auto deleteCELogCallback =
+            [asyncResp, entryID](const std::optional<bool>& hiddenPropVal) {
+            if (!hiddenPropVal.value_or(false))
             {
                 messages::resourceNotFound(asyncResp->res, "LogEntry", entryID);
                 return;
@@ -3069,8 +3098,8 @@ inline void requestRoutesDBusEventLogEntryDownloadPelJson(App& app)
         dbus::utility::escapePathForDbus(entryID);
 
         auto eventLogAttachmentCallback =
-            [asyncResp, entryID](bool hiddenPropVal) {
-            if (hiddenPropVal)
+            [asyncResp, entryID](const std::optional<bool>& hiddenPropVal) {
+            if (hiddenPropVal.value_or(true))
             {
                 messages::resourceNotFound(asyncResp->res, "LogEntry", entryID);
                 return;
@@ -3108,8 +3137,8 @@ inline void requestRoutesDBusCELogEntryDownloadPelJson(App& app)
         dbus::utility::escapePathForDbus(entryID);
 
         auto eventLogAttachmentCallback =
-            [asyncResp, entryID](bool hiddenPropVal) {
-            if (!hiddenPropVal)
+            [asyncResp, entryID](const std::optional<bool>& hiddenPropVal) {
+            if (!hiddenPropVal.value_or(false))
             {
                 messages::resourceNotFound(asyncResp->res, "LogEntry", entryID);
                 return;
@@ -3226,8 +3255,8 @@ inline void requestRoutesDBusEventLogEntryDownload(App& app)
         dbus::utility::escapePathForDbus(entryID);
 
         auto eventLogAttachmentCallback =
-            [asyncResp, entryID](bool hiddenPropVal) {
-            if (hiddenPropVal)
+            [asyncResp, entryID](const std::optional<bool>& hiddenPropVal) {
+            if (hiddenPropVal.value_or(true))
             {
                 messages::resourceNotFound(asyncResp->res, "LogEntry", entryID);
                 return;
@@ -3271,8 +3300,8 @@ inline void requestRoutesDBusCELogEntryDownload(App& app)
         dbus::utility::escapePathForDbus(entryID);
 
         auto eventLogAttachmentCallback =
-            [asyncResp, entryID](bool hiddenPropVal) {
-            if (!hiddenPropVal)
+            [asyncResp, entryID](const std::optional<bool>& hiddenPropVal) {
+            if (!hiddenPropVal.value_or(false))
             {
                 messages::resourceNotFound(asyncResp->res, "LogEntry", entryID);
                 return;
