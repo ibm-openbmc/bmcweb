@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: Copyright OpenBMC Authors
 #pragma once
 
+#include "bmcweb_config.h"
+
 #include "dbus_utility.hpp"
 #include "error_messages.hpp"
 #include "generated/enums/resource.hpp"
@@ -523,7 +525,10 @@ inline void objectPropertiesToJson(
             unit = "/Reading"_json_pointer;
             sensorJson["ReadingUnits"] = thermal::ReadingUnits::RPM;
             sensorJson["@odata.type"] = "#Thermal.v1_3_0.Fan";
-            setLedState(sensorJson, inventoryItem);
+            if constexpr (BMCWEB_REDFISH_ALLOW_DEPRECATED_INDICATORLED)
+            {
+                setLedState(sensorJson, inventoryItem);
+            }
             forceToInt = true;
         }
         else if (sensorType == "fan_pwm")
@@ -531,7 +536,10 @@ inline void objectPropertiesToJson(
             unit = "/Reading"_json_pointer;
             sensorJson["ReadingUnits"] = thermal::ReadingUnits::Percent;
             sensorJson["@odata.type"] = "#Thermal.v1_3_0.Fan";
-            setLedState(sensorJson, inventoryItem);
+            if constexpr (BMCWEB_REDFISH_ALLOW_DEPRECATED_INDICATORLED)
+            {
+                setLedState(sensorJson, inventoryItem);
+            }
             forceToInt = true;
         }
         else if (sensorType == "voltage")
