@@ -1021,8 +1021,6 @@ inline void requestRoutesManager(App& app)
                 if (!json_util::readJsonPatch(                            //
                         req, asyncResp->res,                              //
                         "DateTime", datetime,                             //
-                        "LocationIndicatorActive",
-                        locationIndicatorActive,                          //
                         "Links/ActiveSoftwareImage/@odata.id",
                         activeSoftwareImageOdataId,                       //
                         "LocationIndicatorActive",
