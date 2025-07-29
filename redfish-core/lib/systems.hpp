@@ -2971,8 +2971,6 @@ inline void handleComputerSystemPatch(
                 }
     // clang-format on
 
-    asyncResp->res.result(boost::beast::http::status::no_content);
-
     if (assetTag)
     {
         setAssetTag(asyncResp, *assetTag);
