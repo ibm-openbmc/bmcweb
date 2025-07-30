@@ -285,13 +285,17 @@ class ConfigFile
                 {"DeliveryRetryPolicy", subValue->retryPolicy},
                 {"Destination", subValue->destinationUrl},
                 {"EventFormatType", subValue->eventFormatType},
+                {"HeartbeatIntervalMinutes", subValue->hbIntervalMinutes},
                 {"HttpHeaders", std::move(headers)},
                 {"MessageIds", subValue->registryMsgIds},
+                {"MetricReportDefinitions", subValue->metricReportDefinitions},
+                {"OriginResources", subValue->originResources},
                 {"Protocol", subValue->protocol},
                 {"RegistryPrefixes", subValue->registryPrefixes},
                 {"ResourceTypes", subValue->resourceTypes},
+                {"SendHeartbeat", subValue->sendHeartbeat},
                 {"SubscriptionType", subValue->subscriptionType},
-                {"MetricReportDefinitions", subValue->metricReportDefinitions},
+                {"VerifyCertificate", subValue->verifyCertificate},
             });
         }
         persistentFile << data;
