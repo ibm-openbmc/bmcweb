@@ -2609,12 +2609,8 @@ inline void
             return;
         }
 
-        // ConfigureSelf accounts can only modify their password
-        if (!json_util::readJsonPatch(req, asyncResp->res, "Password",
-                                      password))
-        {
-            return;
-        }
+        // NOTE: password was already obtained from the previous
+        // readJsonPatch().
     }
 
     // For accounts which have a Restricted Role, restrict which properties
