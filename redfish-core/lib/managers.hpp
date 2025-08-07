@@ -16,6 +16,7 @@
 #include "http_request.hpp"
 #include "led.hpp"
 #include "logging.hpp"
+#include "manager_redundancy.hpp"
 #include "oem/ibm/usb_code_update.hpp"
 #include "persistent_data.hpp"
 #include "query.hpp"
@@ -922,6 +923,11 @@ inline void handleManagerGet(
 
     getManagerObject(asyncResp, managerId,
                      std::bind_front(getManagerData, asyncResp));
+
+    if constexpr (BMCWEB_EXPERIMENTAL_REDFISH_REDUNDANT_MANAGER)
+    {
+        getManagerRedundancy(asyncResp, managerId);
+    }
 
     RedfishService::getInstance(app).handleSubRoute(req, asyncResp);
 }
