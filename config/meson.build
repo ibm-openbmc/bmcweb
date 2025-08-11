@@ -10,6 +10,7 @@ feature_options = [
     'event-subscription',
     'experimental-redfish-dbus-log-subscription',
     'experimental-redfish-multi-computer-system',
+    'experimental-redfish-redundant-manager',
     'google-api',
     'host-serial-socket',
     'http-zstd',
