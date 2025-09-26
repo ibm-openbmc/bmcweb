@@ -142,8 +142,9 @@ class Handler : public std::enable_shared_from_this<Handler>
 
             if (connectRetryCount < maxConnectRetryCount)
             {
-                BMCWEB_LOG_ERROR("Failed to connect, reached max retry count: ",
-                                 connectRetryCount);
+                BMCWEB_LOG_ERROR(
+                    "Failed to connect, retrying... Retry count: {}",
+                    connectRetryCount);
                 connectRetryCount++;
                 doConnect();
             }
