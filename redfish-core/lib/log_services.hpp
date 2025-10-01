@@ -3357,8 +3357,9 @@ inline void
 
 inline void requestRoutesDBusEventLogEntryDownloadPelJson(App& app)
 {
-    BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/LogServices/EventLog/Entries/"
-                      "<str>/OemPelAttachment")
+    BMCWEB_ROUTE(
+        app,
+        "/redfish/v1/Systems/<str>/LogServices/EventLog/Entries/<str>/OemPelAttachment")
         .privileges(redfish::privileges::getLogEntry)
         .methods(boost::beast::http::verb::get)(
             [&app](const crow::Request& req,
@@ -3398,8 +3399,9 @@ inline void requestRoutesDBusEventLogEntryDownloadPelJson(App& app)
 
 inline void requestRoutesDBusCELogEntryDownloadPelJson(App& app)
 {
-    BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/LogServices/CELog/Entries/"
-                      "<str>/OemPelAttachment")
+    BMCWEB_ROUTE(
+        app,
+        "/redfish/v1/Systems/<str>/LogServices/CELog/Entries/<str>/OemPelAttachment")
         .privileges(redfish::privileges::getLogEntry)
         .methods(boost::beast::http::verb::get)(
             [&app](const crow::Request& req,
@@ -3424,7 +3426,7 @@ inline void requestRoutesDBusCELogEntryDownloadPelJson(App& app)
                 auto eventLogAttachmentCallback =
                     [asyncResp,
                      entryID](const std::optional<bool>& hiddenPropVal) {
-                        if (hiddenPropVal.value_or(false))
+                        if (!hiddenPropVal.value_or(false))
                         {
                             messages::resourceNotFound(asyncResp->res,
                                                        "LogEntry", entryID);
