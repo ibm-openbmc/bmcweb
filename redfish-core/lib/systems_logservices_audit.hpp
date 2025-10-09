@@ -188,7 +188,8 @@ static AuditLogParseError fillAuditLogEntryJson(
     // Fill the MessageArgs into the Message
     if (!messageArgs.empty())
     {
-        if (messageArgs[0] != "USYS_CONFIG")
+        if ((messageArgs[0] != "USYS_CONFIG") &&
+            (messageArgs[0] != "USER_LOGIN"))
         {
             BMCWEB_LOG_WARNING("Unexpected audit log entry type: {}",
                                messageArgs[0]);
