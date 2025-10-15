@@ -1,22 +1,19 @@
 #pragma once
 #include "http/http_request.hpp"
 #include "http/http_response.hpp"
-// NOLINTBEGIN(misc-include-cleaner)
 #include "logging.hpp"
 
-#include <boost/algorithm/string/predicate.hpp>
 #include <boost/asio/buffer.hpp>
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/steady_timer.hpp>
-#include <boost/asio/write.hpp>
 #include <boost/beast/core/error.hpp>
-#include <boost/beast/core/ostream.hpp>
-#include <boost/beast/http/basic_dynamic_body.hpp>
+#include <boost/beast/http/message.hpp>
+#include <boost/beast/http/read.hpp>
 #include <boost/beast/http/status.hpp>
+#include <boost/beast/http/write.hpp>
 #include <boost/system/error_code.hpp>
-// NOLINTEND(misc-include-cleaner)
 
 #include <cstddef>
+#include <cstdio>
+#include <format>
 #include <functional>
 #include <memory>
 #include <string>
@@ -35,7 +32,6 @@ struct Connection : std::enable_shared_from_this<Connection>
     virtual void sendMessage(const boost::asio::mutable_buffer& buffer,
                              std::function<void()> handler) = 0;
     virtual void close() = 0;
-    virtual boost::asio::io_context* getIoContext() = 0;
     virtual void sendStreamHeaders(const std::string& streamDataSize,
                                    const std::string& contentType) = 0;
     virtual void sendStreamErrorStatus(boost::beast::http::status status) = 0;
@@ -70,12 +66,6 @@ class ConnectionImpl : public Connection
         errorHandler(std::move(errorHandlerIn))
     {}
 
-    boost::asio::io_context* getIoContext() override
-    {
-        return static_cast<boost::asio::io_context*>(
-            &adaptor.get_executor().context());
-    }
-
     void start()
     {
         streamres.completeRequestHandler = [this, self(shared_from_this())] {
@@ -88,8 +78,8 @@ class ConnectionImpl : public Connection
     void sendStreamErrorStatus(boost::beast::http::status status) override
     {
         streamres.result(status);
-        boost::asio::async_write(
-            adaptor, streamres.getBufferResponse().body().data(),
+        boost::beast::http::async_write(
+            adaptor, streamres.getBufferResponse(),
             [this, self(shared_from_this())](
                 const boost::system::error_code& ec2, std::size_t) {
                 if (ec2)
@@ -113,8 +103,8 @@ class ConnectionImpl : public Connection
     {
         streamres.addHeader("Content-Length", streamDataSize);
         streamres.addHeader("Content-Type", contentType);
-        boost::asio::async_write(
-            adaptor, streamres.getBufferResponse().body().data(),
+        boost::beast::http::async_write(
+            adaptor, streamres.getBufferResponse(),
             [this, self(shared_from_this())](
                 const boost::system::error_code& ec2, std::size_t) {
                 if (ec2)
@@ -150,8 +140,8 @@ class ConnectionImpl : public Connection
 
     void doWrite()
     {
-        boost::asio::async_write(
-            adaptor, streamres.getBufferResponse().body().data(),
+        boost::beast::http::async_write(
+            adaptor, streamres.getBufferResponse(),
             [this, self(shared_from_this())](boost::beast::error_code ec,
                                              std::size_t bytesWritten) {
                 streamres.bufferResponse->body().consume(bytesWritten);
