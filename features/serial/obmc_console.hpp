@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright OpenBMC Authors
 #pragma once
+#include "bmcweb_config.h"
+
 #include "app.hpp"
+#include "audit_events.hpp"
 #include "dbus_utility.hpp"
 #include "io_context_singleton.hpp"
 #include "logging.hpp"
@@ -199,6 +202,10 @@ inline void connectConsoleSocket(crow::websocket::Connection& conn,
         BMCWEB_LOG_ERROR(
             "Failed to call console Connect() method DBUS error: {}",
             ec.message());
+        if constexpr (BMCWEB_AUDIT_EVENTS)
+        {
+            audit::auditConnection(&conn, true, false);
+        }
         conn.close("Failed to connect");
         return;
     }
@@ -215,6 +222,10 @@ inline void connectConsoleSocket(crow::websocket::Connection& conn,
     if (fd == -1)
     {
         BMCWEB_LOG_ERROR("Failed to dup the DBUS unixfd error");
+        if constexpr (BMCWEB_AUDIT_EVENTS)
+        {
+            audit::auditConnection(&conn, true, false);
+        }
         conn.close("Internal error");
         return;
     }
@@ -223,8 +234,16 @@ inline void connectConsoleSocket(crow::websocket::Connection& conn,
 
     if (!iter->second->connect(fd))
     {
+        if constexpr (BMCWEB_AUDIT_EVENTS)
+        {
+            audit::auditConnection(&conn, true, false);
+        }
         close(fd);
         conn.close("Internal Error");
+    }
+    if constexpr (BMCWEB_AUDIT_EVENTS)
+    {
+        audit::auditConnection(&conn, true, true);
     }
 }
 
@@ -245,6 +264,10 @@ inline void processConsoleObject(
     {
         BMCWEB_LOG_WARNING("getDbusObject() for consoles failed. DBUS error:{}",
                            ec.message());
+        if constexpr (BMCWEB_AUDIT_EVENTS)
+        {
+            audit::auditConnection(&conn, true, false);
+        }
         conn.close("getDbusObject() for consoles failed.");
         return;
     }
@@ -254,6 +277,10 @@ inline void processConsoleObject(
     {
         BMCWEB_LOG_WARNING("getDbusObject() returned unexpected size: {}",
                            objInfo.size());
+        if constexpr (BMCWEB_AUDIT_EVENTS)
+        {
+            audit::auditConnection(&conn, true, false);
+        }
         conn.close("getDbusObject() returned unexpected size");
         return;
     }

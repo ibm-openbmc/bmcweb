@@ -309,6 +309,21 @@ class ConnectionImpl : public Connection
         });
     }
 
+    std::string clientIp() override
+    {
+        return session->clientIp;
+    }
+
+    bool needsAudit() override
+    {
+        return wantsAudit;
+    }
+
+    void clearAudit() override
+    {
+        wantsAudit = false;
+    }
+
   private:
     void handleMessage(size_t bytesRead)
     {
@@ -365,6 +380,8 @@ class ConnectionImpl : public Connection
     std::shared_ptr<persistent_data::UserSession> session;
 
     std::shared_ptr<Connection> selfOwned;
+
+    bool wantsAudit = true;
 };
 } // namespace websocket
 } // namespace crow

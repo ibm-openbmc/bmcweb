@@ -1,6 +1,9 @@
 #pragma once
 
+#include "bmcweb_config.h"
+
 #include "app.hpp"
+#include "audit_events.hpp"
 #include "io_context_singleton.hpp"
 #include "logging.hpp"
 #include "websocket.hpp"
@@ -70,6 +73,10 @@ class Handler : public std::enable_shared_from_this<Handler>
             // ERROR
             if (session != nullptr)
             {
+                if constexpr (BMCWEB_AUDIT_EVENTS)
+                {
+                    audit::auditConnection(session, true, false);
+                }
                 session->close("Error creating child process for login shell.");
             }
             return;
@@ -99,6 +106,10 @@ class Handler : public std::enable_shared_from_this<Handler>
 
             // for io operation assing file discriptor
             // to boost stream_descriptor
+            if constexpr (BMCWEB_AUDIT_EVENTS)
+            {
+                audit::auditConnection(session, true, true);
+            }
             streamFileDescriptor.assign(ttyFileDescriptor);
             doWrite();
             doRead();
@@ -206,6 +217,12 @@ inline void onOpen(crow::websocket::Connection& conn)
         {
             std::get<0>(insertData)->second->connect();
         }
+        return;
+    }
+
+    if constexpr (BMCWEB_AUDIT_EVENTS)
+    {
+        audit::auditConnection(&conn, false, true);
     }
 }
 

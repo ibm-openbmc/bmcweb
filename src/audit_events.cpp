@@ -2,6 +2,7 @@
 
 #include "http_request.hpp"
 #include "logging.hpp"
+#include "websocket.hpp"
 
 #include <audit-records.h>
 #include <audit_logging.h>
@@ -173,17 +174,14 @@ bool appendItemToBuf(std::string& strBuf, size_t maxBufSize,
     return true;
 }
 
-void auditEvent(const crow::Request& req, const std::string& userName,
+void writeEvent(const std::string& opPath, const std::string& detail,
+                const std::string& userName, const std::string& ipAddress,
                 bool success)
 {
     if (!auditOpen())
     {
         return;
     }
-
-    std::string opPath =
-        std::format("op={}:{} ", std::string(req.methodString()),
-                    std::string(req.target()));
 
     size_t maxBuf = 256; // Limit message to avoid filling log with single entry
     std::string cnfgBuff = opPath.substr(0, maxBuf);
@@ -194,14 +192,6 @@ void auditEvent(const crow::Request& req, const std::string& userName,
         BMCWEB_LOG_WARNING(
             "Audit buffer too small, truncating: cnfgBufLen={} opPathLen={}",
             cnfgBuff.length(), opPath.length());
-    }
-
-    // Determine any additional info for the event
-    std::string detail;
-    if (wantDetail(req))
-    {
-        detail = req.body().substr(0, maxBuf);
-        detail += " ";
     }
 
     if (!detail.empty())
@@ -252,8 +242,6 @@ void auditEvent(const crow::Request& req, const std::string& userName,
         (maxBuf - cnfgBuff.length()), opPath.length(), detail.length(),
         userLen);
 
-    std::string ipAddress = req.ipAddress.to_string();
-
     int rc = audit_log_user_message(
         auditfd, AUDIT_USYS_CONFIG, cnfgBuff.c_str(),
         boost::asio::ip::host_name().c_str(), ipAddress.c_str(), nullptr,
@@ -277,6 +265,54 @@ void auditEvent(const crow::Request& req, const std::string& userName,
             BMCWEB_LOG_ERROR("Error writing audit message: {}", origErrno);
         }
     }
+}
+
+void auditEvent(const crow::Request& req, const std::string& userName,
+                bool success)
+{
+    std::string opPath =
+        std::format("op={}:{} ", std::string(req.methodString()),
+                    std::string(req.target()));
+
+    // Determine any additional info for the event, limit length
+    std::string detail;
+    if (wantDetail(req))
+    {
+        detail = req.body().substr(0, 256);
+        detail += " ";
+    }
+
+    std::string ipAddress = req.ipAddress.to_string();
+
+    writeEvent(opPath, detail, userName, ipAddress, success);
+}
+
+void auditConnection(crow::websocket::Connection* conn, bool isNewSocket,
+                     bool success)
+{
+    if ((conn == nullptr) || !conn->needsAudit())
+    {
+        // Connection does not need auditing
+        return;
+    }
+
+    std::string opPath = std::format("op={} ", conn->url().path());
+    std::string isNewStr;
+    if (isNewSocket)
+    {
+        isNewStr = "true";
+    }
+    else
+    {
+        isNewStr = "false";
+    }
+    std::string detail = std::format("{{\"NewSocket\":{}}} ", isNewStr);
+    std::string userName = conn->getUserName();
+    std::string ipAddress = conn->clientIp();
+
+    BMCWEB_LOG_DEBUG("Auditing connection {} isNew: {}", opPath, isNewStr);
+    writeEvent(opPath, detail, userName, ipAddress, success);
+    conn->clearAudit();
 }
 
 } // namespace audit

@@ -1,6 +1,9 @@
 #pragma once
 
+#include "bmcweb_config.h"
+
 #include "app.hpp"
+#include "audit_events.hpp"
 #include "io_context_singleton.hpp"
 #include "logging.hpp"
 #include "websocket.hpp"
@@ -116,9 +119,19 @@ inline void connectHandler(const boost::system::error_code& ec)
         BMCWEB_LOG_ERROR("Couldn't connect to host serial port: {}", ec);
         for (crow::websocket::Connection* session : sessions)
         {
+            if constexpr (BMCWEB_AUDIT_EVENTS)
+            {
+                audit::auditConnection(session, true, false);
+            }
             session->close("Error in connecting to host port");
         }
         return;
+    }
+
+    // Audit each session. If already audited no new entry will be created
+    for (crow::websocket::Connection* session : sessions)
+    {
+        audit::auditConnection(session, true, true);
     }
 
     doWrite();
@@ -143,6 +156,12 @@ inline void requestRoutes(App& app)
                     boost::asio::local::stream_protocol::socket>(
                     getIoContext());
                 hostSocket->async_connect(ep, connectHandler);
+                return;
+            }
+
+            if constexpr (BMCWEB_AUDIT_EVENTS)
+            {
+                audit::auditConnection(&conn, false, true);
             }
         })
         .onclose([](crow::websocket::Connection& conn,

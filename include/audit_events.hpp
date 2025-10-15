@@ -1,6 +1,7 @@
 #pragma once
 
 #include "http_request.hpp"
+#include "websocket.hpp"
 
 #include <boost/beast/http/verb.hpp>
 
@@ -47,7 +48,14 @@ inline bool wantAudit(const crow::Request& req)
             !checkPostUser(req));
 }
 
+void writeEvent(const std::string& opPath, const std::string& detail,
+                const std::string& userName, const std::string& ipAddress,
+                bool success);
+
 void auditEvent(const crow::Request& req, const std::string& userName,
                 bool success);
+
+void auditConnection(crow::websocket::Connection* conn, bool isNewSocket,
+                     bool success);
 
 } // namespace audit
