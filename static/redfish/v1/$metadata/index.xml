@@ -1316,4 +1316,8 @@
     <edmx:Reference Uri="/redfish/v1/schema/OemManager_v1.xml">
         <edmx:Include Namespace="OemManager"/>
     </edmx:Reference>
+    <edmx:Reference Uri="/redfish/v1/schema/OpenBMCAccountService_v1.xml">
+        <edmx:Include Namespace="OpenBMCAccountService"/>
+        <edmx:Include Namespace="OpenBMCAccountService.v1_0_0"/>
+    </edmx:Reference>
 </edmx:Edmx>

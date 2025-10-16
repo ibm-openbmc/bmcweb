@@ -21,7 +21,6 @@
 #include <openbmc_dbus_rest.hpp>
 #include <utils/json_utils.hpp>
 #include <variant>
-
 namespace redfish
 {
 
@@ -39,6 +38,7 @@ constexpr const char* ldapCreateInterface =
 constexpr const char* ldapEnableInterface = "xyz.openbmc_project.Object.Enable";
 constexpr const char* ldapPrivMapperInterface =
     "xyz.openbmc_project.User.PrivilegeMapper";
+constexpr const char* ldapMapperInterface = "xyz.openbmc_project.LDAP.PrivilegeMapper";
 constexpr const char* dbusObjManagerIntf = "org.freedesktop.DBus.ObjectManager";
 constexpr const char* propertyInterface = "org.freedesktop.DBus.Properties";
 constexpr const char* mapperBusName = "xyz.openbmc_project.ObjectMapper";
@@ -945,13 +945,15 @@ class AccountService : public Node
         std::optional<std::string> userName;
         std::optional<std::string> password;
         std::optional<nlohmann::json> remoteRoleMapData;
+        std::optional<bool> allowReadOnlyAccessToAllLDAPUsers;
 
         if (!json_util::readJson(input, asyncResp->res, "Authentication",
                                  authentication, "LDAPService", ldapService,
                                  "ServiceAddresses", serviceAddressList,
                                  "AccountProviderType", accountProviderType,
                                  "ServiceEnabled", serviceEnabled,
-                                 "RemoteRoleMapping", remoteRoleMapData))
+                                 "RemoteRoleMapping", remoteRoleMapData,
+                                 "AllowReadOnlyAccessToAllLDAPUsers",allowReadOnlyAccessToAllLDAPUsers))
         {
             return;
         }
@@ -1159,7 +1161,30 @@ class AccountService : public Node
                                     const std::string& ldapType) {
             parseLDAPConfigData(asyncResp->res.jsonValue, confData, ldapType);
         };
-
+        crow::connections::systemBus->async_method_call(
+             [asyncResp](const boost::system::error_code ec,
+             const std::variant<bool>& value)
+             {
+                 if (ec)
+                 {
+                     BMCWEB_LOG_ERROR << "DBus Get failed for AllowReadOnlyAccessToAllLDAPUsers: "<< ec.message();
+                     return;
+                 }
+                 const bool* allowReadOnly = std::get_if<bool>(&value);
+                 if (allowReadOnly != nullptr)
+                 {
+                     asyncResp->res.jsonValue["Oem"]["OpenBMC"]["@odata.type"] =
+                        "#OpenBMCAccountService.v1_0_0.AccountService";
+                     asyncResp->res.jsonValue["Oem"]["OpenBMC"]["AllowReadOnlyAccessToAllLDAPUsers"] =
+                          *allowReadOnly;
+                 }
+             },
+             ldapMapperInterface,
+             ldapRootObject,
+             propertyInterface,
+             "Get",
+             ldapPrivMapperInterface,
+             "AllowReadOnlyAccessToAllLDAPUsers");
         getLDAPConfigData("LDAP", callback);
         getLDAPConfigData("ActiveDirectory", callback);
     }
@@ -1168,20 +1193,21 @@ class AccountService : public Node
                  const std::vector<std::string>& params) override
     {
         auto asyncResp = std::make_shared<AsyncResp>(res);
-
         std::optional<uint32_t> unlockTimeout;
         std::optional<uint16_t> lockoutThreshold;
         std::optional<uint16_t> minPasswordLength;
         std::optional<uint16_t> maxPasswordLength;
         std::optional<nlohmann::json> ldapObject;
         std::optional<nlohmann::json> activeDirectoryObject;
+        std::optional<nlohmann::json> oemObject;
 
         if (!json_util::readJson(req, res, "AccountLockoutDuration",
                                  unlockTimeout, "AccountLockoutThreshold",
                                  lockoutThreshold, "MaxPasswordLength",
                                  maxPasswordLength, "MinPasswordLength",
                                  minPasswordLength, "LDAP", ldapObject,
-                                 "ActiveDirectory", activeDirectoryObject))
+                                 "ActiveDirectory", activeDirectoryObject,
+                                 "Oem", oemObject))
         {
             return;
         }
@@ -1206,7 +1232,40 @@ class AccountService : public Node
             handleLDAPPatch(*activeDirectoryObject, asyncResp, req, params,
                             "ActiveDirectory");
         }
-
+        if (oemObject)
+        {
+            std::optional<nlohmann::json> openbmcObject;
+            if (json_util::readJson(*oemObject, res, "OpenBMC", openbmcObject))
+            {
+                std::optional<bool> allowReadOnlyAccess;
+                if (openbmcObject)
+                {
+                    json_util::readJson(*openbmcObject, res,
+                        "AllowReadOnlyAccessToAllLDAPUsers", allowReadOnlyAccess);
+                    if (allowReadOnlyAccess)
+                    {
+                        crow::connections::systemBus->async_method_call(
+                            [asyncResp, allowReadOnlyAccess](const boost::system::error_code ec)
+                            {
+                                if (ec)
+                                {
+                                    BMCWEB_LOG_ERROR << "DBus Get failed for AllowReadOnlyAccessToAllLDAPUsers: "<< ec.message();
+                                    messages::internalError(asyncResp->res);
+                                    return;
+                                }
+                                messages::success(asyncResp->res);
+                            },
+                            ldapMapperInterface,
+                            ldapRootObject,
+                            propertyInterface,
+                            "Set",
+                            ldapPrivMapperInterface,
+                            "AllowReadOnlyAccessToAllLDAPUsers",
+                            std::variant<bool>(*allowReadOnlyAccess));
+                    }
+                }
+            }
+        }
         if (unlockTimeout)
         {
             crow::connections::systemBus->async_method_call(

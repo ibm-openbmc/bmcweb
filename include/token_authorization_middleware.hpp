@@ -142,9 +142,15 @@ class Middleware
         // needed.
         // This whole flow needs to be revisited anyway, as we can't be
         // calling directly into pam for every request
-        return persistent_data::SessionStore::getInstance().generateUserSession(
+        std::shared_ptr<crow::persistent_data::UserSession> session =
+            persistent_data::SessionStore::getInstance().generateUserSession(
             user, passwordChangeRequired,
             crow::persistent_data::PersistenceType::SINGLE_REQUEST);
+            if (!session)
+            {
+                return nullptr;
+            }
+            return session;
     }
 
     const std::shared_ptr<crow::persistent_data::UserSession>
@@ -394,7 +400,12 @@ template <typename... Middlewares> void requestRoutes(Crow<Middlewares...>& app)
                     auto session = persistent_data::SessionStore::getInstance()
                                        .generateUserSession(
                                            username, passwordChangeRequired);
-
+                    if (! session) {
+                        BMCWEB_LOG_WARNING << "[AuthMiddleware] Session creation failed because no role mapping is configured for the remote user";
+                        res.result(boost::beast::http::status::unauthorized);
+                        res.end();
+                        return;
+                    }
 #ifdef BMCWEB_ENABLE_TRAFFIC_LOGGING
                     app.template getMiddleware<crow::logging::Middleware>().log(
                         req, res, username, true);

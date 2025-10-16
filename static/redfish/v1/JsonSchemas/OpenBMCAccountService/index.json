@@ -1,0 +1,46 @@
+{
+    "$id": "http://redfish.dmtf.org/schemas/v1/OpenBMCAccountService.v1_0_0.json",
+    "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
+    "definitions": {
+        "AccountService": {
+            "additionalProperties": false,
+            "description": "OEM Extension for AccountService",
+            "longDescription": "OEM Extension for AccountService to provide LDAP read-only access configuration.",
+            "patternProperties": {
+                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
+                    "description": "This property shall specify a valid odata or Redfish property.",
+                    "type": [
+                        "array",
+                        "boolean",
+                        "integer",
+                        "number",
+                        "null",
+                        "object",
+                        "string"
+                    ]
+                }
+            },
+            "properties": {
+                "@odata.id": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/id"
+                },
+                "@odata.type": {
+                    "$ref": "http://redfish.dmtf.org/schemas/v1/odata-v4.json#/definitions/type"
+                },
+                "AllowReadOnlyAccessToAllLDAPUsers": {
+                    "description": "Indicates whether read-only privilege is given for LDAP users.",
+                    "longDescription": "The value of this property shall be a boolean indicating whether read-only privilege is given for LDAP users when respective privilege role map is not configured for LDAP users.",
+                    "readonly": false,
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                }
+            },
+            "type": "object"
+        }
+    },
+    "owningEntity": "OpenBMC",
+    "release": "1.0",
+    "title": "#OpenBMCAccountService.v1_0_0"
+}

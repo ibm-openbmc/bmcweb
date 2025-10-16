@@ -225,6 +225,15 @@ class SessionCollection : public Node
         std::shared_ptr<crow::persistent_data::UserSession> session =
             crow::persistent_data::SessionStore::getInstance()
                 .generateUserSession(username, passwordChangeRequired);
+        if (!session)
+        {
+            BMCWEB_LOG_WARNING << "Access denied for user '" << username
+                << "': user has no role and read-only access is disabled";
+            messages::resourceAtUriUnauthorized(
+                res, std::string(req.url), "Access denied: user has no role and read-only access is disabled");
+            res.end();
+            return;
+        }
         res.addHeader("X-Auth-Token", session->sessionToken);
         res.addHeader("Location", "/redfish/v1/SessionService/Sessions/" +
                                       session->uniqueId);

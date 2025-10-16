@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
+    <edmx:DataServices>
+        <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OpenBMCAccountService">
+            <Annotation Term="Redfish.OwningEntity" String="OpenBMC"/>
+        </Schema>
+        <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OpenBMCAccountService.v1_0_0">
+            <Annotation Term="Redfish.OwningEntity" String="OpenBMC"/>
+            <Annotation Term="Redfish.Release" String="1.0"/>
+            <ComplexType Name="AccountService">
+                <Annotation Term="OData.AdditionalProperties" Bool="false"/>
+                <Annotation Term="OData.Description" String="OEM Extension for AccountService"/>
+                <Annotation Term="OData.LongDescription" String="OEM Extension for AccountService to provide LDAP read-only access configuration."/>
+                <Property Name="AllowReadOnlyAccessToAllLDAPUsers" Type="Edm.Boolean">
+                    <Annotation Term="OData.Permissions" EnumMember="OData.Permission/ReadWrite"/>
+                    <Annotation Term="OData.Description" String="Indicates whether read-only access is allowed for all LDAP users regardless of role mapping."/>
+                    <Annotation Term="OData.LongDescription" String="If set to true, all LDAP users without specific privilege mappings will be granted read-only access."/>
+                </Property>
+            </ComplexType>
+        </Schema>
+    </edmx:DataServices>
+</edmx:Edmx>

@@ -101,6 +101,28 @@ struct UserRoleMap
         return "";
     }
 
+    bool getAllowReadOnlyFlag()
+    {
+        std::variant<bool> value;
+        try
+        {
+            auto method = crow::connections::systemBus->new_method_call(
+                "xyz.openbmc_project.LDAP.PrivilegeMapper",
+                "/xyz/openbmc_project/user/ldap",
+                "org.freedesktop.DBus.Properties", "Get");
+            method.append("xyz.openbmc_project.User.PrivilegeMapper",
+                "AllowReadOnlyAccessToAllLDAPUsers");
+            auto reply = crow::connections::systemBus->call(method);
+            reply.read(value);
+            return std::get<bool>(value);
+        }
+        catch(const sdbusplus::exception::SdBusError& e)
+        {
+            BMCWEB_LOG_ERROR << "Failed to get AllowReadOnlyAccessToAllLDAPUsers property.";
+            BMCWEB_LOG_ERROR << "ERROR=" << e.what();
+            return true;
+        }
+    }
     std::string
         extractUserRole(const InterfacesPropertiesType& interfacesProperties)
     {
@@ -398,6 +420,10 @@ class SessionStore
         const std::string_view username, bool configureSelfOnly,
         PersistenceType persistence = PersistenceType::TIMEOUT)
     {
+        constexpr const char* objPath = "/xyz/openbmc_project/user/ldap";
+        constexpr const char* interface = "xyz.openbmc_project.User.PrivilegeMapper";
+        constexpr const char* property = "AllowReadOnlyAccessToAllLDAPUsers";
+
         // TODO(ed) find a secure way to not generate session identifiers if
         // persistence is set to SINGLE_REQUEST
         static constexpr std::array<char, 62> alphanum = {
@@ -431,11 +457,14 @@ class SessionStore
         {
             uniqueId[i] = alphanum[dist(rd)];
         }
-
+        auto& userRoleMap = UserRoleMap::getInstance();
         // Get the User Privilege
-        const std::string& role =
-            UserRoleMap::getInstance().getUserRole(username);
-
+        std::string role = userRoleMap.getUserRole(username);
+        bool allowReadOnly = userRoleMap.getAllowReadOnlyFlag();
+        if (!allowReadOnly && role.empty())
+        {
+            return nullptr;
+        }
         BMCWEB_LOG_DEBUG << "user name=\"" << username << "\" role = " << role;
         auto session = std::make_shared<UserSession>(UserSession{
             uniqueId, sessionToken, std::string(username), role, csrfToken,
