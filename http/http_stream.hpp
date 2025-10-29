@@ -140,8 +140,8 @@ class ConnectionImpl : public Connection
 
     void doWrite()
     {
-        boost::beast::http::async_write(
-            adaptor, streamres.getBufferResponse(),
+        boost::asio::async_write(
+            adaptor, streamres.getBufferResponse().body().data(),
             [this, self(shared_from_this())](boost::beast::error_code ec,
                                              std::size_t bytesWritten) {
                 streamres.bufferResponse->body().consume(bytesWritten);
