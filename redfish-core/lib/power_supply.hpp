@@ -16,6 +16,7 @@
 #include "utils/chassis_utils.hpp"
 #include "utils/dbus_utils.hpp"
 #include "utils/json_utils.hpp"
+#include "utils/name_utils.hpp"
 #include "utils/time_utils.hpp"
 
 #include <asm-generic/errno.h>
@@ -484,6 +485,9 @@ inline void doPowerSupplyGet(
     getPowerSupplyAsset(asyncResp, service, powerSupplyPath);
     getPowerSupplyFirmwareVersion(asyncResp, service, powerSupplyPath);
     getPowerSupplyLocation(asyncResp, service, powerSupplyPath);
+
+    name_util::getPrettyName(asyncResp, powerSupplyPath, service,
+                             "/Name"_json_pointer);
     getEfficiencyPercent(asyncResp);
     getLocationIndicatorActive(asyncResp, powerSupplyPath);
 }
