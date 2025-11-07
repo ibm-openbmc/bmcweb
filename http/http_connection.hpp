@@ -293,7 +293,14 @@ class Connection :
     {
         if (connectionCount >= 200)
         {
-            BMCWEB_LOG_CRITICAL << this << "Max connection count exceeded.";
+            boost::asio::ip::address ip;
+            boost::system::error_code ec = getClientIp(ip);
+            if (ec)
+            {
+                return;
+            }
+            BMCWEB_LOG_CRITICAL << this << "Max connection count exceeded."
+                                << " Request " << ip.to_string();
             return;
         }
 
