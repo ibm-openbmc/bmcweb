@@ -161,16 +161,16 @@ class Connection :
     {
         BMCWEB_LOG_DEBUG("{} Connection started, total {}", logPtr(this),
                          connectionCount);
+        readClientIp();
         if (connectionCount >= 200)
         {
-            BMCWEB_LOG_CRITICAL("{} Max connection count exceeded.",
-                                logPtr(this));
+            BMCWEB_LOG_CRITICAL("{} Max connection count exceeded. Request {}",
+                                logPtr(this), ip.to_string());
+
             return;
         }
 
         startDeadline();
-
-        readClientIp();
 
         // TODO(ed) Abstract this to a more clever class with the idea of an
         // asynchronous "start"
