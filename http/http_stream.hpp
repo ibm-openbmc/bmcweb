@@ -134,7 +134,7 @@ class ConnectionImpl : public Connection
     void close() override
     {
         streamres.end();
-        adaptor.lowest_layer().close();
+        boost::beast::get_lowest_layer(adaptor).close();
         closeHandler(*this, completionStatus);
     }
 

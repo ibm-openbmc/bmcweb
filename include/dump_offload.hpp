@@ -210,7 +210,8 @@ class Handler : public std::enable_shared_from_this<Handler>
             *crow::connections::systemBus, "xyz.openbmc_project.Dump.Manager",
             dumpEntryPath, "xyz.openbmc_project.Dump.Entry", "OffloadUri",
             std::variant<std::string>(value),
-            [this](const boost::system::error_code& ec) {
+            [this,
+             self(shared_from_this())](const boost::system::error_code& ec) {
                 if (ec)
                 {
                     if (ec.value() == EBADR)
@@ -235,6 +236,10 @@ class Handler : public std::enable_shared_from_this<Handler>
 
     void cleanupSocketFiles()
     {
+        if (unixSocket.is_open())
+        {
+            unixSocket.close();
+        }
         std::error_code ec;
         bool fileExists = std::filesystem::exists(unixSocketPath, ec);
         if (ec)
@@ -245,8 +250,11 @@ class Handler : public std::enable_shared_from_this<Handler>
         }
         if (fileExists)
         {
-            unixSocket.close();
-            std::remove(unixSocketPath.c_str());
+            if (std::remove(unixSocketPath.c_str()) != 0)
+            {
+                BMCWEB_LOG_WARNING("Failed to remove socket file: {}",
+                                   unixSocketPath.string());
+            }
         }
     }
 
@@ -260,7 +268,8 @@ class Handler : public std::enable_shared_from_this<Handler>
         dbus::utility::getProperty<uint64_t>(
             "xyz.openbmc_project.Dump.Manager", dumpEntryPath,
             "xyz.openbmc_project.Dump.Entry", "Size",
-            [this](const boost::system::error_code& ec, const uint64_t size) {
+            [this, self(shared_from_this())](
+                const boost::system::error_code& ec, const uint64_t size) {
                 if (ec)
                 {
                     if (ec.value() == EBADR)
