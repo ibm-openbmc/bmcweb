@@ -186,7 +186,7 @@ inline void fillWithAssemblyId(
             // implemented before finding the assembly id as per bmcweb Assembly
             // design.
             dbus::utility::getSubTree(
-                "/xyz/openbmc_project/inventory", 0, chassisAssemblyInterfaces,
+                "/xyz/openbmc_project/inventory", 0, assemblyInterfaces,
                 [asyncResp, assemblyUriPropPath, assemblyParentObjPath,
                  assembledObjPath, assemblyAssoc, assembledUriVal](
                     const boost::system::error_code& ec1,
