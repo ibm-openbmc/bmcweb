@@ -72,11 +72,11 @@ constexpr const char* configFilePath =
     "/var/lib/bmcweb/ibm-management-console/configfiles";
 
 constexpr size_t maxSaveareaDirSize =
-    26214400; // Allow save area dir size to be max 25MB
+    25000000; // Allow save area dir size to be max 25MB
 constexpr size_t minSaveareaFileSize =
     100;      // Allow save area file size of minimum 100B
 constexpr size_t maxSaveareaFileSize =
-    26214400; // Allow save area file size up to 25MB
+    25000000; // Allow save area file size up to 25MB
 constexpr size_t maxBroadcastMsgSize =
     1000;     // Allow Broadcast message size upto 1KB
 
