@@ -8,14 +8,13 @@
 #include "logging.hpp"
 #include "ossl_random.hpp"
 #include "sessions.hpp"
-
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/ssl/context.hpp>
 #include <boost/asio/ssl/verify_mode.hpp>
 #include <boost/beast/core/file_base.hpp>
 #include <boost/beast/core/file_posix.hpp>
 #include <boost/system/error_code.hpp>
-
+#include <fstream>
 extern "C"
 {
 #include <nghttp2/nghttp2.h>
@@ -32,6 +31,7 @@ extern "C"
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 #include <openssl/x509v3.h>
+#include <openssl/ssl.h>
 }
 
 #include <bit>
@@ -45,9 +45,25 @@ extern "C"
 #include <system_error>
 #include <utility>
 
+extern "C" int sniDummyCallback(SSL* ssl, int* al, void* arg)
+{
+    (void)ssl;
+    (void)al;
+    (void)arg;
+        return SSL_CLIENT_HELLO_SUCCESS;
+}
+
+
 namespace ensuressl
 {
 
+namespace crow
+{
+
+std::shared_ptr<boost::asio::ssl::context> g_httpsCtx = nullptr;
+std::shared_ptr<boost::asio::ssl::context> g_mtlsCtx = nullptr;
+}
+bool isSslCtxMtlsForSsl(SSL* ssl);
 static EVP_PKEY* createEcKey();
 
 // Mozilla intermediate cipher suites v5.7
@@ -134,8 +150,8 @@ bool validateCertificate(X509* const cert)
 
 std::string verifyOpensslKeyCert(const std::string& filepath)
 {
-    bool privateKeyValid = false;
 
+    bool privateKeyValid = false;
     BMCWEB_LOG_INFO("Checking certs in file {}", filepath);
     boost::beast::file_posix file;
     boost::system::error_code ec;
@@ -484,6 +500,318 @@ static int alpnSelectProtoCallback(
     }
     return SSL_TLSEXT_ERR_OK;
 }
+static bool getMtlsSslContext(boost::asio::ssl::context& ctx)
+{
+    constexpr const char* mtlsDir      = "/etc/ssl/certs/mtls";
+    constexpr const char* certFile     = "/etc/ssl/certs/mtls/server.crt";
+    constexpr const char* keyFile      = "/etc/ssl/certs/mtls/server.key";
+    constexpr const char* pemFile      = "/etc/ssl/certs/mtls/server.pem";
+    constexpr const char* caFile       = "/etc/ssl/certs/mtls/ca.crt";
+
+    BMCWEB_LOG_CRITICAL("Initializing mTLS SSL context");
+
+    // --- Build PEM at runtime only if missing ---
+    if (!std::filesystem::exists(pemFile))
+    {
+        BMCWEB_LOG_CRITICAL("mTLS combined PEM missing, generating it now");
+
+        if (!std::filesystem::exists(certFile))
+        {
+            BMCWEB_LOG_ERROR("Missing mTLS server certificate: {}", certFile);
+            return false;
+        }
+
+        if (!std::filesystem::exists(keyFile))
+        {
+            BMCWEB_LOG_ERROR("Missing mTLS private key: {}", keyFile);
+            return false;
+        }
+
+        std::ofstream pem(pemFile);
+        if (!pem)
+        {
+            BMCWEB_LOG_ERROR("Failed to create {}", pemFile);
+            return false;
+        }
+
+        pem << std::ifstream(certFile).rdbuf();
+        pem << std::ifstream(keyFile).rdbuf();
+        pem.close();
+
+        chmod(pemFile, 0600);
+        if (chown(pemFile, 0, 0) != 0)
+        {
+            BMCWEB_LOG_ERROR("Failed to chown mtls pemFile:{}", pemFile);
+        }
+        BMCWEB_LOG_CRITICAL("Generated combined mTLS PEM: {}", pemFile);
+    }
+
+    // === TLS Context Configuration ===
+    try
+    {
+        ctx.use_certificate_chain_file("/etc/ssl/certs/mtls/server.pem");
+        ctx.use_private_key_file("/etc/ssl/certs/mtls/server.pem", boost::asio::ssl::context::pem);
+        BMCWEB_LOG_CRITICAL("Generated combined mTLS PEM: {}", pemFile);
+    }
+    catch (const std::exception& e)
+    {
+        BMCWEB_LOG_ERROR("Failed to load mTLS PEM: {}", e.what());
+        return false;
+    }
+
+    if (std::filesystem::exists(caFile))
+    {
+        ctx.load_verify_file(caFile);
+        BMCWEB_LOG_CRITICAL("Loaded mTLS CA: {}", caFile);
+    }
+    else
+    {
+        BMCWEB_LOG_WARNING("mTLS CA file missing — clients may fail validation");
+    }
+
+    if (std::filesystem::exists(mtlsDir))
+    {
+        ctx.add_verify_path(mtlsDir);
+        BMCWEB_LOG_CRITICAL("Added mTLS trust path: {}", mtlsDir);
+    }
+
+    ctx.set_verify_mode(boost::asio::ssl::verify_peer /*|
+                        boost::asio::ssl::verify_fail_if_no_peer_cert*/);
+
+    SSL_CTX_set_ecdh_auto(ctx.native_handle(), 1);
+    SSL_CTX_set_options(ctx.native_handle(), SSL_OP_NO_RENEGOTIATION);
+
+    BMCWEB_LOG_CRITICAL("mTLS SSL context initialized successfully!");
+
+    return true;
+}
+
+// Verify callback for certificate-chain validation in mTLS
+static int tlsVerifyCallback(int preverifyOk, X509_STORE_CTX* ctx)
+{
+    BMCWEB_LOG_CRITICAL("tlsVerifyCallback called");
+    // If OpenSSL already failed verification → reject immediately
+    if (!preverifyOk)
+    {
+        int err = X509_STORE_CTX_get_error(ctx);
+        BMCWEB_LOG_ERROR("mTLS verify failed: ",
+                          X509_verify_cert_error_string(err));
+        //return 0;
+    }
+
+    if (ctx == nullptr)
+    {
+        BMCWEB_LOG_ERROR("mTLS: Null X509_STORE_CTX");
+        return 0;
+    }
+
+    // Certificate being verified
+    X509* cert = X509_STORE_CTX_get_current_cert(ctx);
+    if (!cert)
+    {
+        BMCWEB_LOG_ERROR("mTLS: No peer certificate");
+        return 0;
+    }else{
+        // Subject
+        char *sub = X509_NAME_oneline(X509_get_subject_name(cert), nullptr, 0);
+        char *iss = X509_NAME_oneline(X509_get_issuer_name(cert), nullptr, 0);
+        if (sub) { BMCWEB_LOG_CRITICAL("mTLS: current cert subject: {}", sub); OPENSSL_free(sub); }
+        if (iss) { BMCWEB_LOG_CRITICAL("mTLS: current cert issuer : {}", iss); OPENSSL_free(iss); }
+
+        ASN1_INTEGER* asn1_serial = X509_get_serialNumber(cert);
+        if (asn1_serial)
+        {
+            BIGNUM* bn = ASN1_INTEGER_to_BN(asn1_serial, nullptr);
+            if (bn)
+            {
+                char* hex = BN_bn2hex(bn);
+                if (hex) { BMCWEB_LOG_CRITICAL("mTLS: cert serial: {}", hex); OPENSSL_free(hex); }
+                BN_free(bn);
+            }
+        }
+    }
+
+    // Optional: Validate CN/SAN
+    char cn[256] = {};
+    X509_NAME* subject = X509_get_subject_name(cert);
+
+    int ret = X509_NAME_get_text_by_NID(subject, NID_commonName, cn, sizeof(cn));
+    if (ret < 0)
+    {
+        BMCWEB_LOG_ERROR("mTLS: Failed to extract CN");
+        return 0;
+    }
+
+    std::string commonName(cn);
+
+    // Example policy: Only allow certificates with CN containing "admin"
+    if (commonName.find("admin") == std::string::npos)
+    {
+        BMCWEB_LOG_ERROR("mTLS: CN '{}' is not allowed", commonName);
+        return 0;
+    }
+
+    BMCWEB_LOG_CRITICAL("mTLS: Peer certificate CN='{}' accepted", commonName);
+    return 1; // Accept the certificate
+}
+
+// ============================================================================
+// - If client presents certificate → mTLS
+// - Else if client IP is in allowlist → mTLS
+// - Else if SNI == "mtls.bmc" → mTLS
+// - Else → HTTPS
+// ============================================================================
+
+static int clientHelloCallback(SSL *ssl, int *al, void *arg)
+{
+    (void)al;
+    (void)arg;
+
+    BMCWEB_LOG_CRITICAL("ClientHello callback");
+
+    // ------------------------------------------------------------
+    // 1. Detect client IP address
+    // ------------------------------------------------------------
+    int fd = SSL_get_fd(ssl);
+    if (fd < 0)
+    {
+        BMCWEB_LOG_ERROR( "SSL_get_fd failed");
+        *al = SSL_AD_INTERNAL_ERROR;
+        //return SSL_CLIENT_HELLO_ERROR;
+    }
+
+    sockaddr_storage addr {};
+    socklen_t len = sizeof(addr);
+    if (getpeername(fd, (sockaddr*)&addr, &len) != 0)
+    {
+        BMCWEB_LOG_ERROR ("getpeername failed");
+        *al = SSL_AD_INTERNAL_ERROR;
+        //return SSL_CLIENT_HELLO_ERROR;
+    }
+
+    char ipStr[INET6_ADDRSTRLEN];
+    if (addr.ss_family == AF_INET)
+    {
+        auto* a = (sockaddr_in*)&addr;
+        inet_ntop(AF_INET, &a->sin_addr, ipStr, sizeof(ipStr));
+    }
+    else
+    {
+        auto* a = (sockaddr_in6*)&addr;
+        inet_ntop(AF_INET6, &a->sin6_addr, ipStr, sizeof(ipStr));
+    }
+
+    BMCWEB_LOG_CRITICAL("Peer IP: ",ipStr);
+
+    // ------------------------------------------------------------
+    // 2. Client certificate presence: best & safest mTLS detector
+    // ------------------------------------------------------------
+    X509 *peer = SSL_get_peer_certificate(ssl);
+    if (peer)
+    {
+        BMCWEB_LOG_CRITICAL("clientHello: client presented certificate → mTLS");
+
+        X509_free(peer);
+
+        if (ensuressl::crow::g_mtlsCtx)
+            SSL_set_SSL_CTX(ssl, ensuressl::crow::g_mtlsCtx->native_handle());
+
+        SSL_set_verify(ssl,
+                       SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+                       tlsVerifyCallback);
+        return SSL_CLIENT_HELLO_SUCCESS;
+    }else{
+        BMCWEB_LOG_CRITICAL("clientHello: client did not presented certificate Not mtls");
+    }
+
+    // ------------------------------------------------------------
+    // 3. IP allowlist → treat as mTLS (peer BMC)
+    // ------------------------------------------------------------
+    static const std::vector<std::string> allowlist = {
+        "9.41.166.174",    // your peer BMC
+        "9.3.29.238"       // example
+    };
+
+    if (std::find(allowlist.begin(), allowlist.end(), std::string(ipStr)) != allowlist.end())
+    {
+        BMCWEB_LOG_CRITICAL("clientHello: IP {} is allowlisted → mTLS", ipStr);
+
+        if (ensuressl::crow::g_mtlsCtx)
+            SSL_set_SSL_CTX(ssl, ensuressl::crow::g_mtlsCtx->native_handle());
+
+        SSL_set_verify(ssl,
+                       SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+                       tlsVerifyCallback);
+        return SSL_CLIENT_HELLO_SUCCESS;
+    }else{
+        BMCWEB_LOG_CRITICAL("clientHello: IP {} is NOT in allowlisted → NO mTLS", ipStr);
+    }
+
+    // ------------------------------------------------------------
+    // 4. SNI fallback (works on OpenSSL 1.1.1 through generic ext parser)
+    // ------------------------------------------------------------
+
+    const unsigned char *sni = nullptr;
+    size_t sniLen = 0;
+
+    // extType=0 → SNI , we must parse manually because OpenSSL 1.1.1 has no helper API
+    if (SSL_client_hello_get0_ext(ssl, TLSEXT_TYPE_server_name, &sni, &sniLen) == 1 && sniLen > 5)
+    {
+        // Parse extension manually:
+        // struct {
+        //   NameType type;
+        //   opaque HostName<1..2^16-1>
+        // } ServerName;
+        //
+        // Format: 2 bytes list length, then entries:
+        //
+        // | list_len(2) | name_type(1) | host_len(2) | host |
+        //
+
+        size_t pos = 2;                     // skip list length
+        //uint8_t nameType = sni[pos];        // usually 0 = host_name
+        pos++;
+
+        uint16_t hostLen = ((uint16_t)sni[pos] << 8) | sni[pos+1];
+        pos += 2;
+
+        if (pos + hostLen <= sniLen)
+        {
+            std::string hostname((const char *)&sni[pos], hostLen);
+            BMCWEB_LOG_INFO("SNI Hostname: {}", hostname);
+
+            if (hostname == "mtls.bmc")
+            {
+                BMCWEB_LOG_CRITICAL("clientHello: SNI=mtls.bmc → mTLS");
+
+                if (ensuressl::crow::g_mtlsCtx)
+                    SSL_set_SSL_CTX(ssl, ensuressl::crow::g_mtlsCtx->native_handle());
+
+                /*SSL_set_verify(ssl,
+                               SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+                               tlsVerifyCallback);*/
+                return SSL_CLIENT_HELLO_SUCCESS;
+            }
+            else{
+                BMCWEB_LOG_CRITICAL("clientHello: SNI not equal mtls.bmc NO MTLS");
+            }
+        }
+    }else{
+        BMCWEB_LOG_CRITICAL("clientHello: SNI not found for mtls.bmc → NO mTLS");            
+    }
+
+    // ------------------------------------------------------------
+    // 5. Default = HTTPS context
+    // ------------------------------------------------------------
+    BMCWEB_LOG_CRITICAL("clientHello: Using HTTPS context");
+
+    if (ensuressl::crow::g_httpsCtx)
+        SSL_set_SSL_CTX(ssl, ensuressl::crow::g_httpsCtx->native_handle());
+
+    SSL_set_verify(ssl, SSL_VERIFY_NONE, tlsVerifyCallback);
+
+    return SSL_CLIENT_HELLO_SUCCESS;
+}
 
 static bool getSslContext(boost::asio::ssl::context& mSslContext,
                           const std::string& sslPemFile)
@@ -495,8 +823,7 @@ static bool getSslContext(boost::asio::ssl::context& mSslContext,
         boost::asio::ssl::context::single_dh_use |
         boost::asio::ssl::context::no_tlsv1 |
         boost::asio::ssl::context::no_tlsv1_1);
-
-    BMCWEB_LOG_DEBUG("Using default TrustStore location: {}", trustStorePath);
+    BMCWEB_LOG_CRITICAL("Using default TrustStore location: {}", trustStorePath);
     mSslContext.add_verify_path(trustStorePath);
 
     if (!sslPemFile.empty())
@@ -535,23 +862,66 @@ static bool getSslContext(boost::asio::ssl::context& mSslContext,
 
 std::shared_ptr<boost::asio::ssl::context> getSslServerContext()
 {
-    boost::asio::ssl::context sslCtx(boost::asio::ssl::context::tls_server);
+    using namespace boost::asio::ssl;
+    namespace fs = std::filesystem;
 
+    // Allocate HTTPS context as shared_ptr
+    auto httpsCtx = std::make_shared<context>(context::tls_server);
+
+    // Load the HTTPS certificate first
     auto certFile = ensureCertificate();
-    if (!getSslContext(sslCtx, certFile))
+    if (!getSslContext(*httpsCtx, certFile))
     {
         BMCWEB_LOG_CRITICAL("Couldn't get server context");
         return nullptr;
     }
+
+    SSL_CTX_set_options(httpsCtx->native_handle(), SSL_OP_NO_RENEGOTIATION);
+    // Store globally for callbacks
+    ensuressl::crow::g_httpsCtx = httpsCtx;
+
+    auto mtlsCtx = std::make_shared<context>(context::tls_server);
+    const std::string mtlsCertFile = "/etc/ssl/certs/mtls/server.pem";
+    if (!getMtlsSslContext(*mtlsCtx))
+    {
+        BMCWEB_LOG_CRITICAL("Couldn't load mTLS server certificate, continuing with HTTPS only");
+        ensuressl::crow::g_mtlsCtx = nullptr;
+    }
+    else
+    {
+        BMCWEB_LOG_CRITICAL("Loaded additional mTLS CA ");
+        ensuressl::crow::g_mtlsCtx = mtlsCtx;
+
+        mtlsCtx->set_verify_mode(boost::asio::ssl::verify_peer /*|
+                                 boost::asio::ssl::verify_fail_if_no_peer_cert*/);
+        ensuressl::crow::g_mtlsCtx = mtlsCtx;
+        BMCWEB_LOG_CRITICAL("Loaded mTLS context: {}", mtlsCertFile);
+        // Apply same anti-renegotiation option
+        SSL_CTX_set_options(ensuressl::crow::g_mtlsCtx->native_handle(), SSL_OP_NO_RENEGOTIATION);
+    }
+    
     const persistent_data::AuthConfigMethods& c =
         persistent_data::SessionStore::getInstance().getAuthMethodsConfig();
 
     boost::asio::ssl::verify_mode mode = boost::asio::ssl::verify_none;
     if (c.tlsStrict)
     {
-        BMCWEB_LOG_DEBUG("Setting verify peer and fail if no peer cert");
-        mode |= boost::asio::ssl::verify_peer;
-        mode |= boost::asio::ssl::verify_fail_if_no_peer_cert;
+
+        BMCWEB_LOG_CRITICAL("tlsStrict enabled → HTTPS will convert mtls request client certs");
+        if(ensuressl::crow::g_mtlsCtx){    
+            ensuressl::crow::g_mtlsCtx->set_verify_mode(boost::asio::ssl::verify_peer /*|
+                                  boost::asio::ssl::verify_fail_if_no_peer_cert*/);
+            
+            if constexpr (BMCWEB_HTTP2)
+            {
+
+                SSL_CTX_set_next_protos_advertised_cb(ensuressl::crow::g_mtlsCtx->native_handle(),
+                                          nextProtoCallback, nullptr);
+                SSL_CTX_set_alpn_select_cb(ensuressl::crow::g_mtlsCtx->native_handle(),
+                               alpnSelectProtoCallback, nullptr);
+            }
+            BMCWEB_LOG_CRITICAL("mtlsCtx created ");
+        }
     }
     else if (!forward_unauthorized::hasWebuiRoute())
     {
@@ -564,31 +934,55 @@ std::shared_ptr<boost::asio::ssl::context> getSslServerContext()
         // request.  So, in this case detect if the webui is installed, and
         // only request peer authentication if it's not present.
         // This will likely need revisited in the future.
-        BMCWEB_LOG_DEBUG("Setting verify peer only");
+        BMCWEB_LOG_CRITICAL("Setting verify peer only");
         mode |= boost::asio::ssl::verify_peer;
-    }
+        boost::system::error_code ec;     
+        httpsCtx->set_verify_mode(mode, ec);
+     if (ec)
+     {
+        BMCWEB_LOG_CRITICAL("Failed to set verify mode {}", ec.message());
+         return nullptr;
+     }
 
-    boost::system::error_code ec;
-    sslCtx.set_verify_mode(mode, ec);
-    if (ec)
-    {
-        BMCWEB_LOG_DEBUG("Failed to set verify mode {}", ec.message());
-        return nullptr;
     }
-
-    SSL_CTX_set_options(sslCtx.native_handle(), SSL_OP_NO_RENEGOTIATION);
+    
+        // HTTP/2 callbacks (optional)
+    // ------------------------
 
     if constexpr (BMCWEB_HTTP2)
     {
-        SSL_CTX_set_next_protos_advertised_cb(sslCtx.native_handle(),
-                                              nextProtoCallback, nullptr);
+        SSL_CTX_set_next_protos_advertised_cb(httpsCtx->native_handle(),
+                                          nextProtoCallback, nullptr);
+        SSL_CTX_set_alpn_select_cb(httpsCtx->native_handle(),
+                               alpnSelectProtoCallback, nullptr);
 
-        SSL_CTX_set_alpn_select_cb(sslCtx.native_handle(),
-                                   alpnSelectProtoCallback, nullptr);
     }
 
-    return std::make_shared<boost::asio::ssl::context>(std::move(sslCtx));
+    httpsCtx->set_verify_mode(SSL_VERIFY_PEER);
+
+    ensuressl::crow::g_httpsCtx = httpsCtx;
+    SSL_CTX* rawHttpsCtx = ensuressl::crow::g_httpsCtx->native_handle(); 
+    SSL_CTX_set_tlsext_servername_callback(rawHttpsCtx, sniDummyCallback);    
+    SSL_CTX_set_tlsext_servername_arg(rawHttpsCtx,nullptr); 
+
+    //client hello callback for httpscontext
+    SSL_CTX_set_client_hello_cb(rawHttpsCtx,
+                             clientHelloCallback,
+                             nullptr);
+    SSL_CTX_set_verify(rawHttpsCtx,
+                   SSL_VERIFY_PEER,
+                   tlsVerifyCallback);
+    if(ensuressl::crow::g_mtlsCtx){
+       ensuressl::crow::g_mtlsCtx  = mtlsCtx;
+        //client hello callback for mtlscontext 
+        SSL_CTX_set_client_hello_cb(ensuressl::crow::g_mtlsCtx->native_handle(),
+                             clientHelloCallback,
+                             nullptr);
+        SSL_CTX_set_verify(ensuressl::crow::g_mtlsCtx->native_handle(), SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT, tlsVerifyCallback);
+    }
+    return httpsCtx;
 }
+
 
 std::optional<boost::asio::ssl::context> getSSLClientContext(
     VerifyCertificate /*verifyCertificate*/)
