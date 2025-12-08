@@ -15,6 +15,7 @@
 #include <boost/beast/core/file_posix.hpp>
 #include <boost/system/error_code.hpp>
 #include <fstream>
+
 extern "C"
 {
 #include <nghttp2/nghttp2.h>
@@ -63,7 +64,6 @@ namespace crow
 std::shared_ptr<boost::asio::ssl::context> g_httpsCtx = nullptr;
 std::shared_ptr<boost::asio::ssl::context> g_mtlsCtx = nullptr;
 }
-bool isSslCtxMtlsForSsl(SSL* ssl);
 static EVP_PKEY* createEcKey();
 
 // Mozilla intermediate cipher suites v5.7
@@ -150,7 +150,6 @@ bool validateCertificate(X509* const cert)
 
 std::string verifyOpensslKeyCert(const std::string& filepath)
 {
-
     bool privateKeyValid = false;
     BMCWEB_LOG_INFO("Checking certs in file {}", filepath);
     boost::beast::file_posix file;
@@ -586,75 +585,6 @@ static bool getMtlsSslContext(boost::asio::ssl::context& ctx)
     return true;
 }
 
-// Verify callback for certificate-chain validation in mTLS
-static int tlsVerifyCallback(int preverifyOk, X509_STORE_CTX* ctx)
-{
-    BMCWEB_LOG_CRITICAL("tlsVerifyCallback called");
-    // If OpenSSL already failed verification → reject immediately
-    if (!preverifyOk)
-    {
-        int err = X509_STORE_CTX_get_error(ctx);
-        BMCWEB_LOG_ERROR("mTLS verify failed: ",
-                          X509_verify_cert_error_string(err));
-        //return 0;
-    }
-
-    if (ctx == nullptr)
-    {
-        BMCWEB_LOG_ERROR("mTLS: Null X509_STORE_CTX");
-        return 0;
-    }
-
-    // Certificate being verified
-    X509* cert = X509_STORE_CTX_get_current_cert(ctx);
-    if (!cert)
-    {
-        BMCWEB_LOG_ERROR("mTLS: No peer certificate");
-        return 0;
-    }else{
-        // Subject
-        char *sub = X509_NAME_oneline(X509_get_subject_name(cert), nullptr, 0);
-        char *iss = X509_NAME_oneline(X509_get_issuer_name(cert), nullptr, 0);
-        if (sub) { BMCWEB_LOG_CRITICAL("mTLS: current cert subject: {}", sub); OPENSSL_free(sub); }
-        if (iss) { BMCWEB_LOG_CRITICAL("mTLS: current cert issuer : {}", iss); OPENSSL_free(iss); }
-
-        ASN1_INTEGER* asn1_serial = X509_get_serialNumber(cert);
-        if (asn1_serial)
-        {
-            BIGNUM* bn = ASN1_INTEGER_to_BN(asn1_serial, nullptr);
-            if (bn)
-            {
-                char* hex = BN_bn2hex(bn);
-                if (hex) { BMCWEB_LOG_CRITICAL("mTLS: cert serial: {}", hex); OPENSSL_free(hex); }
-                BN_free(bn);
-            }
-        }
-    }
-
-    // Optional: Validate CN/SAN
-    char cn[256] = {};
-    X509_NAME* subject = X509_get_subject_name(cert);
-
-    int ret = X509_NAME_get_text_by_NID(subject, NID_commonName, cn, sizeof(cn));
-    if (ret < 0)
-    {
-        BMCWEB_LOG_ERROR("mTLS: Failed to extract CN");
-        return 0;
-    }
-
-    std::string commonName(cn);
-
-    // Example policy: Only allow certificates with CN containing "admin"
-    if (commonName.find("admin") == std::string::npos)
-    {
-        BMCWEB_LOG_ERROR("mTLS: CN '{}' is not allowed", commonName);
-        return 0;
-    }
-
-    BMCWEB_LOG_CRITICAL("mTLS: Peer certificate CN='{}' accepted", commonName);
-    return 1; // Accept the certificate
-}
-
 // ============================================================================
 // - If client presents certificate → mTLS
 // - Else if client IP is in allowlist → mTLS
@@ -670,91 +600,17 @@ static int clientHelloCallback(SSL *ssl, int *al, void *arg)
     BMCWEB_LOG_CRITICAL("ClientHello callback");
 
     // ------------------------------------------------------------
-    // 1. Detect client IP address
-    // ------------------------------------------------------------
-    int fd = SSL_get_fd(ssl);
-    if (fd < 0)
-    {
-        BMCWEB_LOG_ERROR( "SSL_get_fd failed");
-        *al = SSL_AD_INTERNAL_ERROR;
-        //return SSL_CLIENT_HELLO_ERROR;
-    }
-
-    sockaddr_storage addr {};
-    socklen_t len = sizeof(addr);
-    if (getpeername(fd, (sockaddr*)&addr, &len) != 0)
-    {
-        BMCWEB_LOG_ERROR ("getpeername failed");
-        *al = SSL_AD_INTERNAL_ERROR;
-        //return SSL_CLIENT_HELLO_ERROR;
-    }
-
-    char ipStr[INET6_ADDRSTRLEN];
-    if (addr.ss_family == AF_INET)
-    {
-        auto* a = (sockaddr_in*)&addr;
-        inet_ntop(AF_INET, &a->sin_addr, ipStr, sizeof(ipStr));
-    }
-    else
-    {
-        auto* a = (sockaddr_in6*)&addr;
-        inet_ntop(AF_INET6, &a->sin6_addr, ipStr, sizeof(ipStr));
-    }
-
-    BMCWEB_LOG_CRITICAL("Peer IP: ",ipStr);
-
-    // ------------------------------------------------------------
-    // 2. Client certificate presence: best & safest mTLS detector
-    // ------------------------------------------------------------
-    X509 *peer = SSL_get_peer_certificate(ssl);
-    if (peer)
-    {
-        BMCWEB_LOG_CRITICAL("clientHello: client presented certificate → mTLS");
-
-        X509_free(peer);
-
-        if (ensuressl::crow::g_mtlsCtx)
-            SSL_set_SSL_CTX(ssl, ensuressl::crow::g_mtlsCtx->native_handle());
-
-        SSL_set_verify(ssl,
-                       SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
-                       tlsVerifyCallback);
-        return SSL_CLIENT_HELLO_SUCCESS;
-    }else{
-        BMCWEB_LOG_CRITICAL("clientHello: client did not presented certificate Not mtls");
-    }
-
-    // ------------------------------------------------------------
-    // 3. IP allowlist → treat as mTLS (peer BMC)
-    // ------------------------------------------------------------
-    static const std::vector<std::string> allowlist = {
-        "9.41.166.174",    // your peer BMC
-        "9.3.29.238"       // example
-    };
-
-    if (std::find(allowlist.begin(), allowlist.end(), std::string(ipStr)) != allowlist.end())
-    {
-        BMCWEB_LOG_CRITICAL("clientHello: IP {} is allowlisted → mTLS", ipStr);
-
-        if (ensuressl::crow::g_mtlsCtx)
-            SSL_set_SSL_CTX(ssl, ensuressl::crow::g_mtlsCtx->native_handle());
-
-        SSL_set_verify(ssl,
-                       SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
-                       tlsVerifyCallback);
-        return SSL_CLIENT_HELLO_SUCCESS;
-    }else{
-        BMCWEB_LOG_CRITICAL("clientHello: IP {} is NOT in allowlisted → NO mTLS", ipStr);
-    }
-
-    // ------------------------------------------------------------
-    // 4. SNI fallback (works on OpenSSL 1.1.1 through generic ext parser)
+    //SNI fallback
     // ------------------------------------------------------------
 
     const unsigned char *sni = nullptr;
     size_t sniLen = 0;
+    if (!ssl){
+        BMCWEB_LOG_CRITICAL("no ssl return");
+        return 0;
+    }
 
-    // extType=0 → SNI , we must parse manually because OpenSSL 1.1.1 has no helper API
+    // Determine if this should be mTLS based on SNI or allowlist
     if (SSL_client_hello_get0_ext(ssl, TLSEXT_TYPE_server_name, &sni, &sniLen) == 1 && sniLen > 5)
     {
         // Parse extension manually:
@@ -784,31 +640,31 @@ static int clientHelloCallback(SSL *ssl, int *al, void *arg)
             {
                 BMCWEB_LOG_CRITICAL("clientHello: SNI=mtls.bmc → mTLS");
 
-                if (ensuressl::crow::g_mtlsCtx)
+                if (ensuressl::crow::g_mtlsCtx){
                     SSL_set_SSL_CTX(ssl, ensuressl::crow::g_mtlsCtx->native_handle());
-
-                /*SSL_set_verify(ssl,
-                               SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
-                               tlsVerifyCallback);*/
-                return SSL_CLIENT_HELLO_SUCCESS;
+                    BMCWEB_LOG_CRITICAL("SSL Handler: mTLS context assigned");
+                    return SSL_CLIENT_HELLO_SUCCESS;
+                }
             }
             else{
                 BMCWEB_LOG_CRITICAL("clientHello: SNI not equal mtls.bmc NO MTLS");
             }
         }
     }else{
-        BMCWEB_LOG_CRITICAL("clientHello: SNI not found for mtls.bmc → NO mTLS");            
+        BMCWEB_LOG_CRITICAL("clientHello: SNI not found for mtls.bmc → NO mTLS");
     }
 
     // ------------------------------------------------------------
-    // 5. Default = HTTPS context
+    // Default = HTTPS context
     // ------------------------------------------------------------
     BMCWEB_LOG_CRITICAL("clientHello: Using HTTPS context");
 
-    if (ensuressl::crow::g_httpsCtx)
+    if (ensuressl::crow::g_httpsCtx){
         SSL_set_SSL_CTX(ssl, ensuressl::crow::g_httpsCtx->native_handle());
+        SSL_set_verify(ssl, SSL_VERIFY_PEER, nullptr);
 
-    SSL_set_verify(ssl, SSL_VERIFY_NONE, tlsVerifyCallback);
+        BMCWEB_LOG_CRITICAL("SSL Handler: HTTPS context assigned");
+    }
 
     return SSL_CLIENT_HELLO_SUCCESS;
 }
@@ -899,7 +755,7 @@ std::shared_ptr<boost::asio::ssl::context> getSslServerContext()
         // Apply same anti-renegotiation option
         SSL_CTX_set_options(ensuressl::crow::g_mtlsCtx->native_handle(), SSL_OP_NO_RENEGOTIATION);
     }
-    
+
     const persistent_data::AuthConfigMethods& c =
         persistent_data::SessionStore::getInstance().getAuthMethodsConfig();
 
@@ -908,10 +764,13 @@ std::shared_ptr<boost::asio::ssl::context> getSslServerContext()
     {
 
         BMCWEB_LOG_CRITICAL("tlsStrict enabled → HTTPS will convert mtls request client certs");
-        if(ensuressl::crow::g_mtlsCtx){    
-            ensuressl::crow::g_mtlsCtx->set_verify_mode(boost::asio::ssl::verify_peer /*|
-                                  boost::asio::ssl::verify_fail_if_no_peer_cert*/);
-            
+        if(ensuressl::crow::g_mtlsCtx){
+            ensuressl::crow::g_mtlsCtx->set_verify_mode(boost::asio::ssl::verify_peer |
+                                  boost::asio::ssl::verify_fail_if_no_peer_cert);
+        }
+        ensuressl::crow::g_httpsCtx->set_verify_mode(boost::asio::ssl::verify_peer |
+                                  boost::asio::ssl::verify_fail_if_no_peer_cert);
+
             if constexpr (BMCWEB_HTTP2)
             {
 
@@ -921,7 +780,7 @@ std::shared_ptr<boost::asio::ssl::context> getSslServerContext()
                                alpnSelectProtoCallback, nullptr);
             }
             BMCWEB_LOG_CRITICAL("mtlsCtx created ");
-        }
+
     }
     else if (!forward_unauthorized::hasWebuiRoute())
     {
@@ -936,7 +795,7 @@ std::shared_ptr<boost::asio::ssl::context> getSslServerContext()
         // This will likely need revisited in the future.
         BMCWEB_LOG_CRITICAL("Setting verify peer only");
         mode |= boost::asio::ssl::verify_peer;
-        boost::system::error_code ec;     
+        boost::system::error_code ec;
         httpsCtx->set_verify_mode(mode, ec);
      if (ec)
      {
@@ -945,7 +804,7 @@ std::shared_ptr<boost::asio::ssl::context> getSslServerContext()
      }
 
     }
-    
+
         // HTTP/2 callbacks (optional)
     // ------------------------
 
@@ -961,24 +820,23 @@ std::shared_ptr<boost::asio::ssl::context> getSslServerContext()
     httpsCtx->set_verify_mode(SSL_VERIFY_PEER);
 
     ensuressl::crow::g_httpsCtx = httpsCtx;
-    SSL_CTX* rawHttpsCtx = ensuressl::crow::g_httpsCtx->native_handle(); 
-    SSL_CTX_set_tlsext_servername_callback(rawHttpsCtx, sniDummyCallback);    
-    SSL_CTX_set_tlsext_servername_arg(rawHttpsCtx,nullptr); 
+    SSL_CTX* rawHttpsCtx = ensuressl::crow::g_httpsCtx->native_handle();
+    SSL_CTX_set_tlsext_servername_callback(rawHttpsCtx, sniDummyCallback);
+    SSL_CTX_set_tlsext_servername_arg(rawHttpsCtx,nullptr);
 
     //client hello callback for httpscontext
     SSL_CTX_set_client_hello_cb(rawHttpsCtx,
                              clientHelloCallback,
                              nullptr);
-    SSL_CTX_set_verify(rawHttpsCtx,
-                   SSL_VERIFY_PEER,
-                   tlsVerifyCallback);
+    if(c.tlsStrict){
+    BMCWEB_LOG_CRITICAL("tlsstrictenabled presen cert always for https_context");
+    }
     if(ensuressl::crow::g_mtlsCtx){
        ensuressl::crow::g_mtlsCtx  = mtlsCtx;
-        //client hello callback for mtlscontext 
+        //client hello callback for mtlscontext
         SSL_CTX_set_client_hello_cb(ensuressl::crow::g_mtlsCtx->native_handle(),
                              clientHelloCallback,
                              nullptr);
-        SSL_CTX_set_verify(ensuressl::crow::g_mtlsCtx->native_handle(), SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT, tlsVerifyCallback);
     }
     return httpsCtx;
 }
