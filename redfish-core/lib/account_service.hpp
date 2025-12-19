@@ -1361,7 +1361,6 @@ inline void processAccountUpdate(
 
     if (mfaBypass)
     {
-        std::string mfaBypassDbusVal;
         // Check if the input vector contains just one bypass type:
         // as there are just two defined in the backend:
         // GoogleAuthenticator  and None
@@ -1382,14 +1381,9 @@ inline void processAccountUpdate(
                                              "MFABypass/BypassTypes", values);
             return;
         }
-        std::string mfaBypassDbusPrefix =
-            "xyz.openbmc_project.User.MultiFactorAuthConfiguration.Type.";
-        if (mfaBypass->empty() || mfaBypass->front() == "None")
-        {
-            mfaBypassDbusVal =
-                "xyz.openbmc_project.User.MultiFactorAuthConfiguration.Type.None";
-        }
-        else
+        std::string mfaBypassDbusVal =
+            "xyz.openbmc_project.User.MultiFactorAuthConfiguration.Type.None";
+        if (!mfaBypass->empty())
         {
             std::string mfaBypassVal = mfaBypass->front();
             if (mfaBypassVal == "GoogleAuthenticator")
