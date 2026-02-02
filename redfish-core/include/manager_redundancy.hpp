@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <format>
 #include <functional>
+#include <limits>
 #include <map>
 #include <memory>
 #include <ranges>
@@ -76,11 +77,14 @@ inline void getRedundantData(
     const bool* failoversAllowed = nullptr;
     const bool* redundancyEnabled = nullptr;
     const size_t* redundancyMinimum = nullptr;
+    const size_t* redundancyMaximum = nullptr;
+    const size_t* functionalMinimum = nullptr;
 
     const bool success = sdbusplus::unpackPropertiesNoThrow(
         dbus_utils::UnpackErrorPrinter(), propertiesList, "FailoversAllowed",
         failoversAllowed, "RedundancyEnabled", redundancyEnabled,
-        "RedundancyMinimum", redundancyMinimum);
+        "RedundancyMinimum", redundancyMinimum, "RedundancyMaximum",
+        redundancyMaximum, "FunctionalMinimum", functionalMinimum);
 
     if (!success)
     {
@@ -129,7 +133,18 @@ inline void getRedundantData(
 
     if (redundancyMinimum != nullptr)
     {
-        redundantObject["MinNumNeeded"] = *redundancyMinimum;
+        redundantObject["MinNumNeededForFaultTolerance"] = *redundancyMinimum;
+    }
+
+    if (redundancyMaximum != nullptr &&
+        *redundancyMaximum != std::numeric_limits<size_t>::max())
+    {
+        redundantObject["MaxNumSupported"] = *redundancyMaximum;
+    }
+
+    if (functionalMinimum != nullptr)
+    {
+        redundantObject["MinNumNeeded"] = *functionalMinimum;
     }
 
     redundancy->emplace_back(std::move(redundantObject));
