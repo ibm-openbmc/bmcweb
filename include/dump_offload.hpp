@@ -75,13 +75,70 @@ class Handler : public std::enable_shared_from_this<Handler>
             const std::string& unixSocketPathIn) :
         entryID(entryIDIn), dumpType(dumpTypeIn),
         unixSocketPath(unixSocketPathIn), unixSocket(ios), waitTimer(ios)
-    {}
-    ~Handler() = default;
+    {
+        BMCWEB_LOG_DEBUG("Handler created for dump {} type {}", entryIDIn,
+                         dumpTypeIn);
+    }
+    ~Handler()
+    {
+        BMCWEB_LOG_DEBUG("Handler destroyed for dump {} type {}", entryID,
+                         dumpType);
+        cleanup();
+    }
 
     Handler(const Handler&) = delete;
     Handler(Handler&&) = delete;
     Handler& operator=(const Handler&) = delete;
     Handler& operator=(Handler&&) = delete;
+
+    bool isConnectionValid() const
+    {
+        return connection != nullptr && !connectionClosed;
+    }
+
+    void markConnectionClosed()
+    {
+        connectionClosed = true;
+    }
+
+    void cleanup()
+    {
+        // Cancel any pending timer operations
+        try
+        {
+            waitTimer.cancel();
+        }
+        catch (...)
+        {
+            // Ignore errors during cleanup
+        }
+
+        // Close unix socket if open
+        if (unixSocket.is_open())
+        {
+            boost::system::error_code ec;
+            unixSocket.close(ec);
+        }
+
+        // Clear the output buffer to free memory
+        outputBuffer.clear();
+
+        // Remove socket file
+        std::error_code fsEc;
+        bool fileExists = std::filesystem::exists(unixSocketPath, fsEc);
+        if (!fsEc && fileExists)
+        {
+            if (std::remove(unixSocketPath.c_str()) != 0)
+            {
+                BMCWEB_LOG_WARNING("Failed to remove socket file: {}",
+                                   unixSocketPath.string());
+            }
+        }
+
+        // Mark connection as closed to prevent further operations
+        connectionClosed = true;
+        connection = nullptr;
+    }
 
     /**
      * @brief Connects to unix socket to read dump data
@@ -93,6 +150,14 @@ class Handler : public std::enable_shared_from_this<Handler>
         unixSocket.async_connect(
             unixSocketPath.c_str(), [this, self(shared_from_this())](
                                         const boost::system::error_code& ec) {
+                if (!isConnectionValid())
+                {
+                    BMCWEB_LOG_DEBUG(
+                        "Connection already closed, skipping connect callback");
+                    this->cleanup();
+                    return;
+                }
+
                 if (ec)
                 {
                     // TODO:
@@ -110,14 +175,23 @@ class Handler : public std::enable_shared_from_this<Handler>
                     }
                     BMCWEB_LOG_ERROR("UNIX Socket: async_connect error {}",
                                      ec.message());
-                    waitTimer.cancel();
-                    this->connection->sendStreamErrorStatus(
-                        boost::beast::http::status::internal_server_error);
-                    this->connection->close();
-                    this->cleanupSocketFiles();
+                    if (isConnectionValid())
+                    {
+                        this->connection->sendStreamErrorStatus(
+                            boost::beast::http::status::internal_server_error);
+                        this->connection->close();
+                    }
+                    this->cleanup();
                     return;
                 }
-                waitTimer.cancel();
+                try
+                {
+                    waitTimer.cancel();
+                }
+                catch (...)
+                {
+                    // Ignore cancel errors
+                }
                 this->connection->sendStreamHeaders(
                     std::to_string(this->dumpSize), "application/octet-stream");
                 this->doReadStream();
@@ -137,6 +211,14 @@ class Handler : public std::enable_shared_from_this<Handler>
         dbus::utility::async_method_call(
             [this,
              self(shared_from_this())](const boost::system::error_code& ec) {
+                if (!isConnectionValid())
+                {
+                    BMCWEB_LOG_DEBUG(
+                        "Connection already closed, skipping initiateOffload callback");
+                    this->cleanup();
+                    return;
+                }
+
                 if (ec)
                 {
                     if (ec.value() == EBADR)
@@ -152,7 +234,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                             boost::beast::http::status::internal_server_error);
                     }
                     this->connection->close();
-                    this->cleanupSocketFiles();
+                    this->cleanup();
                     return;
                 }
             },
@@ -172,6 +254,13 @@ class Handler : public std::enable_shared_from_this<Handler>
 
         waitTimer.async_wait([this, self(shared_from_this())](
                                  const boost::system::error_code& ec) {
+            if (!isConnectionValid())
+            {
+                BMCWEB_LOG_DEBUG("Connection already closed, skipping retry");
+                this->cleanup();
+                return;
+            }
+
             if (ec)
             {
                 BMCWEB_LOG_ERROR("Async_wait failed {}", ec.message());
@@ -190,12 +279,11 @@ class Handler : public std::enable_shared_from_this<Handler>
             {
                 BMCWEB_LOG_ERROR("Failed to connect, reached max retry count: ",
                                  connectRetryCount);
-                waitTimer.cancel();
-                this->cleanupSocketFiles();
                 this->connection->setStreamHeaders("Retry-After", "60");
                 this->connection->sendStreamErrorStatus(
                     boost::beast::http::status::service_unavailable);
                 this->connection->close();
+                this->cleanup();
                 return;
             }
         });
@@ -212,20 +300,25 @@ class Handler : public std::enable_shared_from_this<Handler>
             std::variant<std::string>(value),
             [this,
              self(shared_from_this())](const boost::system::error_code& ec) {
+                if (!isConnectionValid())
+                {
+                    BMCWEB_LOG_DEBUG(
+                        "Connection already closed, skipping resetOffloadURI callback");
+                    return;
+                }
+
                 if (ec)
                 {
                     if (ec.value() == EBADR)
                     {
-                        this->connection->sendStreamErrorStatus(
-                            boost::beast::http::status::not_found);
+                        BMCWEB_LOG_ERROR(
+                            "Dump entry not found for resetOffloadURI");
                     }
                     else
                     {
                         BMCWEB_LOG_ERROR(
                             "DBUS response error: Unable to set the dump OffloadUri {}",
                             ec);
-                        this->connection->sendStreamErrorStatus(
-                            boost::beast::http::status::internal_server_error);
                     }
                     return;
                 }
@@ -244,8 +337,8 @@ class Handler : public std::enable_shared_from_this<Handler>
         bool fileExists = std::filesystem::exists(unixSocketPath, ec);
         if (ec)
         {
-            this->connection->sendStreamErrorStatus(
-                boost::beast::http::status::internal_server_error);
+            BMCWEB_LOG_ERROR("Error checking socket file existence: {}",
+                             ec.message());
             return;
         }
         if (fileExists)
@@ -270,6 +363,14 @@ class Handler : public std::enable_shared_from_this<Handler>
             "xyz.openbmc_project.Dump.Entry", "Size",
             [this, self(shared_from_this())](
                 const boost::system::error_code& ec, const uint64_t size) {
+                if (!isConnectionValid())
+                {
+                    BMCWEB_LOG_DEBUG(
+                        "Connection already closed, skipping getDumpSize callback");
+                    this->cleanup();
+                    return;
+                }
+
                 if (ec)
                 {
                     if (ec.value() == EBADR)
@@ -286,7 +387,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                             boost::beast::http::status::internal_server_error);
                     }
                     this->connection->close();
-                    this->cleanupSocketFiles();
+                    this->cleanup();
                     return;
                 }
                 this->dumpSize = size;
@@ -311,6 +412,13 @@ class Handler : public std::enable_shared_from_this<Handler>
             this->outputBuffer.prepare(bytes),
             [this, self(shared_from_this())](
                 const boost::system::error_code& ec, std::size_t bytesRead) {
+                if (!isConnectionValid())
+                {
+                    BMCWEB_LOG_DEBUG(
+                        "Connection already closed, skipping read callback");
+                    return;
+                }
+
                 if (ec)
                 {
                     if (ec != boost::asio::error::eof)
@@ -329,11 +437,23 @@ class Handler : public std::enable_shared_from_this<Handler>
                 }
 
                 this->outputBuffer.commit(bytesRead);
-                auto streamHandler =
-                    [this, bytesRead, self(shared_from_this())]() {
-                        this->outputBuffer.consume(bytesRead);
-                        this->doReadStream();
-                    };
+                // Use weak_ptr to break circular reference
+                std::weak_ptr<Handler> weakSelf = shared_from_this();
+                auto streamHandler = [this, bytesRead, weakSelf]() {
+                    auto selfPtr = weakSelf.lock();
+                    if (!selfPtr)
+                    {
+                        BMCWEB_LOG_DEBUG("Handler already destroyed");
+                        return;
+                    }
+                    if (!isConnectionValid())
+                    {
+                        BMCWEB_LOG_DEBUG("Connection closed during stream");
+                        return;
+                    }
+                    this->outputBuffer.consume(bytesRead);
+                    this->doReadStream();
+                };
                 this->connection->sendMessage(this->outputBuffer.data(),
                                               streamHandler);
             });
@@ -348,6 +468,7 @@ class Handler : public std::enable_shared_from_this<Handler>
     boost::asio::steady_timer waitTimer;
     crow::streaming_response::Connection* connection = nullptr;
     uint16_t connectRetryCount{0};
+    bool connectionClosed{false};
 };
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
@@ -462,13 +583,20 @@ inline void requestRoutesDumpOffload(App& app)
                 BMCWEB_LOG_DEBUG("No handler to cleanup");
                 return;
             }
-            handler->second->cleanupSocketFiles();
+            // Mark connection as closed to prevent async callbacks from using
+            // it
+            handler->second->markConnectionClosed();
+
+            // Perform full cleanup
+            handler->second->cleanup();
+
             if (!status)
             {
                 handler->second->resetOffloadURI();
             }
-            handler->second->outputBuffer.clear();
-            systemHandlers.clear();
+
+            // Clear the handler from the map to release the shared_ptr
+            systemHandlers.erase(handler);
         });
 }
 

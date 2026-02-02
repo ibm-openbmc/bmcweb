@@ -46,6 +46,7 @@ struct Connection : std::enable_shared_from_this<Connection>
     crow::Request req;
     crow::DynamicResponse streamres;
     bool completionStatus = false;
+    bool isClosed = false;
 };
 
 template <typename Adaptor>
@@ -133,6 +134,13 @@ class ConnectionImpl : public Connection
 
     void close() override
     {
+        if (isClosed)
+        {
+            BMCWEB_LOG_DEBUG(
+                "Connection already closed, skipping duplicate close");
+            return;
+        }
+        isClosed = true;
         streamres.end();
         boost::beast::get_lowest_layer(adaptor).close();
         closeHandler(*this, completionStatus);
