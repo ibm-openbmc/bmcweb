@@ -76,7 +76,10 @@ class Handler : public std::enable_shared_from_this<Handler>
         entryID(entryIDIn), dumpType(dumpTypeIn),
         unixSocketPath(unixSocketPathIn), unixSocket(ios), waitTimer(ios)
     {}
-    ~Handler() = default;
+    ~Handler()
+    {
+        BMCWEB_LOG_DEBUG("~Handler callled");
+    }
 
     Handler(const Handler&) = delete;
     Handler(Handler&&) = delete;
@@ -91,8 +94,13 @@ class Handler : public std::enable_shared_from_this<Handler>
     void doConnect()
     {
         unixSocket.async_connect(
-            unixSocketPath.c_str(), [this, self(shared_from_this())](
+            unixSocketPath.c_str(), [this, self(weak_from_this())](
                                         const boost::system::error_code& ec) {
+                auto sharedSelf = self.lock();
+                if (!sharedSelf)
+                {
+                    return;
+                }
                 if (ec)
                 {
                     // TODO:
@@ -136,7 +144,12 @@ class Handler : public std::enable_shared_from_this<Handler>
             "/xyz/openbmc_project/dump/{}/entry/{}", dumpType, entryID);
         dbus::utility::async_method_call(
             [this,
-             self(shared_from_this())](const boost::system::error_code& ec) {
+             self(weak_from_this())](const boost::system::error_code& ec) {
+                auto sharedSelf = self.lock();
+                if (!sharedSelf)
+                {
+                    return;
+                }
                 if (ec)
                 {
                     if (ec.value() == EBADR)
@@ -170,8 +183,13 @@ class Handler : public std::enable_shared_from_this<Handler>
     {
         waitTimer.expires_after(std::chrono::milliseconds(1000));
 
-        waitTimer.async_wait([this, self(shared_from_this())](
+        waitTimer.async_wait([this, self(weak_from_this())](
                                  const boost::system::error_code& ec) {
+            auto sharedSelf = self.lock();
+            if (!sharedSelf)
+            {
+                return;
+            }
             if (ec)
             {
                 BMCWEB_LOG_ERROR("Async_wait failed {}", ec.message());
@@ -203,6 +221,7 @@ class Handler : public std::enable_shared_from_this<Handler>
 
     void resetOffloadURI()
     {
+        BMCWEB_LOG_DEBUG("resetOffloadURI");
         std::string dumpEntryPath = std::format(
             "/xyz/openbmc_project/dump/{}/entry/{}", dumpType, entryID);
         std::string value;
@@ -211,7 +230,12 @@ class Handler : public std::enable_shared_from_this<Handler>
             dumpEntryPath, "xyz.openbmc_project.Dump.Entry", "OffloadUri",
             std::variant<std::string>(value),
             [this,
-             self(shared_from_this())](const boost::system::error_code& ec) {
+             self(weak_from_this())](const boost::system::error_code& ec) {
+                auto sharedSelf = self.lock();
+                if (!sharedSelf)
+                {
+                    return;
+                }
                 if (ec)
                 {
                     if (ec.value() == EBADR)
@@ -234,6 +258,19 @@ class Handler : public std::enable_shared_from_this<Handler>
             });
     }
 
+    void cancelAsyncOperations()
+    {
+        // Cancel the wait timer to release any pending callbacks
+        waitTimer.cancel();
+
+        // Close the socket to cancel any pending async operations
+        boost::system::error_code ec;
+        if (unixSocket.is_open())
+        {
+            unixSocket.close(ec);
+        }
+    }
+
     void cleanupSocketFiles()
     {
         if (unixSocket.is_open())
@@ -244,6 +281,9 @@ class Handler : public std::enable_shared_from_this<Handler>
         bool fileExists = std::filesystem::exists(unixSocketPath, ec);
         if (ec)
         {
+            BMCWEB_LOG_WARNING(
+                "unixSocketPath check failed sending internal server error",
+                unixSocketPath.string());
             this->connection->sendStreamErrorStatus(
                 boost::beast::http::status::internal_server_error);
             return;
@@ -268,8 +308,13 @@ class Handler : public std::enable_shared_from_this<Handler>
         dbus::utility::getProperty<uint64_t>(
             "xyz.openbmc_project.Dump.Manager", dumpEntryPath,
             "xyz.openbmc_project.Dump.Entry", "Size",
-            [this, self(shared_from_this())](
-                const boost::system::error_code& ec, const uint64_t size) {
+            [this, self(weak_from_this())](const boost::system::error_code& ec,
+                                           const uint64_t size) {
+                auto sharedSelf = self.lock();
+                if (!sharedSelf)
+                {
+                    return;
+                }
                 if (ec)
                 {
                     if (ec.value() == EBADR)
@@ -286,7 +331,6 @@ class Handler : public std::enable_shared_from_this<Handler>
                             boost::beast::http::status::internal_server_error);
                     }
                     this->connection->close();
-                    this->cleanupSocketFiles();
                     return;
                 }
                 this->dumpSize = size;
@@ -309,8 +353,13 @@ class Handler : public std::enable_shared_from_this<Handler>
 
         this->unixSocket.async_read_some(
             this->outputBuffer.prepare(bytes),
-            [this, self(shared_from_this())](
-                const boost::system::error_code& ec, std::size_t bytesRead) {
+            [this, self(weak_from_this())](const boost::system::error_code& ec,
+                                           std::size_t bytesRead) {
+                auto sharedSelf = self.lock();
+                if (!sharedSelf)
+                {
+                    return;
+                }
                 if (ec)
                 {
                     if (ec != boost::asio::error::eof)
@@ -322,7 +371,7 @@ class Handler : public std::enable_shared_from_this<Handler>
                         this->connection->close();
                         return;
                     }
-                    BMCWEB_LOG_INFO("Hit Dump end of file");
+                    BMCWEB_LOG_INFO("Hit Dump end of file calling close");
                     this->connection->completionStatus = true;
                     this->connection->close();
                     return;
@@ -330,7 +379,12 @@ class Handler : public std::enable_shared_from_this<Handler>
 
                 this->outputBuffer.commit(bytesRead);
                 auto streamHandler =
-                    [this, bytesRead, self(shared_from_this())]() {
+                    [this, bytesRead, self(weak_from_this())]() {
+                        auto sharedSelfInner = self.lock();
+                        if (!sharedSelfInner)
+                        {
+                            return;
+                        }
                         this->outputBuffer.consume(bytesRead);
                         this->doReadStream();
                     };
@@ -346,32 +400,24 @@ class Handler : public std::enable_shared_from_this<Handler>
     boost::asio::local::stream_protocol::socket unixSocket;
     uint64_t dumpSize{0};
     boost::asio::steady_timer waitTimer;
-    crow::streaming_response::Connection* connection = nullptr;
+    std::shared_ptr<crow::streaming_response::Connection> connection;
     uint16_t connectRetryCount{0};
 };
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
-static boost::container::flat_map<crow::streaming_response::Connection*,
-                                  std::shared_ptr<Handler>>
-    systemHandlers;
+static std::shared_ptr<Handler> systemHandlers = nullptr;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 inline void resetHandlers()
 {
-    if (!systemHandlers.empty())
+    if (systemHandlers != nullptr)
     {
-        auto handler = systemHandlers.begin();
-        if (handler == systemHandlers.end())
+        if ((systemHandlers->dumpType == "system") ||
+            (systemHandlers->dumpType == "resource"))
         {
-            BMCWEB_LOG_DEBUG("No handler to cleanup");
-            return;
-        }
-        if ((handler->second->dumpType == "system") ||
-            (handler->second->dumpType == "resource"))
-        {
-            handler->first->close();
+            systemHandlers->connection->close();
             BMCWEB_LOG_INFO("Dump: {} dump resetHandlers cleanup",
-                            handler->second->dumpType);
+                            systemHandlers->dumpType);
         }
     }
 }
@@ -385,7 +431,7 @@ inline void requestRoutesDumpOffload(App& app)
         .methods(boost::beast::http::verb::get)
         .streamingResponse()
         .onopen([](crow::streaming_response::Connection& conn) {
-            if (!systemHandlers.empty())
+            if (systemHandlers != nullptr)
             {
                 BMCWEB_LOG_WARNING(
                     "Can't allow dump offload operation, one of the host dumps is already offloading");
@@ -424,51 +470,57 @@ inline void requestRoutesDumpOffload(App& app)
             if (!ioCon)
             {
                 BMCWEB_LOG_ERROR("iocontext is null!");
-                systemHandlers[&conn]->connection->sendStreamErrorStatus(
+                conn.sendStreamErrorStatus(
                     boost::beast::http::status::internal_server_error);
                 conn.close();
+                return;
             }
+
             try
             {
-                systemHandlers[&conn] = std::make_shared<Handler>(
+                systemHandlers = std::make_shared<Handler>(
                     *ioCon, dumpId, dumpType, unixSocketPath);
             }
             catch (const std::exception& e)
             {
                 BMCWEB_LOG_ERROR("Exception while creating Handler: {}",
                                  e.what());
-                systemHandlers[&conn]->connection->sendStreamErrorStatus(
+                systemHandlers = nullptr;
+                conn.sendStreamErrorStatus(
                     boost::beast::http::status::internal_server_error);
                 conn.close();
                 return;
             }
-            systemHandlers[&conn]->connection = &conn;
+            systemHandlers->connection = conn.shared_from_this();
 
             if (!crow::ibm_utils::createDirectory(unixSocketPathDir))
             {
-                systemHandlers[&conn]->connection->sendStreamErrorStatus(
+                systemHandlers->connection->sendStreamErrorStatus(
                     boost::beast::http::status::not_found);
-                systemHandlers[&conn]->connection->close();
+                systemHandlers->connection->close();
                 return;
             }
             BMCWEB_LOG_INFO("Dump: {}  dump id {} offload initiated by: {}",
                             dumpType, dumpId, conn.req.session->clientIp);
-            systemHandlers[&conn]->getDumpSize(dumpId, dumpType);
+            systemHandlers->getDumpSize(dumpId, dumpType);
         })
-        .onclose([](crow::streaming_response::Connection& conn, bool& status) {
-            auto handler = systemHandlers.find(&conn);
-            if (handler == systemHandlers.end())
+        .onclose([]([[maybe_unused]] crow::streaming_response::Connection& conn,
+                    bool& status) {
+            if (systemHandlers == nullptr)
             {
                 BMCWEB_LOG_DEBUG("No handler to cleanup");
                 return;
             }
-            handler->second->cleanupSocketFiles();
+            BMCWEB_LOG_DEBUG("cancelling AsyncOperations");
+            // Cancel all async operations to release shared_ptr references
+            systemHandlers->cancelAsyncOperations();
+            systemHandlers->cleanupSocketFiles();
             if (!status)
             {
-                handler->second->resetOffloadURI();
+                systemHandlers->resetOffloadURI();
             }
-            handler->second->outputBuffer.clear();
-            systemHandlers.clear();
+            systemHandlers->outputBuffer.clear();
+            systemHandlers.reset();
         });
 }
 

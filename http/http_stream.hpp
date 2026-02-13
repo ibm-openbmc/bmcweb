@@ -65,13 +65,8 @@ class ConnectionImpl : public Connection
         closeHandler(std::move(closeHandlerIn)),
         errorHandler(std::move(errorHandlerIn))
     {}
-
     void start()
     {
-        streamres.completeRequestHandler = [this, self(shared_from_this())] {
-            BMCWEB_LOG_DEBUG("running completeRequestHandler");
-            this->close();
-        };
         openHandler(*this);
     }
 
@@ -133,7 +128,6 @@ class ConnectionImpl : public Connection
 
     void close() override
     {
-        streamres.end();
         boost::beast::get_lowest_layer(adaptor).close();
         closeHandler(*this, completionStatus);
     }
