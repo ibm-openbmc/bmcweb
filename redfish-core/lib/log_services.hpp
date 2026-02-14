@@ -2116,23 +2116,60 @@ inline void dBusEventLogEntryGet(
                         urlLogEntryPrefix, hidden));
 }
 
+inline void updateManagementSystemAckProperty(
+    const std::optional<bool>& resolved,
+    const std::optional<bool>& managementSystemAck,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& entryId)
+{
+    if (resolved.has_value())
+    {
+        setDbusProperty(asyncResp, "Resolved", "xyz.openbmc_project.Logging",
+                        "/xyz/openbmc_project/logging/entry/" + entryId,
+                        "xyz.openbmc_project.Logging.Entry", "Resolved",
+                        *resolved);
+    }
+
+    if (managementSystemAck.has_value())
+    {
+        BMCWEB_LOG_DEBUG("Updated ManagementSystemAck Property");
+        setDbusProperty(asyncResp, "ManagementSystemAck",
+                        "xyz.openbmc_project.Logging",
+                        "/xyz/openbmc_project/logging/entry/" + entryId,
+                        "org.open_power.Logging.PEL.Entry",
+                        "ManagementSystemAck", *managementSystemAck);
+    }
+}
+
 inline void dBusEventLogEntryPatch(
     const crow::Request& req,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& entryId)
 {
     std::optional<bool> resolved;
-
-    if (!json_util::readJsonPatch(req, asyncResp->res, "Resolved", resolved))
+    std::optional<bool> managementSystemAck;
+    if (!json_util::readJsonPatch(
+            req, asyncResp->res,                                   //
+            "Resolved", resolved,                                  //
+            "Oem/OpenBMC/ManagementSystemAck", managementSystemAck //
+            ))
     {
         return;
     }
-    BMCWEB_LOG_DEBUG("Set Resolved");
 
-    setDbusProperty(asyncResp, "Resolved", "xyz.openbmc_project.Logging",
-                    "/xyz/openbmc_project/logging/entry/" + entryId,
-                    "xyz.openbmc_project.Logging.Entry", "Resolved",
-                    resolved.value_or(false));
+    error_log_utils::getHiddenPropertyValue(
+        asyncResp, entryId,
+        [resolved, managementSystemAck, asyncResp,
+         entryId](const std::optional<bool>& hiddenPropVal) {
+            if (hiddenPropVal.value_or(true))
+            {
+                // 'hiddenPropVal' is true if it is not an EventLog record
+                messages::resourceNotFound(asyncResp->res, "LogEntry", entryId);
+                return;
+            }
+            updateManagementSystemAckProperty(resolved, managementSystemAck,
+                                              asyncResp, entryId);
+        });
 }
 
 inline void dBusEventLogEntryDelete(
