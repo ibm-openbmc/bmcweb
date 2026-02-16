@@ -1050,7 +1050,11 @@ inline void handleIPv6DefaultGateway(
                 return;
             }
             deleteIPv6Gateway(ifaceId, staticGatewayEntry->id, asyncResp);
-            return;
+            /*Fix: When request body contains null, 
+	     * skip and continue to next parameter*/
+            staticGatewayEntry++;
+            entryIdx++;
+            continue;
         }
         if (obj->empty())
         {
