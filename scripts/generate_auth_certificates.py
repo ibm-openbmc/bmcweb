@@ -119,11 +119,9 @@ def main():
     username = args.username
     password = args.password
     if username == "root" and password == "0penBMC":
-        print(
-            """Note: Using default username 'root' and default password
+        print("""Note: Using default username 'root' and default password
             '0penBmc'. Use --username and --password flags to change these,
-            respectively."""
-        )
+            respectively.""")
     serial = 1000
 
     try:

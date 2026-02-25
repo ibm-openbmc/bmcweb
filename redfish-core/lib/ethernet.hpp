@@ -1731,18 +1731,12 @@ inline void handleStaticNameServersPatch(
     const std::vector<std::string>& updatedStaticNameServers,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    sdbusplus::asio::setProperty(
-        *crow::connections::systemBus, "xyz.openbmc_project.Network",
-        "/xyz/openbmc_project/network/" + ifaceId,
+    setDbusProperty(
+        asyncResp, "xyz.openbmc_project.Network",
+        sdbusplus::message::object_path("/xyz/openbmc_project/network") /
+            ifaceId,
         "xyz.openbmc_project.Network.EthernetInterface", "StaticNameServers",
-        updatedStaticNameServers,
-        [asyncResp](const boost::system::error_code& ec) {
-            if (ec)
-            {
-                messages::internalError(asyncResp->res);
-                return;
-            }
-        });
+        "StaticNameServers", updatedStaticNameServers);
 }
 
 inline void handleIPv6StaticAddressesPatch(

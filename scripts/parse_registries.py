@@ -19,10 +19,7 @@ WARNING = """/****************************************************************
  * github organization.
  ***************************************************************/"""
 
-REGISTRY_HEADER = (
-    PRAGMA_ONCE
-    + WARNING
-    + """
+REGISTRY_HEADER = PRAGMA_ONCE + WARNING + """
 #include "registries.hpp"
 
 #include <array>
@@ -32,7 +29,6 @@ REGISTRY_HEADER = (
 namespace redfish::registries::{}
 {{
 """
-)
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -197,10 +193,7 @@ def create_Subordinate_Overrides(target_list):
     return target_list_create
 
 
-PRIVILEGE_HEADER = (
-    PRAGMA_ONCE
-    + WARNING
-    + """
+PRIVILEGE_HEADER = PRAGMA_ONCE + WARNING + """
 #include "privileges.hpp"
 
 #include <array>
@@ -210,7 +203,6 @@ PRIVILEGE_HEADER = (
 namespace redfish::privileges
 {
 """
-)
 
 
 def make_privilege_registry():
