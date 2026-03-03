@@ -168,6 +168,141 @@ inline void isolateResource(
 }
 
 /**
+ * @brief Helper function to call D-Bus Delete and handle errors
+ *
+ * @param[in] asyncResp - The redfish response to return to the caller.
+ * @param[in] resourceIsolatedHwEntry - The hardware isolation entry path.
+ * @param[in] resourceObjPath - The redfish resource dbus object path.
+ * @param[in] hwIsolationDbusName - The HardwareIsolation dbus name.
+ *
+ * @return The redfish response in given response buffer.
+ */
+inline void callDeleteAndHandleErrors(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& resourceIsolatedHwEntry,
+    const sdbusplus::message::object_path& resourceObjPath,
+    const std::string& hwIsolationDbusName)
+{
+    crow::connections::systemBus->async_method_call(
+        [asyncResp, resourceIsolatedHwEntry,
+         resourceObjPath](const boost::system::error_code& ec1,
+                          const sdbusplus::message::message& msg) {
+            if (!ec1)
+            {
+                BMCWEB_LOG_INFO("Successfully de-isolated hardware: {}",
+                                resourceIsolatedHwEntry);
+                messages::success(asyncResp->res);
+                return;
+            }
+
+            const sd_bus_error* dbusError = msg.get_error();
+
+            if (dbusError == nullptr)
+            {
+                BMCWEB_LOG_ERROR(
+                    "DBUS response error [{} : {}] when tried to de-isolate the given resource: {}",
+                    ec1.value(), ec1.message(), resourceIsolatedHwEntry);
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            BMCWEB_LOG_ERROR(
+                "DBUS response error [{} : {}] when tried to de-isolate the given resource: {}, DBus ErrorName: {} ErrorMsg: {}",
+                ec1.value(), ec1.message(), resourceIsolatedHwEntry,
+                dbusError->name, dbusError->message);
+
+            if (std::string_view(
+                    "xyz.openbmc_project.Common.Error.NotAllowed") ==
+                dbusError->name)
+            {
+                retChassisPowerStateOffRequiredError(asyncResp,
+                                                     resourceObjPath);
+            }
+            else if (
+                std::string_view(
+                    "xyz.openbmc_project.Common.Error.InsufficientPermission") ==
+                dbusError->name)
+            {
+                messages::resourceCannotBeDeleted(asyncResp->res);
+            }
+            else
+            {
+                BMCWEB_LOG_ERROR(
+                    "DBus Error is unsupported so returning as Internal Error");
+                messages::internalError(asyncResp->res);
+            }
+            return;
+        },
+        hwIsolationDbusName, resourceIsolatedHwEntry,
+        "xyz.openbmc_project.Object.Delete", "Delete");
+}
+
+/**
+ * @brief Helper function to check severity and perform de-isolation
+ *
+ * @param[in] asyncResp - The redfish response to return to the caller.
+ * @param[in] resourceIsolatedHwEntry - The hardware isolation entry path.
+ * @param[in] resourceObjPath - The redfish resource dbus object path.
+ * @param[in] hwIsolationDbusName - The HardwareIsolation dbus name.
+ *
+ * @return The redfish response in given response buffer.
+ *
+ * @note This function checks if the Severity is Manual before allowing
+ * deletion. Only Manual severity entries can be deleted by users.
+ */
+inline void checkSeverityAndDeisolate(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& resourceIsolatedHwEntry,
+    const sdbusplus::message::object_path& resourceObjPath,
+    const std::string& hwIsolationDbusName)
+{
+    // Check the Severity property to determine if deletion is allowed
+    // Only Manual severity can be deleted, all others (Critical, Warning,
+    // Spare) cannot
+    sdbusplus::asio::getProperty<std::string>(
+        *crow::connections::systemBus, hwIsolationDbusName,
+        resourceIsolatedHwEntry, "xyz.openbmc_project.HardwareIsolation.Entry",
+        "Severity",
+        [asyncResp, resourceIsolatedHwEntry, resourceObjPath,
+         hwIsolationDbusName](const boost::system::error_code& ec2,
+                              const std::string& severity) {
+            if (ec2)
+            {
+                BMCWEB_LOG_ERROR(
+                    "DBus response error [{} : {}] when tried to get Severity property for: {}",
+                    ec2.value(), ec2.message(), resourceIsolatedHwEntry);
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            // Log the severity for debugging
+            BMCWEB_LOG_DEBUG(
+                "Hardware isolation entry Severity check for {}: {}",
+                resourceIsolatedHwEntry, severity);
+
+            // Check if Severity is Manual (exact match with D-Bus enum value)
+            // Only allow deletion if Severity is Manual
+            // Block deletion for Critical, Warning, and Spare
+            if (severity !=
+                "xyz.openbmc_project.HardwareIsolation.Entry.Type.Manual")
+            {
+                BMCWEB_LOG_WARNING(
+                    "Cannot de-isolate hardware isolation entry with Severity={}: {}",
+                    severity, resourceIsolatedHwEntry);
+                messages::resourceCannotBeDeleted(asyncResp->res);
+                return;
+            }
+
+            // Severity is Manual - proceed with de-isolation
+            BMCWEB_LOG_INFO("De-isolating manual hardware isolation entry: {}",
+                            resourceIsolatedHwEntry);
+
+            callDeleteAndHandleErrors(asyncResp, resourceIsolatedHwEntry,
+                                      resourceObjPath, hwIsolationDbusName);
+        });
+}
+
+/**
  * @brief API used to deisolate the given resource
  *
  * @param[in] asyncResp - The redfish response to return to the caller.
@@ -217,56 +352,9 @@ inline void
             std::string resourceIsolatedHwEntry;
             resourceIsolatedHwEntry = vEndpoints.back();
 
-            // De-isolate the given resource
-            crow::connections::systemBus->async_method_call(
-                [asyncResp, resourceIsolatedHwEntry,
-                 resourceObjPath](const boost::system::error_code& ec1,
-                                  const sdbusplus::message::message& msg) {
-                    if (!ec1)
-                    {
-                        messages::success(asyncResp->res);
-                        return;
-                    }
-
-                    BMCWEB_LOG_ERROR(
-                        "DBUS response error [{} : {}] when tried to isolate the given resource: {}",
-                        ec1.value(), ec1.message(), resourceIsolatedHwEntry);
-
-                    const sd_bus_error* dbusError = msg.get_error();
-
-                    if (dbusError == nullptr)
-                    {
-                        messages::internalError(asyncResp->res);
-                        return;
-                    }
-
-                    BMCWEB_LOG_ERROR("DBus ErrorName: {} ErrorMsg: {}",
-                                     dbusError->name, dbusError->message);
-
-                    if (std::string_view(
-                            "xyz.openbmc_project.Common.Error.NotAllowed") ==
-                        dbusError->name)
-                    {
-                        retChassisPowerStateOffRequiredError(asyncResp,
-                                                             resourceObjPath);
-                    }
-                    else if (
-                        std::string_view(
-                            "xyz.openbmc_project.Common.Error.InsufficientPermission") ==
-                        dbusError->name)
-                    {
-                        messages::resourceCannotBeDeleted(asyncResp->res);
-                    }
-                    else
-                    {
-                        BMCWEB_LOG_ERROR(
-                            "DBus Error is unsupported so returning as Internal Error");
-                        messages::internalError(asyncResp->res);
-                    }
-                    return;
-                },
-                hwIsolationDbusName, resourceIsolatedHwEntry,
-                "xyz.openbmc_project.Object.Delete", "Delete");
+            // Check severity and perform de-isolation
+            checkSeverityAndDeisolate(asyncResp, resourceIsolatedHwEntry,
+                                      resourceObjPath, hwIsolationDbusName);
         });
 }
 
