@@ -412,6 +412,7 @@ def make_error_function(
                 "Created",
                 "Success",
                 "PasswordChangeRequired",
+                "GenerateSecretKeyRequired",
             ]
 
             if entry_id in addMessageToJson:
