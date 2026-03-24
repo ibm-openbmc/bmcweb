@@ -114,7 +114,7 @@ inline void handleAggregationSourceCollectionGet(
     json["Name"] = "Aggregation Source Collection";
 
     // Query D-Bus for satellite configs and add them to the Members array
-    RedfishAggregator::getSatelliteConfigs(
+    RedfishAggregator::getInstance().getSatelliteConfigs(
         std::bind_front(populateAggregationSourceCollection, asyncResp));
 }
 
@@ -185,6 +185,19 @@ inline void populateAggregationSource(
     std::string hostName(sat->second.encoded_origin());
     asyncResp->res.jsonValue["HostName"] = std::move(hostName);
 
+    // Include UserName property, defaulting to null
+    auto& aggregator = RedfishAggregator::getInstance();
+    auto it = aggregator.aggregationSources.find(aggregationSourceId);
+    if (it != aggregator.aggregationSources.end() &&
+        !it->second.username.empty())
+    {
+        asyncResp->res.jsonValue["UserName"] = it->second.username;
+    }
+    else
+    {
+        asyncResp->res.jsonValue["UserName"] = nullptr;
+    }
+
     // The Redfish spec requires Password to be null in responses
     asyncResp->res.jsonValue["Password"] = nullptr;
 }
@@ -201,7 +214,7 @@ inline void handleAggregationSourceGet(
 
     // Query D-Bus for satellite config corresponding to the specified
     // AggregationSource
-    RedfishAggregator::getSatelliteConfigs(std::bind_front(
+    RedfishAggregator::getInstance().getSatelliteConfigs(std::bind_front(
         populateAggregationSource, aggregationSourceId, asyncResp));
 }
 
@@ -223,6 +236,206 @@ inline void handleAggregationSourceHead(
                      aggregationSourceId);
 }
 
+inline bool validateCredentialField(const std::optional<std::string>& field,
+                                    const std::string& fieldName,
+                                    crow::Response& res)
+{
+    if (!field.has_value())
+    {
+        return true; // Field not provided, that's okay
+    }
+
+    if (field->empty())
+    {
+        messages::stringValueTooShort(res, fieldName, "1");
+        return false;
+    }
+
+    if (field->find(':') != std::string::npos)
+    {
+        messages::propertyValueIncorrect(res, *field, fieldName);
+        return false;
+    }
+
+    if (field->length() > 40)
+    {
+        messages::stringValueTooLong(res, fieldName, 40);
+        return false;
+    }
+
+    return true;
+}
+
+inline void handleAggregationSourceCollectionPost(
+    App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+    std::string hostname;
+    std::optional<std::string> username;
+    std::optional<std::string> password;
+
+    if (!json_util::readJsonPatch(req, asyncResp->res, "HostName", hostname,
+                                  "UserName", username, "Password", password))
+    {
+        return;
+    }
+
+    boost::system::result<boost::urls::url> url =
+        boost::urls::parse_absolute_uri(hostname);
+    if (!url)
+    {
+        messages::propertyValueIncorrect(asyncResp->res, hostname, "HostName");
+        return;
+    }
+    url->normalize();
+    if (url->scheme() != "http" && url->scheme() != "https")
+    {
+        messages::propertyValueIncorrect(asyncResp->res, hostname, "HostName");
+        return;
+    }
+    crow::utility::setPortDefaults(*url);
+
+    // Check for duplicate hostname
+    auto& aggregator = RedfishAggregator::getInstance();
+    for (const auto& [existingPrefix, existingSource] :
+         aggregator.aggregationSources)
+    {
+        if (existingSource.url == *url)
+        {
+            messages::resourceAlreadyExists(asyncResp->res, "AggregationSource",
+                                            "HostName", url->buffer());
+            return;
+        }
+    }
+
+    // Validate username and password
+    if (!validateCredentialField(username, "UserName", asyncResp->res))
+    {
+        return;
+    }
+    if (!validateCredentialField(password, "Password", asyncResp->res))
+    {
+        return;
+    }
+
+    std::string prefix = bmcweb::getRandomIdOfLength(8);
+    aggregator.aggregationSources.emplace(
+        prefix,
+        AggregationSource{*url, username.value_or(""), password.value_or("")});
+
+    BMCWEB_LOG_DEBUG("Emplaced {} with url {}", prefix, url->buffer());
+    asyncResp->res.addHeader(
+        boost::beast::http::field::location,
+        boost::urls::format("/redfish/v1/AggregationSources/{}", prefix)
+            .buffer());
+    messages::created(asyncResp->res);
+}
+
+inline void handleAggregationSourcePatch(
+    App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& aggregationSourceId)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+
+    std::optional<std::string> username;
+    std::optional<std::string> password;
+
+    if (!json_util::readJsonPatch(req, asyncResp->res, "UserName", username,
+                                  "Password", password))
+    {
+        return;
+    }
+
+    // Validate username and password
+    if (!validateCredentialField(username, "UserName", asyncResp->res))
+    {
+        return;
+    }
+    if (!validateCredentialField(password, "Password", asyncResp->res))
+    {
+        return;
+    }
+
+    // Check if the aggregation source exists in writable sources
+    auto& aggregator = RedfishAggregator::getInstance();
+    auto it = aggregator.aggregationSources.find(aggregationSourceId);
+    if (it != aggregator.aggregationSources.end())
+    {
+        // Update only the fields that were provided
+        if (username.has_value())
+        {
+            it->second.username = *username;
+        }
+        if (password.has_value())
+        {
+            it->second.password = *password;
+        }
+
+        messages::success(asyncResp->res);
+        return;
+    }
+
+    // Not in writable sources, query D-Bus to check if it exists in
+    // Entity Manager sources
+    RedfishAggregator::getInstance().getSatelliteConfigs(
+        [asyncResp, aggregationSourceId](
+            const boost::system::error_code& ec,
+            const std::unordered_map<std::string, boost::urls::url>&
+                satelliteInfo) {
+            // Something went wrong while querying dbus
+            if (ec)
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            // Check if it exists in Entity Manager sources
+            if (satelliteInfo.contains(aggregationSourceId))
+            {
+                // Source exists but is read-only (from Entity Manager)
+                messages::propertyNotWritable(asyncResp->res, "UserName");
+                return;
+            }
+
+            // Doesn't exist anywhere
+            messages::resourceNotFound(asyncResp->res, "AggregationSource",
+                                       aggregationSourceId);
+        });
+}
+
+inline void handleAggregationSourceDelete(
+    App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& aggregationSourceId)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+    asyncResp->res.addHeader(
+        boost::beast::http::field::link,
+        "</redfish/v1/JsonSchemas/AggregationService/AggregationSource.json>; rel=describedby");
+
+    size_t deleted = RedfishAggregator::getInstance().aggregationSources.erase(
+        aggregationSourceId);
+    if (deleted == 0)
+    {
+        messages::resourceNotFound(asyncResp->res, "AggregationSource",
+                                   aggregationSourceId);
+        return;
+    }
+
+    messages::success(asyncResp->res);
+}
+
 inline void requestRoutesAggregationSource(App& app)
 {
     BMCWEB_ROUTE(app,
@@ -230,6 +443,29 @@ inline void requestRoutesAggregationSource(App& app)
         .privileges(redfish::privileges::getAggregationSource)
         .methods(boost::beast::http::verb::get)(
             std::bind_front(handleAggregationSourceGet, std::ref(app)));
+
+    BMCWEB_ROUTE(app,
+                 "/redfish/v1/AggregationService/AggregationSources/<str>/")
+        .privileges(redfish::privileges::patchAggregationSource)
+        .methods(boost::beast::http::verb::patch)(
+            std::bind_front(handleAggregationSourcePatch, std::ref(app)));
+
+    BMCWEB_ROUTE(app,
+                 "/redfish/v1/AggregationService/AggregationSources/<str>/")
+        .privileges(redfish::privileges::deleteAggregationSource)
+        .methods(boost::beast::http::verb::delete_)(
+            std::bind_front(handleAggregationSourceDelete, std::ref(app)));
+
+    BMCWEB_ROUTE(app,
+                 "/redfish/v1/AggregationService/AggregationSources/<str>/")
+        .privileges(redfish::privileges::headAggregationSource)
+        .methods(boost::beast::http::verb::head)(
+            std::bind_front(handleAggregationSourceHead, std::ref(app)));
+
+    BMCWEB_ROUTE(app, "/redfish/v1/AggregationService/AggregationSources/")
+        .privileges(redfish::privileges::postAggregationSourceCollection)
+        .methods(boost::beast::http::verb::post)(std::bind_front(
+            handleAggregationSourceCollectionPost, std::ref(app)));
 }
 
 } // namespace redfish
