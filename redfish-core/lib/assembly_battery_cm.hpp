@@ -59,8 +59,10 @@ inline void getReadyToRemoveOfTodBattery(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     std::size_t assemblyIndex)
 {
+    constexpr std::array<std::string_view, 1> interfaces = {
+        "xyz.openbmc_project.State.Decorator.OperationalStatus"};
     dbus::utility::getDbusObject(
-        "/xyz/openbmc_project/sensors/voltage/Battery_Voltage", {},
+        "/xyz/openbmc_project/sensors/voltage/Battery_Voltage", interfaces,
         std::bind_front(afterGetReadyToRemoveOfTodBattery, asyncResp,
                         assemblyIndex));
 }
