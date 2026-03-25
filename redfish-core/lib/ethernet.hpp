@@ -1392,10 +1392,6 @@ inline void handleDHCPPatch(
     bool ipv4Active = translateDhcpEnabledToBool(ethData.dhcpEnabled, true);
     bool ipv6Active = translateDhcpEnabledToBool(ethData.dhcpEnabled, false);
 
-    if (ipv4Active)
-    {
-        updateIPv4DefaultGateway(ifaceId, "", asyncResp);
-    }
     bool nextv4DHCPState =
         v4dhcpParms.dhcpv4Enabled ? *v4dhcpParms.dhcpv4Enabled : ipv4Active;
 
@@ -2267,6 +2263,14 @@ inline void handleEthernetInterfacesRoutes(
             asyncResp->res.jsonValue["Members@odata.count"] = ifaceArray.size();
         });
 }
+inline bool hasDHCPParameters(const DHCPParameters& v4,
+                              const DHCPParameters& v6)
+{
+    return v4.dhcpv4Enabled.has_value() || v4.useDnsServers.has_value() ||
+           v4.useNtpServers.has_value() || v4.useDomainName.has_value() ||
+           v6.dhcpv6OperatingMode.has_value() || v6.useDnsServers.has_value() ||
+           v6.useNtpServers.has_value() || v6.useDomainName.has_value();
+}
 inline void requestEthernetInterfacesRoutes(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/Managers/<str>/EthernetInterfaces/")
@@ -2516,9 +2520,11 @@ inline void requestEthernetInterfacesRoutes(App& app)
                                 asyncResp->res, "EthernetInterface", ifaceId);
                             return;
                         }
-
-                        handleDHCPPatch(ifaceId, ethData, v4dhcpParms,
-                                        v6dhcpParms, asyncResp);
+                        if (hasDHCPParameters(v4dhcpParms, v6dhcpParms))
+                        {
+                            handleDHCPPatch(ifaceId, ethData, v4dhcpParms,
+                                            v6dhcpParms, asyncResp);
+                        }
 
                         if (hostname)
                         {
