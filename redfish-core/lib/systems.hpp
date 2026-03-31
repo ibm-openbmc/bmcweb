@@ -2297,6 +2297,7 @@ inline void getChapData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
             oemIBM["@odata.type"] = "#IBMComputerSystem.v1_0_0.IBM";
 
             nlohmann::json& chapData = oemIBM["ChapData"];
+            chapData["@odata.type"] = "#IBMComputerSystem.v1_0_0.ChapData";
             chapData["ChapName"] = *chapName;
             chapData["ChapSecret"] = *chapSecret;
         });
@@ -2829,8 +2830,8 @@ inline void handleComputerSystemGet(
     getEnabledPanelFunctions(asyncResp);
 
     nlohmann::json& actionOem = asyncResp->res.jsonValue["Actions"]["Oem"];
-    actionOem["#IBMComputerSystem.v1_0_0.ExecutePanelFunction"]["target"] =
-        "/redfish/v1/Systems/system/Actions/Oem/IBM/IBMComputerSystem.ExecutePanelFunction";
+    actionOem["#IBMComputerSystem.ExecutePanelFunction"]["target"] =
+        "/redfish/v1/Systems/system/Actions/Oem/IBMComputerSystem.ExecutePanelFunction";
 
     // ChapData
     getChapData(asyncResp);
@@ -3283,7 +3284,7 @@ inline void requestRoutesSystemActionsOemExecutePanelFunction(App& app)
 {
     BMCWEB_ROUTE(
         app,
-        "/redfish/v1/Systems/system/Actions/Oem/IBM/IBMComputerSystem.ExecutePanelFunction/")
+        "/redfish/v1/Systems/system/Actions/Oem/IBMComputerSystem.ExecutePanelFunction/")
         .privileges(redfish::privileges::postComputerSystem)
         .methods(boost::beast::http::verb::post)(std::bind_front(
             handleSystemActionsOemExecutePanelFunctionPost, std::ref(app)));
