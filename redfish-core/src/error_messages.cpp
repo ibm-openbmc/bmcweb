@@ -927,7 +927,7 @@ nlohmann::json::object_t resourceAlreadyExists(
 void resourceAlreadyExists(crow::Response& res, std::string_view arg1,
                            std::string_view arg2, std::string_view arg3)
 {
-    res.result(boost::beast::http::status::bad_request);
+    res.result(boost::beast::http::status::conflict);
     addMessageToJson(res.jsonValue, resourceAlreadyExists(arg1, arg2, arg3),
                      arg2);
 }
@@ -1815,7 +1815,7 @@ nlohmann::json::object_t resourceCreationConflict(
 void resourceCreationConflict(crow::Response& res,
                               const boost::urls::url_view_base& arg1)
 {
-    res.result(boost::beast::http::status::bad_request);
+    res.result(boost::beast::http::status::conflict);
     addMessageToErrorJson(res.jsonValue, resourceCreationConflict(arg1));
 }
 
