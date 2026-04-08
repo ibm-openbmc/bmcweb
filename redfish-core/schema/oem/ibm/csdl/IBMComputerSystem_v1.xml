@@ -59,8 +59,21 @@
           <Annotation Term="OData.LongDescription" String="The value of this property shall indicate if safe mode is active."/>
         </Property>
       </ComplexType>
+      <Action Name="ExecutePanelFunction" IsBound="true">
+        <Annotation Term="OData.Description" String="This action executes a panel function."/>
+        <Annotation Term="OData.LongDescription" String="This action executes a panel function if the function is enabled."/>
+        <Parameter Name="FuncNo" Type="IBMComputerSystem.v1_0_0.OemActions" Nullable="false">
+          <Annotation Term="OData.Description" String="Panel function number."/>
+          <Annotation Term="OData.LongDescription" String="This parameter shall contain a  panel function number to be executed."/>
+        </Parameter>
+      </Action>
     </Schema>
     <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="IBMComputerSystem.v1_0_0">
+      <ComplexType Name="OemActions">
+        <Annotation Term="OData.AdditionalProperties" Bool="true"/>
+        <Annotation Term="OData.Description" String="The available OEM-specific actions for this resource."/>
+        <Annotation Term="OData.LongDescription" String="This type shall contain the available OEM-specific actions for this resource."/>
+      </ComplexType>
       <ComplexType Name="IBM" BaseType="IBMComputerSystem.IBM">
         <Property Name="EnabledPanelFunctions" Type="Collection(Edm.Int64)">
           <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
@@ -88,14 +101,6 @@
           <Annotation Term="OData.LongDescription" String="This property shall contain ChapSecret that is an encrypted secret password transferred to the Host for the respective ChapName."/>
         </Property>
       </ComplexType>
-      <Action Name="ExecutePanelFunction" IsBound="true">
-        <Annotation Term="OData.Description" String="This action executes a panel function."/>
-        <Annotation Term="OData.LongDescription" String="This action executes a panel function if the function is enabled."/>
-        <Parameter Name="FuncNo" Type="IBMComputerSystem.v1_0_0.OemActions" Nullable="false">
-          <Annotation Term="OData.Description" String="Panel function number."/>
-          <Annotation Term="OData.LongDescription" String="This parameter shall contain a  panel function number to be executed."/>
-        </Parameter>
-      </Action>
     </Schema>
   </edmx:DataServices>
 </edmx:Edmx>
