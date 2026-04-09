@@ -2893,6 +2893,7 @@ inline void getChapData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
             oemIBM["@odata.type"] = "#IBMComputerSystem.v1_0_0.IBM";
 
             nlohmann::json& chapData = oemIBM["ChapData"];
+            chapData["@odata.type"] = "#IBMComputerSystem.v1_0_0.ChapData";
             chapData["ChapName"] = *chapName;
             chapData["ChapSecret"] = *chapSecret;
         });
