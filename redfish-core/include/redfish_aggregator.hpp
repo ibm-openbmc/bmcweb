@@ -927,7 +927,7 @@ class RedfishAggregator
                 else
                 {
                     BMCWEB_LOG_DEBUG(
-                        "No satellite BMCs detected.  Redfish Aggregation not enabled");
+                        "Redfish aggregation enabled, but no satellite BMCs detected");
                 }
                 handler(ec, satelliteInfo);
             });
