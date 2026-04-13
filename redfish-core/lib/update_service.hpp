@@ -1385,6 +1385,7 @@ inline void getSoftwareVersion(
                const dbus::utility::DBusPropertiesMap& propertiesList) {
             if (ec)
             {
+                BMCWEB_LOG_ERROR("D-Bus error {}", ec);
                 messages::internalError(asyncResp->res);
                 return;
             }
@@ -1465,6 +1466,7 @@ inline void handleUpdateServiceFirmwareInventoryGet(
             BMCWEB_LOG_DEBUG("doGet callback...");
             if (ec)
             {
+                BMCWEB_LOG_ERROR("D-Bus error {}", ec);
                 messages::internalError(asyncResp->res);
                 return;
             }
