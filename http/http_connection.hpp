@@ -672,9 +672,16 @@ class Connection :
             readClientIp();
 
             boost::asio::ip::address ip;
-            if (getClientIp(ip))
+            boost::system::error_code errCode = getClientIp(ip);
+            if (errCode)
             {
                 BMCWEB_LOG_DEBUG << "Unable to get client IP";
+                if (errCode == boost::asio::error::not_connected)
+                {
+                    close();
+                    BMCWEB_LOG_ERROR << this << " socket not connected";
+                    return;
+                }
             }
             sessionIsFromTransport = false;
 #ifndef BMCWEB_INSECURE_DISABLE_AUTHX
@@ -743,6 +750,13 @@ class Connection :
 
             if (ec)
             {
+                if (ec == boost::beast::http::error::end_of_stream ||
+                    ec == boost::asio::ssl::error::stream_truncated)
+                {
+                    BMCWEB_LOG_WARNING << this << " end of stream: " << ec;
+                    close();
+                    return;
+                }
                 BMCWEB_LOG_DEBUG << this << " from write(2)";
                 return;
             }
