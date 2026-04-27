@@ -20,6 +20,7 @@
 #include "logging.hpp"
 #include "oem/ibm/lamp_test.hpp"
 #include "oem/ibm/pcie_topology_refresh.hpp"
+#include "oem/ibm/service_alerts.hpp"
 #include "oem/ibm/system_attention_indicator.hpp"
 #include "query.hpp"
 #include "redfish_util.hpp"
@@ -2817,6 +2818,7 @@ inline void handleComputerSystemGet(
         getLampTestState(asyncResp);
         getSAI(asyncResp, "PartitionSystemAttentionIndicator");
         getSAI(asyncResp, "PlatformSystemAttentionIndicator");
+        getServiceAlertsEnabled(asyncResp);
     }
     if constexpr (BMCWEB_REDFISH_PROVISIONING_FEATURE)
     {
@@ -2887,6 +2889,7 @@ inline void handleComputerSystemPatch(
     std::optional<bool> lampTest;
     std::optional<bool> partitionSAI;
     std::optional<bool> platformSAI;
+    std::optional<bool> sendServiceAlerts;
 
     if constexpr (BMCWEB_IBM_LED_EXTENSIONS)
     {
@@ -2915,7 +2918,8 @@ inline void handleComputerSystemPatch(
                 "Oem/IBM/SavePCIeTopologyInfo", savePCIeTopologyInfo,      //
                 "Oem/IBM/LampTest", lampTest,                              //
                 "Oem/IBM/PartitionSystemAttentionIndicator", partitionSAI, //
-                "Oem/IBM/PlatformSystemAttentionIndicator", platformSAI    //
+                "Oem/IBM/PlatformSystemAttentionIndicator", platformSAI,   //
+                "Oem/IBM/SendServiceAlerts", sendServiceAlerts             //
                 ))
         {
             return;
@@ -3045,6 +3049,10 @@ inline void handleComputerSystemPatch(
         if (platformSAI)
         {
             setSAI(asyncResp, "PlatformSystemAttentionIndicator", *platformSAI);
+        }
+        if (sendServiceAlerts)
+        {
+            setServiceAlertsEnabled(asyncResp, *sendServiceAlerts);
         }
     }
 
