@@ -146,7 +146,9 @@ inline bool checkSkipDetail(const crow::Request& req)
     if (req.target().starts_with("/redfish/v1/AccountService/Accounts") ||
         req.target().starts_with("/ibm/v1") ||
         ((req.method() == boost::beast::http::verb::post) &&
-         checkPostUser(req)))
+         (checkPostUser(req) ||
+          (req.target().find("LogService.CollectDiagnosticData") !=
+           std::string::npos))))
     {
         return true;
     }
