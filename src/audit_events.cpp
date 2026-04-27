@@ -119,7 +119,8 @@ inline bool checkSkipDetail(const crow::Request& req)
            req.target().starts_with("/redfish/v1/UpdateService") ||
            req.target().starts_with("/ibm/v1") ||
            ((req.method() == boost::beast::http::verb::post) &&
-            checkPostUser(req));
+            (checkPostUser(req) ||
+             req.target().contains("LogService.CollectDiagnosticData")));
 }
 
 /**

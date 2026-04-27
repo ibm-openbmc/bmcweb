@@ -154,6 +154,14 @@ TEST(wantDetail, NegativeTest)
         "/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate");
     EXPECT_FALSE(wantDetail(postRequest));
 
+    postRequest.target(
+        "/redfish/v1/Systems/system/LogServices/Dump/Actions/LogService.CollectDiagnosticData");
+    EXPECT_FALSE(wantDetail(postRequest));
+
+    postRequest.target(
+        "/redfish/v1/Systems/system/LogServices/Dump/Actions/LogService.CollectDiagnosticData/");
+    EXPECT_FALSE(wantDetail(postRequest));
+
     crow::Request getRequest{{boost::beast::http::verb::get, url, 11}, ec};
     EXPECT_FALSE(wantDetail(getRequest));
 }
