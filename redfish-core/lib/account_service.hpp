@@ -2754,6 +2754,19 @@ inline bool handleOemPatch(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     }
     return true;
 }
+
+inline bool ensurePrivilegedProperties(
+    const std::optional<std::string>& newUserName,
+    const std::optional<std::string>& password,
+    const std::optional<bool>& enabled,
+    const std::optional<std::string>& roleId, const std::optional<bool>& locked,
+    const std::optional<std::vector<std::string>>& accountTypes,
+    const std::optional<std::vector<std::string>>& mfaBypass)
+{
+    return !(newUserName || password || enabled || roleId || locked ||
+             accountTypes || mfaBypass);
+}
+
 inline void handleAccountPatch(
     App& app, const crow::Request& req,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -2792,6 +2805,15 @@ inline void handleAccountPatch(
         // If user is service
         if (oem)
         {
+            if (!ensurePrivilegedProperties(newUserName, password, enabled,
+                                            roleId, locked, accountTypes,
+                                            mfaBypass))
+            {
+                BMCWEB_LOG_WARNING(
+                    "Unauthenticated users are never allowed to PATCH anything other than the \"Oem\" property");
+                messages::insufficientPrivilege(asyncResp->res);
+                return;
+            }
             handleOemPatch(asyncResp, *oem, req, username, true);
             return;
         }
@@ -2810,6 +2832,15 @@ inline void handleAccountPatch(
     {
         if (oem)
         {
+            if (!ensurePrivilegedProperties(newUserName, password, enabled,
+                                            roleId, locked, accountTypes,
+                                            mfaBypass))
+            {
+                BMCWEB_LOG_WARNING(
+                    "Unauthenticated users are never allowed to PATCH anything other than the \"Oem\" property");
+                messages::insufficientPrivilege(asyncResp->res);
+                return;
+            }
             handleOemPatch(asyncResp, *oem, req, username, true);
             return;
         }
@@ -2820,16 +2851,17 @@ inline void handleAccountPatch(
             messages::insufficientPrivilege(asyncResp->res);
             return;
         }
-        // Read only users should not be allowed to bypass self
-        if (mfaBypass)
+        // Read only users should not be allowed to bypass self, except the
+        // password change
+        if (!ensurePrivilegedProperties(newUserName, std::nullopt, enabled,
+                                        roleId, locked, accountTypes,
+                                        mfaBypass))
         {
             BMCWEB_LOG_WARNING(
-                "User has insufficient privilege to bypass self");
+                "User does not have authority to PATCH anything other than Password");
             messages::insufficientPrivilege(asyncResp->res);
             return;
         }
-        // NOTE: password was already obtained from the previous
-        // readJsonPatch().
     }
 
     // For accounts which have a Restricted Role, restrict which properties
