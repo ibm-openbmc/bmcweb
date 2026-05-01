@@ -2512,6 +2512,18 @@ inline void
         "xyz.openbmc_project.Object.Delete", "Delete");
 }
 
+inline bool ensurePrivilegedProperties(
+    const std::optional<std::string>& newUserName,
+    const std::optional<std::string>& password,
+    const std::optional<bool>& enabled,
+    const std::optional<std::string>& roleId, const std::optional<bool>& locked,
+    const std::optional<std::vector<std::string>>& accountTypes,
+    const std::optional<std::vector<std::string>>& mfaBypass)
+{
+    return !(newUserName || password || enabled || roleId || locked ||
+             accountTypes || mfaBypass);
+}
+
 inline void
     handleAccountPatch(App& app, const crow::Request& req,
                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -2559,6 +2571,16 @@ inline void
         {
             if (oem)
             {
+                if (!ensurePrivilegedProperties(newUserName, password, enabled,
+                                                roleId, locked, accountTypes,
+                                                mfaBypass))
+
+                {
+                    BMCWEB_LOG_WARNING(
+                        "Unauthenticated users are never allowed to PATCH anything other than the \"Oem\" property");
+                    messages::insufficientPrivilege(asyncResp->res);
+                    return;
+                }
                 // allow unauthenticated ACF upload based on panel
                 // function 74 state.
                 triggerUnauthenticatedACFUpload(asyncResp, oem);
@@ -2582,6 +2604,16 @@ inline void
         // 74 is active from panel.
         if (oem && (username == "service"))
         {
+            if (!ensurePrivilegedProperties(newUserName, password, enabled,
+                                            roleId, locked, accountTypes,
+                                            mfaBypass))
+
+            {
+                BMCWEB_LOG_WARNING(
+                    "Unauthenticated users are never allowed to PATCH anything other than the \"Oem\" property");
+                messages::insufficientPrivilege(asyncResp->res);
+                return;
+            }
             // allow unauthenticated ACF upload based on panel
             // function 74 state.
             triggerUnauthenticatedACFUpload(asyncResp, oem);
@@ -2595,16 +2627,18 @@ inline void
             return;
         }
 
-        // Read only users should not be allowed to bypass self
-        if (mfaBypass)
+        // Read only users should not be allowed to bypass self, except the
+        // password change
+        if (!ensurePrivilegedProperties(newUserName, std::nullopt, enabled,
+                                        roleId, locked, accountTypes,
+                                        mfaBypass))
+
         {
-            BMCWEB_LOG_ERROR("User has insufficient privilege to bypass self");
+            BMCWEB_LOG_WARNING(
+                "User does not have authority to PATCH anything other than Password");
             messages::insufficientPrivilege(asyncResp->res);
             return;
         }
-
-        // NOTE: password was already obtained from the previous
-        // readJsonPatch().
     }
 
     // For accounts which have a Restricted Role, restrict which properties
