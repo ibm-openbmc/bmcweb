@@ -1,5 +1,7 @@
 #include "audit_events.hpp"
 
+#include "bmcweb_config.h"
+
 #include "http_request.hpp"
 #include "logging.hpp"
 
@@ -115,12 +117,22 @@ void auditSetState(bool enable)
  */
 inline bool checkSkipDetail(const crow::Request& req)
 {
-    return req.target().starts_with("/redfish/v1/AccountService/Accounts") ||
+    const std::string systemPatch =
+        std::format("/redfish/v1/Systems/{}", BMCWEB_REDFISH_SYSTEM_URI_NAME);
+    const std::string systemPatchTrailing = std::format("{}/", systemPatch);
+
+    return req.target().starts_with("/redfish/v1/AccountService") ||
+           req.target().starts_with("/redfish/v1/CertificateService") ||
+           req.target().starts_with("/redfish/v1/EventService/Subscriptions") ||
+           req.target().starts_with("/redfish/v1/LicenseService/Licenses") ||
            req.target().starts_with("/redfish/v1/UpdateService") ||
            req.target().starts_with("/ibm/v1") ||
            ((req.method() == boost::beast::http::verb::post) &&
-            (checkPostUser(req) ||
-             req.target().contains("LogService.CollectDiagnosticData")));
+            (checkPostUser(req) || req.target().contains("Certificates") ||
+             req.target().contains("LogService.CollectDiagnosticData"))) ||
+           ((req.method() == boost::beast::http::verb::patch) &&
+            (req.target() == systemPatch ||
+             req.target() == systemPatchTrailing));
 }
 
 /**

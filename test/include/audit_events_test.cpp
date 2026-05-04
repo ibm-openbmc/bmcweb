@@ -130,6 +130,15 @@ TEST(wantDetail, NegativeTest)
     patchRequest.target("/ibm/v1/foo");
     EXPECT_FALSE(wantDetail(patchRequest));
 
+    patchRequest.target("/redfish/v1/Systems/system");
+    EXPECT_FALSE(wantDetail(patchRequest));
+
+    patchRequest.target("/redfish/v1/EventService/Subscriptions/1234");
+    EXPECT_FALSE(wantDetail(patchRequest));
+
+    patchRequest.target("/redfish/v1/AccountService");
+    EXPECT_FALSE(wantDetail(patchRequest));
+
     crow::Request postRequest{{boost::beast::http::verb::post, url, 11}, ec};
 
     postRequest.target("/redfish/v1/AccountService/Accounts/bar");
@@ -160,6 +169,23 @@ TEST(wantDetail, NegativeTest)
 
     postRequest.target(
         "/redfish/v1/Systems/system/LogServices/Dump/Actions/LogService.CollectDiagnosticData/");
+    EXPECT_FALSE(wantDetail(postRequest));
+
+    postRequest.target(
+        "/redfish/v1/CertificateService/Actions/CertificateService.GenerateCSR");
+    EXPECT_FALSE(wantDetail(postRequest));
+
+    postRequest.target(
+        "/redfish/v1/Managers/bmc/NetworkProtocol/HTTPS/Certificates");
+    EXPECT_FALSE(wantDetail(postRequest));
+
+    postRequest.target("/redfish/v1/AccountService/LDAP/Certificates");
+    EXPECT_FALSE(wantDetail(postRequest));
+
+    postRequest.target("/redfish/v1/Managers/bmc/Truststore/Certificates");
+    EXPECT_FALSE(wantDetail(postRequest));
+
+    postRequest.target("/redfish/v1/LicenseService/Licenses");
     EXPECT_FALSE(wantDetail(postRequest));
 
     crow::Request getRequest{{boost::beast::http::verb::get, url, 11}, ec};
