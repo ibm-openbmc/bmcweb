@@ -116,6 +116,9 @@ TEST(wantDetail, PositiveTest)
 
     crow::Request postRequest{{boost::beast::http::verb::post, url, 11}, ec};
     EXPECT_TRUE(wantDetail(postRequest));
+
+    postRequest.target("/redfish/v1/Systems/system");
+    EXPECT_TRUE(wantDetail(postRequest));
 }
 
 TEST(wantDetail, NegativeTest)
@@ -131,7 +134,9 @@ TEST(wantDetail, NegativeTest)
     EXPECT_FALSE(wantDetail(patchRequest));
 
     patchRequest.target("/redfish/v1/Systems/system");
+    patchRequest.setSkipAuditDetail(true);
     EXPECT_FALSE(wantDetail(patchRequest));
+    patchRequest.setSkipAuditDetail(false); // Reset to default value
 
     patchRequest.target("/redfish/v1/EventService/Subscriptions/1234");
     EXPECT_FALSE(wantDetail(patchRequest));

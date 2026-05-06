@@ -2901,7 +2901,8 @@ inline void getChapData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 /*
  * Set ChapData
  */
-inline void setChapData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+inline void setChapData(const crow::Request& req,
+                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                         std::optional<std::string> chapName,
                         std::optional<std::string> chapSecret)
 {
@@ -2923,6 +2924,7 @@ inline void setChapData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
     if (chapSecret)
     {
+        req.setSkipAuditDetail(true);
         sdbusplus::asio::setProperty(
             *crow::connections::systemBus, "xyz.openbmc_project.PLDM",
             "/xyz/openbmc_project/pldm", "com.ibm.PLDM.ChapData", "ChapSecret",
@@ -3531,6 +3533,7 @@ struct PatchParams
  */
 
 inline void processComputerSystemPatch(
+    const crow::Request& req,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     std::string& systemName, PatchParams& patchParams,
     const uint64_t computerSystemIndex)
@@ -3626,7 +3629,8 @@ inline void processComputerSystemPatch(
 
     if (patchParams.chapName || patchParams.chapSecret)
     {
-        setChapData(asyncResp, patchParams.chapName, patchParams.chapSecret);
+        setChapData(req, asyncResp, patchParams.chapName,
+                    patchParams.chapSecret);
     }
 }
 
@@ -3687,8 +3691,8 @@ inline void handleComputerSystemPatch(
 
     systems_utils::getComputerSystemIndex(
         asyncResp, systemName,
-        std::bind_front(processComputerSystemPatch, asyncResp, systemName,
-                        patchParams));
+        std::bind_front(processComputerSystemPatch, std::cref(req), asyncResp,
+                        systemName, patchParams));
 }
 
 inline void handleSystemCollectionResetActionHead(
