@@ -8,6 +8,8 @@
 #include "error_messages.hpp"
 #include "logging.hpp"
 
+#include <asm-generic/errno.h>
+
 #include <boost/system/error_code.hpp>
 #include <sdbusplus/asio/property.hpp>
 
@@ -35,6 +37,13 @@ inline void getServiceAlertsEnabled(
         [asyncResp](const boost::system::error_code& ec, bool enabled) {
             if (ec)
             {
+                if (ec.value() == EBADR)
+                {
+                    BMCWEB_LOG_DEBUG(
+                        "SendServiceAlerts D-Bus object does not exist");
+                    return;
+                }
+
                 BMCWEB_LOG_ERROR("DBUS response error: {}", ec.message());
                 messages::internalError(asyncResp->res);
                 return;
@@ -66,6 +75,12 @@ inline void setServiceAlertsEnabled(
         [asyncResp](const boost::system::error_code& ec) {
             if (ec)
             {
+                if (ec.value() == EBADR)
+                {
+                    BMCWEB_LOG_DEBUG(
+                        "SendServiceAlerts D-Bus object does not exist");
+                    return;
+                }
                 BMCWEB_LOG_ERROR("DBUS response error: {}", ec.message());
                 messages::internalError(asyncResp->res);
                 return;

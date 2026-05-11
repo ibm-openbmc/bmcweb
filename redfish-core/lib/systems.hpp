@@ -2818,6 +2818,9 @@ inline void handleComputerSystemGet(
         getLampTestState(asyncResp);
         getSAI(asyncResp, "PartitionSystemAttentionIndicator");
         getSAI(asyncResp, "PlatformSystemAttentionIndicator");
+    }
+    if constexpr (BMCWEB_HW_ISOLATION)
+    {
         getServiceAlertsEnabled(asyncResp);
     }
     if constexpr (BMCWEB_REDFISH_PROVISIONING_FEATURE)
@@ -2949,7 +2952,8 @@ inline void handleComputerSystemPatch(
                 "Oem/IBM/ChapData/ChapName", chapName,                     //
                 "Oem/IBM/ChapData/ChapSecret", chapSecret,                 //
                 "Oem/IBM/PCIeTopologyRefresh", pcieTopologyRefresh,        //
-                "Oem/IBM/SavePCIeTopologyInfo", savePCIeTopologyInfo       //
+                "Oem/IBM/SavePCIeTopologyInfo", savePCIeTopologyInfo,      //
+                "Oem/IBM/SendServiceAlerts", sendServiceAlerts             //
                 ))
         {
             return;
@@ -3050,6 +3054,10 @@ inline void handleComputerSystemPatch(
         {
             setSAI(asyncResp, "PlatformSystemAttentionIndicator", *platformSAI);
         }
+    }
+
+    if constexpr (BMCWEB_HW_ISOLATION)
+    {
         if (sendServiceAlerts)
         {
             setServiceAlertsEnabled(asyncResp, *sendServiceAlerts);
