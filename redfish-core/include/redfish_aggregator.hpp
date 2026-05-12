@@ -514,6 +514,17 @@ class RedfishAggregator
                 }
                 url.set_port(std::to_string(static_cast<uint16_t>(*propVal)));
             }
+            else if (prop.first == "Protocol")
+            {
+                const std::string* propVal =
+                    std::get_if<std::string>(&prop.second);
+                if (propVal == nullptr)
+                {
+                    BMCWEB_LOG_ERROR("Invalid Protocol value");
+                    return;
+                }
+                url.set_scheme(*propVal);
+            }
             else if (prop.first == "AuthType")
             {
                 const std::string* propVal =
@@ -526,14 +537,21 @@ class RedfishAggregator
 
                 // For now assume authentication not required to communicate
                 // with the satellite BMC
-                if (*propVal != "None")
+                if (*propVal == "None")
+                {
+                    url.set_scheme("http");
+                }
+                else if (*propVal == "MTLS")
+                {
+                    url.set_scheme("https");
+                }
+                else
                 {
                     BMCWEB_LOG_ERROR(
                         "Unsupported AuthType value: {}, only \"None\" is supported",
                         *propVal);
                     return;
                 }
-                url.set_scheme("http");
             }
             else if (prop.first == "Name")
             {
@@ -1318,12 +1336,7 @@ class RedfishAggregator
         using crow::utility::OrMorePaths;
         using crow::utility::readUrlSegments;
         boost::urls::url_view url = thisReq.url();
-        BMCWEB_LOG_DEBUG("Checking if aggregation is required for {}",
-                         thisReq.target().data());
-        // keeping forwarded for bmcweb right now. This is sufficient for fully
-        //  connected bmc topology for mutual aggregation and deduplication.
-        // The property can be enhanced to support for different bmc topologies
-        // in future.
+
         auto forwardedHeader = thisReq.getHeaderValue("X-Forwarded-For");
         if (!forwardedHeader.empty() && forwardedHeader == "bmcweb")
         {
