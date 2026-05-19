@@ -27,6 +27,9 @@
 #include "oem/ibm/system_attention_indicator.hpp"
 #endif
 #include "oem/ibm/pcie_topology_refresh.hpp"
+#ifdef BMCWEB_ENABLE_HW_ISOLATION
+#include "oem/ibm/service_alerts.hpp"
+#endif
 
 #include <app.hpp>
 #include <boost/asio/error.hpp>
@@ -2877,6 +2880,9 @@ inline void requestRoutesSystems(App& app)
         getSAI(asyncResp, "PartitionSystemAttentionIndicator");
         getSAI(asyncResp, "PlatformSystemAttentionIndicator");
 #endif
+#ifdef BMCWEB_ENABLE_HW_ISOLATION
+        getServiceAlertsEnabled(asyncResp);
+#endif
 #ifdef BMCWEB_ENABLE_REDFISH_PROVISIONING_FEATURE
         getProvisioningStatus(asyncResp);
 #endif
@@ -3034,6 +3040,7 @@ inline void requestRoutesSystems(App& app)
                 std::optional<bool> savePCIeTopologyInfo;
                 std::optional<std::string> chapName;
                 std::optional<std::string> chapSecret;
+                std::optional<bool> sendServiceAlerts;
                 if (!json_util::readJson(
                         *ibmOem, asyncResp->res, "LampTest", lampTest,
                         "PartitionSystemAttentionIndicator", partitionSAI,
@@ -3041,7 +3048,7 @@ inline void requestRoutesSystems(App& app)
                         "PCIeTopologyRefresh", pcieTopologyRefresh,
                         "SavePCIeTopologyInfo", savePCIeTopologyInfo,
                         "ChapData/ChapName", chapName, "ChapData/ChapSecret",
-                        chapSecret))
+                        chapSecret, "SendServiceAlerts", sendServiceAlerts))
                 {
                     return;
                 }
@@ -3059,19 +3066,33 @@ inline void requestRoutesSystems(App& app)
                     setSAI(asyncResp, "PlatformSystemAttentionIndicator",
                            *platformSAI);
                 }
+#ifdef BMCWEB_ENABLE_HW_ISOLATION
+                if (sendServiceAlerts)
+                {
+                    setServiceAlertsEnabled(asyncResp, *sendServiceAlerts);
+                }
+#endif
 #else
                 std::optional<bool> pcieTopologyRefresh;
                 std::optional<bool> savePCIeTopologyInfo;
                 std::optional<std::string> chapName;
                 std::optional<std::string> chapSecret;
+                std::optional<bool> sendServiceAlerts;
                 if (!json_util::readJson(
                         *ibmOem, asyncResp->res, "PCIeTopologyRefresh",
                         pcieTopologyRefresh, "SavePCIeTopologyInfo",
                         savePCIeTopologyInfo, "ChapData/ChapName", chapName,
-                        "ChapData/ChapSecret", chapSecret))
+                        "ChapData/ChapSecret", chapSecret, "SendServiceAlerts",
+                        sendServiceAlerts))
                 {
                     return;
                 }
+#ifdef BMCWEB_ENABLE_HW_ISOLATION
+                if (sendServiceAlerts)
+                {
+                    setServiceAlertsEnabled(asyncResp, *sendServiceAlerts);
+                }
+#endif
 #endif
                 if (pcieTopologyRefresh)
                 {

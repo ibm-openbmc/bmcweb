@@ -100,6 +100,11 @@
                   <Annotation Term="OData.Description" String="An indication of PEL topology information is saves."/>
                   <Annotation Term="OData.LongDescription" String="This property when set to 'true' saves the topology information. The information is saved in the form of a PEL(Error Log)."/>
                 </Property>
+                <Property Name="SendServiceAlerts" Type="Edm.Boolean">
+                  <Annotation Term="OData.Permissions" EnumMember="OData.Permission/ReadWrite"/>
+                  <Annotation Term="OData.Description" String="An indication of whether service alerts are enabled."/>
+                  <Annotation Term="OData.LongDescription" String="The value of this property shall indicate if service alerts are enabled."/>
+                </Property>
             </ComplexType>
         </Schema>
 

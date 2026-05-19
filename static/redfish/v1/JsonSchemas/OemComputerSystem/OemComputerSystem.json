@@ -201,6 +201,15 @@
                     "$ref": "#/definitions/ChapData",
                     "description": "ChapData.",
                     "longDescription": "This property shall describe ChapData."
+                },
+                "SendServiceAlerts": {
+                    "description": "An indication of whether service alerts are enabled.",
+                    "longDescription": "The value of this property shall indicate if service alerts are enabled.",
+                    "readonly": false,
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
                 }
             },
             "type": "object"
