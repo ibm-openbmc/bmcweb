@@ -29,6 +29,7 @@
 #include "led.hpp"
 #include "oem/ibm/lamp_test.hpp"
 #include "oem/ibm/pcie_topology_refresh.hpp"
+#include "oem/ibm/service_alerts.hpp"
 #include "oem/ibm/system_attention_indicator.hpp"
 #include "query.hpp"
 #include "redfish_util.hpp"
@@ -2880,6 +2881,10 @@ inline void
         getSAI(asyncResp, "PartitionSystemAttentionIndicator");
         getSAI(asyncResp, "PlatformSystemAttentionIndicator");
     }
+    if constexpr (BMCWEB_HW_ISOLATION)
+    {
+        getServiceAlertsEnabled(asyncResp);
+    }
     if constexpr (BMCWEB_REDFISH_PROVISIONING_FEATURE)
     {
         getProvisioningStatus(asyncResp);
@@ -3058,6 +3063,7 @@ inline void handleComputerSystemPatch(
                 std::optional<bool> lampTest;
                 std::optional<bool> partitionSAI;
                 std::optional<bool> platformSAI;
+                std::optional<bool> sendServiceAlerts;
                 if (!json_util::readJson(
                         *ibmOem, asyncResp->res, "LampTest", lampTest,
                         "PartitionSystemAttentionIndicator", partitionSAI,
@@ -3065,7 +3071,7 @@ inline void handleComputerSystemPatch(
                         "PCIeTopologyRefresh", pcieTopologyRefresh,
                         "SavePCIeTopologyInfo", savePCIeTopologyInfo,
                         "ChapData/ChapName", chapName, "ChapData/ChapSecret",
-                        chapSecret))
+                        chapSecret, "SendServiceAlerts", sendServiceAlerts))
                 {
                     return;
                 }
@@ -3083,16 +3089,32 @@ inline void handleComputerSystemPatch(
                     setSAI(asyncResp, "PlatformSystemAttentionIndicator",
                            *platformSAI);
                 }
+                if constexpr (BMCWEB_HW_ISOLATION)
+                {
+                    if (sendServiceAlerts)
+                    {
+                        setServiceAlertsEnabled(asyncResp, *sendServiceAlerts);
+                    }
+                }
             }
             else
             {
+                std::optional<bool> sendServiceAlerts;
                 if (!json_util::readJson(
                         *ibmOem, asyncResp->res, "PCIeTopologyRefresh",
                         pcieTopologyRefresh, "SavePCIeTopologyInfo",
                         savePCIeTopologyInfo, "ChapData/ChapName", chapName,
-                        "ChapData/ChapSecret", chapSecret))
+                        "ChapData/ChapSecret", chapSecret, "SendServiceAlerts",
+                        sendServiceAlerts))
                 {
                     return;
+                }
+                if constexpr (BMCWEB_HW_ISOLATION)
+                {
+                    if (sendServiceAlerts)
+                    {
+                        setServiceAlertsEnabled(asyncResp, *sendServiceAlerts);
+                    }
                 }
             }
             if (pcieTopologyRefresh)
