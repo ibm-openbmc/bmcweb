@@ -58,6 +58,11 @@
           <Annotation Term="OData.Description" String="An indication of whether safe mode is active."/>
           <Annotation Term="OData.LongDescription" String="The value of this property shall indicate if safe mode is active."/>
         </Property>
+        <Property Name="SendServiceAlerts" Type="Edm.Boolean">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/ReadWrite"/>
+          <Annotation Term="OData.Description" String="An indicator allowing an operator to enable or disable service alerts."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the state of service alerts function for this resource."/>
+        </Property>
       </ComplexType>
       <Action Name="ExecutePanelFunction" IsBound="true">
         <Annotation Term="OData.Description" String="This action executes a panel function."/>
