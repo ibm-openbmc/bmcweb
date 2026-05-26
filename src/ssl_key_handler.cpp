@@ -286,9 +286,10 @@ std::string generateSslCertificate(const std::string& cn)
             // number If this is not random, regenerating certs throws browser
             // errors
             bmcweb::OpenSSLGenerator gen;
-            std::uniform_int_distribution<int> dis(
-                1, std::numeric_limits<int>::max());
-            int serial = dis(gen);
+            std::uniform_int_distribution<uint64_t> dis(
+                std::numeric_limits<uint64_t>::min(),
+                std::numeric_limits<uint64_t>::max());
+            int64_t serial = static_cast<int64_t>(dis(gen));
 
             ASN1_INTEGER_set(X509_get_serialNumber(x509), serial);
 
