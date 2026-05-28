@@ -204,10 +204,12 @@ class Connection :
     {
         BMCWEB_LOG_DEBUG("{} Connection started, total {}", logPtr(this),
                          connectionCount);
+        readClientIp();
         if (connectionCount >= 200)
         {
-            BMCWEB_LOG_CRITICAL("{} Max connection count exceeded.",
-                                logPtr(this));
+            BMCWEB_LOG_CRITICAL("{} Max connection count exceeded. Request {}",
+                                logPtr(this), ip.to_string());
+
             return;
         }
 
@@ -222,7 +224,6 @@ class Connection :
 
         startDeadline();
 
-        readClientIp();
         boost::beast::async_detect_ssl(
             adaptor.next_layer(), buffer,
             std::bind_front(&self_type::afterDetectSsl, this,
