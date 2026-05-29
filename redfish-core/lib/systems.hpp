@@ -18,6 +18,7 @@
 #include "hypervisor_system.hpp"
 #include "led.hpp"
 #include "logging.hpp"
+#include "oem/ibm/service_alerts.hpp"
 #include "query.hpp"
 #include "redfish_util.hpp"
 #include "registries/privilege_registry.hpp"
@@ -3442,6 +3443,10 @@ inline void processComputerSystemGet(
     getStopBootOnFault(asyncResp);
     getAutomaticRetryPolicy(asyncResp, computerSystemIndex);
     getLastResetTime(asyncResp, computerSystemIndex);
+    if constexpr (BMCWEB_HW_ISOLATION)
+    {
+        getServiceAlertsEnabled(asyncResp);
+    }
     if constexpr (BMCWEB_REDFISH_PROVISIONING_FEATURE)
     {
         getProvisioningStatus(asyncResp);
@@ -3518,6 +3523,7 @@ struct PatchParams
     std::optional<uint64_t> ipsExitTime;
     std::optional<std::string> chapName;
     std::optional<std::string> chapSecret;
+    std::optional<bool> sendServiceAlerts;
 };
 
 /**
@@ -3632,6 +3638,14 @@ inline void processComputerSystemPatch(
         setChapData(req, asyncResp, patchParams.chapName,
                     patchParams.chapSecret);
     }
+
+    if constexpr (BMCWEB_HW_ISOLATION)
+    {
+        if (patchParams.sendServiceAlerts)
+        {
+            setServiceAlertsEnabled(asyncResp, *patchParams.sendServiceAlerts);
+        }
+    }
 }
 
 inline void handleComputerSystemPatch(
@@ -3684,7 +3698,8 @@ inline void handleComputerSystemPatch(
             "PowerMode", patchParams.powerMode,                               //
             "PowerRestorePolicy", patchParams.powerRestorePolicy,             //
             "Oem/IBM/ChapData/ChapName", patchParams.chapName,                //
-            "Oem/IBM/ChapData/ChapSecret", patchParams.chapSecret))
+            "Oem/IBM/ChapData/ChapSecret", patchParams.chapSecret,            //
+            "Oem/IBM/SendServiceAlerts", patchParams.sendServiceAlerts))
     {
         return;
     }
