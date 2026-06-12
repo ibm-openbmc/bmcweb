@@ -79,12 +79,14 @@ inline void getRedundantData(
     const size_t* redundancyMinimum = nullptr;
     const size_t* redundancyMaximum = nullptr;
     const size_t* functionalMinimum = nullptr;
+    const std::string* role = nullptr;
 
     const bool success = sdbusplus::unpackPropertiesNoThrow(
         dbus_utils::UnpackErrorPrinter(), propertiesList, "FailoversAllowed",
         failoversAllowed, "RedundancyEnabled", redundancyEnabled,
         "RedundancyMinimum", redundancyMinimum, "RedundancyMaximum",
-        redundancyMaximum, "FunctionalMinimum", functionalMinimum);
+        redundancyMaximum, "FunctionalMinimum", functionalMinimum, "Role",
+        role);
 
     if (!success)
     {
@@ -145,6 +147,23 @@ inline void getRedundantData(
     if (functionalMinimum != nullptr)
     {
         redundantObject["MinNumNeeded"] = *functionalMinimum;
+    }
+
+    if (role != nullptr)
+    {
+        BMCWEB_LOG_DEBUG("Initializing ActiveRedundancySet array");
+        nlohmann::json::array_t activeSet;
+
+        if (*role == "xyz.openbmc_project.State.BMC.Redundancy.Role.Active")
+        {
+            nlohmann::json::object_t activeItem;
+            activeItem["@odata.id"] =
+                boost::urls::format("/redfish/v1/Managers/{}", managerId);
+            activeSet.emplace_back(std::move(activeItem));
+        }
+
+        redundantObject["ActiveRedundancySet@odata.count"] = activeSet.size();
+        redundantObject["ActiveRedundancySet"] = std::move(activeSet);
     }
 
     redundancy->emplace_back(std::move(redundantObject));
