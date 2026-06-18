@@ -193,6 +193,89 @@ inline void doBMCForceRestart(
         });
 }
 
+inline void handleManagerForceFailover(
+    crow::App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& managerId)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+    if (managerId != BMCWEB_REDFISH_MANAGER_URI_NAME)
+    {
+        messages::resourceNotFound(asyncResp->res, "Manager", managerId);
+        return;
+    }
+
+    BMCWEB_LOG_DEBUG("Post Force Failover");
+
+    std::optional<nlohmann::json::object_t> newManager;
+
+    if (!json_util::readJsonAction(req, asyncResp->res, "NewManager",
+                                   newManager))
+    {
+        BMCWEB_LOG_DEBUG("Missing property NewManager.");
+        messages::actionParameterMissing(asyncResp->res, "ForceFailover",
+                                         "NewManager");
+        return;
+    }
+
+    auto odataIdIt = newManager->find("@odata.id");
+    if (odataIdIt == newManager->end())
+    {
+        BMCWEB_LOG_DEBUG("Missing @odata.id in NewManager");
+        messages::propertyMissing(asyncResp->res, "NewManager/@odata.id");
+        return;
+    }
+
+    const std::string* odataIdStr =
+        odataIdIt->second.get_ptr<const std::string*>();
+    if (odataIdStr == nullptr)
+    {
+        BMCWEB_LOG_DEBUG("Invalid @odata.id type in NewManager");
+        messages::propertyValueTypeError(
+            asyncResp->res, odataIdIt->second.dump(), "NewManager/@odata.id");
+        return;
+    }
+
+    std::string expectedUri =
+        boost::urls::format("/redfish/v1/Managers/{}",
+                            BMCWEB_REDFISH_MANAGER_URI_NAME)
+            .buffer();
+    if (*odataIdStr != expectedUri)
+    {
+        BMCWEB_LOG_DEBUG("Invalid property value for NewManager/@odata.id: {}",
+                         *odataIdStr);
+        messages::actionParameterNotSupported(asyncResp->res, *odataIdStr,
+                                              "NewManager");
+        return;
+    }
+
+
+    std::map<std::string, std::variant<bool>> options;
+    options.emplace("xyz.openbmc_project.Control.Failover.Options.Force", true);
+
+    std::string requester =
+        "xyz.openbmc_project.Control.Failover.Requester.Redfish";
+    const char* service = "xyz.openbmc_project.State.BMC.Redundancy";
+    const char* objectPath = "/xyz/openbmc_project/state/bmc0";
+    const char* interfaceName = "xyz.openbmc_project.Control.Failover";
+
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code& ec) {
+            if (ec)
+            {
+                BMCWEB_LOG_ERROR("DBUS response error: {}", ec);
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            messages::success(asyncResp->res);
+        },
+        service, objectPath, interfaceName, "StartFailover", requester,
+        options);
+}
+
 /**
  * ManagerResetAction handles POST method request.
  * Analyzes POST body before sending Reset (Reboot) request data to D-Bus.
@@ -861,6 +944,13 @@ inline void handleManagerGet(
     std::pair<std::string, std::string> redfishDateTimeOffset =
         redfish::time_utils::getDateTimeOffsetNow();
 
+    nlohmann::json& forceFailover =
+        asyncResp->res.jsonValue["Actions"]["#Manager.ForceFailover"];
+
+    forceFailover["target"] = boost::urls::format(
+        "/redfish/v1/Managers/{}/Actions/Manager.ForceFailover",
+        BMCWEB_REDFISH_MANAGER_URI_NAME);
+
     asyncResp->res.jsonValue["DateTime"] = redfishDateTimeOffset.first;
     asyncResp->res.jsonValue["DateTimeLocalOffset"] =
         redfishDateTimeOffset.second;
@@ -1075,6 +1165,12 @@ inline void requestRoutesManagerResetAction(App& app)
         .privileges(redfish::privileges::getActionInfo)
         .methods(boost::beast::http::verb::get)(
             std::bind_front(handleManagerResetActionInfo, std::ref(app)));
+
+    BMCWEB_ROUTE(app,
+                 "/redfish/v1/Managers/<str>/Actions/Manager.ForceFailover/")
+        .privileges(redfish::privileges::postManager)
+        .methods(boost::beast::http::verb::post)(
+            std::bind_front(handleManagerForceFailover, std::ref(app)));
 }
 
 } // namespace redfish
