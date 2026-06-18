@@ -861,6 +861,13 @@ inline void handleManagerGet(
     std::pair<std::string, std::string> redfishDateTimeOffset =
         redfish::time_utils::getDateTimeOffsetNow();
 
+    nlohmann::json& forceFailover =
+        asyncResp->res.jsonValue["Actions"]["#Manager.ForceFailover"];
+
+    forceFailover["target"] = boost::urls::format(
+        "/redfish/v1/Managers/{}/Actions/Manager.ForceFailover",
+        BMCWEB_REDFISH_MANAGER_URI_NAME);
+
     asyncResp->res.jsonValue["DateTime"] = redfishDateTimeOffset.first;
     asyncResp->res.jsonValue["DateTimeLocalOffset"] =
         redfishDateTimeOffset.second;
@@ -1075,6 +1082,12 @@ inline void requestRoutesManagerResetAction(App& app)
         .privileges(redfish::privileges::getActionInfo)
         .methods(boost::beast::http::verb::get)(
             std::bind_front(handleManagerResetActionInfo, std::ref(app)));
+
+    BMCWEB_ROUTE(app,
+                 "/redfish/v1/Managers/<str>/Actions/Manager.ForceFailover/")
+        .privileges(redfish::privileges::postManager)
+        .methods(boost::beast::http::verb::post)(
+            std::bind_front(handleManagerForceFailover, std::ref(app)));
 }
 
 } // namespace redfish
