@@ -420,7 +420,10 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         // Copy the response into a Response object so that it can be
         // processed by the callback function.
         res.stringResponse = parser->release();
-        callback(parser->keep_alive(), connId, res);
+        if (callback)
+        {
+            callback(parser->keep_alive(), connId, res);
+        }
         res.clear();
     }
 
@@ -474,7 +477,10 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
             // We want to return a 502 to indicate there was an error with
             // the external server
             res.result(boost::beast::http::status::bad_gateway);
-            callback(false, connId, res);
+            if (callback)
+            {
+                callback(false, connId, res);
+            }
             res.clear();
 
             // Reset the retrycount to zero so that client can try connecting
