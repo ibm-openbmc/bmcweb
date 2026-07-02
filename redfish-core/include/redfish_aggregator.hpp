@@ -27,6 +27,7 @@
 #include <boost/url/url.hpp>
 #include <boost/url/url_view.hpp>
 #include <nlohmann/json.hpp>
+#include <sdbusplus/bus/match.hpp>
 #include <sdbusplus/message/native_types.hpp>
 
 #include <algorithm>
@@ -36,6 +37,7 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <map>
 #include <memory>
 #include <ranges>
 #include <string>
@@ -44,6 +46,7 @@
 #include <unordered_map>
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace redfish
 {
@@ -420,10 +423,15 @@ struct AggregationSource
     std::string password;
 };
 
+constexpr std::string_view satelliteControllerIface =
+    "xyz.openbmc_project.Configuration.SatelliteController";
+
 class RedfishAggregator
 {
   private:
     crow::HttpClient client;
+    std::unique_ptr<sdbusplus::bus::match_t> satelliteConfigAddedMatcher;
+    std::unique_ptr<sdbusplus::bus::match_t> satelliteConfigRemovedMatcher;
 
     // callback used by the Constructor to report the number
     // of satellite configs when the class is first created
@@ -452,6 +460,76 @@ class RedfishAggregator
             source.password = "";
             aggregationSources[name] = std::move(source);
         }
+        printAggregationSources();
+    }
+
+    void handleSatelliteAdded(sdbusplus::message_t& msg)
+    {
+        sdbusplus::message::object_path objPath;
+        std::map<std::string,
+                 std::map<std::string, dbus::utility::DbusVariantType>>
+            interfaces;
+        msg.read(objPath, interfaces);
+
+        auto it = std::ranges::find_if(interfaces, [](const auto& iface) {
+            return iface.first == satelliteControllerIface;
+        });
+        if (it == interfaces.end())
+        {
+            return;
+        }
+
+        BMCWEB_LOG_DEBUG("SatelliteController added via signal at {}",
+                         objPath.str);
+
+        std::unordered_map<std::string, boost::urls::url> satelliteInfo;
+        addSatelliteConfig(it->second, satelliteInfo);
+
+        std::ranges::for_each(satelliteInfo, [this](const auto& entry) {
+            aggregationSources[entry.first] =
+                AggregationSource{entry.second, "", ""};
+        });
+
+        printAggregationSources();
+    }
+
+    void handleSatelliteRemoved(sdbusplus::message_t& msg)
+    {
+        sdbusplus::message::object_path objPath;
+        std::vector<std::string> interfaces;
+        msg.read(objPath, interfaces);
+
+        bool isSatellite =
+            std::ranges::any_of(interfaces, [](const std::string& iface) {
+                return iface == satelliteControllerIface;
+            });
+
+        if (!isSatellite)
+        {
+            return;
+        }
+
+        // Extract the last segment of the removed object path
+        const std::string& fullPath = objPath.str;
+        std::size_t lastSlash = fullPath.rfind('/');
+        if (lastSlash == std::string::npos)
+        {
+            return;
+        }
+        std::string removedSegment = fullPath.substr(lastSlash + 1);
+
+        // Find the aggregationSources key whose escaped form matches the
+        // removed path segment, then erase it
+        std::erase_if(aggregationSources, [&removedSegment](const auto& entry) {
+            std::string escapedKey = entry.first;
+            dbus::utility::escapePathForDbus(escapedKey);
+            return escapedKey == removedSegment;
+        });
+
+        BMCWEB_LOG_DEBUG("SatelliteController removed via signal at {}, "
+                         "aggregation sources now: {}",
+                         objPath.str, aggregationSources.size());
+        printAggregationSources();
     }
 
     // Search D-Bus objects for satellite config objects and add their
@@ -464,8 +542,7 @@ class RedfishAggregator
         {
             for (const auto& interface : objectPath.second)
             {
-                if (interface.first ==
-                    "xyz.openbmc_project.Configuration.SatelliteController")
+                if (interface.first == satelliteControllerIface)
                 {
                     BMCWEB_LOG_DEBUG("Found Satellite Controller at {}",
                                      objectPath.first.str);
@@ -475,10 +552,9 @@ class RedfishAggregator
         }
     }
 
-    // Parse the properties of a satellite config object and add the
-    // configuration if the properties are valid
+    template <typename PropertiesMap>
     static void addSatelliteConfig(
-        const dbus::utility::DBusPropertiesMap& properties,
+        const PropertiesMap& properties,
         std::unordered_map<std::string, boost::urls::url>& satelliteInfo)
     {
         boost::urls::url url;
@@ -666,8 +742,13 @@ class RedfishAggregator
             localReq->target(urlNew.buffer());
         }
 
-        getSatelliteConfigs(
-            std::bind_front(aggregateAndHandle, aggType, localReq, asyncResp));
+        std::unordered_map<std::string, boost::urls::url> satelliteInfo;
+        for (const auto& [prefix, source] : aggregationSources)
+        {
+            satelliteInfo.emplace(prefix, source.url);
+        }
+        aggregateAndHandle(aggType, localReq, asyncResp,
+                           boost::system::error_code{}, satelliteInfo);
     }
 
     static void findSatellite(
@@ -907,6 +988,22 @@ class RedfishAggregator
     {
         getSatelliteConfigs(
             std::bind_front(&RedfishAggregator::constructorCallback, this));
+
+        satelliteConfigAddedMatcher = std::make_unique<sdbusplus::bus::match_t>(
+            *crow::connections::systemBus,
+            "type='signal',member='InterfacesAdded',"
+            "interface='org.freedesktop.DBus.ObjectManager',"
+            "path='/xyz/openbmc_project/inventory'",
+            std::bind_front(&RedfishAggregator::handleSatelliteAdded, this));
+
+        satelliteConfigRemovedMatcher =
+            std::make_unique<sdbusplus::bus::match_t>(
+                *crow::connections::systemBus,
+                "type='signal',member='InterfacesRemoved',"
+                "interface='org.freedesktop.DBus.ObjectManager',"
+                "path='/xyz/openbmc_project/inventory'",
+                std::bind_front(&RedfishAggregator::handleSatelliteRemoved,
+                                this));
     }
     RedfishAggregator(const RedfishAggregator&) = delete;
     RedfishAggregator& operator=(const RedfishAggregator&) = delete;
@@ -960,13 +1057,7 @@ class RedfishAggregator
     {
         BMCWEB_LOG_DEBUG("Gathering satellite configs");
 
-        // Extract just the URLs from aggregationSources for the handler
         std::unordered_map<std::string, boost::urls::url> satelliteInfo;
-        for (const auto& [prefix, source] : aggregationSources)
-        {
-            satelliteInfo.emplace(prefix, source.url);
-        }
-
         sdbusplus::message::object_path path("/xyz/openbmc_project/inventory");
         dbus::utility::getManagedObjects(
             "xyz.openbmc_project.EntityManager", path,
@@ -1438,6 +1529,8 @@ class RedfishAggregator
     // Assumes the given segment starts with <prefix>_
     bool segmentHasPrefix(const std::string& urlSegment) const
     {
+        BMCWEB_LOG_DEBUG("Entering segment seach {}", urlSegment);
+        printAggregationSources();
         // TODO: handle this better
         // For now 5B247A_ wont be in the aggregationSources map so
         // check explicitly for now
@@ -1456,7 +1549,20 @@ class RedfishAggregator
         // Extract the prefix
         std::string prefix = urlSegment.substr(0, underscorePos);
         // Check if this prefix exists
+        BMCWEB_LOG_DEBUG("Finding prefix {}", prefix);
         return aggregationSources.contains(prefix);
+    }
+
+    void printAggregationSources() const
+    {
+        BMCWEB_LOG_DEBUG("Aggregation sources ({}):",
+                         aggregationSources.size());
+        for (const auto& [name, source] : aggregationSources)
+        {
+            BMCWEB_LOG_DEBUG(
+                "  [{}] url={}://{} username={}", name, source.url.scheme(),
+                source.url.encoded_host_and_port(), source.username);
+        }
     }
 };
 
