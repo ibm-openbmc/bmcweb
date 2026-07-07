@@ -62,6 +62,7 @@
 #include <format>
 #include <fstream>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -150,7 +151,7 @@ inline bool doUpdateErrorLoggingEntry(
     const std::shared_ptr<task::TaskData>& taskData, const std::string& index,
     const dbus::utility::DBusPropertiesMap& properties)
 {
-    using AdditionalDataType = std::vector<std::string>;
+    using AdditionalDataType = std::map<std::string, std::string>;
 
     const AdditionalDataType* addData = nullptr;
     const std::string* message = nullptr;
@@ -192,10 +193,9 @@ inline bool doUpdateErrorLoggingEntry(
     }
 
     std::string addDataStr;
-    for (const auto& data : *addData)
+    for (const auto& [key, value] : *addData)
     {
-        addDataStr.append(data);
-        addDataStr.append(" ");
+        addDataStr.append(std::format("{}={} ", key, value));
     }
 
     if (!message->empty() && !addDataStr.empty() && !eventId->empty())
