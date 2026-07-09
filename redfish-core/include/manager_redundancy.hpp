@@ -47,15 +47,24 @@ inline redundancy::RedundancyMode dBusRedundancyEnabledToRedfish(
     return redundancy::RedundancyMode::NotRedundant;
 }
 
-inline resource::State getRedundantState(bool failoversAllowed,
-                                         bool redundancyEnabled)
+inline resource::State getRedundantState(bool failoversAllowed)
 {
-    if (!redundancyEnabled || !failoversAllowed)
+    if (!failoversAllowed)
     {
         return resource::State::Disabled;
     }
 
     return resource::State::Enabled;
+}
+
+inline resource::Health getRedundantHealth(bool failoversAllowed)
+{
+    if (!failoversAllowed)
+    {
+        return resource::Health::Warning;
+    }
+
+    return resource::Health::OK;
 }
 
 inline void getRedundantData(
@@ -124,16 +133,16 @@ inline void getRedundantData(
     {
         redundantObject["Mode"] =
             dBusRedundancyEnabledToRedfish(*redundancyEnabled);
-
-        if (failoversAllowed != nullptr)
-        {
-            redundantObject["Status"]["State"] =
-                getRedundantState(*failoversAllowed, *redundancyEnabled);
-        }
     }
 
-    // TODO: Handle badpath for health
-    redundantObject["Status"]["Health"] = resource::Health::OK;
+    if (failoversAllowed != nullptr)
+    {
+        redundantObject["Status"]["State"] =
+            getRedundantState(*failoversAllowed);
+        redundantObject["Status"]["Health"] =
+            getRedundantHealth(*failoversAllowed);
+        // TODO: Handle Status/Conditions
+    }
 
     if (redundancyMinimum != nullptr)
     {
