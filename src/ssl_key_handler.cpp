@@ -289,7 +289,7 @@ std::string generateSslCertificate(const std::string& cn)
             std::uniform_int_distribution<uint64_t> dis(
                 std::numeric_limits<uint64_t>::min(),
                 std::numeric_limits<uint64_t>::max());
-            int64_t serial = static_cast<int64_t>(dis(gen));
+            long int serial = static_cast<long int>(dis(gen));
 
             ASN1_INTEGER_set(X509_get_serialNumber(x509), serial);
 
