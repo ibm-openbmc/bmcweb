@@ -55,7 +55,10 @@ class Server
         // NOLINTNEXTLINE(misc-include-cleaner)
         signals(getIoContext(), SIGINT, SIGTERM, SIGHUP), handler(handlerIn),
         sslContextFactory(std::move(contextFactory))
-    {}
+    {
+        // NOLINTNEXTLINE(misc-include-cleaner)
+        signals.add(SIGUSR1);
+    }
     std::string getCachedDateStrImpl()
     {
         std::chrono::steady_clock::time_point now =
