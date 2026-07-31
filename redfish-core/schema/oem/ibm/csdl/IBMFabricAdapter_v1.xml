@@ -27,7 +27,7 @@
         <Annotation Term="OData.AdditionalProperties" Bool="true"/>
         <Annotation Term="OData.Description" String="IBMFabricAdapter Oem properties."/>
         <Annotation Term="OData.AutoExpand"/>
-        <Property Name="IBM" Type="IBMFabricAdapter.IBM"/>
+        <Property Name="IBM" Type="IBMFabricAdapter.v1_0_0.IBM"/>
       </ComplexType>
       <ComplexType Name="IBM" BaseType="Resource.OemObject">
         <Annotation Term="OData.AdditionalProperties" Bool="true"/>

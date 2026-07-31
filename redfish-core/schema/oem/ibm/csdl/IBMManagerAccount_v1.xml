@@ -26,13 +26,13 @@
         <Annotation Term="OData.AutoExpand"/>
         <Property Name="IBM" Type="IBMManagerAccount.v1_0_0.IBM"/>
       </ComplexType>
-      <ComplexType Name="IBM">
+      <ComplexType Name="IBM" BaseType="Resource.OemObject">
         <Annotation Term="OData.AdditionalProperties" Bool="true"/>
         <Annotation Term="OData.Description" String="Oem properties for IBM."/>
         <Annotation Term="OData.AutoExpand"/>
         <Property Name="ACF" Type="IBMManagerAccount.v1_0_0.ACF"/>
       </ComplexType>
-      <ComplexType Name="ACF">
+      <ComplexType Name="ACF" BaseType="Resource.OemObject">
         <Annotation Term="OData.Description" String="A collection of ACF properties."/>
         <Annotation Term="OData.LongDescription" String="A collection of access control file properties."/>
         <Annotation Term="OData.AdditionalProperties" Bool="false"/>

@@ -13,8 +13,6 @@
   <edmx:DataServices>
     <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemUpdateService">
       <Annotation Term="Redfish.OwningEntity" String="IBM"/>
-    </Schema>
-    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemUpdateService.v1_0_0">
       <Action Name="ConcurrentUpdate" IsBound="true">
         <Annotation Term="OData.Description" String="This action concurrently updates firmware."/>
         <Annotation Term="OData.LongDescription" String="This action concurrently updates firmware, synchronizing the host and bmc."/>

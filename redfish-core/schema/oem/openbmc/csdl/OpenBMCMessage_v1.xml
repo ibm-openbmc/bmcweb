@@ -24,9 +24,9 @@
         <Annotation Term="OData.AdditionalProperties" Bool="true"/>
         <Annotation Term="OData.Description" String="OpenBMCMessage Oem properties."/>
         <Annotation Term="OData.AutoExpand"/>
-        <Property Name="OpenBMC" Type="OpenBMCMessage.OpenBMC"/>
+        <Property Name="OpenBMC" Type="OpenBMCMessage.v1_0_0.OpenBMC"/>
       </ComplexType>
-      <ComplexType Name="OpenBMC">
+      <ComplexType Name="OpenBMC" BaseType="Resource.OemObject">
         <Annotation Term="OData.AdditionalProperties" Bool="true"/>
         <Annotation Term="OData.Description" String="Oem properties for OpenBMC."/>
         <Annotation Term="OData.AutoExpand"/>
