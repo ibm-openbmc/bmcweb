@@ -49,15 +49,15 @@
         <Annotation Term="OData.AdditionalProperties" Bool="true"/>
         <Annotation Term="OData.Description" String="Oem properties for IBM."/>
         <Annotation Term="OData.AutoExpand"/>
-        <Property Name="AssociatedAssembly" Type="Resource.Resource">
+        <NavigationProperty Name="AssociatedAssembly" Type="Resource.Resource">
           <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
           <Annotation Term="OData.Description" String="Represent association slot with assembly."/>
-        </Property>
-        <Property Name="UpstreamFabricAdapters" Type="Collection(FabricAdapter.FabricAdapter)">
+        </NavigationProperty>
+        <NavigationProperty Name="UpstreamFabricAdapters" Type="Collection(FabricAdapter.FabricAdapter)">
           <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
           <Annotation Term="OData.Description" String="The upstream fabric adapters."/>
           <Annotation Term="OData.LongDescription" String="This property shall contain an array of links to the upstream fabric adapters."/>
-        </Property>
+        </NavigationProperty>
       </ComplexType>
     </Schema>
   </edmx:DataServices>

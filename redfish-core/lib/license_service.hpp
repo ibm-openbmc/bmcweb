@@ -182,13 +182,11 @@ inline void getLicenseEntryCollection(
                 }
                 entriesArray.push_back({});
                 nlohmann::json& thisEntry = entriesArray.back();
-                thisEntry["@odata.id"] = std::format(
+                thisEntry["@odata.id"] = boost::urls::format(
                     "/redfish/v1/LicenseService/Licenses/{}", entryID);
-                thisEntry["Id"] = entryID;
-                thisEntry["Name"] = entryID + " License Entry";
-                asyncResp->res.jsonValue["Members@odata.count"] =
-                    entriesArray.size();
             }
+            asyncResp->res.jsonValue["Members@odata.count"] =
+                entriesArray.size();
         });
 }
 

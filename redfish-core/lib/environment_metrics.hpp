@@ -8,6 +8,7 @@
 #include "str_utility.hpp"
 #include "utils/chassis_utils.hpp"
 #include "utils/fan_utils.hpp"
+#include "utils/sensor_utils.hpp"
 
 #include <boost/url/format.hpp>
 
@@ -26,18 +27,22 @@ inline void
                         const std::string& chassisId,
                         const std::string& fanSensorPath, double value)
 {
-    std::string fanSensorName =
-        sdbusplus::message::object_path(fanSensorPath).filename();
-    if (fanSensorName.empty())
+    sdbusplus::message::object_path sensorPath(fanSensorPath);
+    std::string fanSensorName = sensorPath.filename();
+    std::string fanSensorType = sensorPath.parent_path().filename();
+    if (fanSensorName.empty() || fanSensorType.empty())
     {
         BMCWEB_LOG_ERROR("Fan Sensor name is empty and invalid");
         messages::internalError(asyncResp->res);
         return;
     }
 
+    std::string fanSensorId =
+        sensor_utils::getSensorId(fanSensorName, fanSensorType);
+
     nlohmann::json::object_t item;
     item["DataSourceUri"] = boost::urls::format(
-        "/redfish/v1/Chassis/{}/Sensors/{}", chassisId, fanSensorName);
+        "/redfish/v1/Chassis/{}/Sensors/{}", chassisId, fanSensorId);
     item["DeviceName"] = "Chassis #" + fanSensorName;
     item["SpeedRPM"] = value;
 
@@ -178,8 +183,6 @@ inline void afterGetPropertyForPowerWatts(
         }
         return;
     }
-    asyncResp->res.jsonValue["PowerWatts"]["@odata.id"] = boost::urls::format(
-        "/redfish/v1/Chassis/{}/Sensors/power_total_power", chassisId);
     asyncResp->res.jsonValue["PowerWatts"]["DataSourceUri"] =
         boost::urls::format("/redfish/v1/Chassis/{}/Sensors/power_total_power",
                             chassisId);

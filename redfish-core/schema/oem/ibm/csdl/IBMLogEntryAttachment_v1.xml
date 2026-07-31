@@ -18,14 +18,17 @@
       <Annotation Term="Redfish.OwningEntity" String="IBM"/>
     </Schema>
     <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="IBMLogEntryAttachment.v1_0_0">
-      <Annotation Term="Redfish.OwningEntity" String="OpenBMC"/>
+      <Annotation Term="Redfish.OwningEntity" String="IBM"/>
       <Annotation Term="Redfish.Release" String="1.0"/>
-      <ComplexType Name="Oem" BaseType="Resource.OemObject">
-        <Annotation Term="OData.AdditionalProperties" Bool="true"/>
-        <Annotation Term="OData.Description" String="IBMLogEntryAttachment Oem properties."/>
-        <Annotation Term="OData.AutoExpand"/>
-        <Property Name="IBM" Type="IBMLogEntryAttachment.v1_0_0.IBM"/>
-      </ComplexType>
+      <EntityType Name="IBMLogEntryAttachment" BaseType="Resource.v1_0_0.Resource" Abstract="true">
+        <ComplexType Name="Oem" BaseType="Resource.OemObject">
+          <Annotation Term="OData.AdditionalProperties" Bool="true"/>
+          <Annotation Term="OData.Description" String="IBMLogEntryAttachment Oem properties."/>
+          <Annotation Term="OData.AutoExpand"/>
+          <Property Name="IBM" Type="IBMLogEntryAttachment.v1_0_0.IBM"/>
+        </ComplexType>
+      </EntityType>
+
       <ComplexType Name="IBM" BaseType="Resource.OemObject">
         <Annotation Term="OData.AdditionalProperties" Bool="false"/>
         <Annotation Term="OData.Description" String="Oem properties for IBM."/>
@@ -39,6 +42,7 @@
           <Annotation Term="OData.Description" String="Audit Log in Json format."/>
         </Property>
       </ComplexType>
+
     </Schema>
   </edmx:DataServices>
 </edmx:Edmx>
