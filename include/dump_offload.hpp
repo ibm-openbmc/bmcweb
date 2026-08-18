@@ -511,6 +511,12 @@ inline void requestRoutesDumpOffload(App& app)
                 BMCWEB_LOG_DEBUG("No handler to cleanup");
                 return;
             }
+            if (systemHandlers->connection.get() != &conn)
+            {
+                BMCWEB_LOG_DEBUG(
+                    "Close event for non-active connection, ignoring cleanup");
+                return;
+            }
             BMCWEB_LOG_DEBUG("cancelling AsyncOperations");
             // Cancel all async operations to release shared_ptr references
             systemHandlers->cancelAsyncOperations();
