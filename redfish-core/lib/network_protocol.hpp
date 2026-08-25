@@ -27,6 +27,7 @@
 #include <boost/system/error_code.hpp>
 #include <boost/url/format.hpp>
 #include <sdbusplus/message/native_types.hpp>
+#include <sdbusplus/unpack_properties.hpp>
 
 #include <array>
 #include <cstddef>
@@ -44,6 +45,10 @@ namespace redfish
 {
 
 void getNTPProtocolEnabled(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp);
+
+void getNTPActiveServer(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp);
+
+void getNTPLastSyncTime(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp);
 
 static constexpr std::string_view sshServiceName = "sshd";
 static constexpr std::string_view httpsServiceName = "bmcweb";
@@ -217,6 +222,10 @@ inline void getNetworkData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     asyncResp->res.jsonValue["HostName"] = hostName;
 
     getNTPProtocolEnabled(asyncResp);
+
+    getNTPActiveServer(asyncResp);
+
+    getNTPLastSyncTime(asyncResp);
 
     getEthernetIfaceData([hostName, asyncResp](
                              const bool& success,
@@ -439,18 +448,104 @@ inline void handleProtocolEnabled(
 inline void getNTPProtocolEnabled(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
-    dbus::utility::getProperty<bool>(
+    dbus::utility::getAllProperties(
         "org.freedesktop.timedate1", "/org/freedesktop/timedate1",
-        "org.freedesktop.timedate1", "NTP",
-        [asyncResp](const boost::system::error_code& ec, bool enabled) {
+        "org.freedesktop.timedate1",
+        [asyncResp](const boost::system::error_code& ec,
+                    const dbus::utility::DBusPropertiesMap& props) {
             if (ec)
             {
-                BMCWEB_LOG_WARNING(
-                    "Failed to get NTP status, assuming not supported");
+                BMCWEB_LOG_WARNING("Failed to get timedate1 properties: {}",
+                                   ec);
+                messages::internalError(asyncResp->res);
                 return;
             }
 
-            asyncResp->res.jsonValue["NTP"]["ProtocolEnabled"] = enabled;
+            const bool* ntpEnabled = nullptr;
+            const bool* ntpSynchronized = nullptr;
+
+            const bool success = sdbusplus::unpackPropertiesNoThrow(
+                dbus_utils::UnpackErrorPrinter(), props, "NTP", ntpEnabled,
+                "NTPSynchronized", ntpSynchronized);
+
+            if (!success)
+            {
+                BMCWEB_LOG_WARNING("Failed to unpack timedate1 properties");
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            if (ntpEnabled != nullptr)
+            {
+                asyncResp->res.jsonValue["NTP"]["ProtocolEnabled"] =
+                    *ntpEnabled;
+            }
+
+            if (ntpEnabled != nullptr)
+            {
+                if (!*ntpEnabled)
+                {
+                    asyncResp->res.jsonValue["NTP"]["NTPServerState"] =
+                        "Disabled";
+                }
+                else if (ntpSynchronized != nullptr)
+                {
+                    asyncResp->res.jsonValue["NTP"]["NTPServerState"] =
+                        *ntpSynchronized ? "Synchronized" : "NotSynchronized";
+                }
+            }
+        });
+}
+
+inline void getNTPActiveServer(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    dbus::utility::getProperty<std::string>(
+        "org.freedesktop.timesync1", "/org/freedesktop/timesync1",
+        "org.freedesktop.timesync1.Manager", "ServerName",
+        [asyncResp](const boost::system::error_code& ec,
+                    const std::string& serverName) {
+            if (ec)
+            {
+                BMCWEB_LOG_WARNING("Failed to get NTP ServerName: {}", ec);
+                messages::internalError(asyncResp->res);
+                return;
+            }
+            if (!serverName.empty())
+            {
+                asyncResp->res.jsonValue["NTP"]["ActiveNTPServer"] = serverName;
+            }
+        });
+}
+
+inline void getNTPLastSyncTime(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    using NTPMessageType =
+        std::tuple<uint32_t, uint32_t, uint32_t, uint32_t, int32_t, uint64_t,
+                   uint64_t, std::vector<uint8_t>, uint64_t, uint64_t, uint64_t,
+                   uint64_t, bool, uint64_t, uint64_t>;
+
+    dbus::utility::getProperty<NTPMessageType>(
+        "org.freedesktop.timesync1", "/org/freedesktop/timesync1",
+        "org.freedesktop.timesync1.Manager", "NTPMessage",
+        [asyncResp](const boost::system::error_code& ec,
+                    const NTPMessageType& ntpMessage) {
+            if (ec)
+            {
+                BMCWEB_LOG_WARNING("Failed to get NTPMessage: {}", ec);
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            uint64_t destTimestamp = std::get<11>(ntpMessage);
+
+            if (destTimestamp != 0)
+            {
+                asyncResp->res.jsonValue["NTP"]["LastSyncDateTime"] =
+                    redfish::time_utils::getDateTimeUint(
+                        destTimestamp / 1000000);
+            }
         });
 }
 
