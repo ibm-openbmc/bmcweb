@@ -85,8 +85,9 @@ void Subscription::resHandler(const std::shared_ptr<Subscription>& /*self*/,
         hbTimer.cancel();
         if (deleter)
         {
-            BMCWEB_LOG_INFO("Subscription {} is deleted after MaxRetryAttempts",
-                            userSub->id);
+            BMCWEB_LOG_WARNING(
+                "Subscription {} is deleted after MaxRetryAttempts",
+                userSub->id);
             deleter();
         }
     }

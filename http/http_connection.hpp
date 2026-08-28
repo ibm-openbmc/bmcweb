@@ -90,8 +90,8 @@ class Connection :
 
         connectionCount++;
 
-        BMCWEB_LOG_DEBUG("{} Connection created, total {}", logPtr(this),
-                         connectionCount);
+        BMCWEB_LOG_WARNING("{} Connection created, total {}", logPtr(this),
+                           connectionCount);
     }
 
     ~Connection()
@@ -100,8 +100,8 @@ class Connection :
         cancelDeadlineTimer();
 
         connectionCount--;
-        BMCWEB_LOG_DEBUG("{} Connection closed, total {}", logPtr(this),
-                         connectionCount);
+        BMCWEB_LOG_WARNING("{} Connection closed, total {}", logPtr(this),
+                           connectionCount);
     }
 
     Connection(const Connection&) = delete;
@@ -405,10 +405,10 @@ class Connection :
             }
         }
 
-        BMCWEB_LOG_INFO("Request:  {} HTTP/{}.{} {} {} {}", logPtr(this),
-                        req->version() / 10, req->version() % 10,
-                        req->methodString(), req->target(),
-                        req->ipAddress.to_string());
+        BMCWEB_LOG_WARNING("Request:  {} HTTP/{}.{} {} {} {}", logPtr(this),
+                           req->version() / 10, req->version() % 10,
+                           req->methodString(), req->target(),
+                           req->ipAddress.to_string());
 
         if (res.completed)
         {

@@ -123,6 +123,7 @@ class EventServiceManager
             };
 
             subscriptionsMap.emplace(id, subValue);
+            BMCWEB_LOG_WARNING("Subscription ID: {} is loaded", id);
 
             updateNoOfSubscribersCount();
 
@@ -326,6 +327,7 @@ class EventServiceManager
             auto inserted = subscriptionsMap.insert(std::pair(id, subValue));
             if (inserted.second)
             {
+                BMCWEB_LOG_WARNING("Subscription ID: {} is added", id);
                 break;
             }
             --retry;
@@ -431,6 +433,7 @@ class EventServiceManager
             BMCWEB_LOG_ERROR("Subscription {} wasn't in persistent data", id);
             return true;
         }
+        BMCWEB_LOG_WARNING("Subscription ID: {} is deleted", id);
         persistent_data::EventServiceStore::getInstance()
             .subscriptionsConfigMap.erase(persistentObj);
         updateNoOfSubscribersCount();
