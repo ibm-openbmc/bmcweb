@@ -472,25 +472,43 @@ class Connection :
             return adaptor.is_open();
         }
     }
-    void close()
+
+    void hardClose()
     {
+        BMCWEB_LOG_DEBUG << this << " Closing socket";
+        boost::beast::get_lowest_layer(adaptor).close();
+    }
+
+    void tlsShutdownComplete(const boost::system::error_code& ec)
+    {
+        if (ec)
+        {
+            BMCWEB_LOG_WARNING << this << " Failed to shut down TLS cleanly "
+                               << ec;
+        }
+        hardClose();
+    }
+
+    void gracefulClose()
+    {
+        if (sessionIsFromTransport && userSession != nullptr)
+        {
+            BMCWEB_LOG_DEBUG
+                << this << " Removing TLS session: " << userSession->uniqueId;
+            persistent_data::SessionStore::getInstance().removeSession(
+                userSession);
+        }
+
         if constexpr (std::is_same_v<Adaptor,
                                      boost::beast::ssl_stream<
                                          boost::asio::ip::tcp::socket>>)
         {
-            adaptor.next_layer().close();
-            if (sessionIsFromTransport && userSession != nullptr)
-            {
-                BMCWEB_LOG_DEBUG
-                    << this
-                    << " Removing TLS session: " << userSession->uniqueId;
-                persistent_data::SessionStore::getInstance().removeSession(
-                    userSession);
-            }
+            adaptor.async_shutdown(std::bind_front(
+                &Connection::tlsShutdownComplete, shared_from_this()));
         }
         else
         {
-            adaptor.close();
+            hardClose();
         }
     }
 
@@ -641,38 +659,27 @@ class Connection :
                                        std::size_t bytesTransferred) {
             BMCWEB_LOG_DEBUG << this << " async_read_header "
                              << bytesTransferred << " Bytes";
-            bool errorWhileReading = false;
+
             if (ec)
             {
-                errorWhileReading = true;
-                if (ec == boost::beast::http::error::end_of_stream)
-                {
-                    BMCWEB_LOG_WARNING
-                        << this << " Error while reading: " << ec.message();
-                }
-                else
+                cancelDeadlineTimer();
+
+                if (ec == boost::beast::http::error::header_limit)
                 {
                     BMCWEB_LOG_ERROR
-                        << this << " Error while reading: " << ec.message();
-                }
-            }
-            else
-            {
-                // if the adaptor isn't open anymore, and wasn't handed to a
-                // websocket, treat as an error
-                if (!isAlive() &&
-                    !boost::beast::websocket::is_upgrade(parser->get()))
-                {
-                    errorWhileReading = true;
-                }
-            }
+                        << this
+                        << " Header field too large, closing: " << ec.message();
 
-            cancelDeadlineTimer();
+                    res.result(boost::beast::http::status::
+                                   request_header_fields_too_large);
+                    keepAlive = false;
+                    doWrite(res);
+                    return;
+                }
 
-            if (errorWhileReading)
-            {
-                close();
-                BMCWEB_LOG_DEBUG << this << " from read(1)";
+                BMCWEB_LOG_WARNING << this << " End of stream, closing: " << ec;
+                hardClose();
+
                 return;
             }
 
@@ -685,7 +692,7 @@ class Connection :
                 BMCWEB_LOG_DEBUG << "Unable to get client IP";
                 if (errCode == boost::asio::error::not_connected)
                 {
-                    close();
+                    hardClose();
                     BMCWEB_LOG_ERROR << this << " socket not connected";
                     return;
                 }
@@ -705,7 +712,7 @@ class Connection :
                 {
                     BMCWEB_LOG_DEBUG << "Content length greater than limit "
                                      << *contentLength;
-                    close();
+                    hardClose();
                     return;
                 }
 
@@ -732,7 +739,7 @@ class Connection :
             {
                 BMCWEB_LOG_ERROR << this
                                  << " Error while reading: " << ec.message();
-                close();
+                hardClose();
                 BMCWEB_LOG_DEBUG << this << " from read(1)";
                 return;
             }
@@ -761,7 +768,7 @@ class Connection :
                     ec == boost::asio::ssl::error::stream_truncated)
                 {
                     BMCWEB_LOG_WARNING << this << " end of stream: " << ec;
-                    close();
+                    hardClose();
                     return;
                 }
                 BMCWEB_LOG_DEBUG << this << " from write(2)";
@@ -769,7 +776,7 @@ class Connection :
             }
             if (!keepAlive)
             {
-                close();
+                gracefulClose();
                 BMCWEB_LOG_DEBUG << this << " from write(1)";
                 return;
             }
@@ -841,7 +848,7 @@ class Connection :
 
             BMCWEB_LOG_WARNING << self << "Connection timed out, closing";
 
-            self->close();
+            self->hardClose();
         });
 
         BMCWEB_LOG_DEBUG << this << " timer started";
