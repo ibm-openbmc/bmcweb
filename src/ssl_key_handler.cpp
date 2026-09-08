@@ -27,6 +27,7 @@ extern "C"
 #include <openssl/obj_mac.h>
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
+#include <openssl/store.h>
 #include <openssl/tls1.h>
 #include <openssl/types.h>
 #include <openssl/x509.h>
@@ -34,6 +35,7 @@ extern "C"
 #include <openssl/x509v3.h>
 }
 
+#include <array>
 #include <bit>
 #include <cstddef>
 #include <filesystem>
@@ -42,6 +44,7 @@ extern "C"
 #include <optional>
 #include <random>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 
@@ -197,6 +200,45 @@ std::string verifyOpensslKeyCert(const std::string& filepath)
         EVP_PKEY_CTX_free(pkeyCtx);
         EVP_PKEY_free(pkey);
     }
+    if (!certValid)
+    {
+        return "";
+    }
+    return fileContents;
+}
+
+// Reads a certificate-only PEM file into memory. Used when the private key
+// lives in a provider (e.g. TPM) and is loaded separately via a key URI.
+static std::string readCertOnlyFile(const std::string& filepath)
+{
+    boost::beast::file_posix file;
+    boost::system::error_code ec;
+    file.open(filepath.c_str(), boost::beast::file_mode::read, ec);
+    if (ec)
+    {
+        BMCWEB_LOG_ERROR("Failed to open certificate file {}", filepath);
+        return "";
+    }
+    std::string fileContents;
+    fileContents.resize(static_cast<size_t>(file.size(ec)), '\0');
+    file.read(fileContents.data(), fileContents.size(), ec);
+    if (ec)
+    {
+        BMCWEB_LOG_ERROR("Failed to read certificate file {}", filepath);
+        return "";
+    }
+
+    BIO* bufio = BIO_new_mem_buf(static_cast<void*>(fileContents.data()),
+                                 static_cast<int>(fileContents.size()));
+    X509* x509 = PEM_read_bio_X509(bufio, nullptr, nullptr, nullptr);
+    BIO_free(bufio);
+    if (x509 == nullptr)
+    {
+        BMCWEB_LOG_ERROR("Failed to load X509 certificate from {}", filepath);
+        return "";
+    }
+    bool certValid = validateCertificate(x509);
+    X509_free(x509);
     if (!certValid)
     {
         return "";
@@ -486,8 +528,170 @@ static int alpnSelectProtoCallback(
     return SSL_TLSEXT_ERR_OK;
 }
 
+// Drains and logs the OpenSSL error queue.
+void logOpenSSLErrors(std::string_view context)
+{
+    unsigned long errCode = 0;
+    while ((errCode = ERR_get_error()) != 0)
+    {
+        std::array<char, 256> buf{};
+        ERR_error_string_n(errCode, buf.data(), buf.size());
+        BMCWEB_LOG_ERROR("{}: {}", context, buf.data());
+    }
+}
+
+static EVP_PKEY* loadEvpKeyFromUri(const std::string& uri)
+{
+    std::unique_ptr<OSSL_STORE_CTX, decltype(&OSSL_STORE_close)> store(
+        OSSL_STORE_open_ex(uri.c_str(), nullptr, nullptr, nullptr, nullptr,
+                           nullptr, nullptr, nullptr),
+        &OSSL_STORE_close);
+    if (!store)
+    {
+        BMCWEB_LOG_CRITICAL("Failed to open private key store URI: {}", uri);
+        logOpenSSLErrors("OSSL_STORE_open_ex");
+        return nullptr;
+    }
+
+    while (OSSL_STORE_eof(store.get()) == 0)
+    {
+        std::unique_ptr<OSSL_STORE_INFO, decltype(&OSSL_STORE_INFO_free)> info(
+            OSSL_STORE_load(store.get()), &OSSL_STORE_INFO_free);
+        if (!info)
+        {
+            // Stop on a load error/empty item rather than spinning.
+            logOpenSSLErrors("OSSL_STORE_load");
+            break;
+        }
+        if (OSSL_STORE_INFO_get_type(info.get()) != OSSL_STORE_INFO_PKEY)
+        {
+            continue;
+        }
+        EVP_PKEY* pkey = OSSL_STORE_INFO_get1_PKEY(info.get());
+        if (pkey == nullptr)
+        {
+            BMCWEB_LOG_CRITICAL("Failed to read private key from URI: {}", uri);
+            logOpenSSLErrors("OSSL_STORE_INFO_get1_PKEY");
+            return nullptr;
+        }
+        return pkey;
+    }
+
+    BMCWEB_LOG_CRITICAL("No private key found at URI: {}", uri);
+    return nullptr;
+}
+
+std::optional<std::string> fileUriToPath(std::string_view uri)
+{
+    constexpr std::string_view fileScheme = "file://";
+    if (uri.starts_with(fileScheme))
+    {
+        std::string_view path = uri.substr(fileScheme.size());
+        if (!path.starts_with('/'))
+        {
+            return std::nullopt;
+        }
+        return std::string(path);
+    }
+    // Backwards compatibility: a bare absolute path (no scheme) is a filesystem
+    // path.
+    if (uri.starts_with('/'))
+    {
+        return std::string(uri);
+    }
+    // Certificates stay on the filesystem, so only file:// is supported here.
+    // Provider-backed schemes (e.g. a TPM handle:) are rejected.
+    return std::nullopt;
+}
+
+bool loadPrivateKeyUriIntoContext(boost::asio::ssl::context& sslCtx,
+                                  std::string_view uri)
+{
+    BMCWEB_LOG_INFO("Loading private key from URI: {}", uri);
+    std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> key(
+        loadEvpKeyFromUri(std::string(uri)), &EVP_PKEY_free);
+    if (!key)
+    {
+        return false;
+    }
+    if (SSL_CTX_use_PrivateKey(sslCtx.native_handle(), key.get()) != 1)
+    {
+        BMCWEB_LOG_CRITICAL(
+            "Failed to install private key into SSL context from URI: {}", uri);
+        logOpenSSLErrors("SSL_CTX_use_PrivateKey");
+        return false;
+    }
+    return true;
+}
+
+bool isProviderCert(std::string_view location)
+{
+    // A TPM NV index is exposed to OpenSSL as a "handle:" OSSL_STORE URI.
+    return location.starts_with("handle:");
+}
+
+std::optional<std::string> loadCertPemFromUri(const std::string& uri)
+{
+    std::unique_ptr<OSSL_STORE_CTX, decltype(&OSSL_STORE_close)> store(
+        OSSL_STORE_open_ex(uri.c_str(), nullptr, nullptr, nullptr, nullptr,
+                           nullptr, nullptr, nullptr),
+        &OSSL_STORE_close);
+    if (!store)
+    {
+        BMCWEB_LOG_CRITICAL("Failed to open certificate store URI: {}", uri);
+        logOpenSSLErrors("OSSL_STORE_open_ex");
+        return std::nullopt;
+    }
+
+    while (OSSL_STORE_eof(store.get()) == 0)
+    {
+        std::unique_ptr<OSSL_STORE_INFO, decltype(&OSSL_STORE_INFO_free)> info(
+            OSSL_STORE_load(store.get()), &OSSL_STORE_INFO_free);
+        if (!info)
+        {
+            // Stop on a load error/empty item rather than spinning.
+            logOpenSSLErrors("OSSL_STORE_load");
+            break;
+        }
+        if (OSSL_STORE_INFO_get_type(info.get()) != OSSL_STORE_INFO_CERT)
+        {
+            continue;
+        }
+        // get1_CERT returns an owned reference; free it after serializing.
+        std::unique_ptr<X509, decltype(&X509_free)> cert(
+            OSSL_STORE_INFO_get1_CERT(info.get()), &X509_free);
+        if (!cert)
+        {
+            BMCWEB_LOG_CRITICAL("Failed to read certificate from URI: {}", uri);
+            logOpenSSLErrors("OSSL_STORE_INFO_get1_CERT");
+            return std::nullopt;
+        }
+        std::unique_ptr<BIO, decltype(&BIO_free)> bufio(BIO_new(BIO_s_mem()),
+                                                        &BIO_free);
+        if (!bufio || PEM_write_bio_X509(bufio.get(), cert.get()) == 0)
+        {
+            BMCWEB_LOG_CRITICAL("Failed to serialize certificate from URI: {}",
+                                uri);
+            logOpenSSLErrors("PEM_write_bio_X509");
+            return std::nullopt;
+        }
+        char* data = nullptr;
+        long len = BIO_get_mem_data(bufio.get(), &data);
+        if (len <= 0 || data == nullptr)
+        {
+            BMCWEB_LOG_CRITICAL("Empty certificate PEM from URI: {}", uri);
+            return std::nullopt;
+        }
+        return std::string(data, static_cast<size_t>(len));
+    }
+
+    BMCWEB_LOG_CRITICAL("No certificate found at URI: {}", uri);
+    return std::nullopt;
+}
+
 static bool getSslContext(boost::asio::ssl::context& mSslContext,
-                          const std::string& sslPemFile)
+                          const std::string& sslPemFile,
+                          std::optional<std::string_view> keyUri = std::nullopt)
 {
     mSslContext.set_options(
         boost::asio::ssl::context::default_workarounds |
@@ -510,12 +714,31 @@ static bool getSslContext(boost::asio::ssl::context& mSslContext,
         {
             return false;
         }
-        mSslContext.use_private_key(buf, boost::asio::ssl::context::pem, ec);
-        if (ec)
+        if (keyUri)
         {
-            BMCWEB_LOG_CRITICAL("Failed to open ssl pkey");
-            return false;
+            if (!loadPrivateKeyUriIntoContext(mSslContext, *keyUri))
+            {
+                return false;
+            }
         }
+        else
+        {
+            // Default: the private key is in the certificate PEM buffer.
+            mSslContext.use_private_key(buf, boost::asio::ssl::context::pem,
+                                        ec);
+            if (ec)
+            {
+                BMCWEB_LOG_CRITICAL("Failed to open ssl pkey");
+                return false;
+            }
+        }
+    }
+    else if (keyUri)
+    {
+        // A key URI is configured but no usable certificate was found.
+        BMCWEB_LOG_CRITICAL("No certificate available to pair with key URI {}",
+                            *keyUri);
+        return false;
     }
 
     // Set up EC curves to auto (boost asio doesn't have a method for this)
@@ -601,9 +824,55 @@ std::optional<boost::asio::ssl::context> getSSLClientContext(
     // NOTE, this path is temporary;  In the future it will need to change to
     // be set per subscription.  Do not rely on this.
     fs::path certPath = "/etc/ssl/certs/https/client.pem";
-    std::string cert = verifyOpensslKeyCert(certPath);
 
-    if (!getSslContext(sslCtx, cert))
+    std::optional<std::string_view> keyUri;
+    if constexpr (!BMCWEB_URI_KEY.empty())
+    {
+        keyUri = BMCWEB_URI_KEY;
+    }
+
+    std::string cert;
+    if (isProviderCert(BMCWEB_URI_CERT))
+    {
+        // Certificate lives in a provider (e.g. a TPM NV index); load via
+        // OSSL_STORE as PEM and feed the same use_certificate path as a file.
+        BMCWEB_LOG_INFO("Loading certificate from URI: {}", BMCWEB_URI_CERT);
+        std::optional<std::string> pem =
+            loadCertPemFromUri(std::string(BMCWEB_URI_CERT));
+        if (!pem)
+        {
+            BMCWEB_LOG_ERROR("Failed to load client certificate from URI: {}",
+                             BMCWEB_URI_CERT);
+            return std::nullopt;
+        }
+        cert = std::move(*pem);
+    }
+    else
+    {
+        // Filesystem cert: uri-cert (file:// or a bare path) overrides the
+        // default path when configured; empty keeps the default above.
+        if constexpr (!BMCWEB_URI_CERT.empty())
+        {
+            std::optional<std::string> resolved =
+                fileUriToPath(BMCWEB_URI_CERT);
+            if (resolved)
+            {
+                certPath = *resolved;
+            }
+            else
+            {
+                BMCWEB_LOG_ERROR(
+                    "Unsupported uri-cert {} (file:// or handle: only); using default {}",
+                    BMCWEB_URI_CERT, certPath.string());
+            }
+        }
+        // With an external key only the cert is on the filesystem; otherwise
+        // the combined PEM carries cert and key together.
+        cert = keyUri ? readCertOnlyFile(certPath)
+                      : verifyOpensslKeyCert(certPath);
+    }
+
+    if (!getSslContext(sslCtx, cert, keyUri))
     {
         return std::nullopt;
     }
