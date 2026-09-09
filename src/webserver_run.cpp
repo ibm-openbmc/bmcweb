@@ -168,7 +168,7 @@ int run()
     bmcweb::ServiceWatchdog watchdog;
     bmcweb::SniContextFactoryState state(
         [](const std::string& sniname) {
-            return sniname.starts_with("9.6.28.10");
+            return sniname.starts_with("bmc.peer");
         },
         "/etc/ssl/certs/https/server_cert.pem",
         "/etc/ssl/private/server_pkey.pem", "/etc/ssl/certs/authority");
