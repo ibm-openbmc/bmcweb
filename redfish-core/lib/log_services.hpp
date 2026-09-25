@@ -1784,7 +1784,7 @@ inline void afterLogEntriesGetManagedObjects(
                                              entriesArray.emplace_back());
     }
 
-    redfish::json_util::sortJsonArrayByKey(entriesArray, "Id");
+    redfish::json_util::sortJsonArrayByKey(entriesArray, "Created");
     asyncResp->res.jsonValue["Members@odata.count"] = entriesArray.size();
     asyncResp->res.jsonValue["Members"] = std::move(entriesArray);
 }
