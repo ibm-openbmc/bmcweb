@@ -286,8 +286,11 @@ class ConnectionInfo : public std::enable_shared_from_this<ConnectionInfo>
         timer.cancel();
         if (ec)
         {
-            BMCWEB_LOG_ERROR("SSL Handshake failed - id: {} error: {}", connId,
-                             ec.message());
+            BMCWEB_LOG_ERROR(
+                "SSL Handshake failed - id: {} error: {} (negotiated {})",
+                connId, ec.message(),
+                sslConn ? SSL_get_version(sslConn->native_handle()) : "no-ssl");
+            ensuressl::logOpenSSLErrors("aggregation client SSL handshake");
             state = ConnState::handshakeFailed;
             waitAndRetry();
             return;

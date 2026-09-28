@@ -37,6 +37,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -166,12 +167,46 @@ int run()
     bmcweb::registerUserRemovedSignal();
 
     bmcweb::ServiceWatchdog watchdog;
+    // mTLS server key location: when uri-key is configured the key lives in a
+    // provider (e.g. a TPM handle:) and is loaded via OSSL_STORE; otherwise
+    // fall back to the filesystem PEM.
+    std::string mtlsServerKey = "/etc/ssl/private/server_pkey.pem";
+    if constexpr (!BMCWEB_URI_KEY.empty())
+    {
+        mtlsServerKey = BMCWEB_URI_KEY;
+    }
+    // mTLS server cert location: uri-cert overrides the default path when
+    // configured. A provider URI (e.g. a TPM NV "handle:") is passed
+    // through verbatim so the SNI factory loads it via OSSL_STORE; a
+    // file:// URI is resolved to a filesystem path.
+    std::string mtlsServerCert = "/etc/ssl/certs/https/server_cert.pem";
+    if constexpr (!BMCWEB_URI_CERT.empty())
+    {
+        if (ensuressl::isProviderCert(BMCWEB_URI_CERT))
+        {
+            mtlsServerCert = BMCWEB_URI_CERT;
+        }
+        else
+        {
+            std::optional<std::string> resolved =
+                ensuressl::fileUriToPath(BMCWEB_URI_CERT);
+            if (resolved)
+            {
+                mtlsServerCert = *resolved;
+            }
+            else
+            {
+                BMCWEB_LOG_ERROR(
+                    "Unsupported uri-cert {} (file:// or handle: only); using default {}",
+                    BMCWEB_URI_CERT, mtlsServerCert);
+            }
+        }
+    }
     bmcweb::SniContextFactoryState state(
         [](const std::string& sniname) {
             return sniname.starts_with("9.6.28.10");
         },
-        "/etc/ssl/certs/https/server_cert.pem",
-        "/etc/ssl/private/server_pkey.pem", "/etc/ssl/certs/authority");
+        mtlsServerCert, mtlsServerKey, "/etc/ssl/certs/authority");
     app.run(state);
 
     systemBus->request_name("xyz.openbmc_project.bmcweb");
