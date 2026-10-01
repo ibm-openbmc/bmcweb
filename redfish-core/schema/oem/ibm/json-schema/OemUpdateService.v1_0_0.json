@@ -33,9 +33,75 @@
                 }
             },
             "type": "object"
+        },
+        "BootSide": {
+            "enum": ["Temp", "Perm", "Unknown"],
+            "type": "string"
+        },
+        "Oem": {
+            "additionalProperties": true,
+            "description": "UpdateService Oem properties.",
+            "patternProperties": {
+                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
+                    "description": "This property shall specify a valid odata or Redfish property.",
+                    "type": [
+                        "array",
+                        "boolean",
+                        "integer",
+                        "number",
+                        "null",
+                        "object",
+                        "string"
+                    ]
+                }
+            },
+            "properties": {
+                "IBM": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/definitions/IBM"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                }
+            },
+            "type": "object"
+        },
+        "IBM": {
+            "additionalProperties": false,
+            "description": "Oem properties for IBM.",
+            "patternProperties": {
+                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
+                    "description": "This property shall specify a valid odata or Redfish property.",
+                    "type": [
+                        "array",
+                        "boolean",
+                        "integer",
+                        "number",
+                        "null",
+                        "object",
+                        "string"
+                    ]
+                }
+            },
+            "properties": {
+                "CurrentBootSide": {
+                    "description": "Reflects the currently running boot side of the BMC",
+                    "readonly": true,
+                    "$ref": "#/definitions/BootSide"
+                },
+                "NextBootSide": {
+                    "description": "Represents the system-wide boot side policy for the next boot",
+                    "readonly": false,
+                    "$ref": "#/definitions/BootSide"
+                }
+            },
+            "type": "object"
         }
     },
-    "OwningEntity": "OpenBMC",
+    "owningEntity": "IBM",
     "release": "1.0",
     "title": "#OemUpdateService.v1_0_0"
 }
