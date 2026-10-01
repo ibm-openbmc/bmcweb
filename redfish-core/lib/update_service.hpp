@@ -10,12 +10,15 @@
 #include "dbus_singleton.hpp"
 #include "dbus_utility.hpp"
 #include "error_messages.hpp"
+#include "generated/enums/oem_update_service.hpp"
 #include "generated/enums/resource.hpp"
 #include "generated/enums/update_service.hpp"
 #include "http_request.hpp"
 #include "http_response.hpp"
 #include "io_context_singleton.hpp"
 #include "logging.hpp"
+#include "manager_redundancy.hpp"
+#include "managers.hpp"
 #include "multipart_parser.hpp"
 #include "oem_messages.hpp"
 #include "ossl_random.hpp"
@@ -773,6 +776,66 @@ inline void uploadImageFile(crow::Response& res, std::string_view body)
     }
 }
 
+inline oem_update_service::BootSide dbusBootSideToRf(
+    const std::string& bootSide)
+{
+    if (bootSide == "xyz.openbmc_project.Software.BootSide.BootSides.Temp")
+    {
+        return oem_update_service::BootSide::Temp;
+    }
+    if (bootSide == "xyz.openbmc_project.Software.BootSide.BootSides.Perm")
+    {
+        return oem_update_service::BootSide::Perm;
+    }
+    BMCWEB_LOG_WARNING("Unrecognized BootSide value from D-Bus: {}", bootSide);
+    return oem_update_service::BootSide::Unknown;
+}
+
+inline std::string rfBootSideToDbus(const std::string& bootSide)
+{
+    if (bootSide == "Temp")
+    {
+        return "xyz.openbmc_project.Software.BootSide.BootSides.Temp";
+    }
+    if (bootSide == "Perm")
+    {
+        return "xyz.openbmc_project.Software.BootSide.BootSides.Perm";
+    }
+    // Code update does not accept anything beyond Temp and Perm
+    return "";
+}
+
+inline void afterSetNextBootSide(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& nextBootSide, const std::string& role)
+{
+    if (role != "xyz.openbmc_project.State.BMC.Redundancy.Role.Active")
+    {
+        messages::propertyNotWritable(asyncResp->res, "NextBootSide");
+        return;
+    }
+
+    std::string bootSideValue = rfBootSideToDbus(nextBootSide);
+    if (bootSideValue.empty())
+    {
+        messages::propertyValueNotInList(asyncResp->res, nextBootSide,
+                                         "NextBootSide");
+        return;
+    }
+    setDbusProperty(asyncResp, "NextBootSide", getBMCUpdateServiceName(),
+                    getBMCUpdateServicePath(),
+                    "xyz.openbmc_project.Software.BootSide", "NextBootSide",
+                    bootSideValue);
+}
+
+inline void setNextBootSide(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                            const std::string& nextBootSide)
+{
+    // Only the Active BMC can write to NextBootSide
+    getManagerRole(asyncResp, std::bind_front(afterSetNextBootSide, asyncResp,
+                                              nextBootSide));
+}
+
 // Convert the Request Apply Time to the D-Bus value
 inline bool convertApplyTime(crow::Response& res, const std::string& applyTime,
                              std::string& applyTimeNewVal)
@@ -984,6 +1047,53 @@ inline void startUpdate(
         },
         serviceName, objectPath, "xyz.openbmc_project.Software.Update",
         "StartUpdate", sdbusplus::message::unix_fd(memfd.fd), applyTime);
+}
+
+inline void afterGetBootSideInfo(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec,
+    const dbus::utility::DBusPropertiesMap& properties)
+{
+    if (ec)
+    {
+        if (ec.value() != EBADR)
+        {
+            BMCWEB_LOG_ERROR("D-Bus response error {}", ec);
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        BMCWEB_LOG_DEBUG("Can't get BootSide properties {}", ec);
+        return;
+    }
+
+    const std::string* currentBootSide = nullptr;
+    const std::string* nextBootSide = nullptr;
+    const bool success = sdbusplus::unpackPropertiesNoThrow(
+        dbus_utils::UnpackErrorPrinter(), properties, "CurrentBootSide",
+        currentBootSide, "NextBootSide", nextBootSide);
+    if (!success)
+    {
+        messages::internalError(asyncResp->res);
+        return;
+    }
+    nlohmann::json& oemIbm = asyncResp->res.jsonValue["Oem"]["IBM"];
+    if (currentBootSide != nullptr)
+    {
+        oemIbm["CurrentBootSide"] = dbusBootSideToRf(*currentBootSide);
+    }
+    if (nextBootSide != nullptr)
+    {
+        oemIbm["NextBootSide"] = dbusBootSideToRf(*nextBootSide);
+    }
+}
+
+inline void getBootSideInfo(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                            const std::string& service,
+                            const std::string& objPath)
+{
+    dbus::utility::getAllProperties(
+        service, objPath, "xyz.openbmc_project.Software.BootSide",
+        std::bind_front(afterGetBootSideInfo, asyncResp));
 }
 
 inline void getSwInfo(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -1278,6 +1388,15 @@ inline void handleUpdateServiceGet(
     updateSvcConUpdate["target"] =
         "/redfish/v1/UpdateService/Actions/Oem/OemUpdateService.ConcurrentUpdate";
 
+    asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
+        "#OemUpdateService.v1_0_0.IBM";
+    asyncResp->res.jsonValue["Oem"]["IBM"]["CurrentBootSide"] =
+        oem_update_service::BootSide::Unknown;
+    asyncResp->res.jsonValue["Oem"]["IBM"]["NextBootSide"] =
+        oem_update_service::BootSide::Unknown;
+    getBootSideInfo(asyncResp, getBMCUpdateServiceName(),
+                    getBMCUpdateServicePath());
+
     if constexpr (BMCWEB_REDFISH_ALLOW_SIMPLE_UPDATE)
     {
         // Update Actions object.
@@ -1295,6 +1414,35 @@ inline void handleUpdateServiceGet(
     asyncResp->res
         .jsonValue["HttpPushUriOptions"]["HttpPushUriApplyTime"]["ApplyTime"] =
         update_service::ApplyTime::Immediate;
+}
+
+inline void handleUpdateServicePatch(
+    App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+    BMCWEB_LOG_DEBUG("doPatch...");
+
+    std::optional<std::string> oemCurrentBootSide;
+    std::optional<std::string> oemNextBootSide;
+    if (!json_util::readJsonPatch(req, asyncResp->res,
+                                  "Oem/IBM/CurrentBootSide", oemCurrentBootSide,
+                                  "Oem/IBM/NextBootSide", oemNextBootSide))
+    {
+        return;
+    }
+
+    if (oemCurrentBootSide)
+    {
+        messages::propertyNotWritable(asyncResp->res, "CurrentBootSide");
+    }
+    if (oemNextBootSide)
+    {
+        setNextBootSide(asyncResp, *oemNextBootSide);
+    }
 }
 
 inline void handleUpdateServiceFirmwareInventoryCollectionGet(
@@ -1522,6 +1670,11 @@ inline void requestRoutesUpdateService(App& app)
         .privileges(redfish::privileges::getUpdateService)
         .methods(boost::beast::http::verb::get)(
             std::bind_front(handleUpdateServiceGet, std::ref(app)));
+
+    BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/")
+        .privileges(redfish::privileges::patchUpdateService)
+        .methods(boost::beast::http::verb::patch)(
+            std::bind_front(handleUpdateServicePatch, std::ref(app)));
 
     BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/update/")
         .privileges(redfish::privileges::postUpdateService)
