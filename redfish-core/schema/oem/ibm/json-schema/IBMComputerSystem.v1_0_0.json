@@ -104,6 +104,36 @@
                     "longDescription": "The value of this property shall indicate if safe mode is active.",
                     "readonly": true,
                     "type": ["boolean", "null"]
+                },
+                "StorageParentModel": {
+                    "description": "The machine type and model of the storage parent.",
+                    "longDescription": "This property shall contain the machine type and model of the storage parent.",
+                    "readonly": true,
+                    "type": ["string", "null"]
+                },
+                "StorageParentSerialNumber": {
+                    "description": "The serial number of the storage parent.",
+                    "longDescription": "This property shall contain the serial number of the storage parent.",
+                    "readonly": true,
+                    "type": ["string", "null"]
+                },
+                "StorageParentSystemId": {
+                    "description": "The system identifier of the storage parent.",
+                    "longDescription": "This property shall contain the system identifier of the storage parent.",
+                    "readonly": true,
+                    "type": ["string", "null"]
+                },
+                "StorageParentNodeId": {
+                    "description": "The node identifier of the storage parent.",
+                    "longDescription": "This property shall contain the node identifier of the storage parent.",
+                    "readonly": true,
+                    "type": ["string", "null"]
+                },
+                "StorageParentManufacturingId": {
+                    "description": "The manufacturing identifier of the storage parent.",
+                    "longDescription": "This property shall contain the manufacturing identifier of the storage parent.",
+                    "readonly": true,
+                    "type": ["string", "null"]
                 }
             },
             "type": "object"

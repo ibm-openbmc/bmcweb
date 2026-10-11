@@ -63,6 +63,31 @@
           <Annotation Term="OData.Description" String="An indicator allowing an operator to enable or disable service alerts."/>
           <Annotation Term="OData.LongDescription" String="This property shall contain the state of service alerts function for this resource."/>
         </Property>
+        <Property Name="StorageParentModel" Type="Edm.String">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The machine type and model of the storage parent."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the machine type and model of the storage parent."/>
+        </Property>
+        <Property Name="StorageParentSerialNumber" Type="Edm.String">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The serial number of the storage parent."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the serial number of the storage parent."/>
+        </Property>
+        <Property Name="StorageParentSystemId" Type="Edm.String">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The system identifier of the storage parent."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the system identifier of the storage parent."/>
+        </Property>
+        <Property Name="StorageParentNodeId" Type="Edm.String">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The node identifier of the storage parent."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the node identifier of the storage parent."/>
+        </Property>
+        <Property Name="StorageParentManufacturingId" Type="Edm.String">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="The manufacturing identifier of the storage parent."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the manufacturing identifier of the storage parent."/>
+        </Property>
       </ComplexType>
       <Action Name="ExecutePanelFunction" IsBound="true">
         <Annotation Term="OData.Description" String="This action executes a panel function."/>
