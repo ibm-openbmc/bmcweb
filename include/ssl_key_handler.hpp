@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace ensuressl
 {
@@ -44,5 +45,33 @@ std::shared_ptr<boost::asio::ssl::context> getSslServerContext();
 
 std::optional<boost::asio::ssl::context> getSSLClientContext(
     VerifyCertificate verifyCertificate);
+
+// Loads a private key from a URI (file:// or a provider-backed scheme such as
+// a TPM handle:) via the OpenSSL OSSL_STORE API and installs it into the SSL
+// context. The certificate must already be set on the context. Returns false
+// on failure.
+bool loadPrivateKeyUriIntoContext(boost::asio::ssl::context& sslCtx,
+                                  std::string_view uri);
+
+// Resolves a certificate location (a file:// URI or a bare absolute filesystem
+// path) to a filesystem path usable with use_certificate_chain_file. Provider
+// schemes (e.g. a TPM handle:) are handled separately via loadCertPemFromUri;
+// returns nullopt for those and other unsupported schemes.
+std::optional<std::string> fileUriToPath(std::string_view uri);
+
+// True if the certificate location is a provider object (e.g. a TPM NV index
+// "handle:0x1500010") that must be read via OSSL_STORE rather than the
+// filesystem. file:// URIs and bare paths are filesystem paths.
+bool isProviderCert(std::string_view location);
+
+// Loads a certificate from a provider URI (e.g. a TPM NV "handle:") via the
+// OpenSSL OSSL_STORE API and returns it as a PEM string. This is the cert
+// counterpart of loadPrivateKeyUriIntoContext; the returned PEM feeds the same
+// use_certificate_chain path a filesystem cert does. Returns nullopt on
+// failure.
+std::optional<std::string> loadCertPemFromUri(const std::string& uri);
+
+// Drains and logs the OpenSSL error queue with the given context prefix.
+void logOpenSSLErrors(std::string_view context);
 
 } // namespace ensuressl

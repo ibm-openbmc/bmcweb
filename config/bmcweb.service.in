@@ -18,6 +18,7 @@ Type=simple
 WorkingDirectory=/home/root
 SyslogLevelPrefix=true
 WatchdogSec=@BMCWEB_WATCHDOG_TIMEOUT_SECONDS@s
+@BMCWEB_OPENSSL_ENV@
 
 [Install]
 WantedBy=network.target

@@ -57,8 +57,11 @@ feature_options = [
 string_options = [
     'dns-resolver',
     'mutual-tls-common-name-parsing-default',
+    'openssl-config-path',
     'redfish-manager-uri-name',
     'redfish-system-uri-name',
+    'uri-cert',
+    'uri-key',
 ]
 
 int_options = ['http-body-limit', 'watchdog-timeout-seconds']
@@ -180,6 +183,22 @@ foreach index : range(ports.length())
     )
 endforeach
 
+# When openssl-config-path is set, install bmcweb's openssl.cnf there and point
+# the bmcweb process at it via OPENSSL_CONF, so OpenSSL activates the configured
+# providers (e.g. tpm2) for bmcweb only.
+openssl_config_path = get_option('openssl-config-path')
+openssl_service_env = ''
+if openssl_config_path != ''
+    fs = import('fs')
+    install_data(
+        'openssl.cnf',
+        install_dir: fs.parent(openssl_config_path),
+        rename: fs.name(openssl_config_path),
+    )
+
+    openssl_service_env = 'Environment="OPENSSL_CONF=' + openssl_config_path + '"'
+endif
+
 configure_file(
     input: 'bmcweb.service.in',
     output: 'bmcweb.service',
@@ -191,6 +210,7 @@ configure_file(
             'BMCWEB_WATCHDOG_TIMEOUT_SECONDS': get_option(
                 'watchdog-timeout-seconds',
             ),
+            'BMCWEB_OPENSSL_ENV': openssl_service_env,
         },
     ),
 )
