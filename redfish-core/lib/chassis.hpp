@@ -13,6 +13,7 @@
 #include "generated/enums/action_info.hpp"
 #include "generated/enums/chassis.hpp"
 #include "generated/enums/resource.hpp"
+#include "health.hpp"
 #include "http_request.hpp"
 #include "led.hpp"
 #include "logging.hpp"
@@ -620,6 +621,54 @@ inline void handleChassisGetSubTree(
         if constexpr (!BMCWEB_EXPERIMENTAL_REDFISH_MULTI_COMPUTER_SYSTEM)
         {
             getChassisProcessorLinks(asyncResp, objPath);
+        }
+        auto health = std::make_shared<HealthPopulate>(asyncResp);
+
+        if constexpr (BMCWEB_REDFISH_HEALTH_POPULATE)
+        {
+            dbus::utility::getAssociationEndPoints(
+                path + "/all_sensors",
+                [health](const boost::system::error_code& ec2,
+                         const dbus::utility::MapperEndPoints& resp) {
+                    if (ec2)
+                    {
+                        return; // no sensors = no failures
+                    }
+                    health->inventory = resp;
+
+                    constexpr std::array<std::string_view, 13> interfaces = {
+                        "xyz.openbmc_project.Inventory.Item.Dimm",
+                        "xyz.openbmc_project.Inventory.Item.Cpu",
+                        "xyz.openbmc_project.Inventory.Item.PowerSupply",
+                        "xyz.openbmc_project.Inventory.Item.Fan",
+                        "xyz.openbmc_project.Inventory.Item.PCIeSlot",
+                        "xyz.openbmc_project.Inventory.Item.Vrm",
+                        "xyz.openbmc_project.Inventory.Item.Tpm",
+                        "xyz.openbmc_project.Inventory.Item.Panel",
+                        "xyz.openbmc_project.Inventory.Item.Battery",
+                        "xyz.openbmc_project.Inventory.Item.DiskBackplane",
+                        "xyz.openbmc_project.Inventory.Item.Board",
+                        "xyz.openbmc_project.Inventory.Item.Board.Motherboard",
+                        "xyz.openbmc_project.Inventory.Item.Connector"};
+                    dbus::utility::getSubTreePaths(
+                        "/", 0, interfaces,
+                        [health](
+                            const boost::system::error_code& ec3,
+                            const dbus::utility::MapperGetSubTreePathsResponse&
+                                resp2) {
+                            if (ec3)
+                            {
+                                // no inventory
+                                return;
+                            }
+
+                            health->inventory.insert(health->inventory.end(),
+                                                     resp2.begin(),
+                                                     resp2.end());
+                        });
+                });
+
+            health->populate();
         }
 
         if (connectionNames.empty())

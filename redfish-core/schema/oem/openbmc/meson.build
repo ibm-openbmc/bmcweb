@@ -8,6 +8,7 @@ schemas_to_install = {
 schemas = {
     'redfish-provisioning-feature': 'OpenBMCComputerSystem',
     'ibm-oem-manager-account': 'OemManagerAccount',
+    'ibm-usb-code-update': 'IBMManager',
     #'vm-nbdproxy': 'OpenBMCVirtualMedia',
 }
 
