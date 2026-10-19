@@ -27,6 +27,7 @@
 
 #include <boost/beast/http/status.hpp>
 #include <boost/url/format.hpp>
+#include <sdbusplus/message.hpp>
 #include <sdbusplus/message/native_types.hpp>
 
 #include <algorithm>
@@ -758,7 +759,8 @@ inline void dBusEventLogEntryPatch(
 // Process response from Logging service.
 inline void afterDBusEventLogEntryDelete(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-    const std::string& entryID, const boost::system::error_code& ec)
+    const std::string& entryID, const boost::system::error_code& ec,
+    const sdbusplus::message::message& msg)
 {
     BMCWEB_LOG_DEBUG("EventLogEntry (DBus) doDelete callback: Done");
     if (ec)
@@ -768,7 +770,23 @@ inline void afterDBusEventLogEntryDelete(
             messages::resourceNotFound(asyncResp->res, "LogEntry", entryID);
             return;
         }
-        // TODO Handle for specific error code
+
+        const sd_bus_error* dbusError = msg.get_error();
+
+        if (dbusError == nullptr)
+        {
+            messages::internalError(asyncResp->res);
+            return;
+        }
+
+        if (std::string_view("xyz.openbmc_project.Common.Error.Unavailable") ==
+            dbusError->name)
+        {
+            messages::propertyValueExternalConflict(asyncResp->res, "LogEntry",
+                                                    "Delete");
+            return;
+        }
+
         BMCWEB_LOG_ERROR(
             "EventLogEntry (DBus) doDelete respHandler got error {}", ec);
         asyncResp->res.result(
@@ -789,7 +807,8 @@ inline void dBusEventLogEntryDelete(
     // Make call to Logging service to request Delete Log
     dbus::utility::async_method_call(
         asyncResp,
-        std::function<void(const boost::system::error_code&)>(
+        std::function<void(const boost::system::error_code&,
+                           const sdbusplus::message::message&)>(
             std::bind_front(afterDBusEventLogEntryDelete, asyncResp, entryID)),
         "xyz.openbmc_project.Logging",
         "/xyz/openbmc_project/logging/entry/" + entryID,
