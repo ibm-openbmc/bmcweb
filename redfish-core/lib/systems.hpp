@@ -2305,6 +2305,68 @@ inline void getChapData(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 }
 
 /*
+ * Get StorageParent
+ */
+inline void getStorageVPD(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    BMCWEB_LOG_DEBUG("Get StorageParent");
+    dbus::utility::getAllProperties(
+        *crow::connections::systemBus, "xyz.openbmc_project.VPD",
+        "/xyz/openbmc_project/inventory/system", "com.ibm.VPD.StorageSystem",
+        [asyncResp](const boost::system::error_code& ec,
+                    const dbus::utility::DBusPropertiesMap& propertiesList) {
+            if (ec)
+            {
+                BMCWEB_LOG_DEBUG("Get StorageSystem D-bus error: {}",
+                                 ec.value());
+                return;
+            }
+
+            const std::string* model = nullptr;
+            const std::string* serialNumber = nullptr;
+            const std::string* systemId = nullptr;
+            const std::string* nodeId = nullptr;
+            const std::string* manufacturingId = nullptr;
+
+            const bool success = sdbusplus::unpackPropertiesNoThrow(
+                dbus_utils::UnpackErrorPrinter(), propertiesList,
+                "StorageParentModel", model, "StorageParentSerialNumber",
+                serialNumber, "StorageParentSystemId", systemId,
+                "StorageParentNodeId", nodeId, "StorageParentManufacturingId",
+                manufacturingId);
+            if (!success)
+            {
+                messages::internalError(asyncResp->res);
+                return;
+            }
+
+            nlohmann::json& oemIBM = asyncResp->res.jsonValue["Oem"]["IBM"];
+            oemIBM["@odata.type"] = "#IBMComputerSystem.v1_0_0.IBM";
+
+            if (model != nullptr)
+            {
+                oemIBM["StorageParentModel"] = *model;
+            }
+            if (serialNumber != nullptr)
+            {
+                oemIBM["StorageParentSerialNumber"] = *serialNumber;
+            }
+            if (systemId != nullptr)
+            {
+                oemIBM["StorageParentSystemId"] = *systemId;
+            }
+            if (nodeId != nullptr)
+            {
+                oemIBM["StorageParentNodeId"] = *nodeId;
+            }
+            if (manufacturingId != nullptr)
+            {
+                oemIBM["StorageParentManufacturingId"] = *manufacturingId;
+            }
+        });
+}
+
+/*
  * Set ChapData
  */
 inline void setChapData(const crow::Request& req,
@@ -2842,6 +2904,9 @@ inline void handleComputerSystemGet(
 
     // ChapData
     getChapData(asyncResp);
+
+    // StorageParent
+    getStorageVPD(asyncResp);
 }
 
 inline void handleComputerSystemPatch(
