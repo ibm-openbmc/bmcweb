@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright OpenBMC Authors
 
 #include "http_response.hpp"
+#include "systems.hpp"
 #include "update_service.hpp"
 
 #include <boost/url/url.hpp>
@@ -137,6 +138,41 @@ TEST(UpdateService, ParseHTTPSNegative)
               std::nullopt);
     // No host
     ASSERT_EQ(parseSimpleUpdateUrl("/path", "HTTPS", res), std::nullopt);
+}
+
+TEST(DbusBootSideToRf, DbusToRf)
+{
+    EXPECT_EQ(dbusBootSideToRf(
+                  "xyz.openbmc_project.Software.BootSide.BootSides.Temp"),
+              oem_update_service::BootSide::Temp);
+    EXPECT_EQ(dbusBootSideToRf(
+                  "xyz.openbmc_project.Software.BootSide.BootSides.Perm"),
+              oem_update_service::BootSide::Perm);
+}
+
+TEST(DbusBootSideToRf, ElseResultsIntoUnknown)
+{
+    EXPECT_EQ(dbusBootSideToRf(""), oem_update_service::BootSide::Unknown);
+    EXPECT_EQ(dbusBootSideToRf(
+                  "xyz.openbmc_project.Software.BootSide.BootSides.Unknown"),
+              oem_update_service::BootSide::Unknown);
+    EXPECT_EQ(dbusBootSideToRf("Random"),
+              oem_update_service::BootSide::Unknown);
+}
+
+TEST(RfBootSideToDbus, RfToDbus)
+{
+    EXPECT_EQ(rfBootSideToDbus("Temp"),
+              "xyz.openbmc_project.Software.BootSide.BootSides.Temp");
+    EXPECT_EQ(rfBootSideToDbus("Perm"),
+              "xyz.openbmc_project.Software.BootSide.BootSides.Perm");
+}
+
+TEST(RfBootSideToDbus, ElseResultsIntoEmptyString)
+{
+    EXPECT_EQ(rfBootSideToDbus(""), "");
+    EXPECT_EQ(rfBootSideToDbus("Unknown"), "");
+    EXPECT_EQ(rfBootSideToDbus("Random"), "");
 }
 } // namespace
 } // namespace redfish
