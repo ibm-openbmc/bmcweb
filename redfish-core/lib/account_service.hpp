@@ -2732,8 +2732,8 @@ inline void handleAccountPatch(
                 }
                 else
                 {
-                    if (!redfish::json_util::readJsonObject(*acf, asyncResp->res,
-                                                            "ACFFile", acfFile))
+                    if (!redfish::json_util::readJsonObject(
+                            *acf, asyncResp->res, "ACFFile", acfFile))
                     {
                         BMCWEB_LOG_WARNING("Illegal Property ");
                         messages::propertyMissing(asyncResp->res, "ACFFile");
