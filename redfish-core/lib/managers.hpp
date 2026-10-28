@@ -576,65 +576,54 @@ inline void setTimeZoneName(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         "org.freedesktop.timedate1", "SetTimezone", timeZoneName, interactive);
 }
 
+inline void afterGetBMCState(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec, const std::string& bmcState)
+{
+    if (ec)
+    {
+        BMCWEB_LOG_DEBUG("DBUS response error reading CurrentBmcState");
+        asyncResp->res.jsonValue["Status"]["State"] = resource::State::Enabled;
+        asyncResp->res.jsonValue["Status"]["Health"] = resource::Health::OK;
+        return;
+    }
+
+    if (bmcState == "xyz.openbmc_project.State.BMC.BMCState.Ready")
+    {
+        asyncResp->res.jsonValue["Status"]["State"] = resource::State::Enabled;
+        asyncResp->res.jsonValue["Status"]["Health"] = resource::Health::OK;
+    }
+    else if (bmcState == "xyz.openbmc_project.State.BMC.BMCState.Quiesced")
+    {
+        asyncResp->res.jsonValue["Status"]["State"] = resource::State::Quiesced;
+        asyncResp->res.jsonValue["Status"]["Health"] =
+            resource::Health::Critical;
+    }
+    else if (bmcState == "xyz.openbmc_project.State.BMC.BMCState.NotReady")
+    {
+        asyncResp->res.jsonValue["Status"]["State"] = resource::State::Starting;
+        asyncResp->res.jsonValue["Status"]["Health"] = resource::Health::OK;
+    }
+    else if (bmcState ==
+             "xyz.openbmc_project.State.BMC.BMCState.UpdateInProgress")
+    {
+        asyncResp->res.jsonValue["Status"]["State"] = resource::State::Updating;
+        asyncResp->res.jsonValue["Status"]["Health"] = resource::Health::OK;
+    }
+    else
+    {
+        BMCWEB_LOG_DEBUG("Unsupported D-Bus CurrentBMCState: {}", bmcState);
+        asyncResp->res.jsonValue["Status"]["State"] = resource::State::Enabled;
+        asyncResp->res.jsonValue["Status"]["Health"] = resource::Health::OK;
+    }
+}
+
 inline void getBMCState(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
 {
     sdbusplus::asio::getProperty<std::string>(
         *crow::connections::systemBus, "xyz.openbmc_project.State.BMC",
         "/xyz/openbmc_project/state/bmc0", "xyz.openbmc_project.State.BMC",
-        "CurrentBMCState",
-        [asyncResp](const boost::system::error_code& ec,
-                    const std::string& bmcState) {
-            if (ec)
-            {
-                BMCWEB_LOG_DEBUG("DBUS response error reading CurrentBmcState");
-                asyncResp->res.jsonValue["Status"]["State"] =
-                    resource::State::Enabled;
-                asyncResp->res.jsonValue["Status"]["Health"] =
-                    resource::Health::OK;
-                return;
-            }
-
-            if (bmcState == "xyz.openbmc_project.State.BMC.BMCState.Ready")
-            {
-                asyncResp->res.jsonValue["Status"]["State"] =
-                    resource::State::Enabled;
-                asyncResp->res.jsonValue["Status"]["Health"] =
-                    resource::Health::OK;
-            }
-            else if (bmcState ==
-                     "xyz.openbmc_project.State.BMC.BMCState.Quiesced")
-            {
-                asyncResp->res.jsonValue["Status"]["State"] =
-                    resource::State::Quiesced;
-                asyncResp->res.jsonValue["Status"]["Health"] =
-                    resource::Health::Critical;
-            }
-            else if (bmcState ==
-                     "xyz.openbmc_project.State.BMC.BMCState.NotReady")
-            {
-                asyncResp->res.jsonValue["Status"]["State"] =
-                    resource::State::Starting;
-                asyncResp->res.jsonValue["Status"]["Health"] =
-                    resource::Health::OK;
-            }
-            else if (bmcState ==
-                     "xyz.openbmc_project.State.BMC.BMCState.UpdateInProgress")
-            {
-                asyncResp->res.jsonValue["Status"]["State"] =
-                    resource::State::Updating;
-                asyncResp->res.jsonValue["Status"]["Health"] =
-                    resource::Health::OK;
-            }
-            else
-            {
-                BMCWEB_LOG_DEBUG("Unsupported D-Bus CurrentBMCState: {}",
-                                 bmcState);
-                asyncResp->res.jsonValue["Status"]["State"] =
-                    resource::State::Enabled;
-                asyncResp->res.jsonValue["Status"]["Health"] =
-                    resource::Health::OK;
-            }
-        });
+        "CurrentBMCState", std::bind_front(afterGetBMCState, asyncResp));
 }
 
 inline void getPhysicalAssets(
