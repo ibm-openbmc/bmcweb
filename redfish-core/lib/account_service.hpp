@@ -1420,6 +1420,20 @@ inline void updateUserProperties(
         std::bind_front(afterVerifyUserExists, asyncResp, std::move(params)));
 }
 
+inline void handleAcfResponse(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec,
+    const std::tuple<std::vector<uint8_t>, bool, std::string>& messageFDbus)
+{
+    if (ec)
+    {
+        BMCWEB_LOG_ERROR("DBUS response error: {}", ec);
+        messages::internalError(asyncResp->res);
+        return;
+    }
+    getAcfProperties(asyncResp, messageFDbus);
+}
+
 inline void uploadACF(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                       const std::vector<uint8_t>& decodedAcf)
 {
@@ -1427,18 +1441,32 @@ inline void uploadACF(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
         [asyncResp](const boost::system::error_code& ec,
                     const std::tuple<std::vector<uint8_t>, bool, std::string>&
                         messageFDbus) {
-            if (ec)
-            {
-                BMCWEB_LOG_ERROR("DBUS response error: {}", ec.value());
-                messages::internalError(asyncResp->res);
-                return;
-            }
-            getAcfProperties(asyncResp, messageFDbus);
+            handleAcfResponse(asyncResp, ec, messageFDbus);
         },
-        "xyz.openbmc_project.Certs.ACF."
-        "Manager",
+        "xyz.openbmc_project.Certs.ACF.Manager",
         "/xyz/openbmc_project/certs/ACF", "xyz.openbmc_project.Certs.ACF",
         "InstallACF", decodedAcf);
+}
+
+inline void afterReadAcfWindowActive(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::vector<uint8_t>& decodedAcf, const boost::system::error_code& ec,
+    const bool isACFWindowActive)
+{
+    if (ec)
+    {
+        BMCWEB_LOG_ERROR("Failed to read ACFWindowActive property");
+        messages::internalError(asyncResp->res);
+        return;
+    }
+    if (!isACFWindowActive)
+    {
+        BMCWEB_LOG_WARNING("ACF window not set to active from panel");
+        messages::insufficientPrivilege(asyncResp->res);
+        return;
+    }
+
+    uploadACF(asyncResp, decodedAcf);
 }
 
 inline void triggerUnauthenticatedACFUpload(
@@ -1491,24 +1519,8 @@ inline void triggerUnauthenticatedACFUpload(
         dbus::utility::getProperty<bool>(
             "com.ibm.PanelApp", "/com/ibm/panel_app", "com.ibm.panel",
             "ACFWindowActive",
-            [asyncResp, decodedAcf](const boost::system::error_code& ec,
-                                    const bool isACFWindowActive) {
-                if (ec)
-                {
-                    BMCWEB_LOG_ERROR("Failed to read ACFWindowActive property");
-                    messages::internalError(asyncResp->res);
-                    return;
-                }
-                if (!isACFWindowActive)
-                {
-                    BMCWEB_LOG_WARNING(
-                        "ACF window not set to active from panel");
-                    messages::insufficientPrivilege(asyncResp->res);
-                    return;
-                }
-
-                uploadACF(asyncResp, decodedAcf);
-            });
+            std::bind_front(afterReadAcfWindowActive, asyncResp,
+                            std::move(decodedAcf)));
     }
 }
 
@@ -2515,16 +2527,10 @@ inline void handleAccountGet(
             if (accountName == "service")
             {
                 crow::connections::systemBus->async_method_call(
-                    [asyncResp](const boost::system::error_code ec2,
+                    [asyncResp](const boost::system::error_code& ec2,
                                 const std::tuple<std::vector<uint8_t>, bool,
                                                  std::string>& messageFDbus) {
-                        if (ec2)
-                        {
-                            BMCWEB_LOG_ERROR("DBUS response error:{}", ec2);
-                            messages::internalError(asyncResp->res);
-                            return;
-                        }
-                        getAcfProperties(asyncResp, messageFDbus);
+                        handleAcfResponse(asyncResp, ec2, messageFDbus);
                     },
                     "xyz.openbmc_project.Certs.ACF.Manager",
                     "/xyz/openbmc_project/certs/ACF",
@@ -2732,8 +2738,8 @@ inline void handleAccountPatch(
                 }
                 else
                 {
-                    if (!redfish::json_util::readJsonObject(*acf, asyncResp->res,
-                                                            "ACFFile", acfFile))
+                    if (!redfish::json_util::readJsonObject(
+                            *acf, asyncResp->res, "ACFFile", acfFile))
                     {
                         BMCWEB_LOG_WARNING("Illegal Property ");
                         messages::propertyMissing(asyncResp->res, "ACFFile");
