@@ -315,6 +315,7 @@ Fields common to all schemas
 - ReadingBasis
 - ReadingRangeMax
 - ReadingRangeMin
+- ReadingTime
 - ReadingType
 - ReadingUnits
 - SpeedRPM
@@ -489,6 +490,7 @@ Fields common to all schemas
 - Manufacturer
 - Model
 - PartNumber
+- PowerCapacityWatts
 - SerialNumber
 - SparePartNumber
 - Status
@@ -929,7 +931,6 @@ functions the same like the default implementation under the System resource.
 - IdlePowerSaver/EnterDwellTimeSeconds
 - IdlePowerSaver/ExitUtilizationPercent
 - IdlePowerSaver/ExitDwellTimeSeconds
-- IndicatorLED
 - LastResetTime
 - Links/Chassis
 - Links/ManagedBy
@@ -1395,6 +1396,7 @@ functions the same like the default implementation under the System resource.
 - ActiveWidth
 - CurrentSpeedGbps
 - Id
+- LinkStatus
 - Metrics
 - Name
 - PortProtocol
