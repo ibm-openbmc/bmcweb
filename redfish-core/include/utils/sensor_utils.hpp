@@ -14,6 +14,7 @@
 #include "logging.hpp"
 #include "str_utility.hpp"
 #include "utils/dbus_utils.hpp"
+#include "utils/time_utils.hpp"
 
 #include <asm-generic/errno.h>
 
@@ -120,17 +121,6 @@ inline bool isExcerptNode(const ChassisSubNode subNode)
 }
 
 /**
- * Possible states for physical inventory leds
- */
-enum class LedState
-{
-    OFF,
-    ON,
-    BLINK,
-    UNKNOWN
-};
-
-/**
  * D-Bus inventory item associated with one or more sensors.
  */
 class InventoryItem
@@ -158,8 +148,6 @@ class InventoryItem
     std::string partNumber;
     std::string serialNumber;
     std::set<std::string> sensors;
-    std::string ledObjectPath;
-    LedState ledState = LedState::UNKNOWN;
 };
 
 inline std::string getSensorId(std::string_view sensorName,
@@ -476,28 +464,6 @@ inline resource::Health getHealth(
     return resource::Health::OK;
 }
 
-inline void setLedState(nlohmann::json& sensorJson,
-                        const InventoryItem* inventoryItem)
-{
-    if (inventoryItem != nullptr && !inventoryItem->ledObjectPath.empty())
-    {
-        switch (inventoryItem->ledState)
-        {
-            case LedState::OFF:
-                sensorJson["IndicatorLED"] = resource::IndicatorLED::Off;
-                break;
-            case LedState::ON:
-                sensorJson["IndicatorLED"] = resource::IndicatorLED::Lit;
-                break;
-            case LedState::BLINK:
-                sensorJson["IndicatorLED"] = resource::IndicatorLED::Blinking;
-                break;
-            default:
-                break;
-        }
-    }
-}
-
 inline sensor::ReadingBasisType dBusSensorReadingBasisToRedfish(
     const std::string& readingBasis)
 {
@@ -667,12 +633,14 @@ inline bool fillSensorIdentity(
     std::optional<double> maxValue;
     std::optional<double> minValue;
     std::optional<double> value;
+    std::optional<uint64_t> updatedTime;
 
     const bool success = sdbusplus::unpackPropertiesNoThrow(
         dbus_utils::UnpackErrorPrinter(), propertiesDict, "ReadingBasis",
         readingBasis, "Implementation", implementation, "Type", physicalContext,
         "Readings", statistics, "ReadingParameters", readingParameters,
-        "MaxValue", maxValue, "MinValue", minValue, "Value", value);
+        "MaxValue", maxValue, "MinValue", minValue, "Value", value,
+        "UpdatedTime", updatedTime);
     if (!success)
     {
         BMCWEB_LOG_ERROR("Failed to unpack properties");
@@ -748,6 +716,13 @@ inline bool fillSensorIdentity(
             }
         }
 
+        // A service that has not obtained a reading leaves this zero.
+        if (updatedTime.has_value() && *updatedTime != 0)
+        {
+            sensorJson["ReadingTime"] =
+                time_utils::getDateTimeUintUs(*updatedTime);
+        }
+
         updateSensorStatistics(sensorJson, statistics, readingParameters);
     }
 
@@ -773,8 +748,8 @@ inline bool fillSensorIdentity(
 
 inline bool fillPowerThermalIdentity(
     std::string_view sensorName, std::string_view sensorType,
-    nlohmann::json& sensorJson, InventoryItem* inventoryItem,
-    nlohmann::json::json_pointer& unit, bool& forceToInt)
+    nlohmann::json& sensorJson, nlohmann::json::json_pointer& unit,
+    bool& forceToInt)
 {
     if (sensorType != "power")
     {
@@ -800,10 +775,6 @@ inline bool fillPowerThermalIdentity(
         unit = "/Reading"_json_pointer;
         sensorJson["ReadingUnits"] = thermal::ReadingUnits::RPM;
         sensorJson["@odata.type"] = "#Thermal.v1_3_0.Fan";
-        if constexpr (BMCWEB_REDFISH_ALLOW_DEPRECATED_INDICATORLED)
-        {
-            setLedState(sensorJson, inventoryItem);
-        }
         forceToInt = true;
         return true;
     }
@@ -813,10 +784,6 @@ inline bool fillPowerThermalIdentity(
         unit = "/Reading"_json_pointer;
         sensorJson["ReadingUnits"] = thermal::ReadingUnits::Percent;
         sensorJson["@odata.type"] = "#Thermal.v1_3_0.Fan";
-        if constexpr (BMCWEB_REDFISH_ALLOW_DEPRECATED_INDICATORLED)
-        {
-            setLedState(sensorJson, inventoryItem);
-        }
         forceToInt = true;
         return true;
     }
@@ -842,7 +809,7 @@ inline bool fillPowerThermalIdentity(
             sensorJson["Name"] = "Chassis Power Control";
             unit = "/PowerConsumedWatts"_json_pointer;
         }
-        else if (lower.find("input") != std::string::npos)
+        else if (lower.contains("input"))
         {
             unit = "/PowerInputWatts"_json_pointer;
         }
@@ -998,9 +965,8 @@ inline void objectPropertiesToJson(
     }
     else
     {
-        filledOk =
-            fillPowerThermalIdentity(sensorName, sensorType, sensorJson,
-                                     inventoryItem, unit, std::ref(forceToInt));
+        filledOk = fillPowerThermalIdentity(sensorName, sensorType, sensorJson,
+                                            unit, std::ref(forceToInt));
     }
     if (!filledOk)
     {

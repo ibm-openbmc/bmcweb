@@ -497,7 +497,7 @@ inline std::optional<boost::urls::url> parseSimpleUpdateUrl(
     std::string imageURI, std::optional<std::string> transferProtocol,
     crow::Response& res)
 {
-    if (imageURI.find("://") == std::string::npos)
+    if (!imageURI.contains("://"))
     {
         if (imageURI.starts_with("/"))
         {
@@ -754,6 +754,7 @@ inline std::optional<MultiPartUpdate::UpdateParameters> processUpdateParameters(
     std::optional<nlohmann::json> jsonContent = parseStringAsJson(content);
     if (!jsonContent)
     {
+        messages::malformedJSON(asyncResp->res);
         return std::nullopt;
     }
     nlohmann::json::object_t* obj =
@@ -812,6 +813,7 @@ inline std::optional<MultiPartUpdate> extractMultipartUpdateParameters(
         if (it == formpart.fields.end())
         {
             BMCWEB_LOG_ERROR("Couldn't find Content-Disposition");
+            messages::unrecognizedRequestBody(asyncResp->res);
             return std::nullopt;
         }
         BMCWEB_LOG_INFO("Parsing value {}", it->value());
@@ -1139,15 +1141,19 @@ inline void handleUpdateServicePost(
     BMCWEB_LOG_DEBUG("doPost: contentType={}", contentType);
 
     // Make sure that content type is application/octet-stream
-    if (bmcweb::asciiIEquals(contentType, "application/octet-stream"))
+    if (contentType.empty())
     {
-        doHTTPUpdate(asyncResp, req);
+        messages::headerMissing(asyncResp->res, "Content-Type");
+        return;
     }
-    else
+    if (!bmcweb::asciiIEquals(contentType, "application/octet-stream"))
     {
         BMCWEB_LOG_DEBUG("Bad content type specified:{}", contentType);
-        asyncResp->res.result(boost::beast::http::status::bad_request);
+        messages::headerInvalid(asyncResp->res,
+                                std::format("Content-Type: {}", contentType));
+        return;
     }
+    doHTTPUpdate(asyncResp, req);
 }
 
 inline void handleUpdateServiceMultipartUpdatePost(

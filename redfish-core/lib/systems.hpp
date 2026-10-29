@@ -535,34 +535,35 @@ inline void getHostState(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
  *
  * @param[in] dbusSource    The boot source in DBUS speak.
  *
- * @return Returns as a string, the boot source in Redfish terms. If translation
- * cannot be done, returns an empty string.
+ * @return Returns the boot source in Redfish terms. If translation
+ * cannot be done, returns computer_system::BootSource::Invalid.
  */
-inline std::string dbusToRfBootSource(const std::string& dbusSource)
+inline computer_system::BootSource dbusToRfBootSource(
+    const std::string& dbusSource)
 {
     if (dbusSource == "xyz.openbmc_project.Control.Boot.Source.Sources.Default")
     {
-        return "None";
+        return computer_system::BootSource::None;
     }
     if (dbusSource == "xyz.openbmc_project.Control.Boot.Source.Sources.Disk")
     {
-        return "Hdd";
+        return computer_system::BootSource::Hdd;
     }
     if (dbusSource ==
         "xyz.openbmc_project.Control.Boot.Source.Sources.ExternalMedia")
     {
-        return "Cd";
+        return computer_system::BootSource::Cd;
     }
     if (dbusSource == "xyz.openbmc_project.Control.Boot.Source.Sources.Network")
     {
-        return "Pxe";
+        return computer_system::BootSource::Pxe;
     }
     if (dbusSource ==
         "xyz.openbmc_project.Control.Boot.Source.Sources.RemovableMedia")
     {
-        return "Usb";
+        return computer_system::BootSource::Usb;
     }
-    return "";
+    return computer_system::BootSource::Invalid;
 }
 
 /**
@@ -961,7 +962,7 @@ inline void getBootOverrideSource(
             BMCWEB_LOG_DEBUG("Boot source: {}", bootSourceStr);
 
             auto rfSource = dbusToRfBootSource(bootSourceStr);
-            if (!rfSource.empty())
+            if (rfSource != computer_system::BootSource::Invalid)
             {
                 asyncResp->res.jsonValue["Boot"]["BootSourceOverrideTarget"] =
                     rfSource;
@@ -3170,11 +3171,6 @@ inline void processComputerSystemGet(
             });
     }
 
-    if constexpr (BMCWEB_REDFISH_ALLOW_DEPRECATED_INDICATORLED)
-    {
-        getIndicatorLedState(asyncResp);
-    }
-
     // Currently not supported on multi-host.
     if constexpr (!BMCWEB_EXPERIMENTAL_REDFISH_MULTI_COMPUTER_SYSTEM)
     {
@@ -3251,7 +3247,6 @@ inline void handleComputerSystemGet(
 struct PatchParams
 {
     std::optional<bool> locationIndicatorActive;
-    std::optional<std::string> indicatorLed;
     std::optional<std::string> assetTag;
     std::optional<std::string> powerRestorePolicy;
     std::optional<std::string> powerMode;
@@ -3288,15 +3283,6 @@ inline void processComputerSystemPatch(
     std::string& systemName, PatchParams& patchParams,
     const uint64_t computerSystemIndex)
 {
-    if constexpr (!BMCWEB_REDFISH_ALLOW_DEPRECATED_INDICATORLED)
-    {
-        if (patchParams.indicatorLed)
-        {
-            messages::propertyUnknown(asyncResp->res, "IndicatorLED");
-            return;
-        }
-    }
-
     if (patchParams.assetTag)
     {
         setAssetTag(asyncResp, *patchParams.assetTag);
@@ -3363,17 +3349,6 @@ inline void processComputerSystemPatch(
                     setLocationIndicatorActive(asyncResp, *validSystemsPath,
                                                locationIndicatorActive);
                 });
-        }
-    }
-
-    if constexpr (BMCWEB_REDFISH_ALLOW_DEPRECATED_INDICATORLED)
-    {
-        if (patchParams.indicatorLed)
-        {
-            setIndicatorLedState(asyncResp, *patchParams.indicatorLed);
-            asyncResp->res.addHeader(boost::beast::http::field::warning,
-                                     "299 - \"IndicatorLED is deprecated. Use "
-                                     "LocationIndicatorActive instead.\"");
         }
     }
 
@@ -3444,7 +3419,6 @@ inline void handleComputerSystemPatch(
             patchParams.ipsEnterUtil,                                         //
             "IdlePowerSaver/ExitDwellTimeSeconds", patchParams.ipsExitTime,   //
             "IdlePowerSaver/ExitUtilizationPercent", patchParams.ipsExitUtil, //
-            "IndicatorLED", patchParams.indicatorLed,                         //
             "LocationIndicatorActive", patchParams.locationIndicatorActive,   //
             "PowerMode", patchParams.powerMode,                               //
             "PowerRestorePolicy", patchParams.powerRestorePolicy))

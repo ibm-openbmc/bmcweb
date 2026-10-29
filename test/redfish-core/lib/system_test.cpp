@@ -23,6 +23,34 @@ namespace redfish
 namespace
 {
 
+TEST(Systems, DbusToRfBootSource)
+{
+    EXPECT_EQ(dbusToRfBootSource(
+                  "xyz.openbmc_project.Control.Boot.Source.Sources.Default"),
+              computer_system::BootSource::None);
+
+    EXPECT_EQ(dbusToRfBootSource(
+                  "xyz.openbmc_project.Control.Boot.Source.Sources.Disk"),
+              computer_system::BootSource::Hdd);
+
+    EXPECT_EQ(
+        dbusToRfBootSource(
+            "xyz.openbmc_project.Control.Boot.Source.Sources.ExternalMedia"),
+        computer_system::BootSource::Cd);
+
+    EXPECT_EQ(dbusToRfBootSource(
+                  "xyz.openbmc_project.Control.Boot.Source.Sources.Network"),
+              computer_system::BootSource::Pxe);
+
+    EXPECT_EQ(
+        dbusToRfBootSource(
+            "xyz.openbmc_project.Control.Boot.Source.Sources.RemovableMedia"),
+        computer_system::BootSource::Usb);
+
+    EXPECT_EQ(dbusToRfBootSource("invalid"),
+              computer_system::BootSource::Invalid);
+}
+
 TEST(Systems, DbusToRfBootType)
 {
     EXPECT_EQ(
@@ -216,6 +244,136 @@ TEST(GetAllowedHostTransition, AllSupported)
     parameters.emplace_back(std::move(parameter));
 
     EXPECT_EQ(response->res.jsonValue["Parameters"], parameters);
+}
+
+TEST(TranslatePowerModeString, Static)
+{
+    EXPECT_EQ(translatePowerModeString(
+                  "xyz.openbmc_project.Control.Power.Mode.PowerMode."
+                  "Static"),
+              computer_system::PowerMode::Static);
+}
+
+TEST(TranslatePowerModeString, MaximumPerformance)
+{
+    EXPECT_EQ(translatePowerModeString(
+                  "xyz.openbmc_project.Control.Power.Mode.PowerMode."
+                  "MaximumPerformance"),
+              computer_system::PowerMode::MaximumPerformance);
+}
+
+TEST(TranslatePowerModeString, PowerSaving)
+{
+    EXPECT_EQ(translatePowerModeString(
+                  "xyz.openbmc_project.Control.Power.Mode.PowerMode."
+                  "PowerSaving"),
+              computer_system::PowerMode::PowerSaving);
+}
+
+TEST(TranslatePowerModeString, BalancedPerformance)
+{
+    EXPECT_EQ(translatePowerModeString(
+                  "xyz.openbmc_project.Control.Power.Mode.PowerMode."
+                  "BalancedPerformance"),
+              computer_system::PowerMode::BalancedPerformance);
+}
+
+TEST(TranslatePowerModeString, EfficiencyFavorPerformance)
+{
+    EXPECT_EQ(translatePowerModeString(
+                  "xyz.openbmc_project.Control.Power.Mode.PowerMode."
+                  "EfficiencyFavorPerformance"),
+              computer_system::PowerMode::EfficiencyFavorPerformance);
+}
+
+TEST(TranslatePowerModeString, EfficiencyFavorPower)
+{
+    EXPECT_EQ(translatePowerModeString(
+                  "xyz.openbmc_project.Control.Power.Mode.PowerMode."
+                  "EfficiencyFavorPower"),
+              computer_system::PowerMode::EfficiencyFavorPower);
+}
+
+TEST(TranslatePowerModeString, Oem)
+{
+    EXPECT_EQ(translatePowerModeString(
+                  "xyz.openbmc_project.Control.Power.Mode.PowerMode."
+                  "OEM"),
+              computer_system::PowerMode::OEM);
+}
+
+TEST(TranslatePowerModeString, OsControlledIsNotMapped)
+{
+    EXPECT_EQ(translatePowerModeString(
+                  "xyz.openbmc_project.Control.Power.Mode.PowerMode."
+                  "OSControlled"),
+              computer_system::PowerMode::Invalid);
+}
+
+TEST(TranslatePowerModeString, MatchIsCaseSensitive)
+{
+    EXPECT_EQ(translatePowerModeString(
+                  "xyz.openbmc_project.Control.Power.Mode.PowerMode."
+                  "static"),
+              computer_system::PowerMode::Invalid);
+}
+
+TEST(TranslatePowerModeString, EmptyStringIsInvalid)
+{
+    EXPECT_EQ(translatePowerModeString(""),
+              computer_system::PowerMode::Invalid);
+}
+
+TEST(TranslatePowerModeString, RedfishValueWithoutDbusPrefixIsInvalid)
+{
+    EXPECT_EQ(translatePowerModeString("Static"),
+              computer_system::PowerMode::Invalid);
+}
+
+TEST(AssignBootParameters, TranslationsAreExpected)
+{
+    std::string bootSource;
+    std::string bootMode;
+
+    EXPECT_EQ(assignBootParameters("None", bootSource, bootMode), 0);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.Default",
+              bootSource);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Regular", bootMode);
+
+    EXPECT_EQ(assignBootParameters("Pxe", bootSource, bootMode), 0);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.Network",
+              bootSource);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Regular", bootMode);
+
+    EXPECT_EQ(assignBootParameters("Hdd", bootSource, bootMode), 0);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.Disk",
+              bootSource);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Regular", bootMode);
+
+    EXPECT_EQ(assignBootParameters("Diags", bootSource, bootMode), 0);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.Default",
+              bootSource);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Safe", bootMode);
+
+    EXPECT_EQ(assignBootParameters("Cd", bootSource, bootMode), 0);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.ExternalMedia",
+              bootSource);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Regular", bootMode);
+
+    EXPECT_EQ(assignBootParameters("BiosSetup", bootSource, bootMode), 0);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.Default",
+              bootSource);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Setup", bootMode);
+
+    EXPECT_EQ(assignBootParameters("Usb", bootSource, bootMode), 0);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.RemovableMedia",
+              bootSource);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Regular", bootMode);
+
+    EXPECT_EQ(assignBootParameters("Invalid", bootSource, bootMode), -1);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.Default",
+              bootSource);
+    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Regular", bootMode);
 }
 
 } // namespace

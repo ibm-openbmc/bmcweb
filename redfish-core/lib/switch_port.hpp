@@ -50,6 +50,24 @@ inline port::PortType dBusSensorPortTypeToRedfish(const std::string& portType)
     return port::PortType::Invalid;
 }
 
+inline port::LinkStatus dBusSensorPortLinkStatusToRedfish(
+    const std::string& linkStatus)
+{
+    if (linkStatus ==
+        "xyz.openbmc_project.Inventory.Connector.Port.LinkStatus.LinkUp")
+    {
+        return port::LinkStatus::LinkUp;
+    }
+
+    if (linkStatus ==
+        "xyz.openbmc_project.Inventory.Connector.Port.LinkStatus.LinkDown")
+    {
+        return port::LinkStatus::LinkDown;
+    }
+
+    return port::LinkStatus::Invalid;
+}
+
 inline std::string dBusSensorPortProtocolToRedfish(
     const std::string& portProtocol)
 {
@@ -79,10 +97,12 @@ inline void afterGetFabricSwitchPortInfo(
     std::optional<size_t> width;
     std::optional<std::string> portType;
     std::optional<std::string> portProtocol;
+    std::optional<std::string> linkStatus;
 
     const bool success = sdbusplus::unpackPropertiesNoThrow(
         dbus_utils::UnpackErrorPrinter(), properties, "Speed", speed, "Width",
-        width, "PortType", portType, "PortProtocol", portProtocol);
+        width, "PortType", portType, "PortProtocol", portProtocol, "LinkStatus",
+        linkStatus);
 
     if (!success)
     {
@@ -125,6 +145,15 @@ inline void afterGetFabricSwitchPortInfo(
         if (portProtocolStr != "Unknown")
         {
             asyncResp->res.jsonValue["PortProtocol"] = portProtocolStr;
+        }
+    }
+    if (linkStatus.has_value())
+    {
+        const port::LinkStatus linkStatusEnum =
+            dBusSensorPortLinkStatusToRedfish(*linkStatus);
+        if (linkStatusEnum != port::LinkStatus::Invalid)
+        {
+            asyncResp->res.jsonValue["LinkStatus"] = linkStatusEnum;
         }
     }
 }
@@ -392,7 +421,7 @@ inline void handleFabricSwitchPathPortCollection(
 inline void getFabricSwitchPortPaths(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& fabricId, const std::string& switchId,
-    const std::string& switchPath)
+    const std::string& switchPath, const std::string& /*switchService*/)
 {
     std::string associationPath = switchPath + "/connecting";
     dbus::utility::getAssociatedSubTreePaths(
@@ -450,10 +479,15 @@ inline void handleFabricSwitchPortMetricsGet(
 
     getFabricSwitchPath(
         asyncResp, fabricId, switchId,
-        std::bind_front(
-            getAssociatedPortPath, asyncResp, portId,
-            std::bind_front(handleFabricSwitchPortPathPortMetricsGet, asyncResp,
-                            fabricId, switchId, portId)));
+        [asyncResp, fabricId, switchId,
+         portId](const std::string& switchPath,
+                 const std::string& /*switchService*/) {
+            getAssociatedPortPath(
+                asyncResp, portId,
+                std::bind_front(handleFabricSwitchPortPathPortMetricsGet,
+                                asyncResp, fabricId, switchId, portId),
+                switchPath);
+        });
 }
 
 inline void handleFabricSwitchPortGet(
@@ -469,10 +503,15 @@ inline void handleFabricSwitchPortGet(
 
     getFabricSwitchPath(
         asyncResp, fabricId, switchId,
-        std::bind_front(
-            getAssociatedPortPath, asyncResp, portId,
-            std::bind_front(handleFabricSwitchPortPathPortGet, asyncResp,
-                            fabricId, switchId, portId)));
+        [asyncResp, fabricId, switchId,
+         portId](const std::string& switchPath,
+                 const std::string& /*switchService*/) {
+            getAssociatedPortPath(
+                asyncResp, portId,
+                std::bind_front(handleFabricSwitchPortPathPortGet, asyncResp,
+                                fabricId, switchId, portId),
+                switchPath);
+        });
 }
 
 inline void handleFabricSwitchPortsCollectionGet(
