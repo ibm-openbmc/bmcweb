@@ -147,6 +147,7 @@ inline void getCpuDataByInterface(
     // Set the default value of state
     bool present = true;
     bool available = true;
+    bool enabled = true;
     bool functional = true;
 
     for (const auto& interface : cpuInterfacesProperties)
@@ -173,6 +174,16 @@ inline void getCpuDataByInterface(
                     return;
                 }
                 available = *cpuAvailable;
+            }
+            else if (property.first == "Enabled")
+            {
+                const bool* cpuEnabled = std::get_if<bool>(&property.second);
+                if (cpuEnabled == nullptr)
+                {
+                    messages::internalError(asyncResp->res);
+                    return;
+                }
+                enabled = *cpuEnabled;
             }
             else if (property.first == "Functional")
             {
@@ -284,7 +295,7 @@ inline void getCpuDataByInterface(
         }
     }
     resource_utils::determineResourceState(asyncResp, present, available,
-                                           ""_json_pointer);
+                                           enabled, ""_json_pointer);
     resource_utils::determineResourceHealth(asyncResp, ""_json_pointer,
                                             functional);
 }
