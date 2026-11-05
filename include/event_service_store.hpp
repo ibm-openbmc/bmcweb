@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright OpenBMC Authors
 #pragma once
 #include "logging.hpp"
+#include "utils/time_utils.hpp"
 
 #include <boost/beast/http/fields.hpp>
 #include <boost/container/flat_map.hpp>
@@ -42,6 +43,18 @@ struct UserSubscription
     boost::beast::http::fields httpHeaders;
     std::vector<std::string> metricReportDefinitions;
     std::vector<std::string> originResources;
+
+    std::string createdTimestamp;
+    std::string lastLoadedTimestamp;
+
+    UserSubscription()
+    {
+        std::string now = redfish::time_utils::getDateTimeOffsetNow().first;
+        createdTimestamp = now;
+        lastLoadedTimestamp = now;
+    }
+    UserSubscription(const UserSubscription&) = default;
+    UserSubscription(UserSubscription&&) = default;
 
     static std::optional<UserSubscription> fromJson(
         const nlohmann::json::object_t& j, const bool loadFromOldConfig = false)
@@ -269,6 +282,20 @@ struct UserSubscription
                     subvalue.originResources.emplace_back(*value);
                 }
             }
+            else if (element.first == "CreatedTimestamp")
+            {
+                const std::string* value =
+                    element.second.get_ptr<const std::string*>();
+                if (value == nullptr)
+                {
+                    continue;
+                }
+                subvalue.createdTimestamp = *value;
+            }
+            else if (element.first == "LastLoadedTimestamp")
+            {
+                // Ignore the previous lastLoadedTimestamp
+            }
             else
             {
                 BMCWEB_LOG_ERROR(
@@ -287,6 +314,9 @@ struct UserSubscription
                              "information, refusing to restore");
             return std::nullopt;
         }
+
+        subvalue.lastLoadedTimestamp =
+            redfish::time_utils::getDateTimeOffsetNow().first;
 
         return subvalue;
     }
