@@ -72,6 +72,12 @@ constexpr uint64_t loggedOutPostBodyLimit = 4096U;
 
 constexpr uint32_t httpHeaderLimit = 8192U;
 
+enum class DeadlineTimerType
+{
+    Default,
+    Keepalive,
+};
+
 template <typename Adaptor, typename Handler>
 class Connection :
     public std::enable_shared_from_this<Connection<Adaptor, Handler>>
@@ -231,7 +237,7 @@ class Connection :
             }
         }
 
-        startDeadline();
+        startDeadline(DeadlineTimerType::Default);
 
         boost::beast::async_detect_ssl(
             adaptor.next_layer(), buffer,
@@ -726,6 +732,9 @@ class Connection :
     void doReadHeaders()
     {
         BMCWEB_LOG_DEBUG("{} doReadHeaders", logPtr(this));
+
+        startDeadline(DeadlineTimerType::Keepalive);
+
         if (!parser)
         {
             BMCWEB_LOG_CRITICAL("Parser was not initialized.");
@@ -812,7 +821,7 @@ class Connection :
             return;
         }
         auto& parse = *parser;
-        startDeadline();
+        startDeadline(DeadlineTimerType::Default);
         if (httpType == HttpType::HTTP)
         {
             boost::beast::http::async_read_some(
@@ -904,7 +913,7 @@ class Connection :
         }
         res.preparePayload(urlView);
 
-        startDeadline();
+        startDeadline(DeadlineTimerType::Default);
         if (httpType == HttpType::HTTP)
         {
             boost::beast::async_write(
@@ -926,6 +935,7 @@ class Connection :
     void cancelDeadlineTimer()
     {
         timer.cancel();
+        timerStarted = false;
     }
 
     void afterTimerWait(const std::weak_ptr<self_type>& weakSelf,
@@ -968,7 +978,7 @@ class Connection :
         self->hardClose();
     }
 
-    void startDeadline()
+    void startDeadline(DeadlineTimerType timerType)
     {
         // Timer is already started so no further action is required.
         if (timerStarted)
@@ -976,7 +986,15 @@ class Connection :
             return;
         }
 
-        std::chrono::seconds timeout(15);
+        int timeoutDurationSeconds = 15;
+        if (timerType == DeadlineTimerType::Keepalive)
+        {
+            // if we're waiting for future requests while idle in keepalive,
+            // allow up to 15 minutes of delay
+            timeoutDurationSeconds = 15 * 60;
+        }
+
+        std::chrono::seconds timeout(timeoutDurationSeconds);
 
         std::weak_ptr<Connection<Adaptor, Handler>> weakSelf = weak_from_this();
         timer.expires_after(timeout);
