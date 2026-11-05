@@ -1,13 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright OpenBMC Authors
 
+#include "app.hpp"
 #include "async_resp.hpp"
 #include "dbus_utility.hpp"
+#include "http_request.hpp"
 #include "http_response.hpp"
 #include "update_service.hpp"
 
+#include <boost/beast/http/field.hpp>
 #include <boost/beast/http/status.hpp>
+#include <boost/beast/http/verb.hpp>
+#include <boost/system/errc.hpp>
 #include <boost/url/url.hpp>
+#include <nlohmann/json.hpp>
 
 #include <memory>
 #include <optional>
@@ -19,6 +25,8 @@ namespace redfish
 {
 namespace
 {
+
+using nlohmann::literals::operator""_json;
 
 TEST(UpdateService, ParseHTTSPPostitive)
 {
@@ -144,6 +152,112 @@ TEST(UpdateService, ParseHTTPSNegative)
     ASSERT_EQ(parseSimpleUpdateUrl("/path", "HTTPS", res), std::nullopt);
 }
 
+TEST(UpdateService, MissingContentTypeReturnsHeaderMissing)
+{
+    std::shared_ptr<bmcweb::AsyncResp> asyncResp =
+        std::make_shared<bmcweb::AsyncResp>();
+    crow::Request request;
+    ASSERT_TRUE(request.target("/redfish/v1/UpdateService/update"));
+    request.method(boost::beast::http::verb::post);
+
+    crow::App app;
+    handleUpdateServicePost(app, request, asyncResp);
+
+    EXPECT_EQ(asyncResp->res.result(), boost::beast::http::status::bad_request);
+    EXPECT_EQ(asyncResp->res.jsonValue,
+              R"({
+                  "error": {
+                      "code": "Base.1.19.HeaderMissing",
+                      "message": "Required header 'Content-Type' is missing in the request.",
+                      "@Message.ExtendedInfo": [
+                          {
+                              "@odata.type": "#Message.v1_1_1.Message",
+                              "Message": "Required header 'Content-Type' is missing in the request.",
+                              "MessageArgs": ["Content-Type"],
+                              "MessageId": "Base.1.19.HeaderMissing",
+                              "MessageSeverity": "Critical",
+                              "Resolution": "Resubmit the request with the required request header."
+                          }
+                      ]
+                  }
+              })"_json);
+}
+
+TEST(UpdateService, EmptyContentTypeReturnsHeaderMissing)
+{
+    std::shared_ptr<bmcweb::AsyncResp> asyncResp =
+        std::make_shared<bmcweb::AsyncResp>();
+    crow::Request request;
+    ASSERT_TRUE(request.target("/redfish/v1/UpdateService/update"));
+    request.method(boost::beast::http::verb::post);
+    request.addHeader(boost::beast::http::field::content_type, "");
+
+    crow::App app;
+    handleUpdateServicePost(app, request, asyncResp);
+
+    EXPECT_EQ(asyncResp->res.result(), boost::beast::http::status::bad_request);
+    EXPECT_EQ(asyncResp->res.jsonValue,
+              R"({
+                  "error": {
+                      "code": "Base.1.19.HeaderMissing",
+                      "message": "Required header 'Content-Type' is missing in the request.",
+                      "@Message.ExtendedInfo": [
+                          {
+                              "@odata.type": "#Message.v1_1_1.Message",
+                              "Message": "Required header 'Content-Type' is missing in the request.",
+                              "MessageArgs": ["Content-Type"],
+                              "MessageId": "Base.1.19.HeaderMissing",
+                              "MessageSeverity": "Critical",
+                              "Resolution": "Resubmit the request with the required request header."
+                          }
+                      ]
+                  }
+              })"_json);
+}
+
+TEST(UpdateService, InvalidContentTypeReturnsCompleteHeader)
+{
+    std::shared_ptr<bmcweb::AsyncResp> asyncResp =
+        std::make_shared<bmcweb::AsyncResp>();
+    crow::Request request;
+    ASSERT_TRUE(request.target("/redfish/v1/UpdateService/update"));
+    request.method(boost::beast::http::verb::post);
+    request.addHeader(boost::beast::http::field::content_type,
+                      "application/json");
+
+    crow::App app;
+    handleUpdateServicePost(app, request, asyncResp);
+
+    EXPECT_EQ(asyncResp->res.result(), boost::beast::http::status::bad_request);
+    EXPECT_EQ(asyncResp->res.jsonValue,
+              R"({
+                  "error": {
+                      "code": "Base.1.19.HeaderInvalid",
+                      "message": "Header 'Content-Type: application/json' is invalid.",
+                      "@Message.ExtendedInfo": [
+                          {
+                              "@odata.type": "#Message.v1_1_1.Message",
+                              "Message": "Header 'Content-Type: application/json' is invalid.",
+                              "MessageArgs": ["Content-Type: application/json"],
+                              "MessageId": "Base.1.19.HeaderInvalid",
+                              "MessageSeverity": "Critical",
+                              "Resolution": "Resubmit the request with a valid request header."
+                          }
+                      ]
+                  }
+              })"_json);
+}
+
+TEST(UpdateService, MalformedUpdateParametersReturnsBadRequest)
+{
+    auto asyncResp = std::make_shared<bmcweb::AsyncResp>();
+
+    ASSERT_EQ(processUpdateParameters(asyncResp, "{"), std::nullopt);
+    EXPECT_EQ(asyncResp->res.result(), boost::beast::http::status::bad_request);
+    EXPECT_EQ(asyncResp->res.jsonValue["error"]["code"],
+              "Base.1.19.MalformedJSON");
+}
+
 // A Software.Version object that omits the deprecated Purpose property must
 // still succeed: the handler must not fail the resource and must skip the
 // Purpose-derived Description.
@@ -181,6 +295,19 @@ TEST(UpdateService, MissingVersionIsError)
     auto asyncResp = std::make_shared<bmcweb::AsyncResp>();
     getSoftwareVersionCallback(asyncResp, "swId", {},
                                dbus::utility::DBusPropertiesMap{});
+
+    EXPECT_EQ(asyncResp->res.result(),
+              boost::beast::http::status::internal_server_error);
+}
+
+TEST(UpdateService, StartUpdateErrorReturnsInternalError)
+{
+    auto asyncResp = std::make_shared<bmcweb::AsyncResp>();
+    crow::Request req;
+    handleStartUpdate(
+        asyncResp, task::Payload{req}, "/software",
+        boost::system::errc::make_error_code(boost::system::errc::io_error),
+        sdbusplus::object_path{});
 
     EXPECT_EQ(asyncResp->res.result(),
               boost::beast::http::status::internal_server_error);

@@ -225,45 +225,48 @@ inline void getValidPowerSupplyPath(
         });
 }
 
+inline void afterGetPowerSupplyAsset(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec,
+    const dbus::utility::DBusPropertiesMap& propertiesList)
+{
+    if (ec)
+    {
+        if (ec.value() != EBADR)
+        {
+            BMCWEB_LOG_ERROR("DBUS response error for Asset {}", ec.value());
+            messages::internalError(asyncResp->res);
+        }
+        return;
+    }
+
+    asset_utils::extractAssetInfo(asyncResp, ""_json_pointer, propertiesList,
+                                  true);
+
+    const std::string* buildDate = nullptr;
+
+    const bool success = sdbusplus::unpackPropertiesNoThrow(
+        dbus_utils::UnpackErrorPrinter(), propertiesList, "BuildDate",
+        buildDate);
+    if (!success)
+    {
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    if (buildDate != nullptr)
+    {
+        time_utils::productionDateReport(asyncResp->res, *buildDate);
+    }
+}
+
 inline void getPowerSupplyAsset(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& service, const std::string& path)
 {
     dbus::utility::getAllProperties(
         service, path, "xyz.openbmc_project.Inventory.Decorator.Asset",
-        // ast-grep-ignore: long-lambda
-        [asyncResp](const boost::system::error_code& ec,
-                    const dbus::utility::DBusPropertiesMap& propertiesList) {
-            if (ec)
-            {
-                if (ec.value() != EBADR)
-                {
-                    BMCWEB_LOG_ERROR("DBUS response error for Asset {}",
-                                     ec.value());
-                    messages::internalError(asyncResp->res);
-                }
-                return;
-            }
-
-            asset_utils::extractAssetInfo(asyncResp, ""_json_pointer,
-                                          propertiesList, true);
-
-            const std::string* buildDate = nullptr;
-
-            const bool success = sdbusplus::unpackPropertiesNoThrow(
-                dbus_utils::UnpackErrorPrinter(), propertiesList, "BuildDate",
-                buildDate);
-            if (!success)
-            {
-                messages::internalError(asyncResp->res);
-                return;
-            }
-
-            if (buildDate != nullptr)
-            {
-                time_utils::productionDateReport(asyncResp->res, *buildDate);
-            }
-        });
+        std::bind_front(afterGetPowerSupplyAsset, asyncResp));
 }
 
 inline void getPowerSupplyFirmwareVersion(
@@ -313,6 +316,39 @@ inline void getPowerSupplyLocation(
             asyncResp->res
                 .jsonValue["Location"]["PartLocation"]["ServiceLabel"] = value;
         });
+}
+
+inline void handlePowerCapacityResponse(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec, uint64_t value)
+{
+    if (ec)
+    {
+        if (ec.value() != EBADR)
+        {
+            BMCWEB_LOG_ERROR("DBUS response error for PowerCapacityWatts {}",
+                             ec.value());
+            messages::internalError(asyncResp->res);
+        }
+        return;
+    }
+    // The PDI default is maxint (unknown); omit from Redfish if unset
+    if (value == std::numeric_limits<uint64_t>::max())
+    {
+        return;
+    }
+    asyncResp->res.jsonValue["PowerCapacityWatts"] = value;
+}
+
+inline void getPowerSupplyCapacity(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& service, const std::string& path)
+{
+    dbus::utility::getProperty<uint64_t>(
+        service, path,
+        "xyz.openbmc_project.Inventory.Decorator.PowerAttributes",
+        "PowerCapacityWatts",
+        std::bind_front(handlePowerCapacityResponse, asyncResp));
 }
 
 inline void handleGetEfficiencyResponse(
@@ -429,6 +465,7 @@ inline void doPowerSupplyGet(
     getPowerSupplyAsset(asyncResp, service, powerSupplyPath);
     getPowerSupplyFirmwareVersion(asyncResp, service, powerSupplyPath);
     getPowerSupplyLocation(asyncResp, service, powerSupplyPath);
+    getPowerSupplyCapacity(asyncResp, service, powerSupplyPath);
     getEfficiencyPercent(asyncResp);
     getLocationIndicatorActive(asyncResp, powerSupplyPath);
 }
