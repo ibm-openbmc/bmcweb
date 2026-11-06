@@ -4,6 +4,7 @@
 
 #include "app.hpp"
 #include "async_resp.hpp"
+#include "audit_events.hpp"
 #include "cookies.hpp"
 #include "http_request.hpp"
 #include "http_response.hpp"
@@ -85,6 +86,10 @@ inline void handleLogin(const crow::Request& req,
     if ((pamrc != PAM_SUCCESS) && !isConfigureSelfOnly)
     {
         asyncResp->res.result(boost::beast::http::status::unauthorized);
+        if constexpr (BMCWEB_AUDIT_EVENTS)
+        {
+            audit::auditEvent(req, *userStr, false);
+        }
         return;
     }
     auto session =
@@ -96,6 +101,10 @@ inline void handleLogin(const crow::Request& req,
 
     // if content type is json, assume json token
     asyncResp->res.jsonValue["token"] = session->sessionToken;
+    if constexpr (BMCWEB_AUDIT_EVENTS)
+    {
+        audit::auditEvent(req, *userStr, true);
+    }
 }
 
 inline void handleLogout(const crow::Request& req,
