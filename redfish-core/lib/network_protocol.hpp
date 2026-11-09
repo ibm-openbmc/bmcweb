@@ -45,7 +45,7 @@ namespace redfish
 
 void getNTPProtocolEnabled(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp);
 
-static constexpr std::string_view sshServiceName = "dropbear";
+static constexpr std::string_view sshServiceName = "sshd";
 static constexpr std::string_view httpsServiceName = "bmcweb";
 static constexpr std::string_view ipmiServiceName = "phosphor-ipmi-net";
 
