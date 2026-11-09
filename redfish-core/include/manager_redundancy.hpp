@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright OpenBMC Authors
 #pragma once
 
+#include "app.hpp"
 #include "async_resp.hpp"
 #include "dbus_singleton.hpp"
 #include "dbus_utility.hpp"
@@ -9,6 +10,7 @@
 #include "generated/enums/redundancy.hpp"
 #include "generated/enums/resource.hpp"
 #include "logging.hpp"
+#include "query.hpp"
 #include "utils/dbus_utils.hpp"
 
 #include <asm-generic/errno.h>
@@ -88,12 +90,14 @@ inline void getRedundantData(
     const size_t* redundancyMinimum = nullptr;
     const size_t* redundancyMaximum = nullptr;
     const size_t* functionalMinimum = nullptr;
+    const std::string* role = nullptr;
 
     const bool success = sdbusplus::unpackPropertiesNoThrow(
         dbus_utils::UnpackErrorPrinter(), propertiesList, "FailoversAllowed",
         failoversAllowed, "RedundancyEnabled", redundancyEnabled,
         "RedundancyMinimum", redundancyMinimum, "RedundancyMaximum",
-        redundancyMaximum, "FunctionalMinimum", functionalMinimum);
+        redundancyMaximum, "FunctionalMinimum", functionalMinimum, "Role",
+        role);
 
     if (!success)
     {
@@ -154,6 +158,23 @@ inline void getRedundantData(
     if (functionalMinimum != nullptr)
     {
         redundantObject["MinNumNeeded"] = *functionalMinimum;
+    }
+
+    if (role != nullptr)
+    {
+        BMCWEB_LOG_DEBUG("Initializing ActiveRedundancySet array");
+        nlohmann::json::array_t activeSet;
+
+        if (*role == "xyz.openbmc_project.State.BMC.Redundancy.Role.Active")
+        {
+            nlohmann::json::object_t activeItem;
+            activeItem["@odata.id"] =
+                boost::urls::format("/redfish/v1/Managers/{}", managerId);
+            activeSet.emplace_back(std::move(activeItem));
+        }
+
+        redundantObject["ActiveRedundancySet@odata.count"] = activeSet.size();
+        redundantObject["ActiveRedundancySet"] = std::move(activeSet);
     }
 
     redundancy->emplace_back(std::move(redundantObject));
@@ -238,6 +259,86 @@ inline void getManagerRedundancy(
     dbus::utility::getSubTree(
         "/xyz/openbmc_project/state", 0, interfaces,
         std::bind_front(handleRedundancySubTree, asyncResp, managerId));
+}
+
+inline void doManagerForceFailover(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec, const sdbusplus::message_t& msg)
+{
+    if (ec)
+    {
+        const sd_bus_error* dbusError = msg.get_error();
+        if (dbusError != nullptr)
+        {
+            if (std::string_view(
+                    "xyz.openbmc_project.Common.Error.Unavailable") ==
+                dbusError->name)
+            {
+                messages::resourceInUse(asyncResp->res);
+                return;
+            }
+        }
+        BMCWEB_LOG_ERROR("DBUS response error: {}", ec);
+        messages::internalError(asyncResp->res);
+        return;
+    }
+    messages::success(asyncResp->res);
+}
+
+inline void handleManagerForceFailover(
+    crow::App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& managerId)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+    if (managerId != BMCWEB_REDFISH_MANAGER_URI_NAME)
+    {
+        messages::resourceNotFound(asyncResp->res, "Manager", managerId);
+        return;
+    }
+
+    BMCWEB_LOG_DEBUG("Post Force Failover");
+
+    std::optional<std::string> newManager;
+
+    if (!json_util::readJsonAction(req, asyncResp->res, "NewManager/@odata.id",
+                                   newManager))
+    {
+        return;
+    }
+
+    boost::system::result<boost::urls::url> parsedUrl =
+        boost::urls::parse_relative_ref(*newManager);
+    if (crow::utility::readUrlSegments(*parsedUrl, "redfish", "v1", "Managers",
+                                       BMCWEB_REDFISH_MANAGER_URI_NAME))
+    {
+        BMCWEB_LOG_WARNING(
+            "Invalid property value for NewManager/@odata.id: {}", *newManager);
+        messages::actionParameterNotSupported(asyncResp->res, *newManager,
+                                              "ForceFailover");
+        return;
+    }
+
+    std::map<std::string, std::variant<bool>> options;
+    options.emplace("xyz.openbmc_project.Control.Failover.Options.Force", true);
+
+    constexpr const char* requester =
+        "xyz.openbmc_project.Control.Failover.Requester.Redfish";
+    constexpr const char* service = "xyz.openbmc_project.State.BMC.Redundancy";
+    constexpr const char* objectPath = "/xyz/openbmc_project/state/bmc0";
+    constexpr const char* interfaceName =
+        "xyz.openbmc_project.Control.Failover";
+
+    crow::connections::systemBus->async_method_call(
+        [asyncResp](const boost::system::error_code& ec,
+                    const sdbusplus::message_t& msg) {
+            doManagerForceFailover(asyncResp, ec, msg);
+        },
+        service, objectPath, interfaceName, "StartFailover", requester,
+        options);
 }
 
 } // namespace redfish

@@ -695,6 +695,7 @@ Fields common to all schemas
 - Redundancy[]/MinNumNeeded
 - Redundancy[]/Mode
 - Redundancy[]/RedundancySet[]
+- Redundancy[]/ActiveRedundancySet[]
 - SerialNumber
 - ServiceEntryPointUUID
 - ServiceIdentification
