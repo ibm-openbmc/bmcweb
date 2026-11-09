@@ -1,6 +1,6 @@
 {
     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema.v1_4_0.json",
-    "copyright": "Copyright 2025 OpenBMC.",
+    "copyright": "Copyright 2026 OpenBMC.",
     "definitions": {
         "IBM": {
             "additionalProperties": true,

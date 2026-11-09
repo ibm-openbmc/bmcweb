@@ -1,6 +1,8 @@
 # IBM schemas that should be installed
 schemas = [
     'IBMComputerSystem',
+    'IBMManager',
+    'IBMManagerAccount',
 ]
 
 foreach schema : schemas
