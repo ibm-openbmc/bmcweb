@@ -182,6 +182,7 @@ RedfishService::RedfishService(App& app)
     requestRoutesMemory(app);
 
     requestRoutesSystems(app);
+    requestRoutesSystemActionsOemExecutePanelFunction(app);
 
     requestRoutesBiosService(app);
     requestRoutesBiosReset(app);
