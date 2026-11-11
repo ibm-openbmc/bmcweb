@@ -42,7 +42,7 @@ struct Message
     const char* message;
     const char* messageSeverity;
     const size_t numberOfArgs;
-    std::array<const char*, 5> paramTypes;
+    std::array<const char*, 8> paramTypes;
     const char* resolution;
 };
 
