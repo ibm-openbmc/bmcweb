@@ -2345,6 +2345,116 @@ inline void setChapData(const crow::Request& req,
     }
 }
 
+inline void afterGetStorageVPDAllProperties(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec,
+    const dbus::utility::DBusPropertiesMap& propertiesList)
+{
+    if (ec)
+    {
+        BMCWEB_LOG_DEBUG("Get StorageSystem D-bus error: {}", ec.value());
+        return;
+    }
+
+    const std::string* manufacturingId = nullptr;
+    const std::string* model = nullptr;
+    const std::string* nodeId = nullptr;
+    const std::string* serialNumber = nullptr;
+    const std::string* systemId = nullptr;
+
+    const bool success = sdbusplus::unpackPropertiesNoThrow(
+        dbus_utils::UnpackErrorPrinter(), propertiesList,
+        "StorageParentManufacturingId", manufacturingId, "StorageParentModel",
+        model, "StorageParentNodeId", nodeId, "StorageParentSerialNumber",
+        serialNumber, "StorageParentSystemId", systemId);
+
+    if (!success)
+    {
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    nlohmann::json::object_t oemIBM;
+    oemIBM["@odata.type"] = "#IBMComputerSystem.v1_0_0.IBM";
+
+    if (manufacturingId != nullptr)
+    {
+        oemIBM["StorageParentManufacturingId"] = *manufacturingId;
+    }
+    if (model != nullptr)
+    {
+        oemIBM["StorageParentModel"] = *model;
+    }
+    if (nodeId != nullptr)
+    {
+        oemIBM["StorageParentNodeId"] = *nodeId;
+    }
+    if (serialNumber != nullptr)
+    {
+        oemIBM["StorageParentSerialNumber"] = *serialNumber;
+    }
+    if (systemId != nullptr)
+    {
+        oemIBM["StorageParentSystemId"] = *systemId;
+    }
+    asyncResp->res.jsonValue["Oem"]["IBM"] = std::move(oemIBM);
+}
+
+inline void handleGetStorageVPDSubTree(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec,
+    const dbus::utility::MapperGetSubTreeResponse& subtree)
+{
+    BMCWEB_LOG_DEBUG("Get StorageParent");
+    if (ec)
+    {
+        if (ec == boost::system::errc::io_error)
+        {
+            BMCWEB_LOG_DEBUG("No Storage VPD objects");
+            return;
+        }
+
+        BMCWEB_LOG_ERROR("D-Bus response error on GetSubTree {}", ec);
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    for (const auto& [path, serviceMap] : subtree)
+    {
+        for (const auto& [serviceName, interfaces] : serviceMap)
+        {
+            auto it =
+                std::ranges::find(interfaces, "com.ibm.VPD.StorageSystem");
+            if (it != interfaces.end())
+            {
+                BMCWEB_LOG_DEBUG("Getting Storage VPD properties for {} {}",
+                                 path, serviceName);
+                dbus::utility::getAllProperties(
+                    *crow::connections::systemBus, serviceName, path,
+                    "com.ibm.VPD.StorageSystem",
+                    std::bind_front(afterGetStorageVPDAllProperties,
+                                    asyncResp));
+                return;
+            }
+        }
+    }
+
+    BMCWEB_LOG_DEBUG("No Storage VPD objects");
+}
+
+/*
+ * Get StorageParent
+ */
+inline void getStorageVPD(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    BMCWEB_LOG_DEBUG("Get StorageParent");
+    constexpr std::array<std::string_view, 1> interfaces = {
+        "com.ibm.VPD.StorageSystem"};
+    dbus::utility::getSubTree(
+        "/xyz/openbmc_project/inventory/system", 0, interfaces,
+        std::bind_front(handleGetStorageVPDSubTree, asyncResp));
+}
+
 /**
  * @brief Sets Idle Power Saver properties.
  *
@@ -2842,6 +2952,9 @@ inline void handleComputerSystemGet(
 
     // ChapData
     getChapData(asyncResp);
+
+    // StorageParent
+    getStorageVPD(asyncResp);
 }
 
 inline void handleComputerSystemPatch(
