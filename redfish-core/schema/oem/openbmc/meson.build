@@ -7,8 +7,6 @@ schemas_to_install = {
 # Mapping from option key name to schemas that should be installed if that option is enabled
 schemas = {
     'redfish-provisioning-feature': 'OpenBMCComputerSystem',
-    'ibm-oem-manager-account': 'OemManagerAccount',
-    'ibm-usb-code-update': 'IBMManager',
     #'vm-nbdproxy': 'OpenBMCVirtualMedia',
 }
 
