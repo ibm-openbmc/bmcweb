@@ -1505,8 +1505,7 @@ inline void triggerUnauthenticatedACFUpload(
         }
         try
         {
-            std::copy(sDecodedAcf.begin(), sDecodedAcf.end(),
-                      std::back_inserter(decodedAcf));
+            std::ranges::copy(sDecodedAcf, std::back_inserter(decodedAcf));
         }
         catch (const std::exception& e)
         {
@@ -2770,7 +2769,7 @@ inline void handleAccountPatch(
             if (acf && (username == "service"))
             {
                 std::vector<uint8_t> decodedAcf;
-                std::optional<std::string> acfFile;
+                std::string acfFile;
                 if (acf.value().contains("ACFFile") &&
                     acf.value()["ACFFile"] == nullptr)
                 {
@@ -2787,7 +2786,7 @@ inline void handleAccountPatch(
                     }
 
                     std::string sDecodedAcf;
-                    if (!crow::utility::base64Decode(*acfFile, sDecodedAcf))
+                    if (!crow::utility::base64Decode(acfFile, sDecodedAcf))
                     {
                         BMCWEB_LOG_ERROR("base64 decode failure ");
                         messages::internalError(asyncResp->res);
@@ -2795,8 +2794,8 @@ inline void handleAccountPatch(
                     }
                     try
                     {
-                        std::copy(sDecodedAcf.begin(), sDecodedAcf.end(),
-                                  std::back_inserter(decodedAcf));
+                        std::ranges::copy(sDecodedAcf,
+                                          std::back_inserter(decodedAcf));
                     }
                     catch (const std::exception& e)
                     {
