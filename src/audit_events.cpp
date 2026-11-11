@@ -1,7 +1,5 @@
 #include "audit_events.hpp"
 
-#include "bmcweb_config.h"
-
 #include "http_request.hpp"
 #include "logging.hpp"
 
@@ -117,10 +115,6 @@ void auditSetState(bool enable)
  */
 inline bool checkSkipDetail(const crow::Request& req)
 {
-    const std::string systemPatch =
-        std::format("/redfish/v1/Systems/{}", BMCWEB_REDFISH_SYSTEM_URI_NAME);
-    const std::string systemPatchTrailing = std::format("{}/", systemPatch);
-
     return req.target().starts_with("/redfish/v1/AccountService") ||
            req.target().starts_with("/redfish/v1/CertificateService") ||
            req.target().starts_with("/redfish/v1/EventService/Subscriptions") ||
@@ -129,10 +123,7 @@ inline bool checkSkipDetail(const crow::Request& req)
            req.target().starts_with("/ibm/v1") ||
            ((req.method() == boost::beast::http::verb::post) &&
             (checkPostUser(req) || req.target().contains("Certificates") ||
-             req.target().contains("LogService.CollectDiagnosticData"))) ||
-           ((req.method() == boost::beast::http::verb::patch) &&
-            (req.target() == systemPatch ||
-             req.target() == systemPatchTrailing));
+             req.target().contains("LogService.CollectDiagnosticData")));
 }
 
 /**
@@ -142,6 +133,13 @@ inline bool checkSkipDetail(const crow::Request& req)
  */
 bool wantDetail(const crow::Request& req)
 {
+    // Request is specially marked
+    if (req.skipAuditDetail())
+    {
+        return false;
+    }
+
+    // Check for known Redfish routes to skip detail
     switch (req.method())
     {
         case boost::beast::http::verb::patch:
