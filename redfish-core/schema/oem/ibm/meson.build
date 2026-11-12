@@ -3,6 +3,7 @@ schemas = [
     'IBMComputerSystem',
     'IBMManager',
     'IBMManagerAccount',
+    'IBMServiceRoot',
 ]
 
 foreach schema : schemas
