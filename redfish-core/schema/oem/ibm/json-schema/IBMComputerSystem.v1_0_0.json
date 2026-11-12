@@ -62,6 +62,12 @@
                     "$ref": "#/definitions/ChapData",
                     "description": "ChapData.",
                     "longDescription": "This property shall describe ChapData."
+                },
+                "SendServiceAlerts": {
+                    "description": "An indicator to enable or disable sending service alerts for hardware isolation events.",
+                    "longDescription": "This property shall indicate whether service alerts should be sent when hardware isolation events occur. When set to 'true', service alerts will be sent. When set to 'false', service alerts will be suppressed.",
+                    "readonly": false,
+                    "type": ["boolean", "null"]
                 }
             },
             "type": "object"

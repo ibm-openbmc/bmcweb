@@ -28,6 +28,11 @@
         <Annotation Term="OData.AdditionalProperties" Bool="true"/>
         <Annotation Term="OData.Description" String="Oem properties for IBM."/>
         <Annotation Term="OData.AutoExpand"/>
+        <Property Name="SendServiceAlerts" Type="Edm.Boolean">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/ReadWrite"/>
+          <Annotation Term="OData.Description" String="An indicator allowing an operator to enable or disable service alerts."/>
+          <Annotation Term="OData.LongDescription" String="This property shall contain the state of service alerts function for this resource."/>
+        </Property>
       </ComplexType>
       <Action Name="ExecutePanelFunction" IsBound="true">
         <Annotation Term="OData.Description" String="This action executes a panel function."/>
