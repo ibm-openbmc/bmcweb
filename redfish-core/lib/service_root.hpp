@@ -7,23 +7,204 @@
 
 #include "app.hpp"
 #include "async_resp.hpp"
+#include "dbus_utility.hpp"
+#include "error_messages.hpp"
 #include "http_request.hpp"
 #include "persistent_data.hpp"
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
+#include "utils/dbus_utils.hpp"
 #include "utils/manager_utils.hpp"
+#include "utils/systemd_utils.hpp"
+#include "utils/time_utils.hpp"
+
+#include <asm-generic/errno.h>
 
 #include <boost/beast/http/field.hpp>
 #include <boost/beast/http/verb.hpp>
+#include <boost/system/error_code.hpp>
 #include <boost/url/format.hpp>
 #include <nlohmann/json.hpp>
+#include <sdbusplus/asio/property.hpp>
+#include <sdbusplus/unpack_properties.hpp>
 
+#include <array>
 #include <functional>
 #include <memory>
+#include <ranges>
 #include <string>
+#include <string_view>
+#include <vector>
 
 namespace redfish
 {
+
+inline void afterHandleACFWindowActive(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec, const bool allowUnauthACFUpload)
+{
+    if (ec)
+    {
+        if (ec.value() != EBADR)
+        {
+            BMCWEB_LOG_ERROR(
+                "D-Bus response error reading allow_unauth_upload: {}",
+                ec.value());
+            messages::internalError(asyncResp->res);
+        }
+        return;
+    }
+
+    if (allowUnauthACFUpload)
+    {
+        asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
+            allowUnauthACFUpload;
+        return;
+    }
+
+    // Check D-Bus property ACFWindowActive
+    dbus::utility::getProperty<bool>(
+        "com.ibm.PanelApp", "/com/ibm/panel_app", "com.ibm.panel",
+        "ACFWindowActive",
+        // ast-grep-ignore: long-lambda
+        [asyncResp](const boost::system::error_code& ec1,
+                    const bool isACFWindowActive) {
+            if (ec1)
+            {
+                BMCWEB_LOG_ERROR("Failed to read ACFWindowActive property");
+                // Default value when panel app is unreachable.
+                asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
+                    false;
+                return;
+            }
+            asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
+                isACFWindowActive;
+        });
+}
+
+inline void handleACFWindowActive(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    // Redfish property ACFWindowActive=true when either of these is true:
+    //  - D-Bus property allow_unauth_upload.  (This is aka the Redfish
+    //    property AllowUnauthACFUpload which the BMC admin can control.)
+    //  - D-Bus property ACFWindowActive.  (This is aka the Redfish
+    //    property ACFWindowActive under /redfish/v1/AccountService/
+    //    Accounts/service property Oem.IBM.ACF.  The value is provided by
+    //    the PanelApp and is true when panel function 74 is active.)
+    // Check D-Bus property allow_unauth_upload first.
+    dbus::utility::getProperty<bool>(
+        "xyz.openbmc_project.Settings",
+        "/xyz/openbmc_project/ibmacf/allow_unauth_upload",
+        "xyz.openbmc_project.Object.Enable", "Enabled",
+        std::bind_front(afterHandleACFWindowActive, asyncResp));
+}
+
+inline void fillServiceRootOemProperties(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec,
+    const dbus::utility::DBusPropertiesMap& propertiesList)
+{
+    if (ec)
+    {
+        // doesn't have to include this
+        // interface
+        return;
+    }
+    BMCWEB_LOG_DEBUG("Got {} properties for ServiceRoot",
+                     propertiesList.size());
+
+    const std::string* serialNumber = nullptr;
+    const std::string* model = nullptr;
+
+    const bool success = sdbusplus::unpackPropertiesNoThrow(
+        dbus_utils::UnpackErrorPrinter(), propertiesList, "SerialNumber",
+        serialNumber, "Model", model);
+
+    if (!success)
+    {
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    if (serialNumber != nullptr)
+    {
+        asyncResp->res.jsonValue["Oem"]["IBM"]["SerialNumber"] = *serialNumber;
+    }
+
+    if (model != nullptr)
+    {
+        asyncResp->res.jsonValue["Oem"]["IBM"]["Model"] = *model;
+    }
+}
+
+inline void afterHandleServiceRootOem(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec,
+    const dbus::utility::MapperGetSubTreeResponse& subtree)
+{
+    if (ec)
+    {
+        BMCWEB_LOG_ERROR("DBUS response error {}", ec.value());
+        messages::internalError(asyncResp->res);
+        return;
+    }
+    // Iterate over all retrieved ObjectPaths.
+    for (const auto& object : subtree)
+    {
+        const std::string& path = object.first;
+        BMCWEB_LOG_DEBUG("Got path: {}", path);
+        const std::vector<std::pair<std::string, std::vector<std::string>>>&
+            connectionNames = object.second;
+        if (connectionNames.empty())
+        {
+            continue;
+        }
+
+        for (const auto& connection : connectionNames)
+        {
+            auto iter = std::ranges::find(
+                connection.second, "xyz.openbmc_project.Inventory.Item.System");
+            if (iter == connection.second.end())
+            {
+                continue;
+            }
+
+            sdbusplus::asio::getAllProperties(
+                *crow::connections::systemBus, connection.first, path,
+                "xyz.openbmc_project.Inventory.Decorator.Asset",
+                [asyncResp](
+                    const boost::system::error_code& ec2,
+                    const dbus::utility::DBusPropertiesMap& propertiesList) {
+                    fillServiceRootOemProperties(asyncResp, ec2,
+                                                 propertiesList);
+                });
+        }
+    }
+}
+
+inline void handleServiceRootOem(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    constexpr std::array<std::string_view, 1> interfaces = {
+        "xyz.openbmc_project.Inventory.Decorator.Asset"};
+
+    dbus::utility::getSubTree(
+        "/xyz/openbmc_project/inventory", 0, interfaces,
+        std::bind_front(afterHandleServiceRootOem, asyncResp));
+
+    std::pair<std::string, std::string> redfishDateTimeOffset =
+        redfish::time_utils::getDateTimeOffsetNow();
+
+    asyncResp->res.jsonValue["Oem"]["IBM"]["DateTime"] =
+        redfishDateTimeOffset.first;
+    asyncResp->res.jsonValue["Oem"]["IBM"]["DateTimeLocalOffset"] =
+        redfishDateTimeOffset.second;
+    asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
+        "#IBMServiceRoot.v1_0_0.IBM";
+
+    handleACFWindowActive(asyncResp);
+}
 
 inline void handleServiceRootHead(
     App& app, const crow::Request& req,
@@ -122,6 +303,7 @@ inline void handleServiceRootGet(
     }
 
     handleServiceRootGetImpl(asyncResp);
+    handleServiceRootOem(asyncResp);
 }
 
 inline void requestRoutesServiceRoot(App& app)
