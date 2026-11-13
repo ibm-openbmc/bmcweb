@@ -8,9 +8,9 @@
 #include "error_messages.hpp"
 #include "logging.hpp"
 
+#include <boost/system/error_code.hpp>
 #include <sdbusplus/message/native_types.hpp>
 
-#include <algorithm>
 #include <array>
 #include <memory>
 #include <optional>
@@ -18,12 +18,12 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <utility>
 
 namespace redfish
 {
 
-static constexpr std::array<std::string_view, 2> chassisInterfaces = {
-    "xyz.openbmc_project.Inventory.Item.Board",
+static constexpr std::array<std::string_view, 1> chassisInterfaces = {
     "xyz.openbmc_project.Inventory.Item.Chassis"};
 
 namespace chassis_utils
