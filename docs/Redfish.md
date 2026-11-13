@@ -242,6 +242,7 @@ Fields common to all schemas
 - Manufacturer
 - Model
 - PartNumber
+- PCIeSlots
 - Power
 - PowerSubsystem
 - PowerState
@@ -294,6 +295,15 @@ Fields common to all schemas
 - PowerSupplies
 - Redundancy
 - Voltages
+
+### /redfish/v1/Chassis/{ChassisId}/PCIeSlots/
+
+#### Slots
+
+- HotPluggable
+- Lanes
+- PCIeType
+- SlotType
 
 ### /redfish/v1/Chassis/{ChassisId}/Sensors/
 
