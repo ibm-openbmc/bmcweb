@@ -36,6 +36,7 @@ feature_options = [
     'redfish-allow-simple-update',
     'redfish-bmc-journal',
     'redfish-license',
+    'redfish-chassis-state-object-fallback',
     'redfish-cpu-log',
     'redfish-dbus-log',
     'redfish-dump-log',
