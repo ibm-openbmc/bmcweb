@@ -18,6 +18,7 @@
 #include "logging.hpp"
 #include "mutual_tls.hpp"
 #include "sessions.hpp"
+#include "ssl_key_handler.hpp"
 #include "str_utility.hpp"
 #include "utility.hpp"
 
@@ -237,7 +238,10 @@ class Connection :
         buffer.consume(bytesParsed);
         if (ec)
         {
-            BMCWEB_LOG_WARNING("{} SSL handshake failed", logPtr(this));
+            BMCWEB_LOG_WARNING("{} SSL handshake failed (negotiated {})",
+                               logPtr(this),
+                               SSL_get_version(adaptor.native_handle()));
+            ensuressl::logOpenSSLErrors("server SSL handshake");
             return;
         }
         BMCWEB_LOG_DEBUG("{} SSL handshake succeeded", logPtr(this));

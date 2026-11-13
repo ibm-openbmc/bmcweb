@@ -6,11 +6,14 @@
 
 #include <openssl/ssl.h>
 
+#include <boost/asio/buffer.hpp>
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/ssl/context.hpp>
+#include <boost/system/error_code.hpp>
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace bmcweb
@@ -28,6 +31,13 @@ inline int tlsVerifyCallback([[maybe_unused]] int preverified,
     }
 
     return preverified;
+}
+
+// Returns true if the configured mTLS key or trust store location is a URI
+inline bool isUri(const std::string& location)
+{
+    return location.starts_with("handle:") ||
+           location.find("://") != std::string::npos;
 }
 
 // Callable object for SNI context factory with state
@@ -100,6 +110,12 @@ struct SniContextFactoryState
 
         // Create primary SSL context (default/non-mTLS) using ensuressl
         auto primaryCtx = ensuressl::getSslServerContext();
+        if (primaryCtx == nullptr)
+        {
+            BMCWEB_LOG_CRITICAL(
+                "Failed to build the primary SSL context; TLS is unavailable");
+            return nullptr;
+        }
 
         // Set up SNI callback to switch contexts based on hostname
         SSL_CTX_set_tlsext_servername_callback(primaryCtx->native_handle(),
@@ -107,6 +123,17 @@ struct SniContextFactoryState
         SSL_CTX_set_tlsext_servername_arg(
             primaryCtx->native_handle(),
             const_cast<SniContextFactoryState*>(this));
+
+        // Provider-backed mTLS objects (e.g. TPM handles) are provisioned
+        // outside bmcweb, so load them now: a missing one is reported at
+        // startup rather than on the first peer connection, which retries.
+        if ((isUri(mtlsCertFile) || isUri(mtlsKeyFile) ||
+             isUri(mtlsTrustStore)) &&
+            !createClientAuthContext())
+        {
+            BMCWEB_LOG_ERROR(
+                "mTLS context unavailable; peer connections use standard TLS until it loads");
+        }
 
         return primaryCtx;
     }
@@ -130,14 +157,76 @@ struct SniContextFactoryState
                 boost::asio::ssl::context::single_dh_use);
 
             BMCWEB_LOG_INFO("Loading certificate from: {}", mtlsCertFile);
-            clientAuthContext->use_certificate_chain_file(mtlsCertFile);
+            if (ensuressl::isProviderCert(mtlsCertFile))
+            {
+                // Cert lives in a provider (e.g. a TPM NV index);
+                // use_certificate_chain_file cannot read a provider, so load it
+                // via OSSL_STORE as PEM and install the buffer.
+                std::optional<std::string> pem =
+                    ensuressl::loadCertPemFromUri(mtlsCertFile);
+                if (!pem)
+                {
+                    BMCWEB_LOG_ERROR(
+                        "Failed to load mTLS server cert from URI: {}",
+                        mtlsCertFile);
+                    clientAuthContext = std::nullopt;
+                    return false;
+                }
+                boost::system::error_code ec;
+                boost::asio::const_buffer certBuf(pem->data(), pem->size());
+                clientAuthContext->use_certificate_chain(certBuf, ec);
+                if (ec)
+                {
+                    BMCWEB_LOG_ERROR("Failed to install mTLS server cert: {}",
+                                     ec.message());
+                    clientAuthContext = std::nullopt;
+                    return false;
+                }
+            }
+            else
+            {
+                clientAuthContext->use_certificate_chain_file(mtlsCertFile);
+            }
 
             BMCWEB_LOG_INFO("Loading private key from: {}", mtlsKeyFile);
-            clientAuthContext->use_private_key_file(
-                mtlsKeyFile, boost::asio::ssl::context::pem);
+            if (isUri(mtlsKeyFile))
+            {
+                if (!ensuressl::loadPrivateKeyUriIntoContext(*clientAuthContext,
+                                                             mtlsKeyFile))
+                {
+                    BMCWEB_LOG_ERROR(
+                        "Failed to load mTLS server key from URI: {}",
+                        mtlsKeyFile);
+                    clientAuthContext = std::nullopt;
+                    return false;
+                }
+            }
+            else
+            {
+                clientAuthContext->use_private_key_file(
+                    mtlsKeyFile, boost::asio::ssl::context::pem);
+            }
 
             BMCWEB_LOG_INFO("Loading trust store from: {}", mtlsTrustStore);
-            clientAuthContext->add_verify_path(mtlsTrustStore);
+            if (isUri(mtlsTrustStore))
+            {
+                // Root CAs live in a provider (e.g. TPM NV indices);
+                // add_verify_path cannot read a provider, so load each CA URI
+                // via OSSL_STORE.
+                if (!ensuressl::loadCaUrisIntoContext(*clientAuthContext,
+                                                      mtlsTrustStore))
+                {
+                    BMCWEB_LOG_ERROR(
+                        "Failed to load mTLS trust store from URI: {}",
+                        mtlsTrustStore);
+                    clientAuthContext = std::nullopt;
+                    return false;
+                }
+            }
+            else
+            {
+                clientAuthContext->add_verify_path(mtlsTrustStore);
+            }
 
             clientAuthContext->set_verify_mode(
                 boost::asio::ssl::verify_peer |
