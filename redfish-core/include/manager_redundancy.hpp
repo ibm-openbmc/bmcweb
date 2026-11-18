@@ -310,11 +310,20 @@ inline void handleManagerForceFailover(
         return;
     }
 
+    std::string newManagerId;
     boost::system::result<boost::urls::url> parsedUrl =
         boost::urls::parse_relative_ref(newManager);
-    if (!parsedUrl ||
-        crow::utility::readUrlSegments(*parsedUrl, "redfish", "v1", "Managers",
-                                       BMCWEB_REDFISH_MANAGER_URI_NAME))
+
+    if (!crow::utility::readUrlSegments(*parsedUrl, "redfish", "v1", "Managers",
+                                        std::ref(newManagerId)))
+    {
+        BMCWEB_LOG_WARNING(
+            "Invalid property value for NewManager/@odata.id: {}", newManager);
+        messages::actionParameterNotSupported(asyncResp->res, newManager,
+                                              "ForceFailover");
+        return;
+    }
+    if (newManagerId != BMCWEB_REDFISH_MANAGER_URI_NAME)
     {
         BMCWEB_LOG_WARNING(
             "Invalid property value for NewManager/@odata.id: {}", newManager);
