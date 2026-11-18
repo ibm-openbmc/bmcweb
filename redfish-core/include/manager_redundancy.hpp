@@ -225,7 +225,7 @@ inline void handleRedundancySubTree(
      */
     for (const auto& [path, services] : subtree)
     {
-        sdbusplus::message::object_path managerPath(path);
+        sdbusplus::object_path managerPath(path);
         if (managerPath.filename() == "bmc0")
         {
             // Expect a single service
@@ -302,7 +302,7 @@ inline void handleManagerForceFailover(
 
     BMCWEB_LOG_DEBUG("Post Force Failover");
 
-    std::optional<std::string> newManager;
+    std::string newManager;
 
     if (!json_util::readJsonAction(req, asyncResp->res, "NewManager/@odata.id",
                                    newManager))
@@ -311,13 +311,14 @@ inline void handleManagerForceFailover(
     }
 
     boost::system::result<boost::urls::url> parsedUrl =
-        boost::urls::parse_relative_ref(*newManager);
-    if (crow::utility::readUrlSegments(*parsedUrl, "redfish", "v1", "Managers",
+        boost::urls::parse_relative_ref(newManager);
+    if (!parsedUrl ||
+        crow::utility::readUrlSegments(*parsedUrl, "redfish", "v1", "Managers",
                                        BMCWEB_REDFISH_MANAGER_URI_NAME))
     {
         BMCWEB_LOG_WARNING(
-            "Invalid property value for NewManager/@odata.id: {}", *newManager);
-        messages::actionParameterNotSupported(asyncResp->res, *newManager,
+            "Invalid property value for NewManager/@odata.id: {}", newManager);
+        messages::actionParameterNotSupported(asyncResp->res, newManager,
                                               "ForceFailover");
         return;
     }

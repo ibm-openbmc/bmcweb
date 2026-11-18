@@ -2131,9 +2131,10 @@ inline void afterGetPowerMode(
 
     std::string powerMode;
     const std::vector<std::string>* allowedModes = nullptr;
+    std::optional<bool> safeMode;
     const bool success = sdbusplus::unpackPropertiesNoThrow(
         dbus_utils::UnpackErrorPrinter(), properties, "PowerMode", powerMode,
-        "AllowedPowerModes", allowedModes);
+        "AllowedPowerModes", allowedModes, "SafeMode", safeMode);
 
     if (!success)
     {
@@ -2173,6 +2174,14 @@ inline void afterGetPowerMode(
         return;
     }
     asyncResp->res.jsonValue["PowerMode"] = modeValue;
+
+    if (safeMode)
+    {
+        BMCWEB_LOG_DEBUG("Safe mode: {}", *safeMode);
+        nlohmann::json& oemSafeMode = asyncResp->res.jsonValue["Oem"];
+        oemSafeMode["IBM"]["@odata.type"] = "#IBMComputerSystem.v1_0_0.IBM";
+        oemSafeMode["IBM"]["SafeMode"] = *safeMode;
+    }
 }
 /**
  * @brief Retrieves system power mode
@@ -3023,6 +3032,22 @@ inline void setIdlePowerSaver(
                     "xyz.openbmc_project.Control.Power.IdlePowerSaver",
                     "Enabled", *ipsEnable);
             }
+            if (ipsExitUtil)
+            {
+                setDbusProperty(
+                    asyncResp, "IdlePowerSaver/ExitUtilizationPercent", service,
+                    path, "xyz.openbmc_project.Control.Power.IdlePowerSaver",
+                    "ExitUtilizationPercent", *ipsExitUtil);
+            }
+            if (ipsExitTime)
+            {
+                // Convert from seconds into milliseconds for DBus
+                const uint64_t timeMilliseconds = *ipsExitTime * 1000;
+                setDbusProperty(
+                    asyncResp, "IdlePowerSaver/ExitDwellTimeSeconds", service,
+                    path, "xyz.openbmc_project.Control.Power.IdlePowerSaver",
+                    "ExitDwellTime", timeMilliseconds);
+            }
             if (ipsEnterUtil)
             {
                 setDbusProperty(
@@ -3039,22 +3064,6 @@ inline void setIdlePowerSaver(
                     asyncResp, "IdlePowerSaver/EnterDwellTimeSeconds", service,
                     path, "xyz.openbmc_project.Control.Power.IdlePowerSaver",
                     "EnterDwellTime", timeMilliseconds);
-            }
-            if (ipsExitUtil)
-            {
-                setDbusProperty(
-                    asyncResp, "IdlePowerSaver/ExitUtilizationPercent", service,
-                    path, "xyz.openbmc_project.Control.Power.IdlePowerSaver",
-                    "ExitUtilizationPercent", *ipsExitUtil);
-            }
-            if (ipsExitTime)
-            {
-                // Convert from seconds into milliseconds for DBus
-                const uint64_t timeMilliseconds = *ipsExitTime * 1000;
-                setDbusProperty(
-                    asyncResp, "IdlePowerSaver/ExitDwellTimeSeconds", service,
-                    path, "xyz.openbmc_project.Control.Power.IdlePowerSaver",
-                    "ExitDwellTime", timeMilliseconds);
             }
         });
 
