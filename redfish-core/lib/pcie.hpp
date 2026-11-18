@@ -19,6 +19,7 @@
 #include "registries/privilege_registry.hpp"
 #include "utils/asset_utils.hpp"
 #include "utils/dbus_utils.hpp"
+#include "utils/json_utils.hpp"
 #include "utils/name_utils.hpp"
 #include "utils/pcie_util.hpp"
 #include "utils/processor_utils.hpp"
@@ -286,6 +287,36 @@ inline void addPCIeSlotProperties(
     }
 }
 
+inline void addPCIeSlotLinkResetProperties(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec,
+    const dbus::utility::DBusPropertiesMap& pcieSlotProperties)
+{
+    if (ec)
+    {
+        BMCWEB_LOG_ERROR("DBUS response error for getAllProperties {}",
+                         ec.value());
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    std::optional<bool> linkReset;
+    bool success = sdbusplus::unpackPropertiesNoThrow(
+        dbus_utils::UnpackErrorPrinter(), pcieSlotProperties, "linkReset",
+        linkReset);
+    if (!success)
+    {
+        messages::internalError(asyncResp->res);
+        return;
+    }
+    if (linkReset)
+    {
+        asyncResp->res.jsonValue["Oem"]["IBM"]["LinkReset"] = *linkReset;
+        asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
+            "#IBMPCIeDevice.v1_0_0.IBM";
+    }
+}
+
 inline void getPCIeDeviceSlotPath(
     const std::string& pcieDevicePath,
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -392,6 +423,17 @@ inline void afterGetDbusObject(
                     "LocationCode",
                     std::bind_front(afterGetLocationCode, asyncResp));
             }
+            else if (interface == "com.ibm.Control.Host.PCIeLink")
+            {
+                dbus::utility::getAllProperties(
+                    service, pcieDeviceSlot, "com.ibm.Control.Host.PCIeLink",
+                    [asyncResp](const boost::system::error_code& ec2,
+                                const dbus::utility::DBusPropertiesMap&
+                                    pcieSlotProperties) {
+                        addPCIeSlotLinkResetProperties(asyncResp, ec2,
+                                                       pcieSlotProperties);
+                    });
+            }
         }
     }
 }
@@ -400,9 +442,10 @@ inline void afterGetPCIeDeviceSlotPath(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     const std::string& pcieDeviceSlot)
 {
-    static constexpr std::array<std::string_view, 2> pcieSlotInterfaces = {
+    static constexpr std::array<std::string_view, 3> pcieSlotInterfaces = {
         "xyz.openbmc_project.Inventory.Item.PCIeSlot",
-        "xyz.openbmc_project.Inventory.Decorator.LocationCode"};
+        "xyz.openbmc_project.Inventory.Decorator.LocationCode",
+        "com.ibm.Control.Host.PCIeLink"};
     dbus::utility::getDbusObject(
         pcieDeviceSlot, pcieSlotInterfaces,
         [asyncResp,
@@ -653,12 +696,116 @@ inline void handlePCIeDeviceGet(
         std::bind_front(afterGetValidPcieDevicePath, asyncResp, pcieDeviceId));
 }
 
+/**
+ * @brief Set linkReset property
+ *
+ * @param[in, out]  asyncResp       Async HTTP response.
+ * @param[in]       pcieSlotPath    PCIe slot path.
+ * @param[in]       serviceMap      A map to hold Service and corresponding
+ * interface list for the given cable id.
+ * @param[in]       linkReset       Flag to reset.
+ */
+inline void handleLinkReset(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                            const std::string& pcieSlotPath,
+                            const bool linkReset,
+                            const boost::system::error_code& ec,
+                            const dbus::utility::MapperGetObject& object)
+{
+    if (ec)
+    {
+        BMCWEB_LOG_ERROR("DBUS response ec={} for getAllProperties",
+                         ec.value());
+        messages::internalError(asyncResp->res);
+        return;
+    }
+    for (const auto& [service, interfaces] : object)
+    {
+        for (const auto& interface : interfaces)
+        {
+            if (interface != "com.ibm.Control.Host.PCIeLink")
+            {
+                continue;
+            }
+
+            setDbusProperty(asyncResp, "Oem/IBM/LinkReset", service,
+                            sdbusplus::object_path{pcieSlotPath}, interface,
+                            "linkReset", linkReset);
+        }
+    }
+}
+
+inline void afterHandlePCIeDevicePatch(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, bool linkReset,
+    const std::string& pcieDevicePath, const std::string& /*service*/)
+{
+    static constexpr std::array<std::string_view, 1> pcieSlotInterface = {
+        "xyz.openbmc_project.Inventory.Item.PCIeSlot"};
+
+    getPCIeDeviceSlotPath(
+        pcieDevicePath, asyncResp,
+        [asyncResp, linkReset](const std::string& pcieDeviceSlot) {
+            dbus::utility::getDbusObject(
+                pcieDeviceSlot, pcieSlotInterface,
+                [asyncResp, pcieDeviceSlot,
+                 linkReset](const boost::system::error_code& ec,
+                            const dbus::utility::MapperGetObject& object) {
+                    handleLinkReset(asyncResp, pcieDeviceSlot, linkReset, ec,
+                                    object);
+                });
+        });
+}
+
+inline void handlePCIeDevicePatch(
+    App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& systemName, const std::string& pcieDeviceId)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+    if constexpr (BMCWEB_EXPERIMENTAL_REDFISH_MULTI_COMPUTER_SYSTEM)
+    {
+        // Option currently returns no systems.  TBD
+        messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                   systemName);
+        return;
+    }
+    if (systemName != BMCWEB_REDFISH_SYSTEM_URI_NAME)
+    {
+        messages::resourceNotFound(asyncResp->res, "ComputerSystem",
+                                   systemName);
+        return;
+    }
+
+    std::optional<bool> linkReset;
+    if (!json_util::readJsonPatch(req, asyncResp->res, "Oem/IBM/LinkReset",
+                                  linkReset))
+    {
+        return;
+    }
+    if (!linkReset)
+    {
+        messages::propertyMissing(asyncResp->res, "LinkReset");
+        return;
+    }
+
+    getValidPCIeDevicePath(
+        pcieDeviceId, asyncResp,
+        std::bind_front(afterHandlePCIeDevicePatch, asyncResp, *linkReset));
+}
+
 inline void requestRoutesSystemPCIeDevice(App& app)
 {
     BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/PCIeDevices/<str>/")
         .privileges(redfish::privileges::getPCIeDevice)
         .methods(boost::beast::http::verb::get)(
             std::bind_front(handlePCIeDeviceGet, std::ref(app)));
+
+    BMCWEB_ROUTE(app, "/redfish/v1/Systems/<str>/PCIeDevices/<str>/")
+        .privileges(redfish::privileges::patchPCIeDevice)
+        .methods(boost::beast::http::verb::patch)(
+            std::bind_front(handlePCIeDevicePatch, std::ref(app)));
 }
 
 inline void addPCIeFunctionList(
