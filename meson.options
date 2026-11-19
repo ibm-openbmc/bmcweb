@@ -557,6 +557,14 @@ option(
     description: 'Enable HTTP/2 protocol support using nghttp2.',
 )
 
+# BMCWEB_HW_ISOLATION
+option(
+    'hw-isolation',
+    type: 'feature',
+    value: 'enabled',
+    description: 'Enable the Hardware Isolation feature',
+)
+
 # BMCWEB_WATCHDOG_TIMEOUT
 option(
     'watchdog-timeout-seconds',

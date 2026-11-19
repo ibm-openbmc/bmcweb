@@ -14,6 +14,7 @@ feature_options = [
     'host-serial-socket',
     'http-zstd',
     'http2',
+    'hw-isolation',
     'hypervisor-computer-system',
     'ibm-management-console',
     'ibm-usb-code-update',
