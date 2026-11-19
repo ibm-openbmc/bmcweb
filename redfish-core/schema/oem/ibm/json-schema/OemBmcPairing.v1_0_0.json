@@ -1,0 +1,84 @@
+{
+    "$id": "https://github.com/ibm-openbmc/bmcweb/tree/HEAD/redfish-core/schema/oem/ibm/json-schema/OemBmcPairing.v1_0_0.json",
+    "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
+    "Copyright": "Copyright 2026 OpenBMC.",
+    "definitions": {
+        "BmcPairing": {
+            "additionalProperties": false,
+            "description": "BMC Pairing information",
+            "patternProperties": {
+                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
+                    "description": "This property shall specify a valid odata or Redfish property.",
+                    "type": [
+                        "array",
+                        "boolean",
+                        "integer",
+                        "number",
+                        "null",
+                        "object",
+                        "string"
+                    ]
+                }
+            },
+            "properties": {
+                "Paired": {
+                    "description": "Indicates whether this BMC is paired with another BMC",
+                    "longDescription": "This property shall indicate whether this BMC is currently paired with another BMC. A value of true indicates the BMC is paired, false indicates it is not paired.",
+                    "type": "boolean",
+                    "readonly": true
+                },
+                "AvailableBmcs": {
+                    "description": "The names of BMCs that are available for pairing",
+                    "longDescription": "This property shall contain an array of names of BMCs that are discovered and available for pairing with this BMC. This array may be empty if no BMCs are currently available for pairing.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "readonly": true
+                }
+            },
+            "type": "object"
+        },
+        "Pair": {
+            "additionalProperties": false,
+            "description": "This action pairs this BMC with another BMC",
+            "parameters": {
+                "BmcName": {
+                    "description": "The name of the BMC to pair with",
+                    "longDescription": "This parameter shall contain the name or identifier of the BMC to establish pairing with.",
+                    "requiredParameter": true,
+                    "type": "string"
+                }
+            },
+            "patternProperties": {
+                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
+                    "description": "This property shall specify a valid odata or Redfish property.",
+                    "type": [
+                        "array",
+                        "boolean",
+                        "integer",
+                        "number",
+                        "null",
+                        "object",
+                        "string"
+                    ]
+                }
+            },
+            "properties": {
+                "target": {
+                    "description": "Link to invoke action",
+                    "format": "uri-reference",
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Friendly action name",
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        }
+    },
+    "OwningEntity": "OpenBMC",
+    "release": "1.0",
+    "title": "#OemBmcPairing.v1_0_0"
+}

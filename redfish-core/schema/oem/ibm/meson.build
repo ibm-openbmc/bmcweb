@@ -8,6 +8,7 @@ schemas = [
     'IBMPCIeDevice',
     'IBMPCIeSlots',
     'IBMServiceRoot',
+    'OemBmcPairing',
     'OemUpdateService',
 ]
 
