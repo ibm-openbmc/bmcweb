@@ -198,6 +198,14 @@ inline void handleSystemsLogServiceCollectionGet(
                 }
             }
         });
+
+    if constexpr (BMCWEB_AUDIT_EVENTS)
+    {
+        nlohmann::json::object_t auditLog;
+        auditLog["@odata.id"] =
+            "/redfish/v1/Systems/system/LogServices/AuditLog";
+        logServiceArray.push_back(std::move(auditLog));
+    }
 }
 
 inline void handleManagersLogServicesCollectionGet(
