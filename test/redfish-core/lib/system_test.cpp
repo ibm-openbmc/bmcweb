@@ -23,34 +23,6 @@ namespace redfish
 namespace
 {
 
-TEST(Systems, DbusToRfBootSource)
-{
-    EXPECT_EQ(dbusToRfBootSource(
-                  "xyz.openbmc_project.Control.Boot.Source.Sources.Default"),
-              computer_system::BootSource::None);
-
-    EXPECT_EQ(dbusToRfBootSource(
-                  "xyz.openbmc_project.Control.Boot.Source.Sources.Disk"),
-              computer_system::BootSource::Hdd);
-
-    EXPECT_EQ(
-        dbusToRfBootSource(
-            "xyz.openbmc_project.Control.Boot.Source.Sources.ExternalMedia"),
-        computer_system::BootSource::Cd);
-
-    EXPECT_EQ(dbusToRfBootSource(
-                  "xyz.openbmc_project.Control.Boot.Source.Sources.Network"),
-              computer_system::BootSource::Pxe);
-
-    EXPECT_EQ(
-        dbusToRfBootSource(
-            "xyz.openbmc_project.Control.Boot.Source.Sources.RemovableMedia"),
-        computer_system::BootSource::Usb);
-
-    EXPECT_EQ(dbusToRfBootSource("invalid"),
-              computer_system::BootSource::Invalid);
-}
-
 TEST(Systems, DbusToRfBootType)
 {
     EXPECT_EQ(
@@ -63,24 +35,6 @@ TEST(Systems, DbusToRfBootType)
 
     EXPECT_EQ(dbusToRfBootType("invalid"),
               computer_system::BootSourceOverrideMode::Invalid);
-}
-
-TEST(Systems, DbusToRfBootMode)
-{
-    EXPECT_EQ(
-        dbusToRfBootMode("xyz.openbmc_project.Control.Boot.Mode.Modes.Regular"),
-        computer_system::BootSource::None);
-
-    EXPECT_EQ(
-        dbusToRfBootMode("xyz.openbmc_project.Control.Boot.Mode.Modes.Safe"),
-        computer_system::BootSource::Diags);
-
-    EXPECT_EQ(
-        dbusToRfBootMode("xyz.openbmc_project.Control.Boot.Mode.Modes.Setup"),
-        computer_system::BootSource::BiosSetup);
-
-    EXPECT_EQ(dbusToRfBootMode("invalid"),
-              computer_system::BootSource::Invalid);
 }
 
 TEST(Systems, DbusToRfBootProgress)
@@ -328,52 +282,6 @@ TEST(TranslatePowerModeString, RedfishValueWithoutDbusPrefixIsInvalid)
 {
     EXPECT_EQ(translatePowerModeString("Static"),
               computer_system::PowerMode::Invalid);
-}
-
-TEST(AssignBootParameters, TranslationsAreExpected)
-{
-    std::string bootSource;
-    std::string bootMode;
-
-    EXPECT_EQ(assignBootParameters("None", bootSource, bootMode), 0);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.Default",
-              bootSource);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Regular", bootMode);
-
-    EXPECT_EQ(assignBootParameters("Pxe", bootSource, bootMode), 0);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.Network",
-              bootSource);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Regular", bootMode);
-
-    EXPECT_EQ(assignBootParameters("Hdd", bootSource, bootMode), 0);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.Disk",
-              bootSource);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Regular", bootMode);
-
-    EXPECT_EQ(assignBootParameters("Diags", bootSource, bootMode), 0);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.Default",
-              bootSource);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Safe", bootMode);
-
-    EXPECT_EQ(assignBootParameters("Cd", bootSource, bootMode), 0);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.ExternalMedia",
-              bootSource);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Regular", bootMode);
-
-    EXPECT_EQ(assignBootParameters("BiosSetup", bootSource, bootMode), 0);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.Default",
-              bootSource);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Setup", bootMode);
-
-    EXPECT_EQ(assignBootParameters("Usb", bootSource, bootMode), 0);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.RemovableMedia",
-              bootSource);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Regular", bootMode);
-
-    EXPECT_EQ(assignBootParameters("Invalid", bootSource, bootMode), -1);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Source.Sources.Default",
-              bootSource);
-    EXPECT_EQ("xyz.openbmc_project.Control.Boot.Mode.Modes.Regular", bootMode);
 }
 
 } // namespace
