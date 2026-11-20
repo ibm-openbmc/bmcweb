@@ -10,12 +10,15 @@
 #include "dbus_singleton.hpp"
 #include "dbus_utility.hpp"
 #include "error_messages.hpp"
+#include "generated/enums/oem_update_service.hpp"
 #include "generated/enums/resource.hpp"
 #include "generated/enums/update_service.hpp"
 #include "http_request.hpp"
 #include "http_response.hpp"
 #include "io_context_singleton.hpp"
 #include "logging.hpp"
+#include "manager_redundancy.hpp"
+#include "managers.hpp"
 #include "multipart_parser.hpp"
 #include "ossl_random.hpp"
 #include "query.hpp"
@@ -29,6 +32,7 @@
 #include "utils/json_utils.hpp"
 #include "utils/sw_utils.hpp"
 
+#include <asm-generic/errno.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -648,6 +652,81 @@ inline void uploadImageFile(crow::Response& res, std::string_view body)
     }
 }
 
+inline oem_update_service::BootSide dbusBootSideToRf(
+    const std::string& bootSide)
+{
+    if (bootSide == "xyz.openbmc_project.Software.BootSide.BootSides.Temp")
+    {
+        return oem_update_service::BootSide::Temp;
+    }
+    if (bootSide == "xyz.openbmc_project.Software.BootSide.BootSides.Perm")
+    {
+        return oem_update_service::BootSide::Perm;
+    }
+    BMCWEB_LOG_WARNING("Unrecognized BootSide value from D-Bus: {}", bootSide);
+    return oem_update_service::BootSide::Unknown;
+}
+
+inline std::optional<std::string> rfBootSideToDbus(const std::string& bootSide)
+{
+    if (bootSide == "Temp")
+    {
+        return "xyz.openbmc_project.Software.BootSide.BootSides.Temp";
+    }
+    if (bootSide == "Perm")
+    {
+        return "xyz.openbmc_project.Software.BootSide.BootSides.Perm";
+    }
+    // Code update does not accept anything beyond Temp and Perm
+    return std::nullopt;
+}
+
+inline void afterSetNextBootSide(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& bootSideValue, const boost::system::error_code& ec,
+    const std::string& role)
+{
+    if (ec)
+    {
+        if (ec.value() == EBADR)
+        {
+            messages::propertyUnknown(asyncResp->res, "NextBootSide");
+            return;
+        }
+        BMCWEB_LOG_ERROR("D-Bus error {}", ec);
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    // Only the Active BMC can write NextBootSide
+    if (role != "xyz.openbmc_project.State.BMC.Redundancy.Role.Active")
+    {
+        messages::propertyNotWritable(asyncResp->res, "NextBootSide");
+        return;
+    }
+
+    setDbusProperty(asyncResp, "NextBootSide", getBMCUpdateServiceName(),
+                    getBMCUpdateServicePath(),
+                    "xyz.openbmc_project.Software.BootSide", "NextBootSide",
+                    bootSideValue);
+}
+
+inline void setNextBootSide(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                            const std::string& nextBootSide)
+{
+    std::optional<std::string> bootSideValue = rfBootSideToDbus(nextBootSide);
+    if (!bootSideValue)
+    {
+        messages::propertyValueNotInList(asyncResp->res, nextBootSide,
+                                         "NextBootSide");
+        return;
+    }
+
+    // Only the Active BMC can write to NextBootSide
+    getManagerRole(
+        std::bind_front(afterSetNextBootSide, asyncResp, *bootSideValue));
+}
+
 // Convert the Request Apply Time to the D-Bus value
 inline bool convertApplyTime(crow::Response& res, const std::string& applyTime,
                              std::string& applyTimeNewVal)
@@ -887,6 +966,56 @@ inline void startUpdate(
         sdbusplus::message::unix_fd(memfd.fd), applyTime);
 }
 
+inline void afterGetBootSideInfo(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec,
+    const dbus::utility::DBusPropertiesMap& properties)
+{
+    if (ec)
+    {
+        if (ec.value() != EBADR)
+        {
+            BMCWEB_LOG_ERROR("D-Bus response error {}", ec);
+            messages::internalError(asyncResp->res);
+            return;
+        }
+        BMCWEB_LOG_DEBUG("Can't get BootSide properties {}", ec);
+        return;
+    }
+
+    const std::string* currentBootSide = nullptr;
+    const std::string* nextBootSide = nullptr;
+    const bool success = sdbusplus::unpackPropertiesNoThrow(
+        dbus_utils::UnpackErrorPrinter(), properties, "CurrentBootSide",
+        currentBootSide, "NextBootSide", nextBootSide);
+
+    if (!success)
+    {
+        messages::internalError(asyncResp->res);
+        return;
+    }
+
+    if (currentBootSide != nullptr)
+    {
+        asyncResp->res.jsonValue["Oem"]["IBM"]["CurrentBootSide"] =
+            dbusBootSideToRf(*currentBootSide);
+    }
+    if (nextBootSide != nullptr)
+    {
+        asyncResp->res.jsonValue["Oem"]["IBM"]["NextBootSide"] =
+            dbusBootSideToRf(*nextBootSide);
+    }
+}
+
+inline void getBootSideInfo(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                            const std::string& service,
+                            const std::string& objPath)
+{
+    dbus::utility::getAllProperties(
+        service, objPath, "xyz.openbmc_project.Software.BootSide",
+        std::bind_front(afterGetBootSideInfo, asyncResp));
+}
+
 inline void getSwInfo(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
                       task::Payload payload, const MemoryFileDescriptor& memfd,
                       const std::string& applyTime, const std::string& target,
@@ -1061,7 +1190,8 @@ inline void processUpdateRequest(
 }
 
 inline void updateMultipartContext(
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, crow::Request& req)
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, crow::Request& req,
+    const std::string& url)
 {
     std::optional<MultiPartUpdate> multipart =
         extractMultipartUpdateParameters(asyncResp, req);
@@ -1094,15 +1224,14 @@ inline void updateMultipartContext(
         setApplyTime(asyncResp, *multipart->params.applyTime);
 
         // Setup callback for when new software detected
-        monitorForSoftwareAvailable(asyncResp, req,
-                                    "/redfish/v1/UpdateService");
+        monitorForSoftwareAvailable(asyncResp, req, url);
 
         uploadImageFile(asyncResp->res, multipart->uploadData);
     }
 }
 
 inline void doHTTPUpdate(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                         const crow::Request& req)
+                         const crow::Request& req, const std::string& url)
 {
     if constexpr (BMCWEB_REDFISH_UPDATESERVICE_USE_DBUS)
     {
@@ -1121,8 +1250,7 @@ inline void doHTTPUpdate(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
     else
     {
         // Setup callback for when new software detected
-        monitorForSoftwareAvailable(asyncResp, req,
-                                    "/redfish/v1/UpdateService");
+        monitorForSoftwareAvailable(asyncResp, req, url);
 
         uploadImageFile(asyncResp->res, req.body());
     }
@@ -1130,7 +1258,7 @@ inline void doHTTPUpdate(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 
 inline void handleUpdateServicePost(
     App& app, const crow::Request& req,
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, const std::string& url)
 {
     if (!redfish::setUpRedfishRoute(app, req, asyncResp))
     {
@@ -1153,19 +1281,39 @@ inline void handleUpdateServicePost(
                                 std::format("Content-Type: {}", contentType));
         return;
     }
-    doHTTPUpdate(asyncResp, req);
+    doHTTPUpdate(asyncResp, req, url);
 }
 
 inline void handleUpdateServiceMultipartUpdatePost(
     App& app, crow::Request& req,
-    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, const std::string& url)
 {
     if (!redfish::setUpRedfishRoute(app, req, asyncResp))
     {
         return;
     }
 
-    updateMultipartContext(asyncResp, req);
+    updateMultipartContext(asyncResp, req, url);
+}
+
+/**
+ * UpdateServiceActionsOemConcurrentUpdate class supports handle POST method for
+ * concurrent update action.
+ */
+inline void requestRoutesUpdateServiceActionsOemConcurrentUpdate(App& app)
+{
+    BMCWEB_ROUTE(
+        app,
+        "/redfish/v1/UpdateService/Actions/Oem/OemUpdateService.ConcurrentUpdate/")
+        .privileges(redfish::privileges::postUpdateService)
+        .methods(boost::beast::http::verb::post)(std::bind_front(
+            [&app](App&, const crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+                handleUpdateServicePost(
+                    app, req, asyncResp,
+                    "/redfish/v1/UpdateService/Actions/Oem/OemUpdateService.ConcurrentUpdate");
+            },
+            std::ref(app)));
 }
 
 inline void handleUpdateServiceGet(
@@ -1195,6 +1343,20 @@ inline void handleUpdateServiceGet(
     // Get the MaxImageSizeBytes
     asyncResp->res.jsonValue["MaxImageSizeBytes"] =
         BMCWEB_HTTP_BODY_LIMIT * 1024 * 1024;
+    nlohmann::json& updateSvcConUpdate =
+        asyncResp->res.jsonValue["Actions"]["Oem"]
+                                ["#OemUpdateService.v1_0_0.ConcurrentUpdate"];
+    updateSvcConUpdate["target"] =
+        "/redfish/v1/UpdateService/Actions/Oem/OemUpdateService.ConcurrentUpdate";
+
+    asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
+        "#OemUpdateService.v1_0_0.IBM";
+    asyncResp->res.jsonValue["Oem"]["IBM"]["CurrentBootSide"] =
+        oem_update_service::BootSide::Unknown;
+    asyncResp->res.jsonValue["Oem"]["IBM"]["NextBootSide"] =
+        oem_update_service::BootSide::Unknown;
+    getBootSideInfo(asyncResp, getBMCUpdateServiceName(),
+                    getBMCUpdateServicePath());
 
     if constexpr (BMCWEB_REDFISH_ALLOW_SIMPLE_UPDATE)
     {
@@ -1213,6 +1375,35 @@ inline void handleUpdateServiceGet(
     asyncResp->res
         .jsonValue["HttpPushUriOptions"]["HttpPushUriApplyTime"]["ApplyTime"] =
         update_service::ApplyTime::Immediate;
+}
+
+inline void handleUpdateServicePatch(
+    App& app, const crow::Request& req,
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    if (!redfish::setUpRedfishRoute(app, req, asyncResp))
+    {
+        return;
+    }
+    BMCWEB_LOG_DEBUG("doPatch...");
+
+    std::optional<std::string> oemCurrentBootSide;
+    std::optional<std::string> oemNextBootSide;
+    if (!json_util::readJsonPatch(req, asyncResp->res,
+                                  "Oem/IBM/CurrentBootSide", oemCurrentBootSide,
+                                  "Oem/IBM/NextBootSide", oemNextBootSide))
+    {
+        return;
+    }
+
+    if (oemCurrentBootSide)
+    {
+        messages::propertyNotWritable(asyncResp->res, "CurrentBootSide");
+    }
+    if (oemNextBootSide)
+    {
+        setNextBootSide(asyncResp, *oemNextBootSide);
+    }
 }
 
 inline void handleUpdateServiceFirmwareInventoryCollectionGet(
@@ -1435,15 +1626,30 @@ inline void requestRoutesUpdateService(App& app)
         .methods(boost::beast::http::verb::get)(
             std::bind_front(handleUpdateServiceGet, std::ref(app)));
 
+    BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/")
+        .privileges(redfish::privileges::patchUpdateService)
+        .methods(boost::beast::http::verb::patch)(
+            std::bind_front(handleUpdateServicePatch, std::ref(app)));
+
     BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/update/")
         .privileges(redfish::privileges::postUpdateService)
-        .methods(boost::beast::http::verb::post)(
-            std::bind_front(handleUpdateServicePost, std::ref(app)));
+        .methods(boost::beast::http::verb::post)(std::bind_front(
+            [&app](App&, const crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+                handleUpdateServicePost(app, req, asyncResp,
+                                        "/redfish/v1/UpdateService");
+            },
+            std::ref(app)));
 
     BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/update-multipart/")
         .privileges(redfish::privileges::postUpdateService)
         .methods(boost::beast::http::verb::post)(std::bind_front(
-            handleUpdateServiceMultipartUpdatePost, std::ref(app)));
+            [&app](App&, crow::Request& req,
+                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+                handleUpdateServiceMultipartUpdatePost(
+                    app, req, asyncResp, "/redfish/v1/UpdateService");
+            },
+            std::ref(app)));
 
     BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/FirmwareInventory/")
         .privileges(redfish::privileges::getSoftwareInventoryCollection)
