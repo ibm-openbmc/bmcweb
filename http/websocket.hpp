@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <memory>
+#include <string>
 #include <string_view>
 
 namespace crow
@@ -27,6 +28,8 @@ struct Connection : std::enable_shared_from_this<Connection>
     Connection(Connection&&) = delete;
     Connection& operator=(const Connection&) = delete;
     Connection& operator=(const Connection&&) = delete;
+
+    virtual const std::string& getUserName() const = 0;
 
     virtual void sendBinary(std::string_view msg) = 0;
     virtual void sendEx(MessageType type, std::string_view msg,
