@@ -28,6 +28,11 @@
         <Annotation Term="OData.AdditionalProperties" Bool="true"/>
         <Annotation Term="OData.Description" String="Oem properties for IBM."/>
         <Annotation Term="OData.AutoExpand"/>
+        <Property Name="SafeMode" Type="Edm.Boolean">
+          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+          <Annotation Term="OData.Description" String="An indication of whether safe mode is active."/>
+          <Annotation Term="OData.LongDescription" String="The value of this property shall indicate if safe mode is active."/>
+        </Property>
       </ComplexType>
       <Action Name="ExecutePanelFunction" IsBound="true">
         <Annotation Term="OData.Description" String="This action executes a panel function."/>
