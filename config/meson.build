@@ -15,6 +15,7 @@ feature_options = [
     'http-zstd',
     'http2',
     'hypervisor-computer-system',
+    'ibm-led-extensions',
     'ibm-management-console',
     'ibm-usb-code-update',
     'insecure-disable-auth',

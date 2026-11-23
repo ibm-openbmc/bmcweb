@@ -52,6 +52,24 @@
                 }
             },
             "properties": {
+                "LampTest": {
+                    "description": "An indicator allowing an operator to run LED lamp test.",
+                    "longDescription": "This property shall contain the state of lamp state function for this resource.",
+                    "readonly": false,
+                    "type": ["boolean", "null"]
+                },
+                "PartitionSystemAttentionIndicator": {
+                    "description": "An indicator allowing an operator to operate partition system attention.",
+                    "longDescription": "This property shall contain the state of the partition system attention of this resource.",
+                    "readonly": false,
+                    "type": ["boolean", "null"]
+                },
+                "PlatformSystemAttentionIndicator": {
+                    "description": "An indicator allowing an operator to operate platform system attention.",
+                    "longDescription": "This property shall contain the state of the platform system attention of this resource.",
+                    "readonly": false,
+                    "type": ["boolean", "null"]
+                },
                 "EnabledPanelFunctions": {
                     "description": "Enabled Panel functions",
                     "longDescription": "This property shall contain the list of enabled panel functions.",

@@ -286,6 +286,14 @@ option(
     description: 'Enable the USB code update functionality',
 )
 
+# BMCWEB_IBM_LED_EXTENSIONS
+option(
+    'ibm-led-extensions',
+    type: 'feature',
+    value: 'enabled',
+    description: 'Enable the IBM LED extensions such as lamp test and system attention indicators.',
+)
+
 # BMCWEB_IBM_MANAGEMENT_CONSOLE
 option(
     'ibm-management-console',
