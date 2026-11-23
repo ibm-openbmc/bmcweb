@@ -8,9 +8,9 @@
 #include "error_messages.hpp"
 #include "logging.hpp"
 
+#include <boost/system/error_code.hpp>
 #include <sdbusplus/message/native_types.hpp>
 
-#include <algorithm>
 #include <array>
 #include <memory>
 #include <optional>
@@ -18,6 +18,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <utility>
 
 namespace redfish
 {
