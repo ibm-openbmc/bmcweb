@@ -18,8 +18,11 @@
 #include "utils/systemd_utils.hpp"
 #include "utils/time_utils.hpp"
 
+#include <asm-generic/errno.h>
+
 #include <boost/beast/http/field.hpp>
 #include <boost/beast/http/verb.hpp>
+#include <boost/system/error_code.hpp>
 #include <boost/url/format.hpp>
 #include <nlohmann/json.hpp>
 #include <sdbusplus/asio/property.hpp>
@@ -35,6 +38,69 @@
 
 namespace redfish
 {
+
+inline void afterGetPanelAppACFWindowActive(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec, const bool isACFWindowActive)
+{
+    if (ec)
+    {
+        BMCWEB_LOG_ERROR("Failed to read ACFWindowActive property");
+        // Default value when panel app is unreachable.
+        asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] = false;
+        return;
+    }
+    asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
+        isACFWindowActive;
+}
+
+inline void afterHandleACFWindowActive(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const boost::system::error_code& ec, const bool allowUnauthACFUpload)
+{
+    if (ec)
+    {
+        if (ec.value() != EBADR)
+        {
+            BMCWEB_LOG_ERROR(
+                "D-Bus response error reading allow_unauth_upload: {}",
+                ec.value());
+            messages::internalError(asyncResp->res);
+        }
+        return;
+    }
+
+    if (allowUnauthACFUpload)
+    {
+        asyncResp->res.jsonValue["Oem"]["IBM"]["ACFWindowActive"] =
+            allowUnauthACFUpload;
+        return;
+    }
+
+    // Check D-Bus property ACFWindowActive
+    dbus::utility::getProperty<bool>(
+        "com.ibm.PanelApp", "/com/ibm/panel_app", "com.ibm.panel",
+        "ACFWindowActive",
+        std::bind_front(afterGetPanelAppACFWindowActive, asyncResp));
+}
+
+inline void handleACFWindowActive(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+{
+    // Redfish property ACFWindowActive=true when either of these is true:
+    //  - D-Bus property allow_unauth_upload.  (This is aka the Redfish
+    //    property AllowUnauthACFUpload which the BMC admin can control.)
+    //  - D-Bus property ACFWindowActive.  (This is aka the Redfish
+    //    property ACFWindowActive under /redfish/v1/AccountService/
+    //    Accounts/service property Oem.IBM.ACF.  The value is provided by
+    //    the PanelApp and is true when panel function 74 is active.)
+    // Check D-Bus property allow_unauth_upload first.
+    dbus::utility::getProperty<bool>(
+        "xyz.openbmc_project.Settings",
+        "/xyz/openbmc_project/ibmacf/allow_unauth_upload",
+        "xyz.openbmc_project.Object.Enable", "Enabled",
+        std::bind_front(afterHandleACFWindowActive, asyncResp));
+}
 
 inline void fillServiceRootOemProperties(
     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
@@ -136,9 +202,10 @@ inline void handleServiceRootOem(
         redfishDateTimeOffset.first;
     asyncResp->res.jsonValue["Oem"]["IBM"]["DateTimeLocalOffset"] =
         redfishDateTimeOffset.second;
-
     asyncResp->res.jsonValue["Oem"]["IBM"]["@odata.type"] =
         "#IBMServiceRoot.v1_0_0.IBM";
+
+    handleACFWindowActive(asyncResp);
 }
 
 inline void handleServiceRootHead(
