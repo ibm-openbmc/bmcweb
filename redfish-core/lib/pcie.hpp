@@ -18,6 +18,7 @@
 #include "query.hpp"
 #include "registries/privilege_registry.hpp"
 #include "utils/asset_utils.hpp"
+#include "utils/chassis_utils.hpp"
 #include "utils/dbus_utils.hpp"
 #include "utils/json_utils.hpp"
 #include "utils/name_utils.hpp"
@@ -163,6 +164,55 @@ inline void requestRoutesSystemPCIeDeviceCollection(App& app)
         .privileges(redfish::privileges::getPCIeDeviceCollection)
         .methods(boost::beast::http::verb::get)(
             std::bind_front(handlePCIeDeviceCollectionGet, std::ref(app)));
+}
+
+inline void afterAddLinkToPCIeSlot(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& pcieDeviceSlot, const boost::system::error_code& ec,
+    const dbus::utility::MapperEndPoints& chassisPaths)
+{
+    if (ec)
+    {
+        if (ec.value() == EBADR)
+        {
+            // This PCIeSlot has no chassis association.
+            return;
+        }
+        BMCWEB_LOG_ERROR("DBUS response ec={} for slot path={}", ec,
+                         pcieDeviceSlot);
+        messages::internalError(asyncResp->res);
+        return;
+    }
+    if (chassisPaths.size() != 1)
+    {
+        BMCWEB_LOG_ERROR(
+            "Association error for PCIeSlot:{} to chassis error. Its association count:{} is not equal to 1.",
+            pcieDeviceSlot, chassisPaths.size());
+        for (const auto& chassisPath : chassisPaths)
+        {
+            BMCWEB_LOG_ERROR("Invalid chassisPath: {}", chassisPath);
+        }
+        messages::internalError(asyncResp->res);
+        return;
+    }
+    sdbusplus::message::object_path path(chassisPaths[0]);
+    std::string chassisName = path.filename();
+
+    asyncResp->res.jsonValue["Links"]["Oem"]["IBM"]["@odata.type"] =
+        "#IBMPCIeDevice.v1_0_0.PCIeLinks";
+    asyncResp->res.jsonValue["Links"]["Oem"]["IBM"]["PCIeSlot"]["@odata.id"] =
+        boost::urls::format("/redfish/v1/Chassis/{}/PCIeSlots", chassisName);
+}
+
+inline void addLinkToPCIeSlot(
+    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+    const std::string& pcieDeviceSlot)
+{
+    dbus::utility::getAssociatedSubTreePaths(
+        pcieDeviceSlot + "/contained_by",
+        sdbusplus::message::object_path("/xyz/openbmc_project/inventory"), 0,
+        chassisInterfaces,
+        std::bind_front(afterAddLinkToPCIeSlot, asyncResp, pcieDeviceSlot));
 }
 
 inline void afterGetAssociatedSubTreePaths(
@@ -452,6 +502,9 @@ inline void afterGetDbusObject(
         messages::internalError(asyncResp->res);
         return;
     }
+
+    addLinkToPCIeSlot(asyncResp, pcieDeviceSlot);
+
     for (const auto& [service, interfaces] : object)
     {
         for (const std::string& interface : interfaces)
