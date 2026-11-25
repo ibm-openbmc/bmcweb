@@ -18,6 +18,7 @@
 #include "hypervisor_system.hpp"
 #include "led.hpp"
 #include "logging.hpp"
+#include "oem/ibm/pcie_topology_refresh.hpp"
 #include "query.hpp"
 #include "redfish_util.hpp"
 #include "registries/privilege_registry.hpp"
@@ -3506,6 +3507,7 @@ inline void handleComputerSystemGet(
         std::bind_front(processComputerSystemGet, asyncResp, systemName));
 }
 
+// NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 struct PatchParams
 {
     std::optional<bool> locationIndicatorActive;
@@ -3528,6 +3530,8 @@ struct PatchParams
     std::optional<uint64_t> ipsExitTime;
     std::optional<std::string> chapName;
     std::optional<std::string> chapSecret;
+    std::optional<bool> pcieTopologyRefresh;
+    std::optional<bool> savePCIeTopologyInfo;
 };
 
 /**
@@ -3642,6 +3646,16 @@ inline void processComputerSystemPatch(
         setChapData(req, asyncResp, patchParams.chapName,
                     patchParams.chapSecret);
     }
+
+    if (patchParams.pcieTopologyRefresh)
+    {
+        setPCIeTopologyRefresh(req, asyncResp,
+                               *patchParams.pcieTopologyRefresh);
+    }
+    if (patchParams.savePCIeTopologyInfo)
+    {
+        setSavePCIeTopologyInfo(asyncResp, *patchParams.savePCIeTopologyInfo);
+    }
 }
 
 inline void handleComputerSystemPatch(
@@ -3694,7 +3708,9 @@ inline void handleComputerSystemPatch(
             "PowerMode", patchParams.powerMode,                               //
             "PowerRestorePolicy", patchParams.powerRestorePolicy,             //
             "Oem/IBM/ChapData/ChapName", patchParams.chapName,                //
-            "Oem/IBM/ChapData/ChapSecret", patchParams.chapSecret))
+            "Oem/IBM/ChapData/ChapSecret", patchParams.chapSecret,            //
+            "Oem/IBM/PCIeTopologyRefresh", patchParams.pcieTopologyRefresh,   //
+            "Oem/IBM/SavePCIeTopologyInfo", patchParams.savePCIeTopologyInfo))
     {
         return;
     }
