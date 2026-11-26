@@ -9,6 +9,8 @@
 #include "http_response.hpp"
 #include "update_service.hpp"
 
+#include <asm-generic/errno.h>
+
 #include <boost/beast/http/field.hpp>
 #include <boost/beast/http/status.hpp>
 #include <boost/beast/http/verb.hpp>
